@@ -12,13 +12,15 @@ import 'primeicons/primeicons.css'
 import MainLayout from './Layouts/MainLayout.vue'
 
 createInertiaApp({
-  title: (title) => `HRIS ${title}`,
   resolve: name => {
     const pages = import.meta.glob('./Pages/**/*.vue', { eager: true })
     let page = pages[`./Pages/${name}.vue`];
-    page.default.layout = page.default.layout || MainLayout;
+    if (name !== 'Landing' && !page.default.layout) {
+      page.default.layout = MainLayout;
+    }
     return page;
   },
+  title: (title) => `EDUBOARD ${title}`,
   setup({ el, App, props, plugin }) {
     createApp({ render: () => h(App, props) })
       .use(plugin)
@@ -27,7 +29,7 @@ createInertiaApp({
         theme: {
             preset: Aura,
             options: {
-              prefix: 'msu-hris',
+              prefix: 'ncs-lms',
               darkModeSelector: 'light',
               cssLayer: false
             }

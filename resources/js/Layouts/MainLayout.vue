@@ -1,204 +1,170 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 
-// Ref
-const toggleMenu = ref(false);
-const sideBarItems = ref([
-    {
-        separator: true
-    },
-    {
-        label: 'Dashboard',
-        icon: 'pi pi-objects-column',
-        route: route('home'),
-        badge: 3
-    },
-    {
-        label: 'Messages',
-        icon: 'pi pi-inbox',
-        badge: 2
-    },
-    {
-        label: 'File',
-        icon: 'pi pi-file',
-        items: [
-            {
-                label: 'New',
-                icon: 'pi pi-plus',
-            },
-            {
-                label: 'Open',
-                icon: 'pi pi-folder-open',
-                shortcut: '⌘+O'
-            },
-            {
-                label: 'Print',
-                icon: 'pi pi-print',
-                shortcut: '⌘+P'
-            }
-        ]
-    },
-    {
-        label: 'Edit',
-        icon: 'pi pi-file-edit',
-        items: [
-            {
-                label: 'Copy',
-                icon: 'pi pi-copy',
-                shortcut: '⌘+C'
-            },
-            {
-                label: 'Delete',
-                icon: 'pi pi-times',
-                shortcut: '⌘+D'
-            }
-        ]
-    },
-    {
-        separator: true
-    },
-    {
-        label: 'Search',
-        icon: 'pi pi-search',
-        shortcut: '⌘+S'
-    },
-    {
-        label: 'Share',
-        icon: 'pi pi-share-alt',
-        items: [
-            {
-                label: 'Slack',
-                icon: 'pi pi-slack',
-                badge: 2
-            },
-            {
-                label: 'Whatsapp',
-                icon: 'pi pi-whatsapp',
-                badge: 3
-            }
-        ]
+// Define props
+const props = defineProps({
+    user: {
+        type: Object,
+        required: true
     }
-]);
+});
 
-const menuBarItems = ref([
-    {
-        label: 'Home',
-        icon: 'pi pi-home'
-    },
-    {
-        label: 'Features',
-        icon: 'pi pi-star'
-    },
-    {
-        label: 'Projects',
-        icon: 'pi pi-search',
-        items: [
+// Computed property for menu items based on user role
+const sideBarItems = computed(() => {
+    const commonItems = [
+        {
+            label: 'Logout',
+            icon: 'pi pi-sign-out',
+            action: () => {
+                router.post(route('logout'));
+            }
+        }
+    ];
+
+    const roleBasedItems = {
+        admin: [
             {
-                label: 'Components',
-                icon: 'pi pi-bolt'
+                label: 'Dashboard',
+                icon: 'pi pi-th-large',
+                route: route('admin.dashboard')
             },
             {
-                label: 'Blocks',
-                icon: 'pi pi-server'
+                label: 'Class',
+                icon: 'pi pi-book',
+                route: route('admin.classes')
             },
             {
-                label: 'UI Kit',
-                icon: 'pi pi-pencil'
+                label: 'Lesson Plans',
+                icon: 'pi pi-file',
+                route: route('admin.lessons')
+            },
+        ],
+        teacher: [
+            {
+                label: 'Dashboard',
+                icon: 'pi pi-th-large',
+                route: route('teacher.dashboard')
             },
             {
-                label: 'Templates',
-                icon: 'pi pi-palette',
-                items: [
-                    {
-                        label: 'Apollo',
-                        icon: 'pi pi-palette'
-                    },
-                    {
-                        label: 'Ultima',
-                        icon: 'pi pi-palette'
-                    }
-                ]
+                label: 'My Classes',
+                icon: 'pi pi-users',
+                route: route('teacher.classes')
+            },
+
+        ],
+        student: [
+            {
+                label: 'Dashboard',
+                icon: 'pi pi-th-large',
+                route: route('student.dashboard')
+            },
+            {
+                label: 'My Classes',
+                icon: 'pi pi-book',
+                route: route('student.classes')
+            },
+            {
+                label: 'Assignments',
+                icon: 'pi pi-file',
+                route: route('student.assignments')
+            },
+            {
+                label: 'Grades',
+                icon: 'pi pi-chart-bar',
+                route: route('student.grades')
             }
         ]
-    },
-    {
-        label: 'Contact',
-        icon: 'pi pi-envelope'
-    }
-]);
+    };
 
+    return [...(roleBasedItems[props.user.role] || []), ...commonItems];
+});
 </script>
 
 <template>
     <div class="bg-gray-100">
-        <div class="flex flex-col md:flex-row ">
+        <div class="flex">
+            <!-- Sidebar -->
+      <div class="w-64 h-screen bg-white shadow-lg sticky top-0 flex flex-col">
+     <!-- Logo Section -->
+     <div class="p-4 border-b">
+        <div class="flex items-center">
+            <img src="https://scontent.fmnl13-4.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEeeZOV62u2x4mCX5FuSl2wJArEhEwobZUkCsSETChtlSadu9mg9xY6wtY1RoAhwpXAtpuI0SMtLSKiUSUzf-yu&_nc_ohc=ubF5iKQIDtUQ7kNvgEZt1Zt&_nc_zt=23&_nc_ht=scontent.fmnl13-4.fna&_nc_gid=AvtJ5qeJYzczZsKMH7NwsX-&oh=00_AYD4Mk_MKvBv0VUAMpE1RImZfJgXNyCrwS6Ez5c6F0D3HA&oe=67631DF4"
+                 alt="Eduboard Logo" class="h-12 w-12 mr-3 rounded-full">
+            <span class="text-xl font-bold">EDUBOARD</span>
+        </div>
+    </div>
+
+    <!-- Navigation Section -->
+    <nav class="flex-1 overflow-y-auto mt-4">
+        <div v-for="(item, index) in sideBarItems" :key="index" class="px-4 py-2">
+            <Link v-if="item.route" :href="item.route"
+                  class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
+                <i :class="item.icon" class="mr-3 text-lg"></i>
+                <span class="text-sm font-medium">{{ item.label }}</span>
+            </Link>
+            <button v-else @click="item.action" class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
+                <i :class="item.icon" class="mr-3 text-lg"></i>
+                <span class="text-sm font-medium">{{ item.label }}</span>
+            </button>
+        </div>
+    </nav>
+ </div>
 
 
-            <aside class="fixed top-0 left-0 h-screen">
-                <div class="card flex justify-center h-full">
-                    <TieredMenu :model="sideBarItems" class="w-full hidden h-16 flex-shrink-0 !rounded-none lg:block lg:w-60  lg:h-full">
-                    <template #start>
-                        <span class="inline-flex items-center gap-1 px-2 py-2">
-                            <Avatar image="https://msunaawan.edu.ph/wp-content/uploads/elementor/thumbs/Resized-for-Docs_MSUN-LOGO-1-qukqvmb3wm17j2ukfd3r16tafpfhgujscsqt1iex2g.png" shape="circle" />
-                            <span class="text-xl font-semibold">HRIS</span>
-                        </span>
-                    </template>
-
-                    <template #item="{ item, props, hasSubmenu }">
-                        <Link v-if="item.route" v-ripple :href="item.route" class="flex items-center cursor-pointer text-surface-700 dark:text-surface-0 px-4 py-2">
-                            <span :class="item.icon" />
-                            <span class="ml-2">{{ item.label }}</span>
-                            <Badge v-if="item.badge" class="ml-auto" :value="item.badge" />
-                        </Link>
-                        <a v-else v-ripple :href="item.url" :target="item.target" v-bind="props.action">
-                            <span :class="item.icon" />
-                            <span class="ml-2">{{ item.label }}</span>
-                            <span v-if="hasSubmenu" class="pi pi-angle-right ml-auto" />
-                        </a>
-                    </template>
-                    <!-- <template #submenulabel="{ item }">
-                        <span class="text-primary font-bold">{{ item.label }}</span>
-                    </template>-->
-
-                </TieredMenu>
+            <!-- Main Content Area -->
+            <div class="flex-1">
+               <!-- Top Navigation Bar -->
+<nav class="bg-white shadow-md sticky top-0 z-50">
+    <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <!-- Search Bar -->
+            <div class="flex-1 flex items-center">
+                <div class="max-w-lg w-full lg:max-w-xs">
+                    <label for="search" class="sr-only">Search</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="pi pi-search text-gray-400"></i>
+                        </div>
+                        <input id="search" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 sm:text-sm" placeholder="Search" type="search">
+                    </div>
                 </div>
-            </aside>
+            </div>
 
+            <!-- Right Navigation -->
+            <div class="flex items-center">
+                <!-- Notifications -->
+                <button class="p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="sr-only">View notifications</span>
+                    <i class="pi pi-bell text-xl"></i>
+                </button>
 
-            <!-- Main Content -->
-            <main class="flex-1">
-                <header class="fixed top-0 left-0 right-0 z-[1100] lg:left-60">
-                    <Menubar :model="menuBarItems" class="w-full md:w-100 !border-l-0 !rounded-none">
-                        <!-- <template #start>
-                            <span class="pi pi-bars"></span>
-                        </template> -->
-                        <template #item="{ item, props, hasSubmenu, root }">
-                            <a v-ripple class="flex items-center" v-bind="props.action">
-                                <span>{{ item.label }}</span>
-                                <Badge v-if="item.badge" :class="{ 'ml-auto': !root, 'ml-2': root }" :value="item.badge" />
-                                <span v-if="item.shortcut" class="ml-auto border border-surface rounded bg-emphasis text-muted-color text-xs p-1">{{ item.shortcut }}</span>
-                                <i v-if="hasSubmenu" :class="['pi pi-angle-down ml-auto', { 'pi-angle-down': root, 'pi-angle-right': !root }]"></i>
-                            </a>
-                        </template>
-                        <template #end>
-                            <button v-ripple class="relative overflow-hidden w-full border-0 bg-transparent flex items-start justify-center pl-4 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-none cursor-pointer transition-colors duration-200">
-                                <Avatar image="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png" class="mr-2" shape="circle" />
-                                <span class="inline-flex flex-col items-start">
-                                    <span class="font-bold text-xs">Amy Elsner</span>
-                                    <span class="text-xs">Admin</span>
-                                </span>
-                            </button>
-                        </template>
-                    </Menubar>
-                    <!-- </nav> -->
-                </header>
-
-                <div class="md:mt-12 px-4 py-4 lg:ml-60">
-                    <slot />
+                <!-- Profile dropdown -->
+                <div class="ml-4 relative flex items-center">
+                    <div class="flex items-center">
+                        <img class="h-8 w-8 rounded-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
+                        <div class="ml-3">
+                            <div class="text-base font-medium text-gray-800">{{ props.user?.name }}</div>
+                            <div class="text-sm font-medium text-gray-500 capitalize">{{ props.user?.role }}</div>
+                        </div>
+                    </div>
                 </div>
-            </main>
+            </div>
+        </div>
+    </div>
+</nav>
 
+                <!-- Page Content -->
+                <main class="p-6">
+                    <slot></slot>
+                </main>
+            </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+.nav-link {
+    @apply px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50;
+}
+</style>
