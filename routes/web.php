@@ -57,17 +57,23 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('dashboard');
 
-        Route::get('/classes', function() {
-            return Inertia::render('Teacher/Classes', [
+        Route::get('/lessons', function() {
+            return Inertia::render('Teacher/Lessons2', [
                 'user' => Auth::user()
             ]);
-        })->name('classes');
+        })->name('lessons');
 
-        Route::get('/students', function() {
-            return Inertia::render('Teacher/Students', [
+        Route::get('/class', function() {
+            return Inertia::render('Teacher/Class2', [
                 'user' => Auth::user()
             ]);
-        })->name('students');
+        })->name('class');
+
+        Route::get('/calendar', function() {
+            return Inertia::render('Teacher/Calendar2', [
+                'user' => Auth::user()
+            ]);
+        })->name('calendar');
     });
 
     // Student routes

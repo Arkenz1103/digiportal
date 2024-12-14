@@ -1,48 +1,114 @@
 <template>
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Welcome back, {{ user?.name }}!</h1>
+  <div class="p-6 bg-gray-50 min-h-screen font-sans">
+  <!-- Container for Welcome Section and Calendar -->
+  <div class="flex flex-col md:flex-row gap-x-60">
+    <!-- Welcome Section -->
+    <div class="flex-1 bg-blue-100 rounded-lg p-4">
+      <h2 class="text-lg font-bold">
+        Welcome Back, <span class="text-green-600">Mike!</span>
+      </h2>
+      <p class="text-gray-700">
+        Your Students completed
+        <span class="font-bold">100%</span> of the task.
+        Progress is <span class="text-green-600">Excellent!</span>
+      </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- My Classes -->
-        <div class="bg-blue-100 rounded-lg p-6 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="text-xl font-semibold text-gray-800">My Classes</h3>
-                    <p class="mt-2 text-gray-600">View and manage your assigned classes</p>
-                </div>
-                <div class="bg-blue-200 p-3 rounded-full">
-                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        <!-- Students -->
-        <div class="bg-green-100 rounded-lg p-6 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="text-xl font-semibold text-gray-800">Students</h3>
-                    <p class="mt-2 text-gray-600">View and manage your students</p>
-                </div>
-                <div class="bg-green-200 p-3 rounded-full">
-                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                </div>
-            </div>
-        </div>
+    <!-- Calendar -->
+    <div class="w-full md:w-1/4 bg-blue-300 rounded-lg flex items-center justify-center h-23">
+      <div class="text-center">
+        <h3 class="font-bold text-gray-700">CALENDAR</h3>
+        <p class="text-lg font-bold text-black">2024</p>
+      </div>
     </div>
+  </div>
+
+    <!-- Progress Section -->
+    <div class="grid grid-cols-2 gap-6 mt-6">
+      <!-- Working Hours -->
+      <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="font-semibold mb-2 text-gray-700">Working Hours</h3>
+        <div class="flex justify-between items-center mb-2">
+          <p class="text-gray-600">Today</p>
+          <Dropdown
+            v-model="selectedOption"
+            :options="['Today']"
+            class="p-dropdown-sm"
+          />
+        </div>
+        <div class="flex items-center justify-center">
+          <CircleProgress :percentage="100" />
+        </div>
+      </div>
+
+
+
+  <!-- Parent Container with justify-end -->
+  <div class="flex justify-end">
+    <!-- My Students Box -->
+    <div class="bg-blue-100 w-3/4 md:w-3/5 rounded-lg shadow p-4">
+      <!-- Header -->
+      <div class="flex justify-between mb-2">
+        <h3 class="font-semibold text-gray-700">My Students</h3>
+        <a href="#" class="text-indigo-500 text-sm hover:bg-indigo-300 cursor-pointer">View all</a>
+      </div>
+
+      <!-- Content -->
+      <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <!-- User Icon -->
+          <div class="bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center">
+            <i class="pi pi-user text-xl"></i>
+          </div>
+          <!-- Student Name -->
+          <div>
+            <p class="font-semibold text-gray-700">Milo</p>
+          </div>
+        </div>
+        <!-- Percentage aligned to the right -->
+        <div class="text-right">
+          <p class="text-green-600 font-bold">100%</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+    <!-- Uploads Section -->
+    <div class="mt-6">
+      <h3 class="font-semibold text-gray-700 mb-2">Uploads</h3>
+      <div class="space-y-2">
+        <div class="bg-indigo-300 h-10 rounded-lg"></div>
+        <div class="bg-indigo-300 h-10 rounded-lg"></div>
+        <div class="bg-indigo-300 h-10 rounded-lg"></div>
+      </div>
+    </div>
+  </div>
 </template>
 
-<script setup>
-import MainLayout from '../../Layouts/MainLayout.vue';
+<script>
+import Dropdown from "primevue/dropdown";
+import CircleProgress from "../Components/CircleProgress.vue"; // Custom Circle Progress Component
 
-defineProps({
-    user: {
-        type: Object,
-        required: true
-    }
-});
+export default {
+  name: "Dashboard",
+  components: {
+    Dropdown,
+    CircleProgress,
+  },
+  data() {
+    return {
+      selectedOption: "Today",
+    };
+  },
+};
 </script>
+
+<style>
+.p-dropdown-sm {
+  width: 100px;
+  font-size: 0.9rem;
+}
+</style>
