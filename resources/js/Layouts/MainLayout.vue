@@ -1,14 +1,10 @@
 <script setup>
-import { Link, router } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
-// Define props
-const props = defineProps({
-    user: {
-        type: Object,
-        required: true
-    }
-});
+// Get user from shared data
+const page = usePage();
+const auth = computed(() => page.props.auth);
 
 // Computed property for menu items based on user role
 const sideBarItems = computed(() => {
@@ -21,6 +17,10 @@ const sideBarItems = computed(() => {
             }
         }
     ];
+
+    if (!auth.value?.user) {
+        return commonItems;
+    }
 
     const roleBasedItems = {
         admin: [
@@ -69,24 +69,19 @@ const sideBarItems = computed(() => {
                 route: route('student.dashboard')
             },
             {
-                label: 'My Classes',
+                label: 'Class',
                 icon: 'pi pi-book',
                 route: route('student.classes')
             },
             {
-                label: 'Assignments',
-                icon: 'pi pi-file',
-                route: route('student.assignments')
+                label: 'Calendar',
+                icon: 'pi pi-calendar',
+                route: route('student.calendar')
             },
-            {
-                label: 'Grades',
-                icon: 'pi pi-chart-bar',
-                route: route('student.grades')
-            }
         ]
     };
 
-    return [...(roleBasedItems[props.user.role] || []), ...commonItems];
+    return [...(roleBasedItems[auth.value.user.role] || []), ...commonItems];
 });
 </script>
 
@@ -150,11 +145,11 @@ const sideBarItems = computed(() => {
 
                 <!-- Profile dropdown -->
                 <div class="ml-4 relative flex items-center">
-                    <div class="flex items-center">
+                    <div class="flex items-center" v-if="auth?.user">
                         <img class="h-8 w-8 rounded-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
                         <div class="ml-3">
-                            <div class="text-base font-medium text-gray-800">{{ props.user?.name }}</div>
-                            <div class="text-sm font-medium text-gray-500 capitalize">{{ props.user?.role }}</div>
+                            <div class="text-base font-medium text-gray-800">{{ auth.user.name }}</div>
+                            <div class="text-sm font-medium text-gray-500 capitalize">{{ auth.user.role }}</div>
                         </div>
                     </div>
                 </div>

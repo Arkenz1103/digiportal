@@ -79,16 +79,24 @@ Route::middleware(['auth'])->group(function () {
     // Student routes
     Route::middleware([StudentMiddleware::class])->prefix('student')->name('student.')->group(function () {
         Route::get('/dashboard', function() {
-            return Inertia::render('Student/Dashboard1', [
-                'user' => Auth::user()
-            ]);
+            return Inertia::render('Student/Dashboard1');
         })->name('dashboard');
 
+        // Class routes
         Route::get('/classes', function() {
-            return Inertia::render('Student/Classes', [
-                'user' => Auth::user()
-            ]);
+            return Inertia::render('Student/ClassOverview');
         })->name('classes');
+
+        Route::get('/class/{className}', function($className) {
+            return Inertia::render('Student/ClassDetail', [
+                'className' => ucfirst($className)
+            ]);
+        })->name('class.show');
+
+        // Calendar route
+        Route::get('/calendar', function() {
+            return Inertia::render('Student/Calendar');
+        })->name('calendar');
 
         Route::get('/assignments', function() {
             return Inertia::render('Student/Assignments', [

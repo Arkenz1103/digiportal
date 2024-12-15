@@ -5,7 +5,7 @@ defineOptions({ layout: null })
 </script>
 
 <template>
-    <Head title="Welcome" />
+    <Head title="" />
     <div class="min-h-screen bg-white">
         <!-- Header -->
         <div class="bg-[#7386D5] text-white py-4">
