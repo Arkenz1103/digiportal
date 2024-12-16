@@ -143,16 +143,22 @@ const sideBarItems = computed(() => {
                     <i class="pi pi-bell text-xl"></i>
                 </button>
 
-                <!-- Profile dropdown -->
-                <div class="ml-4 relative flex items-center">
-                    <div class="flex items-center" v-if="auth?.user">
-                        <img class="h-8 w-8 rounded-full object-cover" src="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png" alt="">
-                        <div class="ml-3">
-                            <div class="text-base font-medium text-gray-800">{{ auth.user.name }}</div>
-                            <div class="text-sm font-medium text-gray-500 capitalize">{{ auth.user.role }}</div>
-                        </div>
+                     <!-- Profile dropdown -->
+                      <div class="ml-4 relative flex items-center">
+                      <div class="flex items-center" v-if="auth?.user">
+                      <Link :href="route('profile')">
+                           <img
+                              class="h-8 w-8 rounded-full object-cover cursor-pointer"
+                              src="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png"
+                             alt="Profile Picture"
+                       />
+                      </Link>
+                      <div class="ml-3">
+                        <div class="text-base font-medium text-gray-800">{{ auth.user.name }}</div>
+                        <div class="text-sm font-medium text-gray-500 capitalize">{{ auth.user.role }}</div>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     </div>
