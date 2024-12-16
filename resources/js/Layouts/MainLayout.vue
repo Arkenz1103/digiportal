@@ -48,7 +48,7 @@ const sideBarItems = computed(() => {
             },
             {
                 label: 'Lesson Plan',
-                icon: 'pi pi-shopping-bag',
+                icon: 'pi pi-inbox',
                 route: route('teacher.lessons')
             },
             {
@@ -146,7 +146,7 @@ const sideBarItems = computed(() => {
                 <!-- Profile dropdown -->
                 <div class="ml-4 relative flex items-center">
                     <div class="flex items-center" v-if="auth?.user">
-                        <img class="h-8 w-8 rounded-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="">
+                        <img class="h-8 w-8 rounded-full object-cover" src="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png" alt="">
                         <div class="ml-3">
                             <div class="text-base font-medium text-gray-800">{{ auth.user.name }}</div>
                             <div class="text-sm font-medium text-gray-500 capitalize">{{ auth.user.role }}</div>

@@ -8,7 +8,7 @@ import { ref } from 'vue';
     <!-- Main Content -->
     <main class="flex-1">
         <header class="mb-4 flex justify-between items-center">
-            <h1 class="text-1xl font-semibold">Class / SY 2024-2025</h1>
+            <h1 class="text-3xl font-semibold">Class / SY 2024-2025</h1>
         </header>
 
         <!-- Flex Container for Dashboard and Card -->
