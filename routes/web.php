@@ -35,18 +35,6 @@ Route::middleware(['auth'])->group(function () {
                 'user' => Auth::user()
             ]);
         })->name('lessons');
-
-        Route::get('/teachers', function() {
-            return Inertia::render('Admin/Teachers', [
-                'user' => Auth::user()
-            ]);
-        })->name('teachers');
-
-        Route::get('/students', function() {
-            return Inertia::render('Admin/Students', [
-                'user' => Auth::user()
-            ]);
-        })->name('students');
     });
 
     // Teacher routes
@@ -97,18 +85,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/calendar', function() {
             return Inertia::render('Student/Calendar');
         })->name('calendar');
-
-        Route::get('/assignments', function() {
-            return Inertia::render('Student/Assignments', [
-                'user' => Auth::user()
-            ]);
-        })->name('assignments');
-
-        Route::get('/grades', function() {
-            return Inertia::render('Student/Grades', [
-                'user' => Auth::user()
-            ]);
-        })->name('grades');
     });
 
     // Common routes (accessible to all authenticated users)
