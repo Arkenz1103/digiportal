@@ -3,7 +3,7 @@
     <h1>Profile</h1>
     <div class="profile-content">
       <img
-        :src="user.picture || '/default-avatar.png'"
+        :src="user.picture"
         alt="Profile Picture"
         class="profile-picture"
       />

@@ -36,7 +36,7 @@ const sideBarItems = computed(() => {
             },
             {
                 label: 'Lesson Plans',
-                icon: 'pi pi-file',
+                icon: 'pi pi-inbox',
                 route: route('admin.lessons')
             },
         ],
@@ -70,7 +70,7 @@ const sideBarItems = computed(() => {
             },
             {
                 label: 'Class',
-                icon: 'pi pi-book',
+                icon: 'pi pi-users',
                 route: route('student.classes')
             },
             {
