@@ -7,21 +7,11 @@
         <!-- Mathematics Class Card -->
         <Link :href="route('student.class.show', 'mathematics')" class="block">
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <img src="https://radiant.edu.np/wp-content/uploads/2023/03/mmmmmmm.jpg" alt="Mathematics" class="w-full h-48 object-cover">
-                <div class="p-4 bg-blue-100">
-                    <h3 class="text-xl font-semibold mb-2">Mathematics</h3>
-                    <p class="text-gray-600">Grade 1 - A</p>
-                    <p class="text-gray-600">MW(7:00am-8:00am)</p>
+                <div class="h-48 flex items-center justify-center bg-blue-500 text-white text-3xl font-bold">
+                    Mathematics
                 </div>
-            </div>
-        </Link>
-
-        <!-- Science Class Card -->
-        <Link :href="route('student.class.show', 'science')" class="block">
-            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <img src="https://www.shutterstock.com/image-vector/word-design-science-illustration-260nw-767861248.jpg" alt="Science" class="w-full h-48 object-cover">
-                <div class="p-4 bg-blue-100">
-                    <h3 class="text-xl font-semibold mb-2">Science</h3>
+                <div class="p-4 bg-gray-100">
+                    <h3 class="text-lg font-semibold">Mathematics</h3>
                     <p class="text-gray-600">Grade 1 - A</p>
                     <p class="text-gray-600">MW(7:00am-8:00am)</p>
                 </div>
@@ -31,11 +21,27 @@
         <!-- English Class Card -->
         <Link :href="route('student.class.show', 'english')" class="block">
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <img src="https://img.freepik.com/free-vector/hand-drawn-english-book-background_23-2149483336.jpg" alt="English" class="w-full h-48 object-cover">
-                <div class="p-4 bg-blue-100">
-                    <h3 class="text-xl font-semibold mb-2">English</h3>
+                <div class="h-48 flex items-center justify-center bg-red-500 text-white text-3xl font-bold">
+                    English
+                </div>
+                <div class="p-4 bg-gray-100">
+                    <h3 class="text-lg font-semibold">English</h3>
                     <p class="text-gray-600">Grade 1 - A</p>
-                    <p class="text-gray-600">MW(7:00am-8:00am)</p>
+                    <p class="text-gray-600">TT(8:00am-9:00am)</p>
+                </div>
+            </div>
+        </Link>
+
+        <!-- Science Class Card -->
+        <Link :href="route('student.class.show', 'science')" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-48 flex items-center justify-center bg-green-500 text-white text-3xl font-bold">
+                    Science
+                </div>
+                <div class="p-4 bg-gray-100">
+                    <h3 class="text-lg font-semibold">Science</h3>
+                    <p class="text-gray-600">Grade 1 - A</p>
+                    <p class="text-gray-600">WF(9:00am-10:00am)</p>
                 </div>
             </div>
         </Link>
