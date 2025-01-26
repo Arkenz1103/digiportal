@@ -7,6 +7,7 @@ use App\Http\Middleware\StudentMiddleware;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
 
 // Public routes
 Route::inertia('/', 'Landing')->name('landing');
@@ -30,9 +31,10 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('classes');
 
-        Route::get('/lessons', function() {
+        Route::get('/lessons', function(Request $request) {
             return Inertia::render('Admin/Lessons', [
-                'user' => Auth::user()
+                'user' => Auth::user(),
+                'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
             ]);
         })->name('lessons');
     });
