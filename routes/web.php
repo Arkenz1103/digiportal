@@ -59,6 +59,12 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('class');
 
+        Route::get('/class/{className}', function($className) {
+            return Inertia::render('Teacher/ClassDetail2', [
+                'className' => ucfirst($className)
+            ]);
+        })->name('class.show');
+
         Route::get('/calendar', function() {
             return Inertia::render('Teacher/Calendar2', [
                 'user' => Auth::user()
