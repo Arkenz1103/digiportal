@@ -64,14 +64,6 @@ const props = defineProps({
 const tabs = ['Overview', 'Classwork', 'Students', 'Grades', 'Lesson Plan'];
 const currentTab = ref('Overview');
 
-// Sample data - replace with actual data from your backend
-const posts = [
-  {
-    author: 'Teacher Name',
-    date: 'Sep 22',
-    content: 'Welcome to our class! I\'m excited to start this learning journey with you.'
-  }
-];
 
 const students = [
   { name: 'Mike Madulara' },
