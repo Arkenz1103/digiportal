@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { Link, usePage } from "@inertiajs/vue3";
+import Dropdown from 'primevue/dropdown';
 
 // Lesson Status Types
 const LESSON_STATUS = {
@@ -208,34 +209,77 @@ const reviewLessonPlan = (lesson) => {
     </header>
 
     <!-- Search and Filters -->
-    <div class="mb-4 grid grid-cols-4 gap-4">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Search by title or teacher"
-        class="border rounded px-4 py-2"
+    <div v-if="activeView === 'urgent_and_upcoming'" class="mb-4 grid grid-cols-4 gap-4">
+      <div class="relative">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search lessons..."
+          class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition duration-300 ease-in-out"
+        />
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+      </div>
+      <Dropdown 
+        v-model="filters.teacher" 
+        :options="[
+          { label: '[All Teachers]', value: '' },
+          { label: 'John Smith', value: 'John Smith' },
+          { label: 'Emily Rodriguez', value: 'Emily Rodriguez' },
+          { label: 'Michael Chen', value: 'Michael Chen' },
+          { label: 'Sarah Williams', value: 'Sarah Williams' },
+          { label: 'Carlos Ramirez', value: 'Carlos Ramirez' },
+          { label: 'Elizabeth Brown', value: 'Elizabeth Brown' }
+        ]"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select a Teacher"
+        class="w-full"
       />
-      <select v-model="filters.teacher" class="border rounded px-4 py-2">
-        <option value="">[All Teachers]</option>
-        <option value="John Smith">John Smith</option>
-        <option value="Emily Rodriguez">Emily Rodriguez</option>
-        <option value="Michael Chen">Michael Chen</option>
-        <option value="Sarah Williams">Sarah Williams</option>
-        <option value="Carlos Ramirez">Carlos Ramirez</option>
-        <option value="Elizabeth Brown">Elizabeth Brown</option>
-      </select>
-      <select v-model="filters.status" class="border rounded px-4 py-2">
-        <option value="">[All Statuses]</option>
-        <option :value="LESSON_STATUS.PENDING_REVIEW">Pending Review</option>
-        <option :value="LESSON_STATUS.APPROVED">Approved</option>
-        <option :value="LESSON_STATUS.NEEDS_REVISION">Needs Revision</option>
-      </select>
-      <select v-model="filters.priority" class="border rounded px-4 py-2">
-        <option value="">[All Priorities]</option>
-        <option :value="LESSON_PRIORITY.HIGH">High Priority</option>
-        <option :value="LESSON_PRIORITY.MEDIUM">Medium Priority</option>
-        <option :value="LESSON_PRIORITY.LOW">Low Priority</option>
-      </select>
+      <Dropdown 
+        v-model="filters.status" 
+        :options="[
+          { label: '[All Statuses]', value: '' },
+          { label: 'Pending Review', value: LESSON_STATUS.PENDING_REVIEW },
+          { label: 'Approved', value: LESSON_STATUS.APPROVED },
+          { label: 'Needs Revision', value: LESSON_STATUS.NEEDS_REVISION }
+        ]"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select a Status"
+        class="w-full"
+      />
+      <Dropdown 
+        v-model="filters.priority" 
+        :options="[
+          { label: '[All Priorities]', value: '' },
+          { label: 'High Priority', value: LESSON_PRIORITY.HIGH },
+          { label: 'Medium Priority', value: LESSON_PRIORITY.MEDIUM },
+          { label: 'Low Priority', value: LESSON_PRIORITY.LOW }
+        ]"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select a Priority"
+        class="w-full"
+      />
+    </div>
+    <div v-else class="mb-4 px-6">
+      <div class="relative w-2/3">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search lessons..."
+          class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition duration-300 ease-in-out"
+        />
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+      </div>
     </div>
 
     <!-- Lesson Plans Table -->
