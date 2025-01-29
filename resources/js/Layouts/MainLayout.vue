@@ -105,7 +105,7 @@ const sideBarItems = computed(() => {
      <!-- Logo Section -->
      <div class="p-4 border-b">
         <div class="flex items-center">
-            <img src="https://scontent.fmnl13-4.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEeeZOV62u2x4mCX5FuSl2wJArEhEwobZUkCsSETChtlSadu9mg9xY6wtY1RoAhwpXAtpuI0SMtLSKiUSUzf-yu&_nc_ohc=ubF5iKQIDtUQ7kNvgEZt1Zt&_nc_zt=23&_nc_ht=scontent.fmnl13-4.fna&_nc_gid=AvtJ5qeJYzczZsKMH7NwsX-&oh=00_AYD4Mk_MKvBv0VUAMpE1RImZfJgXNyCrwS6Ez5c6F0D3HA&oe=67631DF4"
+            <img src="https://scontent.fcgy1-3.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEeeZOV62u2x4mCX5FuSl2wJArEhEwobZUkCsSETChtlSadu9mg9xY6wtY1RoAhwpXAtpuI0SMtLSKiUSUzf-yu&_nc_ohc=j_EwGgc7-SQQ7kNvgHlSEIX&_nc_zt=23&_nc_ht=scontent.fcgy1-3.fna&_nc_gid=AkBRWbmNnNYNJ8k7wn02vJb&oh=00_AYAeNmZNTVEZEb4AMUdxTn4RSK1zxHXnkZVPambnU-tMNg&oe=679F5274"
                  alt="Eduboard Logo" class="h-12 w-12 mr-3 rounded-full">
             <span class="text-xl font-bold">EDUBOARD</span>
         </div>
