@@ -21,7 +21,7 @@ defineOptions({ layout: null })
         <main class="container mx-auto flex flex-col md:flex-row items-center justify-center gap-16 px-4 py-16">
             <div class="w-64 md:w-96">
                 <img
-                    src="https://scontent.fmnl13-4.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeEeeZOV62u2x4mCX5FuSl2wJArEhEwobZUkCsSETChtlSadu9mg9xY6wtY1RoAhwpXAtpuI0SMtLSKiUSUzf-yu&_nc_ohc=ubF5iKQIDtUQ7kNvgEZt1Zt&_nc_zt=23&_nc_ht=scontent.fmnl13-4.fna&_nc_gid=A23xbZ_kfZlTXSq8V8A7lWK&oh=00_AYBsGcjiZbvKLr1F7j241bPB_XaYurmSq1fjC5iwKrccgw&oe=6762AD74"
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlC4Z2-qQHdn_TKc6z-SJGsVH1_hJB4iu4DA&s"
                     alt="Naawan Central School Logo"
                     class="w-full h-auto"
                 />
