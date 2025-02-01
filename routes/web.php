@@ -95,10 +95,10 @@ Route::middleware(['auth'])->group(function () {
         })->name('calendar');
     });
 
-        // Profile route
-        Route::get('/profile', function() {
-            return Inertia::render('Student/Profile', [
-                'user' => Auth::user()
-            ]);
-        })->name('profile');
+    // Common routes (accessible to all authenticated users)
+    Route::get('/profile', function() {
+        return Inertia::render('Profile', [
+            'user' => Auth::user()
+        ]);
+    })->name('profile');
 });
