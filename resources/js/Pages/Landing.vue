@@ -22,7 +22,6 @@ defineOptions({ layout: null })
             <div class="w-64 md:w-96">
                 <img
                     src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlC4Z2-qQHdn_TKc6z-SJGsVH1_hJB4iu4DA&s"
-                    alt="Naawan Central School Logo"
                     class="w-full h-auto"
                 />
             </div>

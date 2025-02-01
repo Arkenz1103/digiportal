@@ -7,6 +7,7 @@ use App\Http\Middleware\StudentMiddleware;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
 
 // Public routes
 Route::inertia('/', 'Landing')->name('landing');
@@ -30,9 +31,10 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('classes');
 
-        Route::get('/lessons', function() {
+        Route::get('/lessons', function(Request $request) {
             return Inertia::render('Admin/Lessons', [
-                'user' => Auth::user()
+                'user' => Auth::user(),
+                'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
             ]);
         })->name('lessons');
     });
@@ -56,6 +58,12 @@ Route::middleware(['auth'])->group(function () {
                 'user' => Auth::user()
             ]);
         })->name('class');
+
+        Route::get('/class/{className}', function($className) {
+            return Inertia::render('Teacher/ClassDetail2', [
+                'className' => ucfirst($className)
+            ]);
+        })->name('class.show');
 
         Route::get('/calendar', function() {
             return Inertia::render('Teacher/Calendar2', [
@@ -87,10 +95,10 @@ Route::middleware(['auth'])->group(function () {
         })->name('calendar');
     });
 
-    // Common routes (accessible to all authenticated users)
-    Route::get('/profile', function() {
-        return Inertia::render('Profile', [
-            'user' => Auth::user()
-        ]);
-    })->name('profile');
+        // Profile route
+        Route::get('/profile', function() {
+            return Inertia::render('Student/Profile', [
+                'user' => Auth::user()
+            ]);
+        })->name('profile');
 });

@@ -37,7 +37,24 @@ const sideBarItems = computed(() => {
             {
                 label: 'Lesson Plans',
                 icon: 'pi pi-inbox',
-                route: route('admin.lessons')
+                route: route('admin.lessons', { view: 'urgent_and_upcoming' }),
+                children: [
+                    {
+                        label: 'Urgent Review',
+                        icon: 'pi pi-exclamation-triangle',
+                        route: route('admin.lessons', { view: 'urgent' })
+                    },
+                    {
+                        label: 'Upcoming Review',
+                        icon: 'pi pi-calendar',
+                        route: route('admin.lessons', { view: 'upcoming' })
+                    },
+                    {
+                        label: 'Approved Lessons',
+                        icon: 'pi pi-check-circle',
+                        route: route('admin.lessons', { view: 'approved' })
+                    }
+                ]
             },
         ],
         teacher: [
@@ -45,11 +62,6 @@ const sideBarItems = computed(() => {
                 label: 'Dashboard',
                 icon: 'pi pi-th-large',
                 route: route('teacher.dashboard')
-            },
-            {
-                label: 'Lesson Plan',
-                icon: 'pi pi-inbox',
-                route: route('teacher.lessons')
             },
             {
                 label: 'Class',
@@ -107,10 +119,22 @@ const sideBarItems = computed(() => {
                 <i :class="item.icon" class="mr-3 text-lg"></i>
                 <span class="text-sm font-medium">{{ item.label }}</span>
             </Link>
+            <button v-else-if="item.children" class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
+                <i :class="item.icon" class="mr-3 text-lg"></i>
+                <span class="text-sm font-medium">{{ item.label }}</span>
+                <i class="pi pi-angle-down ml-auto"></i>
+            </button>
             <button v-else @click="item.action" class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
                 <i :class="item.icon" class="mr-3 text-lg"></i>
                 <span class="text-sm font-medium">{{ item.label }}</span>
             </button>
+            <div v-if="item.children" class="ml-4 mt-2">
+                <Link v-for="(child, childIndex) in item.children" :key="childIndex" :href="child.route"
+                      class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
+                    <i :class="child.icon" class="mr-3 text-lg"></i>
+                    <span class="text-sm font-medium">{{ child.label }}</span>
+                </Link>
+            </div>
         </div>
     </nav>
  </div>

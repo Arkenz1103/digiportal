@@ -1,63 +1,53 @@
-<script setup>
-import { ref } from 'vue';
-</script>
-
 <template>
-    <Head :title="`| ${$page.component}`"/>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold">My Class / SY 2024-2025</h1>
+    </div>
 
-    <!-- Main Content -->
-    <main class="flex-1">
-        <header class="mb-4 flex justify-between items-center">
-            <h1 class="text-3xl font-semibold">Class / SY 2024-2025</h1>
-        </header>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Mathematics Class Card -->
+        <Link :href="route('teacher.class.show', 'mathematics')" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-48 flex items-center justify-center bg-blue-500 text-white text-3xl font-bold">
+                    Mathematics
+                </div>
+                <div class="p-4 bg-gray-100">
+                    <h3 class="text-lg font-semibold">Mathematics</h3>
+                    <p class="text-gray-600">Grade 1 - A</p>
+                    <p class="text-gray-600">MW(7:00am-8:00am)</p>
+                </div>
+            </div>
+        </Link>
 
-        <!-- Flex Container for Dashboard and Card -->
-        <div class="flex gap-4">
-            <!-- Card Component 1 -->
-            <Card
-                style="width: 15rem; overflow: hidden;"
-                @click="handleCardClick('Grade 1 - A')"
-                class="cursor-pointer hover:shadow-lg transition duration-300"
-            >
-                <template #header>
-                    <img
-                        alt="Grade 1"
-                        src="https://images.theconversation.com/files/560517/original/file-20231120-20-pxbkgm.jpg?ixlib=rb-4.1.0&rect=0%2C0%2C4928%2C3260&q=20&auto=format&w=320&fit=clip&dpr=2&usm=12&cs=strip"
-                    />
-                </template>
-                <template #title>Grade 1 - A</template>
-            </Card>
+        <!-- English Class Card -->
+        <Link :href="route('teacher.class.show', 'english')" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-48 flex items-center justify-center bg-red-500 text-white text-3xl font-bold">
+                    English
+                </div>
+                <div class="p-4 bg-gray-100">
+                    <h3 class="text-lg font-semibold">English</h3>
+                    <p class="text-gray-600">Grade 1 - A</p>
+                    <p class="text-gray-600">TT(8:00am-9:00am)</p>
+                </div>
+            </div>
+        </Link>
 
-            <!-- Card Component 2 -->
-            <Card
-                style="width: 15rem; overflow: hidden;"
-                @click="handleCardClick('Grade 2 - B')"
-                class="cursor-pointer hover:shadow-lg transition duration-300"
-            >
-                <template #header>
-                    <img
-                        alt="Grade 2"
-                        src="https://images.theconversation.com/files/560517/original/file-20231120-20-pxbkgm.jpg?ixlib=rb-4.1.0&rect=0%2C0%2C4928%2C3260&q=20&auto=format&w=320&fit=clip&dpr=2&usm=12&cs=strip"
-                    />
-                </template>
-                <template #title>Grade 2 - B</template>
-            </Card>
-
-            <!-- Card Component 3 -->
-            <Card
-                style="width: 15rem; overflow: hidden;"
-                @click="handleCardClick('Grade 3 - C')"
-                class="cursor-pointer hover:shadow-lg transition duration-300"
-            >
-                <template #header>
-                    <img
-                        alt="Grade 3"
-                        src="https://images.theconversation.com/files/560517/original/file-20231120-20-pxbkgm.jpg?ixlib=rb-4.1.0&rect=0%2C0%2C4928%2C3260&q=20&auto=format&w=320&fit=clip&dpr=2&usm=12&cs=strip"
-                    />
-                </template>
-                <template #title>Grade 3 - C</template>
-            </Card>
-        </div>
-    </main>
+        <!-- Science Class Card -->
+        <Link :href="route('teacher.class.show', 'science')" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-48 flex items-center justify-center bg-green-500 text-white text-3xl font-bold">
+                    Science
+                </div>
+                <div class="p-4 bg-gray-100">
+                    <h3 class="text-lg font-semibold">Science</h3>
+                    <p class="text-gray-600">Grade 1 - A</p>
+                    <p class="text-gray-600">WF(9:00am-10:00am)</p>
+                </div>
+            </div>
+        </Link>
+    </div>
 </template>
 
+<script setup>
+import { Link } from '@inertiajs/vue3';
+</script>

@@ -14,7 +14,7 @@
                 <img
                     src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlC4Z2-qQHdn_TKc6z-SJGsVH1_hJB4iu4DA&s"
                     alt="Naawan Central School Logo"
-                    class="w-60 h-60 object-contain bg-white shadow-lg p-2"
+                    class="h-50 w-60 mr-3 rounded-full"
                 />
             </div>
 
