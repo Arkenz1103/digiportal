@@ -20,7 +20,7 @@ onMounted(() => {
 
 <template>
     <Head title="" />
-    <div class="min-h-screen"> <!-- Removed Background -->
+    <div class="min-h-screen">
         <!-- Header with Animation -->
         <div
           class="bg-[#7386D5] text-white py-4"
@@ -45,7 +45,7 @@ onMounted(() => {
               :class="animateLogo ? 'animate__animated animate__fadeInLeft' : ''"
             >
                 <img
-                    src="C:\Users\User\Downloads\ncslogo-removebg-preview.png"
+                    src="https://scontent.fcgy1-3.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=XE8ve1NQcMkQ7kNvgG9ojE9&_nc_zt=23&_nc_ht=scontent.fcgy1-3.fna&_nc_gid=AalM_hMnH2zDI7prIRDEmDx&oh=00_AYDiGluYa3x5xbkixP4lVP0Y57VCG-r7u-DTBZyPAf7tCg&oe=67A49874"
                     class="w-full h-auto"
                 />
             </div>

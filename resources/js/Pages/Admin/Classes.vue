@@ -1,47 +1,72 @@
-<script setup>
-import { ref } from 'vue';
-const visible = ref(false);
-</script>
-
 <template>
-    <Head :title="`| ${$page.component}`"/>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold">My Class / SY 2024-2025</h1>
+    </div>
 
-    <!-- Main Content -->
-    <main class="flex-1">
-        <header class="mb-8 flex justify-between items-center">
-            <h1 class="text-2xl font-semibold">Class / SY 2024-2025</h1>
-        </header>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+        <!-- Grade 1 -->
+        <Link :href="route('admin.class.show', { className: 'mathematics' })" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-32 flex items-center justify-center bg-blue-500 text-white text-2xl font-bold">
+                    Grade 1
+                </div>
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold">Grade 1</h3>
+                    <p class="text-gray-600">Details</p>
+                </div>
+            </div>
+        </Link>
 
-        <!-- Flex Container for Dashboard and Card -->
-        <div class="flex gap-12">
-            <!-- Card Component -->
-            <Card style="width: 15rem; overflow: hidden,">
-                <template #header>
-                    <img alt="user header" src="https://images.theconversation.com/files/560517/original/file-20231120-20-pxbkgm.jpg?ixlib=rb-4.1.0&rect=0%2C0%2C4928%2C3260&q=20&auto=format&w=320&fit=clip&dpr=2&usm=12&cs=strip" />
-                </template>
-                <template #title>Grade 1</template>
-            </Card>
+        <!-- Grade 2 -->
+        <Link :href="route('admin.class.show', { className: 'english' })" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-32 flex items-center justify-center bg-red-500 text-white text-2xl font-bold">
+                    Grade 2
+                </div>
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold">Grade 2</h3>
+                    <p class="text-gray-600">Details</p>
+                </div>
+            </div>
+        </Link>
 
-            <Card style="width: 15rem; overflow: hidden,">
-                <template #header>
-                    <img alt="user header" src="https://images.theconversation.com/files/560517/original/file-20231120-20-pxbkgm.jpg?ixlib=rb-4.1.0&rect=0%2C0%2C4928%2C3260&q=20&auto=format&w=320&fit=clip&dpr=2&usm=12&cs=strip" />
-                </template>
-                <template #title>Grade 2</template>
-            </Card>
+        <!-- Grade 3 -->
+        <Link :href="route('admin.class.show', { className: 'science' })" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-32 flex items-center justify-center bg-green-500 text-white text-2xl font-bold">
+                    Grade 3
+                </div>
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold">Grade 3</h3>
+                    <p class="text-gray-600">Details</p>
+                </div>
+            </div>
+        </Link>
 
-            <Card style="width: 15rem; overflow: hidden,">
-                <template #header>
-                    <img alt="user header" src="https://images.theconversation.com/files/560517/original/file-20231120-20-pxbkgm.jpg?ixlib=rb-4.1.0&rect=0%2C0%2C4928%2C3260&q=20&auto=format&w=320&fit=clip&dpr=2&usm=12&cs=strip" />
-                </template>
-                <template #title>Grade 3</template>
-            </Card>
+        <!-- Grade 4 -->
+        <Link :href="route('admin.class.show', { className: 'history' })" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-32 flex items-center justify-center bg-blue-500 text-white text-2xl font-bold">
+                    Grade 4
+                </div>
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold">Grade 4</h3>
+                    <p class="text-gray-600">Details</p>
+                </div>
+            </div>
+        </Link>
 
-            <Card style="width: 15rem; overflow: hidden,">
-                <template #header>
-                    <img alt="user header" src="https://images.theconversation.com/files/560517/original/file-20231120-20-pxbkgm.jpg?ixlib=rb-4.1.0&rect=0%2C0%2C4928%2C3260&q=20&auto=format&w=320&fit=clip&dpr=2&usm=12&cs=strip" />
-                </template>
-                <template #title>Grade 4</template>
-            </Card>
-        </div>
-    </main>
+        <!-- Grade 5 -->
+        <Link :href="route('admin.class.show', { className: 'TLE' })" class="block">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div class="h-32 flex items-center justify-center bg-red-500 text-white text-2xl font-bold">
+                    Grade 5
+                </div>
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold">Grade 5</h3>
+                    <p class="text-gray-600">Details</p>
+                </div>
+            </div>
+        </Link>
+    </div>
 </template>

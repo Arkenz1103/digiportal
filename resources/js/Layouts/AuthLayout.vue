@@ -17,7 +17,7 @@
                 <!-- School Logo with Animation -->
                 <div class="order-first animate__animated animate__fadeIn animate__delay-1s">
                     <img
-                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlC4Z2-qQHdn_TKc6z-SJGsVH1_hJB4iu4DA&s"
+                        src="https://scontent.fcgy1-3.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=XE8ve1NQcMkQ7kNvgG9ojE9&_nc_zt=23&_nc_ht=scontent.fcgy1-3.fna&_nc_gid=AalM_hMnH2zDI7prIRDEmDx&oh=00_AYDiGluYa3x5xbkixP4lVP0Y57VCG-r7u-DTBZyPAf7tCg&oe=67A49874"
                         alt="Naawan Central School Logo"
                         class="h-50 w-60 mr-3 rounded-full"
                     />

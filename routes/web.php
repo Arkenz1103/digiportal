@@ -31,12 +31,19 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('classes');
 
+        Route::get('/class/{className}', function($className) {
+        return Inertia::render('Admin/Class2', [
+            'className' => ucfirst($className)
+        ]);
+    })->name('class.show');
+
         Route::get('/lessons', function(Request $request) {
             return Inertia::render('Admin/Lessons', [
                 'user' => Auth::user(),
                 'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
             ]);
         })->name('lessons');
+
     });
 
     // Teacher routes
