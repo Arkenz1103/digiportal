@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -14,13 +15,30 @@ class AuthController extends Controller
         'password' => ['required']
        ]);
 
-       if(Auth::attempt($fields, $request->remember)){
+       Log::info('Login attempt', [
+           'email' => $fields['email'],
+           'attempt' => Auth::attempt([
+               'email' => $fields['email'], 
+               'password' => $fields['password']
+           ], $request->boolean('remember'))
+       ]);
+
+       if(Auth::attempt([
+           'email' => $fields['email'], 
+           'password' => $fields['password']
+       ], $request->boolean('remember'))){
             $request->session()->regenerate();
 
             $user = Auth::user();
+            
+            Log::info('User authenticated', [
+                'user_id' => $user->id,
+                'user_role' => $user->role
+            ]);
+
             switch($user->role) {
                 case 'admin':
-                    return redirect()->route('admin.dashboard');
+                    return redirect()->route('admin.lessons');
                 case 'teacher':
                     return redirect()->route('teacher.dashboard');
                 case 'student':

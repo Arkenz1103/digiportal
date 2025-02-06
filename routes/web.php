@@ -19,23 +19,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware(['auth'])->group(function () {
     // Admin routes
     Route::middleware([AdminMiddleware::class])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', function() {
-            return Inertia::render('Admin/Dashboard', [
-                'user' => Auth::user()
-            ]);
-        })->name('dashboard');
-
-        Route::get('/classes', function() {
-            return Inertia::render('Admin/Classes', [
-                'user' => Auth::user()
-            ]);
-        })->name('classes');
-
-        Route::get('/class/{className}', function($className) {
-        return Inertia::render('Admin/Class2', [
-            'className' => ucfirst($className)
-        ]);
-    })->name('class.show');
 
         Route::get('/lessons', function(Request $request) {
             return Inertia::render('Admin/Lessons', [

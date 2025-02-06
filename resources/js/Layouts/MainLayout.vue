@@ -25,16 +25,6 @@ const sideBarItems = computed(() => {
     const roleBasedItems = {
         admin: [
             {
-                label: 'Dashboard',
-                icon: 'pi pi-th-large',
-                route: route('admin.dashboard')
-            },
-            {
-                label: 'Class',
-                icon: 'pi pi-book',
-                route: route('admin.classes')
-            },
-            {
                 label: 'Lesson Plans',
                 icon: 'pi pi-inbox',
                 route: route('admin.lessons', { view: 'urgent_and_upcoming' }),
