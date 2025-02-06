@@ -38,6 +38,12 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('lessons');
 
+        Route::get('/lesson-plan', function() {
+            return Inertia::render('Teacher/LessonPlan', [
+                'user' => Auth::user()
+            ]);
+        })->name('lesson-plan');
+
         Route::get('/class', function() {
             return Inertia::render('Teacher/Class2', [
                 'user' => Auth::user()
