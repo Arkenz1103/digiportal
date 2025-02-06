@@ -31,11 +31,6 @@ Route::middleware(['auth'])->group(function () {
 
     // Teacher routes
     Route::middleware([TeacherMiddleware::class])->prefix('teacher')->name('teacher.')->group(function () {
-        Route::get('/dashboard', function() {
-            return Inertia::render('Teacher/Dashboard2', [
-                'user' => Auth::user()
-            ]);
-        })->name('dashboard');
 
         Route::get('/lessons', function() {
             return Inertia::render('Teacher/Lessons2', [
@@ -64,10 +59,6 @@ Route::middleware(['auth'])->group(function () {
 
     // Student routes
     Route::middleware([StudentMiddleware::class])->prefix('student')->name('student.')->group(function () {
-        Route::get('/dashboard', function() {
-            return Inertia::render('Student/Dashboard1');
-        })->name('dashboard');
-
         // Class routes
         Route::get('/classes', function() {
             return Inertia::render('Student/ClassOverview');

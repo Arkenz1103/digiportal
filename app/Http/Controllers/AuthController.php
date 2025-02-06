@@ -18,19 +18,19 @@ class AuthController extends Controller
        Log::info('Login attempt', [
            'email' => $fields['email'],
            'attempt' => Auth::attempt([
-               'email' => $fields['email'], 
+               'email' => $fields['email'],
                'password' => $fields['password']
            ], $request->boolean('remember'))
        ]);
 
        if(Auth::attempt([
-           'email' => $fields['email'], 
+           'email' => $fields['email'],
            'password' => $fields['password']
        ], $request->boolean('remember'))){
             $request->session()->regenerate();
 
             $user = Auth::user();
-            
+
             Log::info('User authenticated', [
                 'user_id' => $user->id,
                 'user_role' => $user->role
@@ -40,9 +40,9 @@ class AuthController extends Controller
                 case 'admin':
                     return redirect()->route('admin.lessons');
                 case 'teacher':
-                    return redirect()->route('teacher.dashboard');
+                    return redirect()->route('teacher.class');
                 case 'student':
-                    return redirect()->route('student.dashboard');
+                    return redirect()->route('student.classes');
                 default:
                     return redirect()->route('dashboard');
             }

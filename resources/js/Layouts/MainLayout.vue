@@ -49,11 +49,6 @@ const sideBarItems = computed(() => {
         ],
         teacher: [
             {
-                label: 'Dashboard',
-                icon: 'pi pi-th-large',
-                route: route('teacher.dashboard')
-            },
-            {
                 label: 'Class',
                 icon: 'pi pi-users',
                 route: route('teacher.class')
@@ -65,11 +60,6 @@ const sideBarItems = computed(() => {
             },
         ],
         student: [
-            {
-                label: 'Dashboard',
-                icon: 'pi pi-th-large',
-                route: route('student.dashboard')
-            },
             {
                 label: 'Class',
                 icon: 'pi pi-users',
