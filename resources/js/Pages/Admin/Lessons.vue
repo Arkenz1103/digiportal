@@ -40,7 +40,7 @@ const lessonPlans = ref([
     status: LESSON_STATUS.PENDING_REVIEW,
     priority: LESSON_PRIORITY.MEDIUM
   },
-  
+
   // Upcoming Review Lessons (more than 7 days)
   {
     id: 3,
@@ -72,7 +72,7 @@ const lessonPlans = ref([
     status: LESSON_STATUS.PENDING_REVIEW,
     priority: LESSON_PRIORITY.LOW
   },
-  
+
   // Approved Lessons
   {
     id: 6,
@@ -109,14 +109,14 @@ const activeView = ref(initialView);
 const filteredLessonPlans = computed(() => {
   return lessonPlans.value.filter((lesson) => {
     let isMatchingView = true;
-    
+
     switch(activeView.value) {
       case 'urgent':
-        isMatchingView = lesson.status === LESSON_STATUS.PENDING_REVIEW && 
+        isMatchingView = lesson.status === LESSON_STATUS.PENDING_REVIEW &&
                          new Date(lesson.dueDate) <= new Date(new Date().setDate(new Date().getDate() + 7));
         break;
       case 'upcoming':
-        isMatchingView = lesson.status === LESSON_STATUS.PENDING_REVIEW && 
+        isMatchingView = lesson.status === LESSON_STATUS.PENDING_REVIEW &&
                          new Date(lesson.dueDate) > new Date(new Date().setDate(new Date().getDate() + 7));
         break;
       case 'urgent_and_upcoming':
@@ -132,19 +132,19 @@ const filteredLessonPlans = computed(() => {
       (!filters.value.subject || lesson.subject.includes(filters.value.subject)) &&
       (!filters.value.status || lesson.status === filters.value.status) &&
       (!filters.value.priority || lesson.priority === filters.value.priority) &&
-      (!searchQuery.value || 
+      (!searchQuery.value ||
         lesson.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
         lesson.teacher.toLowerCase().includes(searchQuery.value.toLowerCase())
       )
     );
   }).sort((a, b) => {
     // Sort by priority and due date
-    const priorityOrder = { 
-      [LESSON_PRIORITY.HIGH]: 1, 
-      [LESSON_PRIORITY.MEDIUM]: 2, 
-      [LESSON_PRIORITY.LOW]: 3 
+    const priorityOrder = {
+      [LESSON_PRIORITY.HIGH]: 1,
+      [LESSON_PRIORITY.MEDIUM]: 2,
+      [LESSON_PRIORITY.LOW]: 3
     };
-    return priorityOrder[a.priority] - priorityOrder[b.priority] || 
+    return priorityOrder[a.priority] - priorityOrder[b.priority] ||
            new Date(a.dueDate) - new Date(b.dueDate);
   });
 });
@@ -223,8 +223,8 @@ const reviewLessonPlan = (lesson) => {
           </svg>
         </div>
       </div>
-      <Dropdown 
-        v-model="filters.teacher" 
+      <Dropdown
+        v-model="filters.teacher"
         :options="[
           { label: '[All Teachers]', value: '' },
           { label: 'John Smith', value: 'John Smith' },
@@ -239,8 +239,8 @@ const reviewLessonPlan = (lesson) => {
         placeholder="Select a Teacher"
         class="w-full"
       />
-      <Dropdown 
-        v-model="filters.status" 
+      <Dropdown
+        v-model="filters.status"
         :options="[
           { label: '[All Statuses]', value: '' },
           { label: 'Pending Review', value: LESSON_STATUS.PENDING_REVIEW },
@@ -252,8 +252,8 @@ const reviewLessonPlan = (lesson) => {
         placeholder="Select a Status"
         class="w-full"
       />
-      <Dropdown 
-        v-model="filters.priority" 
+      <Dropdown
+        v-model="filters.priority"
         :options="[
           { label: '[All Priorities]', value: '' },
           { label: 'High Priority', value: LESSON_PRIORITY.HIGH },

@@ -3,7 +3,7 @@
       <div class="mb-6">
         <!-- Header -->
         <h1 class="text-2xl font-semibold mb-4">
-          <Link :href="route('admin.class')" class="text-gray-600 hover:text-gray-800">My Class</Link>
+          <Link :href="route('admin.class.show.details')" class="text-gray-600 hover:text-gray-800">My Class</Link>
           <span class="text-gray-400"> / {{ className }}</span>
         </h1>
 

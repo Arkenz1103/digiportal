@@ -19,17 +19,12 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware(['auth'])->group(function () {
     // Admin routes
     Route::middleware([AdminMiddleware::class])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', function() {
-            return Inertia::render('Admin/Dashboard', [
-                'user' => Auth::user()
-            ]);
-        })->name('dashboard');
 
-        Route::get('/classes', function() {
+        Route::get('/class', function() {
             return Inertia::render('Admin/Classes', [
                 'user' => Auth::user()
             ]);
-        })->name('classes');
+        })->name('class');
 
         Route::get('/class/{className}', function($className) {
         return Inertia::render('Admin/Class2', [
@@ -43,28 +38,22 @@ Route::middleware(['auth'])->group(function () {
                 'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
             ]);
         })->name('lessons');
-
     });
 
     // Teacher routes
     Route::middleware([TeacherMiddleware::class])->prefix('teacher')->name('teacher.')->group(function () {
-        Route::get('/dashboard', function() {
-            return Inertia::render('Teacher/Dashboard2', [
-                'user' => Auth::user()
-            ]);
-        })->name('dashboard');
-
-        Route::get('/lessons', function() {
-            return Inertia::render('Teacher/Lessons2', [
-                'user' => Auth::user()
-            ]);
-        })->name('lessons');
-
-        Route::get('/class', function() {
+       Route::get('/class', function() {
             return Inertia::render('Teacher/Class2', [
                 'user' => Auth::user()
             ]);
         })->name('class');
+
+        Route::get('/lessons', function(Request $request) {
+            return Inertia::render('Teacher/Lessons', [
+                'user' => Auth::user(),
+                'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
+            ]);
+        })->name('lessons');
 
         Route::get('/class/{className}', function($className) {
             return Inertia::render('Teacher/ClassDetail2', [
@@ -81,17 +70,15 @@ Route::middleware(['auth'])->group(function () {
 
     // Student routes
     Route::middleware([StudentMiddleware::class])->prefix('student')->name('student.')->group(function () {
-        Route::get('/dashboard', function() {
-            return Inertia::render('Student/Dashboard1');
-        })->name('dashboard');
+
 
         // Class routes
-        Route::get('/classes', function() {
+        Route::get('/class', function() {
             return Inertia::render('Student/ClassOverview');
-        })->name('classes');
+        })->name('class');
 
         Route::get('/class/{className}', function($className) {
-            return Inertia::render('Student/ClassDetail', [
+            return Inertia::render('Student/ClassDetail1', [
                 'className' => ucfirst($className)
             ]);
         })->name('class.show');

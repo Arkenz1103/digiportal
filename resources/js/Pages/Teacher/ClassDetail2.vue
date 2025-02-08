@@ -1,5 +1,5 @@
 <template>
-    <div class="p-6">
+    <div class="p-4">
       <div class="mb-6">
         <!-- Header -->
         <h1 class="text-2xl font-semibold mb-4">
@@ -8,7 +8,7 @@
         </h1>
 
         <!-- Class Header -->
-        <div class="bg-blue-100 p-6 rounded-lg mb-6">
+        <div class="bg-blue-100 p-2 rounded-lg mb-6">
           <h2 class="text-4xl text-gray-600 mb-2">{{ className }}</h2>
           <p class="text-gray-600">Grade 1 - A</p>
           <p class="text-gray-600">MW(7:00am-8:00am)</p>
@@ -52,7 +52,7 @@ import Overview from './Tabs/Overview.vue';
 import Classwork from './Tabs/Classwork.vue';
 import Students from './Tabs/Students.vue';
 import Grades from './Tabs/Grades.vue';
-import LessonPlan from './Tabs/LessonPlan.vue';
+
 
 const props = defineProps({
   className: {
@@ -61,7 +61,7 @@ const props = defineProps({
   }
 });
 
-const tabs = ['Overview', 'Classwork', 'Students', 'Grades', 'Lesson Plan'];
+const tabs = ['Overview', 'Classwork', 'Students', 'Grades'];
 const currentTab = ref('Overview');
 
 

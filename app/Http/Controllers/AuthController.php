@@ -20,13 +20,13 @@ class AuthController extends Controller
             $user = Auth::user();
             switch($user->role) {
                 case 'admin':
-                    return redirect()->route('admin.dashboard');
+                    return redirect()->route('admin.class');
                 case 'teacher':
-                    return redirect()->route('teacher.dashboard');
+                    return redirect()->route('teacher.class');
                 case 'student':
-                    return redirect()->route('student.dashboard');
+                    return redirect()->route('student.class');
                 default:
-                    return redirect()->route('dashboard');
+                    return redirect()->route('class');
             }
        }
 

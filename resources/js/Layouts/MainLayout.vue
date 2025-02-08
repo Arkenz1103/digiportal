@@ -25,14 +25,9 @@ const sideBarItems = computed(() => {
     const roleBasedItems = {
         admin: [
             {
-                label: 'Dashboard',
-                icon: 'pi pi-th-large',
-                route: route('admin.dashboard')
-            },
-            {
                 label: 'Class',
                 icon: 'pi pi-book',
-                route: route('admin.classes')
+                route: route('admin.class')
             },
             {
                 label: 'Lesson Plans',
@@ -58,15 +53,33 @@ const sideBarItems = computed(() => {
             },
         ],
         teacher: [
-            {
-                label: 'Dashboard',
-                icon: 'pi pi-th-large',
-                route: route('teacher.dashboard')
-            },
+
             {
                 label: 'Class',
                 icon: 'pi pi-users',
                 route: route('teacher.class')
+            },
+            {
+                label: 'Lesson Plans',
+                icon: 'pi pi-inbox',
+                route: route('teacher.lessons', { view: 'urgent_and_upcoming' }),
+                children: [
+                    {
+                        label: 'Urgent Review',
+                        icon: 'pi pi-exclamation-triangle',
+                        route: route('teacher.lessons', { view: 'urgent' })
+                    },
+                    {
+                        label: 'Upcoming Review',
+                        icon: 'pi pi-calendar',
+                        route: route('teacher.lessons', { view: 'upcoming' })
+                    },
+                    {
+                        label: 'Approved Lessons',
+                        icon: 'pi pi-check-circle',
+                        route: route('teacher.lessons', { view: 'approved' })
+                    }
+                ]
             },
             {
                 label: 'Calendar',
@@ -75,15 +88,11 @@ const sideBarItems = computed(() => {
             },
         ],
         student: [
-            {
-                label: 'Dashboard',
-                icon: 'pi pi-th-large',
-                route: route('student.dashboard')
-            },
+
             {
                 label: 'Class',
                 icon: 'pi pi-users',
-                route: route('student.classes')
+                route: route('student.class')
             },
             {
                 label: 'Calendar',
