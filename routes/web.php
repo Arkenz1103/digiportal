@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\TeacherMiddleware;
 use App\Http\Middleware\StudentMiddleware;
+use App\Http\Controllers\ClassroomController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -20,18 +21,6 @@ Route::middleware(['auth'])->group(function () {
     // Admin routes
     Route::middleware([AdminMiddleware::class])->prefix('admin')->name('admin.')->group(function () {
 
-        Route::get('/class', function() {
-            return Inertia::render('Admin/Classes', [
-                'user' => Auth::user()
-            ]);
-        })->name('class');
-
-        Route::get('/class/{className}', function($className) {
-        return Inertia::render('Admin/Class2', [
-            'className' => ucfirst($className)
-        ]);
-    })->name('class.show');
-
         Route::get('/lessons', function(Request $request) {
             return Inertia::render('Admin/Lessons', [
                 'user' => Auth::user(),
@@ -42,7 +31,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Teacher routes
     Route::middleware([TeacherMiddleware::class])->prefix('teacher')->name('teacher.')->group(function () {
-       Route::get('/class', function() {
+
+        Route::get('/class', function() {
             return Inertia::render('Teacher/Class2', [
                 'user' => Auth::user()
             ]);
@@ -66,11 +56,16 @@ Route::middleware(['auth'])->group(function () {
                 'user' => Auth::user()
             ]);
         })->name('calendar');
+
+
+
     });
 
     // Student routes
     Route::middleware([StudentMiddleware::class])->prefix('student')->name('student.')->group(function () {
-
+        Route::get('/dashboard', function() {
+            return Inertia::render('Student/Dashboard1');
+        })->name('dashboard');
 
         // Class routes
         Route::get('/class', function() {

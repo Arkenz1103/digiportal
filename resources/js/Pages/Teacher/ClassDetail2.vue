@@ -38,8 +38,6 @@
           <Overview v-if="currentTab === 'Overview'" :posts="posts" />
           <Classwork v-if="currentTab === 'Classwork'" />
           <Students v-if="currentTab === 'Students'" :students="students" />
-          <Grades v-if="currentTab === 'Grades'" />
-          <LessonPlan v-if="currentTab === 'Lesson Plan'" />
         </div>
       </div>
     </div>
@@ -51,7 +49,6 @@ import { Link } from '@inertiajs/vue3';
 import Overview from './Tabs/Overview.vue';
 import Classwork from './Tabs/Classwork.vue';
 import Students from './Tabs/Students.vue';
-import Grades from './Tabs/Grades.vue';
 
 
 const props = defineProps({
@@ -61,7 +58,7 @@ const props = defineProps({
   }
 });
 
-const tabs = ['Overview', 'Classwork', 'Students', 'Grades'];
+const tabs = ['Overview', 'Classwork', 'Students', 'Grades', 'Lesson Plan'];
 const currentTab = ref('Overview');
 
 

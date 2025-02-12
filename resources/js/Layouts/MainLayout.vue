@@ -25,11 +25,6 @@ const sideBarItems = computed(() => {
     const roleBasedItems = {
         admin: [
             {
-                label: 'Class',
-                icon: 'pi pi-book',
-                route: route('admin.class')
-            },
-            {
                 label: 'Lesson Plans',
                 icon: 'pi pi-inbox',
                 route: route('admin.lessons', { view: 'urgent_and_upcoming' }),
@@ -53,42 +48,29 @@ const sideBarItems = computed(() => {
             },
         ],
         teacher: [
-
             {
                 label: 'Class',
                 icon: 'pi pi-users',
                 route: route('teacher.class')
             },
-            {
+             {
                 label: 'Lesson Plans',
-                icon: 'pi pi-inbox',
-                route: route('teacher.lessons', { view: 'urgent_and_upcoming' }),
-                children: [
-                    {
-                        label: 'Urgent Review',
-                        icon: 'pi pi-exclamation-triangle',
-                        route: route('teacher.lessons', { view: 'urgent' })
-                    },
-                    {
-                        label: 'Upcoming Review',
-                        icon: 'pi pi-calendar',
-                        route: route('teacher.lessons', { view: 'upcoming' })
-                    },
-                    {
-                        label: 'Approved Lessons',
-                        icon: 'pi pi-check-circle',
-                        route: route('teacher.lessons', { view: 'approved' })
-                    }
-                ]
+                icon: 'pi pi-book',
+                route: route('teacher.lessons')
             },
             {
                 label: 'Calendar',
                 icon: 'pi pi-calendar',
                 route: route('teacher.calendar')
             },
+
         ],
         student: [
-
+            {
+                label: 'Dashboard',
+                icon: 'pi pi-th-large',
+                route: route('student.dashboard')
+            },
             {
                 label: 'Class',
                 icon: 'pi pi-users',
@@ -154,44 +136,32 @@ const sideBarItems = computed(() => {
                <!-- Top Navigation Bar -->
 <nav class="bg-white shadow-md sticky top-0 z-50">
     <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <!-- Search Bar -->
-            <div class="flex-1 flex items-center">
-                <div class="max-w-lg w-full lg:max-w-xs">
-                    <label for="search" class="sr-only">Search</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="pi pi-search text-gray-400"></i>
-                        </div>
-                        <input id="search" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 sm:text-sm" placeholder="Search" type="search">
-                    </div>
-                </div>
-            </div>
+        <div class="flex justify-between h-16 items-center">
+            <!-- Left side (empty for now, can add breadcrumbs or page title later) -->
+            <div class="flex-1"></div>
 
             <!-- Right Navigation -->
-            <div class="flex items-center">
+            <div class="flex items-center space-x-4">
                 <!-- Notifications -->
-                <button class="p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <button class="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     <span class="sr-only">View notifications</span>
                     <i class="pi pi-bell text-xl"></i>
                 </button>
 
-                     <!-- Profile dropdown -->
-                      <div class="ml-4 relative flex items-center">
-                      <div class="flex items-center" v-if="auth?.user">
-                      <Link :href="route('profile')">
-                           <img
-                              class="h-8 w-8 rounded-full object-cover cursor-pointer"
-                              src="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png"
-                             alt="Profile Picture"
-                       />
-                      </Link>
-                      <div class="ml-3">
+                <!-- Profile dropdown -->
+                <div class="relative flex items-center" v-if="auth?.user">
+                    <Link :href="route('profile')">
+                        <img
+                            class="h-8 w-8 rounded-full object-cover cursor-pointer"
+                            src="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png"
+                            alt="Profile Picture"
+                        />
+                    </Link>
+                    <div class="ml-3">
                         <div class="text-base font-medium text-gray-800">{{ auth.user.name }}</div>
                         <div class="text-sm font-medium text-gray-500 capitalize">{{ auth.user.role }}</div>
                     </div>
                 </div>
-            </div>
             </div>
         </div>
     </div>

@@ -2,6 +2,7 @@
 import { ref, computed } from "vue";
 import { Link, usePage } from "@inertiajs/vue3";
 import Dropdown from 'primevue/dropdown';
+import Button from 'primevue/button';
 
 // Lesson Status Types
 const LESSON_STATUS = {
@@ -86,11 +87,25 @@ const lessonPlans = ref([
   }
 ]);
 
+// Unique values for filters
+const teacherOptions = computed(() =>
+  [...new Set(lessonPlans.value.map(lesson => lesson.teacher))]
+);
+
+const subjectOptions = computed(() =>
+  [...new Set(lessonPlans.value.map(lesson => lesson.subject))]
+);
+
+const gradeOptions = computed(() =>
+  [...new Set(lessonPlans.value.map(lesson => lesson.grade))]
+);
+
 // Search and Filter State
 const searchQuery = ref("");
 const filters = ref({
   teacher: "",
   subject: "",
+  grade: "",
   status: "",
   priority: ""
 });
@@ -130,7 +145,7 @@ const filteredLessonPlans = computed(() => {
     return isMatchingView && (
       (!filters.value.teacher || lesson.teacher.includes(filters.value.teacher)) &&
       (!filters.value.subject || lesson.subject.includes(filters.value.subject)) &&
-      (!filters.value.status || lesson.status === filters.value.status) &&
+      (!filters.value.grade || lesson.grade.includes(filters.value.grade)) &&
       (!filters.value.priority || lesson.priority === filters.value.priority) &&
       (!searchQuery.value ||
         lesson.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -208,19 +223,21 @@ const reviewLessonPlan = (lesson) => {
       </div>
     </header>
 
-    <!-- Search and Filters -->
-    <div v-if="activeView === 'urgent_and_upcoming'" class="mb-4 grid grid-cols-4 gap-4">
-      <div class="relative">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search lessons..."
-          class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition duration-300 ease-in-out"
-        />
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
+    <!-- Filters Section -->
+    <div class="mb-4 grid grid-cols-4 gap-4">
+      <!-- Search Input -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="pi pi-search text-gray-400"></i>
+          </div>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search by title or teacher"
+            class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
       </div>
       <Dropdown
@@ -266,21 +283,7 @@ const reviewLessonPlan = (lesson) => {
         class="w-full"
       />
     </div>
-    <div v-else class="mb-4 px-6">
-      <div class="relative w-2/3">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search lessons..."
-          class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition duration-300 ease-in-out"
-        />
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Lesson Plans Table -->
     <table class="w-full border-collapse border border-gray-300">
@@ -291,7 +294,6 @@ const reviewLessonPlan = (lesson) => {
           <th class="border border-gray-300 px-4 py-2">Grade</th>
           <th class="border border-gray-300 px-4 py-2">Title</th>
           <th class="border border-gray-300 px-4 py-2">Due Date</th>
-          <th class="border border-gray-300 px-4 py-2">Status</th>
           <th class="border border-gray-300 px-4 py-2">Priority</th>
           <th class="border border-gray-300 px-4 py-2">Actions</th>
         </tr>
@@ -300,28 +302,13 @@ const reviewLessonPlan = (lesson) => {
         <tr
           v-for="lesson in paginatedLessonPlans"
           :key="lesson.id"
-          :class="{
-            'bg-red-50': lesson.priority === LESSON_PRIORITY.HIGH,
-            'bg-yellow-50': lesson.priority === LESSON_PRIORITY.MEDIUM
-          }"
-          class="text-center hover:bg-blue-50 transition"
+          class="border-b hover:bg-gray-50"
         >
           <td class="border border-gray-300 px-4 py-2">{{ lesson.teacher }}</td>
           <td class="border border-gray-300 px-4 py-2">{{ lesson.subject }}</td>
           <td class="border border-gray-300 px-4 py-2">{{ lesson.grade }}</td>
           <td class="border border-gray-300 px-4 py-2">{{ lesson.title }}</td>
-          <td class="border border-gray-300 px-4 py-2 font-bold text-red-600">{{ lesson.dueDate }}</td>
-          <td class="border border-gray-300 px-4 py-2">
-            <span
-              :class="{
-                'text-yellow-600': lesson.status === LESSON_STATUS.PENDING_REVIEW,
-                'text-green-600': lesson.status === LESSON_STATUS.APPROVED,
-                'text-red-600': lesson.status === LESSON_STATUS.NEEDS_REVISION
-              }"
-            >
-              {{ lesson.status }}
-            </span>
-          </td>
+          <td class="border border-gray-300 px-4 py-2">{{ lesson.dueDate }}</td>
           <td class="border border-gray-300 px-4 py-2">
             <span
               :class="{
@@ -333,10 +320,10 @@ const reviewLessonPlan = (lesson) => {
               {{ lesson.priority }}
             </span>
           </td>
-          <td class="border border-gray-300 px-4 py-2">
+          <td class="border border-gray-300 px-4 py-2 text-center">
             <button
               @click="reviewLessonPlan(lesson)"
-              class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+              class="text-blue-600 hover:text-blue-800"
             >
               Review
             </button>
@@ -345,49 +332,70 @@ const reviewLessonPlan = (lesson) => {
       </tbody>
     </table>
 
-    <!-- No Results Message -->
-    <div
-      v-if="paginatedLessonPlans.length === 0"
-      class="text-center py-8 text-gray-500"
-    >
-      No lesson plans found.
-    </div>
-
     <!-- Pagination -->
-    <div
-      v-if="paginatedLessonPlans.length > 0"
-      class="mt-4 flex justify-center items-center space-x-2"
-    >
-      <button
-        @click="goToPage(currentPage - 1)"
-        class="px-3 py-1 border rounded bg-gray-200"
-        :disabled="currentPage === 1"
-      >
-        ‹ Prev
-      </button>
-      <span v-for="page in totalPages" :key="page">
-        <button
-          @click="goToPage(page)"
-          class="px-3 py-1 border rounded"
-          :class="{
-            'bg-blue-500 text-white': page === currentPage,
-            'bg-gray-200': page !== currentPage,
-          }"
-        >
-          {{ page }}
-        </button>
-      </span>
-      <button
-        @click="goToPage(currentPage + 1)"
-        class="px-3 py-1 border rounded bg-gray-200"
-        :disabled="currentPage === totalPages"
-      >
-        Next ›
-      </button>
+    <div class="flex justify-between items-center mt-4">
+      <div>
+        Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to
+        {{ Math.min(currentPage * itemsPerPage, filteredLessonPlans.length) }}
+        of {{ filteredLessonPlans.length }} entries
+      </div>
+      <div class="flex space-x-2">
+        <Button
+          @click="goToPage(currentPage - 1)"
+          :disabled="currentPage === 1"
+          icon="pi pi-chevron-left"
+          label="Previous"
+          severity="success"
+          class="mr-2 custom-small-button"
+        />
+        <Button
+          @click="goToPage(currentPage + 1)"
+          :disabled="currentPage === totalPages"
+          icon-pos="right"
+          icon="pi pi-chevron-right"
+          label="Next"
+          severity="danger"
+          class="custom-small-button"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Additional custom styles can be added here */
+.custom-small-button {
+  padding: 0.375rem 0.75rem !important;
+  font-size: 0.875rem !important;
+  height: 2.25rem !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+  transition: all 0.2s ease !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-color: transparent !important;
+
+  /* Text clarity improvements */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  font-kerning: normal;
+  font-display: swap;
+}
+
+.custom-small-button:hover:not(:disabled) {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+}
+
+.custom-small-button:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.5), 0 0 0 4px currentColor !important;
+}
+
+.custom-small-button:hover:not(:disabled) {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+}
+
+.custom-small-button:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.5), 0 0 0 4px currentColor !important;
+}
 </style>
