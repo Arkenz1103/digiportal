@@ -56,7 +56,7 @@ const sideBarItems = computed(() => {
             {
                 label: 'Lesson Plan',
                 icon: 'pi pi-file-edit',
-                route: route('teacher.lesson-plan')
+                route: route('teacher.lessons')
             },
             {
                 label: 'Calendar',

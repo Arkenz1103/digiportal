@@ -1,53 +1,81 @@
 <template>
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-semibold">My Class / SY 2024-2025</h1>
+  <div class="flex justify-between items-start p-6">
+    <!-- Classroom Management Title (Left) -->
+    <div class="bg-white rounded-lg shadow px-6 py-4">
+      <h2 class="text-xl font-bold">Classroom Management</h2>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Mathematics Class Card -->
-        <Link :href="route('teacher.class.show', 'mathematics')" class="block">
-            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div class="h-48 flex items-center justify-center bg-blue-500 text-white text-3xl font-bold">
-                    Mathematics
-                </div>
-                <div class="p-4 bg-gray-100">
-                    <h3 class="text-lg font-semibold">Mathematics</h3>
-                    <p class="text-gray-600">Grade 1 - A</p>
-                    <p class="text-gray-600">MW(7:00am-8:00am)</p>
-                </div>
-            </div>
-        </Link>
-
-        <!-- English Class Card -->
-        <Link :href="route('teacher.class.show', 'english')" class="block">
-            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div class="h-48 flex items-center justify-center bg-red-500 text-white text-3xl font-bold">
-                    English
-                </div>
-                <div class="p-4 bg-gray-100">
-                    <h3 class="text-lg font-semibold">English</h3>
-                    <p class="text-gray-600">Grade 1 - A</p>
-                    <p class="text-gray-600">TT(8:00am-9:00am)</p>
-                </div>
-            </div>
-        </Link>
-
-        <!-- Science Class Card -->
-        <Link :href="route('teacher.class.show', 'science')" class="block">
-            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div class="h-48 flex items-center justify-center bg-green-500 text-white text-3xl font-bold">
-                    Science
-                </div>
-                <div class="p-4 bg-gray-100">
-                    <h3 class="text-lg font-semibold">Science</h3>
-                    <p class="text-gray-600">Grade 1 - A</p>
-                    <p class="text-gray-600">WF(9:00am-10:00am)</p>
-                </div>
-            </div>
-        </Link>
+    <!-- Create Class Button (Right, But Lower) -->
+    <div class="bg-white rounded-lg shadow px-6 py-4 mt-12">
+      <button
+        @click="showModal = true"
+        class="bg-blue-500 text-white px-4 py-2 rounded">
+        Create Class
+      </button>
     </div>
+  </div>
+
+  <!-- Modal -->
+  <div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+      <h2 class="text-lg font-bold mb-4">Create a New Class</h2>
+      <form @submit.prevent="saveClass">
+        <!-- Grade Selection (Starts Empty) -->
+        <div class="mb-4">
+          <label class="block font-semibold">Grade</label>
+          <select v-model="grade" class="w-full p-2 border rounded">
+            <option value="" disabled selected hidden>Select Grade</option>
+            <option value="1">Grade 1</option>
+            <option value="2">Grade 2</option>
+            <option value="3">Grade 3</option>
+            <option value="4">Grade 4</option>
+            <option value="5">Grade 5</option>
+            <option value="6">Grade 6</option>
+          </select>
+        </div>
+
+        <!-- Section Input -->
+        <div class="mb-4">
+          <label class="block font-semibold">Section</label>
+          <input type="text" v-model="section" class="w-full p-2 border rounded" placeholder="Enter Section">
+        </div>
+
+        <!-- Subject Field (Only Shows for Grade 4 to 6) -->
+        <div class="mb-4" v-if="grade >= 4">
+          <label class="block font-semibold">Subject</label>
+          <input type="text" v-model="subject" class="w-full p-2 border rounded" placeholder="Enter Subject">
+        </div>
+
+        <div class="flex justify-end space-x-2">
+          <button @click="showModal = false" type="button" class="px-4 py-2 border rounded">Cancel</button>
+          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </template>
 
-<script setup>
-import { Link } from '@inertiajs/vue3';
+<script>
+import { ref } from 'vue';
+
+export default {
+  setup() {
+    const showModal = ref(false);
+    const grade = ref('');
+    const section = ref('');
+    const subject = ref('');
+
+    const saveClass = () => {
+      console.log("Class Created:", {
+        grade: grade.value,
+        section: section.value,
+        subject: grade.value >= 4 ? subject.value : "N/A"
+      });
+      alert("Class Created Successfully! (Check console)");
+      showModal.value = false;
+    };
+
+    return { showModal, grade, section, subject, saveClass };
+  }
+};
 </script>

@@ -1,26 +1,84 @@
 <template>
-  <div class="p-6 bg-gray-50 min-h-screen font-sans">
-    <!-- Lesson Plan Header -->
-    <div class="flex justify-between items-center">
-      <!-- Left Section: Title -->
-      <div>
-        <h1 class="text-lg font-bold text-black">
-          My Lesson Plan
-          <span class="font-normal text-gray-600">/ Grade-1 / Mathematics</span>
-        </h1>
+  <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+    <div class="bg-white shadow-lg rounded-lg p-6 w-[450px]">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Upload Lesson Plan</h2>
+
+      <!-- Upload Box -->
+      <div
+        class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500"
+        @dragover.prevent
+        @drop.prevent="handleDrop"
+        @click="triggerFileInput"
+      >
+        <input type="file" ref="fileInput" multiple @change="handleFileUpload" accept=".pdf, .doc, .docx" hidden />
+        <p class="text-gray-500">Drag & drop files here or <span class="text-blue-500 underline">browse</span></p>
+        <p class="text-sm text-gray-400">Only PDF or DOCX files</p>
       </div>
 
-      <!-- Right Section: Button -->
-      <Button
-        label="Create Lesson Plan"
-        icon="pi pi-plus"
-        class="bg-white text-blue-500 border border-blue-500 rounded-md px-4 py-2 hover:bg-blue-500 hover:text-white transition duration-300"
-        @click="handleCreateLessonPlan"
-      />
+      <!-- Uploaded Files List -->
+      <div v-if="uploadedFiles.length > 0" class="mt-6 space-y-3">
+        <h3 class="text-lg font-semibold text-gray-800">Uploaded Files</h3>
+        <div v-for="(file, index) in uploadedFiles" :key="index" class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border">
+          <p class="text-gray-700 truncate w-40">{{ file.name }}</p>
+          <div class="flex space-x-3">
+            <a :href="file.url" target="_blank" class="text-blue-500 text-sm">View</a>
+            <button @click="removeFile(index)" class="text-red-500 text-sm">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Button -->
+      <button
+        @click="uploadFiles"
+        :disabled="selectedFiles.length === 0 || uploading"
+        class="w-full mt-6 bg-blue-500 text-white px-4 py-3 rounded-lg shadow-md transition-all hover:bg-blue-600 disabled:bg-gray-400"
+      >
+        {{ uploading ? "Uploading..." : "Upload Lesson Plans" }}
+      </button>
     </div>
   </div>
 </template>
 
 <script>
+import { ref } from "vue";
+
+export default {
+  setup() {
+    const selectedFiles = ref([]);
+    const uploadedFiles = ref([]);
+    const fileInput = ref(null);
+    const uploading = ref(false);
+
+    const handleFileUpload = (event) => {
+      selectedFiles.value = [...event.target.files];
+    };
+
+    const handleDrop = (event) => {
+      selectedFiles.value = [...event.dataTransfer.files];
+    };
+
+    const triggerFileInput = () => {
+      fileInput.value.click();
+    };
+
+    const uploadFiles = () => {
+      if (selectedFiles.value.length === 0) return;
+      uploading.value = true;
+      setTimeout(() => {
+        uploadedFiles.value = [...uploadedFiles.value, ...selectedFiles.value.map(file => ({ name: file.name, url: "#" }))];
+        selectedFiles.value = [];
+        uploading.value = false;
+      }, 1000);
+    };
+
+    const removeFile = (index) => {
+      uploadedFiles.value.splice(index, 1);
+    };
+
+    return { selectedFiles, uploadedFiles, handleFileUpload, uploadFiles, handleDrop, triggerFileInput, removeFile, fileInput, uploading };
+  },
+};
 </script>
 
+<style>
+</style>
