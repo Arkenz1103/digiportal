@@ -1,85 +1,147 @@
 <template>
-  <div class="flex items-start justify-center min-h-screen bg-gray-100 p-10">
-    <div class="flex w-full max-w-5xl gap-16">
-      <!-- Upload Box (Left) -->
-      <div class="w-1/2 bg-white shadow-lg rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-4 text-gray-800">Upload Lesson Plan</h2>
+  <div class="flex flex-col space-y-4 p-6">
+    <div class="flex justify-between items-center">
+      <h1 class="text-2xl font-bold">Lesson Plans</h1>
+      <input 
+        type="file" 
+        ref="fileInput" 
+        @change="handleFileUpload" 
+        accept=".pdf,.doc,.docx" 
+        class="hidden"
+      />
+      <button 
+        @click="triggerFileUpload"
+        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+      >
+        Upload Lesson Plan
+      </button>
+    </div>
 
-        <div
-          class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500"
-          @dragover.prevent
-          @drop.prevent="handleDrop"
-          @click="triggerFileInput"
-        >
-          <input type="file" ref="fileInput" multiple @change="handleFileUpload" accept=".pdf, .doc, .docx" hidden />
-          <p class="text-gray-500">Drag & drop files here or <span class="text-blue-500 underline">browse</span></p>
-          <p class="text-sm text-gray-400">Only PDF or DOCX files</p>
-        </div>
+    <!-- Empty State -->
+    <div 
+      v-if="lessonPlans.length === 0" 
+      class="bg-white shadow rounded-lg p-6 text-center"
+    >
+      <p class="text-gray-500">No lesson plans uploaded yet</p>
+      <p class="text-sm text-gray-400 mt-2">
+        Click "Upload Lesson Plan" to get started
+      </p>
+    </div>
 
-        <button
-          @click="uploadFiles"
-          :disabled="selectedFiles.length === 0 || uploading"
-          class="w-full mt-4 bg-blue-500 text-white px-4 py-3 rounded-lg shadow-md transition-all hover:bg-blue-600 disabled:bg-gray-400"
-        >
-          {{ uploading ? "Uploading..." : "Upload Lesson Plans" }}
-        </button>
-      </div>
-
-      <!-- Uploaded Files List (Right) -->
-      <div class="w-1/2 bg-white shadow-lg rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-3">Uploaded Files</h3>
-        <div v-if="uploadedFiles.length > 0" class="space-y-3">
-          <div v-for="(file, index) in uploadedFiles" :key="index" class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border">
-            <p class="text-gray-700 truncate w-40">{{ file.name }}</p>
-            <div class="flex space-x-3">
-              <a :href="file.url" target="_blank" class="text-blue-500 text-sm">View</a>
-              <button @click="removeFile(index)" class="text-red-500 text-sm">Delete</button>
-            </div>
-          </div>
-        </div>
-        <p v-else class="text-gray-500 text-sm">No files uploaded yet.</p>
-      </div>
+    <!-- Lesson Plans Table -->
+    <div 
+      v-else 
+      class="bg-white shadow rounded-lg"
+    >
+      <table class="w-full">
+        <thead class="bg-gray-100 border-b">
+          <tr>
+            <th class="p-3 text-left">Title</th>
+            <th class="p-3 text-left">Status</th>
+            <th class="p-3 text-left">Date Uploaded</th>
+            <th class="p-3 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr 
+            v-for="lesson in lessonPlans" 
+            :key="lesson.id" 
+            class="border-b hover:bg-gray-50"
+          >
+            <td class="p-3">{{ lesson.title }}</td>
+            <td class="p-3">
+              <span 
+                :class="{
+                  'text-yellow-600': lesson.status === 'Pending',
+                  'text-green-600': lesson.status === 'Approved',
+                  'text-red-600': lesson.status === 'Rejected'
+                }"
+              >
+                {{ lesson.status }}
+              </span>
+            </td>
+            <td class="p-3">{{ lesson.uploaded_at }}</td>
+            <td class="p-3">
+              <button 
+                @click="viewLessonPlan(lesson)"
+                class="text-blue-500 hover:underline mr-2"
+              >
+                View
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
 
 <script>
-import { ref } from "vue";
+import { ref, onMounted } from 'vue';
+import { router } from '@inertiajs/vue3';
+import axios from 'axios';
 
 export default {
   setup() {
-    const selectedFiles = ref([]);
-    const uploadedFiles = ref([]);
     const fileInput = ref(null);
-    const uploading = ref(false);
+    const lessonPlans = ref([]);
 
-    const handleFileUpload = (event) => {
-      selectedFiles.value = [...event.target.files];
-    };
-
-    const handleDrop = (event) => {
-      selectedFiles.value = [...event.dataTransfer.files];
-    };
-
-    const triggerFileInput = () => {
+    const triggerFileUpload = () => {
       fileInput.value.click();
     };
 
-    const uploadFiles = () => {
-      if (selectedFiles.value.length === 0) return;
-      uploading.value = true;
-      setTimeout(() => {
-        uploadedFiles.value = [...uploadedFiles.value, ...selectedFiles.value.map(file => ({ name: file.name, url: "#" }))];
-        selectedFiles.value = [];
-        uploading.value = false;
-      }, 1000);
+    const handleFileUpload = async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const formData = new FormData();
+        formData.append('lesson_plan', file);
+
+        try {
+          const response = await axios.post('/teacher/lesson-plans/upload', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+
+          // Update lesson plans list
+          lessonPlans.value = response.data.lesson_plans;
+          
+          // Reset file input
+          if (fileInput.value) {
+            fileInput.value.value = '';
+          }
+        } catch (error) {
+          console.error('Upload failed:', error);
+          alert('File upload failed. Please try again.');
+        }
+      }
     };
 
-    const removeFile = (index) => {
-      uploadedFiles.value.splice(index, 1);
+    const fetchLessonPlans = async () => {
+      try {
+        const response = await axios.get('/teacher/lesson-plans');
+        lessonPlans.value = response.data.lesson_plans;
+      } catch (error) {
+        console.error('Failed to fetch lesson plans:', error);
+      }
     };
 
-    return { selectedFiles, uploadedFiles, handleFileUpload, uploadFiles, handleDrop, triggerFileInput, removeFile, fileInput, uploading };
-  },
+    const viewLessonPlan = (lesson) => {
+      // Implement view logic, e.g., open file in new tab
+      window.open(`/storage/${lesson.path}`, '_blank');
+    };
+
+    onMounted(() => {
+      fetchLessonPlans();
+    });
+
+    return {
+      fileInput,
+      lessonPlans,
+      triggerFileUpload,
+      handleFileUpload,
+      viewLessonPlan
+    };
+  }
 };
 </script>

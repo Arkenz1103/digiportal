@@ -45,7 +45,7 @@ onMounted(() => {
               :class="animateLogo ? 'animate__animated animate__fadeInLeft' : ''"
             >
                 <img
-                    src="https://scontent.fcgy1-3.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=XE8ve1NQcMkQ7kNvgG9ojE9&_nc_zt=23&_nc_ht=scontent.fcgy1-3.fna&_nc_gid=AalM_hMnH2zDI7prIRDEmDx&oh=00_AYDiGluYa3x5xbkixP4lVP0Y57VCG-r7u-DTBZyPAf7tCg&oe=67A49874"
+                    src="https://scontent.fcgy1-3.fna.fbcdn.net/v/t39.30808-6/368255360_324082253303069_319860159441260390_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeGPToX17s3MH-u0yQJtzJaPJArEhEwobZUkCsSETChtlYegOZPvdvnL1A9Zdu7vRCDHrVJ602tDBrXy8SCknwXD&_nc_ohc=5XiP5MD2wngQ7kNvgGsg3iL&_nc_oc=AdgbNp__3Sy4zzDwxmrDsZ5_SvEX5bwUtaO6sEYQ0s8AnwTRexzinUXwvLqt9VMq76A&_nc_zt=23&_nc_ht=scontent.fcgy1-3.fna&_nc_gid=Aiy7aIayfBj9cztNO7RoUPb&oh=00_AYABNtILhBtujMw6v0R9uW1T3L81olguLUBJz6ZRZwNCWA&oe=67B5F434"
                     class="w-full h-auto"
                 />
             </div>

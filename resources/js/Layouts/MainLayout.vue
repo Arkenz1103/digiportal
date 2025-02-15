@@ -85,16 +85,20 @@ const sideBarItems = computed(() => {
                         <Link v-if="item.route" :href="item.route"
                               class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
                             <i :class="item.icon" class="text-lg"></i>
-                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span> <!-- 14px -->
+                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span> 
                         </Link>
+
                         <button v-else-if="item.children" class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
                             <i :class="item.icon" class="text-lg"></i>
-                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span> <!-- 14px -->
+                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span>
                             <i v-show="!isCollapsed" class="pi pi-angle-down ml-auto"></i>
                         </button>
-                        <button v-else @click="item.action" class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
+
+                        <!-- Logout Button (Fixed Hover Effect) -->
+                        <button v-else @click="item.action"
+                                class="flex items-center w-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
                             <i :class="item.icon" class="text-lg"></i>
-                            <span v-show="!isCollapsed" class="ml-3 text-sm font-medium">{{ item.label }}</span> <!-- Small text -->
+                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span>
                         </button>
                     </div>
                 </nav>
@@ -123,7 +127,6 @@ const sideBarItems = computed(() => {
 
                                 <!-- Profile & Dropdown Icon -->
                                 <div class="relative flex items-center" v-if="auth?.user">
-                                    <!-- Profile Image (Static) -->
                                     <img
                                         class="h-8 w-8 rounded-full object-cover"
                                         src="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png"
@@ -139,7 +142,7 @@ const sideBarItems = computed(() => {
                                     <i @click="toggleDropdown" class="pi pi-angle-down text-gray-600 cursor-pointer px-4"></i>
 
                                     <!-- Dropdown Menu -->
-                                    <div v-if="isDropdownOpen" class="absolute left-8 mt-24 w-28  bg-white rounded-md shadow-lg z-50">
+                                    <div v-if="isDropdownOpen" class="absolute left-8 mt-24 w-28 bg-white rounded-md shadow-lg z-50">
                                         <ul class="py-0.5 text-gray-700">
                                             <li>
                                                 <Link :href="route('profile')" class="block px-4 py-2 hover:bg-gray-100">
