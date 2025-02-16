@@ -1,10 +1,11 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ClassroomController;
+use App\Http\Controllers\LessonPlanController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\TeacherMiddleware;
 use App\Http\Middleware\StudentMiddleware;
-use App\Http\Controllers\ClassroomController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -57,7 +58,8 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('calendar');
 
-
+        Route::post('/lesson-plans/upload', [LessonPlanController::class, 'upload'])->name('lesson-plans.upload');
+        Route::get('/lesson-plans', [LessonPlanController::class, 'index'])->name('lesson-plans.index');
 
     });
 

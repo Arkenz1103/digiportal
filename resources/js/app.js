@@ -20,7 +20,7 @@ createInertiaApp({
     }
     return page;
   },
-  title: (title) => `EDUBOARD ${title}`,
+  title: (title) => `StudySphere ${title}`,
   setup({ el, App, props, plugin }) {
     createApp({ render: () => h(App, props) })
       .use(plugin)

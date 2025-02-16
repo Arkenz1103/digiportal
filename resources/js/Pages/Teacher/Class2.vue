@@ -1,124 +1,155 @@
 <template>
-  <div class="p-6">
-    <!-- Header Section: Classroom Management + Create Class Button -->
-    <div class="flex justify-between items-center bg-white rounded-lg shadow px-6 py-4 mb-6">
-      <h2 class="text-xl font-bold">Classroom Management</h2>
-      <button @click="showModal = true" class="bg-blue-500 text-white px-4 py-2 rounded">
-        Create Class
-      </button>
-    </div>
+    <div class="p-4">
+        <!-- Meetings Card -->
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b bg-white text-gray-700 font-semibold">
+                Meetings
+            </div>
 
-    <!-- List of Created Classes -->
-    <div v-if="createdClasses.length" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      <div v-for="(cls, index) in createdClasses" :key="index" class="bg-white rounded-lg shadow-lg overflow-hidden relative">
-        <!-- Class Header -->
-        <div class="bg-gradient-to-r from-blue-600 to-blue-400 text-white p-4 relative">
-          <h3 class="text-lg font-bold">{{ cls.grade }} - {{ cls.section }}</h3>
-          <p class="text-sm font-semibold">{{ cls.schedule }}</p>
-          <p class="text-xs mt-1">{{ cls.subject !== 'N/A' ? cls.subject : 'General Education' }}</p>
+            <!-- Meeting List -->
+            <div class="p-4">
+                <div
+                    v-for="(meeting, index) in meetings"
+                    :key="index"
+                    class="flex items-center p-4 rounded-lg mb-2 cursor-pointer bg-gray-300 hover:bg-gray-400 transition-all"
+                    @click="openStartMeetingModal(meeting)"
+                >
+                    <span class="flex-1 font-medium text-gray-700">{{ meeting.subject }}</span>
+                    <span class="flex-1 text-center text-gray-600">{{ meeting.pupil }}</span>
+                    <span class="flex-1 text-right text-gray-700">{{ meeting.day }} {{ meeting.time }}</span>
 
-          <!-- Profile Image -->
-          <img
-            class="absolute -bottom-6 right-4 w-12 h-12 rounded-full border-2 border-white"
-            src="https://primefaces.org/cdn/primevue/images/avatar/amyelsner.png"
-            alt="Teacher Profile"
-          />
+                    <!-- Edit Button (Separately Clickable) -->
+                    <button
+                        class="ml-3 p-2 rounded-md bg-transparent hover:bg-gray-400 transition-all"
+                        @click.stop="openEditMeetingModal(meeting, index, $event)"
+                    >
+                        <i class="pi pi-pencil text-gray-700"></i>
+                    </button>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <!-- Class Details & Delete Button -->
-        <div class="p-4 pt-6 flex justify-between items-center">
-          <p class="text-gray-700 font-medium">Mike Madulara</p>
-          <button @click="deleteClass(index)" class="text-red-500 text-sm font-semibold">Delete</button>
+    <!-- Start Meeting Modal -->
+    <div v-if="showStartMeetingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-md w-96">
+            <h2 class="text-lg font-semibold mb-4">Start Meeting</h2>
+            <p><strong>Subject:</strong> {{ selectedMeeting.subject }}</p>
+            <p><strong>Pupil:</strong> {{ selectedMeeting.pupil }}</p>
+            <p><strong>Date:</strong> {{ selectedMeeting.day }}</p>
+            <p><strong>Time:</strong> {{ selectedMeeting.time }}</p>
+
+            <div class="flex justify-end space-x-2 mt-4">
+                <button @click="closeStartMeetingModal" class="px-4 py-2 bg-red-500 text-white rounded-md">Cancel</button>
+                <button class="px-4 py-2 bg-blue-600 text-white rounded-md">Start</button>
+            </div>
         </div>
-      </div>
     </div>
 
-    <!-- Modal -->
-    <div v-if="showModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-        <h2 class="text-lg font-bold mb-4">Create a New Class</h2>
-        <form @submit.prevent="saveClass">
-          <!-- Grade Selection -->
-          <div class="mb-4">
-            <label class="block font-semibold">Grade</label>
-            <select v-model="grade" class="w-full p-2 border rounded">
-              <option value="" disabled selected hidden>Select Grade</option>
-              <option value="1">Grade 1</option>
-              <option value="2">Grade 2</option>
-              <option value="3">Grade 3</option>
-              <option value="4">Grade 4</option>
-              <option value="5">Grade 5</option>
-              <option value="6">Grade 6</option>
-            </select>
-          </div>
+    <!-- Edit Meeting Modal -->
+    <div v-if="showEditMeetingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-md w-96">
+            <h2 class="text-lg font-semibold mb-4">Edit Meeting Schedule</h2>
 
-          <!-- Section Input -->
-          <div class="mb-4">
-            <label class="block font-semibold">Section</label>
-            <input type="text" v-model="section" class="w-full p-2 border rounded" placeholder="Enter Section">
-          </div>
+            <!-- Edit Form -->
+            <div class="mb-4">
+                <label class="block text-gray-600 mb-1">Select Day:</label>
+                <div class="relative">
+                    <select v-model="selectedMeeting.day" class="w-full p-2 border rounded-md">
+                        <option v-for="day in daysOfWeek" :key="day" :value="day">{{ day }}</option>
+                    </select>
+                </div>
+            </div>
 
-          <!-- Subject Field (Only for Grade 4 to 6) -->
-          <div class="mb-4" v-if="grade >= 4">
-            <label class="block font-semibold">Subject</label>
-            <input type="text" v-model="subject" class="w-full p-2 border rounded" placeholder="Enter Subject">
-          </div>
+            <div class="mb-4">
+                <label class="block text-gray-600 mb-1">Edit Time:</label>
+                <div class="relative flex items-center">
+                    <i class="pi pi-clock text-gray-500 absolute left-2"></i>
+                    <input type="text" v-model="selectedMeeting.time" class="w-full p-2 border rounded-md pl-8" />
+                </div>
+            </div>
 
-          <div class="flex justify-end space-x-2">
-            <button @click="showModal = false" type="button" class="px-4 py-2 border rounded">Cancel</button>
-            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Save</button>
-          </div>
-        </form>
-      </div>
+            <div class="flex justify-end space-x-2">
+                <button @click="closeEditMeetingModal" class="px-4 py-2 bg-red-500 text-white rounded-md">Cancel</button>
+                <button @click="saveMeetingChanges" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save</button>
+            </div>
+        </div>
     </div>
-  </div>
 </template>
 
-<script>
+<script setup>
 import { ref } from 'vue';
 
-export default {
-  setup() {
-    const showModal = ref(false);
-    const grade = ref('');
-    const section = ref('');
-    const subject = ref('');
-    const createdClasses = ref([]); // Store created classes
+const meetings = ref([
+    {
+        subject: 'Math',
+        pupil: 'MikeJerome Madulara',
+        day: 'Friday',
+        time: '6:00PM - 8:00PM'
+    }
+]);
 
-    const saveClass = () => {
-      if (!grade.value || !section.value) {
-        alert("Please fill in all required fields!");
-        return;
-      }
+const showStartMeetingModal = ref(false);
+const showEditMeetingModal = ref(false);
+const selectedMeeting = ref(null);
+const selectedMeetingIndex = ref(null);
 
-      // Assign schedule based on grade level
-      const schedule = grade.value <= 3 ? "MF 8:00 AM - 12:00 PM" : "MF 1:00 PM - 5:00 PM";
-
-      // Add new class to list
-      createdClasses.value.push({
-        grade: grade.value,
-        section: section.value,
-        subject: grade.value >= 4 ? subject.value : "N/A",
-        schedule: schedule
-      });
-
-      // Reset form fields
-      grade.value = '';
-      section.value = '';
-      subject.value = '';
-
-      showModal.value = false;
-    };
-
-    const deleteClass = (index) => {
-      createdClasses.value.splice(index, 1);
-    };
-
-    return { showModal, grade, section, subject, createdClasses, saveClass, deleteClass };
-  }
+const openStartMeetingModal = (meeting) => {
+    selectedMeeting.value = meeting;
+    showStartMeetingModal.value = true;
 };
+
+const closeStartMeetingModal = () => {
+    showStartMeetingModal.value = false;
+};
+
+const openEditMeetingModal = (meeting, index, event) => {
+    event.stopPropagation();
+    selectedMeeting.value = { ...meeting };
+    selectedMeetingIndex.value = index;
+    showEditMeetingModal.value = true;
+};
+
+const closeEditMeetingModal = () => {
+    showEditMeetingModal.value = false;
+};
+
+const saveMeetingChanges = () => {
+    if (selectedMeetingIndex.value !== null) {
+        meetings.value[selectedMeetingIndex.value] = { ...selectedMeeting.value };
+    }
+    closeEditMeetingModal();
+};
+
+const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 </script>
 
 <style scoped>
-/* Additional Styling (If needed) */
+/* Match the exact gray background */
+.bg-gray-300 {
+    background-color: #b3d9ff;
+}
+
+.text-gray-700 {
+    color: #374151;
+}
+
+.text-gray-600 {
+    color: #4B5563;
+}
+
+.hover\:bg-gray-400:hover {
+    background-color: #BFBFBF;
+}
+
+/* Make sure the row is rounded properly */
+.rounded-lg {
+    border-radius: 8px;
+}
+
+/* Transition effect */
+.transition-all {
+    transition: all 0.2s ease-in-out;
+}
 </style>

@@ -24,37 +24,17 @@ const toggleDropdown = () => {
 
 // Computed property for menu items based on user role
 const sideBarItems = computed(() => {
-    const commonItems = [
-        {
-            label: 'Logout',
-            icon: 'pi pi-sign-out',
-            action: () => {
-                router.post(route('logout'));
-            }
-        }
-    ];
-
     if (!auth.value?.user) {
-        return commonItems;
+        return [];
     }
 
     const roleBasedItems = {
-        admin: [
-            {
-                label: 'Lesson Plans',
-                icon: 'pi pi-inbox',
-                route: route('admin.lessons'),
-                children: [
-                    { label: 'Urgent Review', icon: 'pi pi-exclamation-triangle', route: route('admin.lessons', { view: 'urgent' }) },
-                    { label: 'Upcoming Review', icon: 'pi pi-calendar', route: route('admin.lessons', { view: 'upcoming' }) },
-                    { label: 'Approved Lessons', icon: 'pi pi-check-circle', route: route('admin.lessons', { view: 'approved' }) }
-                ]
-            },
-        ],
+
         teacher: [
-            { label: 'Class', icon: 'pi pi-users', route: route('teacher.class') },
-            { label: 'Lesson Plans', icon: 'pi pi-book', route: route('teacher.lessons') },
-            { label: 'Calendar', icon: 'pi pi-calendar', route: route('teacher.calendar') },
+            { label: 'Meetings', icon: 'pi pi-users', route: route('teacher.class') },
+            { label: 'Pupils', icon: 'pi pi-book', route: route('teacher.lessons') },
+            { label: 'History', icon: 'pi pi-calendar', route: route('teacher.calendar') },
+            { label: 'Settings', icon: 'pi pi-calendar', route: route('teacher.calendar') },
         ],
         student: [
             { label: 'Dashboard', icon: 'pi pi-th-large', route: route('student.dashboard') },
@@ -63,7 +43,7 @@ const sideBarItems = computed(() => {
         ]
     };
 
-    return [...(roleBasedItems[auth.value.user.role] || []), ...commonItems];
+    return roleBasedItems[auth.value.user.role] || [];
 });
 </script>
 
@@ -85,20 +65,13 @@ const sideBarItems = computed(() => {
                         <Link v-if="item.route" :href="item.route"
                               class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
                             <i :class="item.icon" class="text-lg"></i>
-                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span>
+                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span> <!-- 14px -->
                         </Link>
 
                         <button v-else-if="item.children" class="flex items-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
                             <i :class="item.icon" class="text-lg"></i>
                             <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span>
                             <i v-show="!isCollapsed" class="pi pi-angle-down ml-auto"></i>
-                        </button>
-
-                        <!-- Logout Button (Fixed Hover Effect) -->
-                        <button v-else @click="item.action"
-                                class="flex items-center w-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg p-2 transition-colors duration-200">
-                            <i :class="item.icon" class="text-lg"></i>
-                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span>
                         </button>
                     </div>
                 </nav>
@@ -107,14 +80,14 @@ const sideBarItems = computed(() => {
             <!-- Main Content Area -->
             <div class="flex-1">
                 <!-- Top Navigation Bar -->
-                <nav class="bg-white shadow-md sticky top-0 z-50">
+                <nav class="bg-white shadow-md sticky top-0">
                     <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                         <div class="flex justify-between py-1 items-center">
                             <!-- Logo (Always Visible) -->
                             <div class="flex items-center space-x-3">
                                 <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlC4Z2-qQHdn_TKc6z-SJGsVH1_hJB4iu4DA&s"
                                     alt="Eduboard Logo" class="h-8 w-8 rounded-full">
-                                <span class="text-lg font-bold">EduBoard</span>
+                                <span class="text-lg font-bold">StudentSphere</span>
                             </div>
 
                             <!-- Right Navigation -->
@@ -138,7 +111,7 @@ const sideBarItems = computed(() => {
                                         <div class="text-sm font-medium text-gray-500 capitalize">{{ auth.user.role }}</div>
                                     </div>
 
-                                     <!-- Dropdown Icon (Clickable) -->
+                                    <!-- Dropdown Icon (Clickable) -->
                                     <i @click="toggleDropdown" class="pi pi-angle-down text-gray-600 cursor-pointer px-4"></i>
 
                                     <!-- Dropdown Menu -->

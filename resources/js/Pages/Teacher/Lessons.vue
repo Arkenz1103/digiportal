@@ -1,85 +1,127 @@
 <template>
-  <div class="flex items-start justify-center min-h-screen bg-gray-100 p-10">
-    <div class="flex w-full max-w-5xl gap-16">
-      <!-- Upload Box (Left) -->
-      <div class="w-1/2 bg-white shadow-lg rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-4 text-gray-800">Upload Lesson Plan</h2>
-
-        <div
-          class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500"
-          @dragover.prevent
-          @drop.prevent="handleDrop"
-          @click="triggerFileInput"
-        >
-          <input type="file" ref="fileInput" multiple @change="handleFileUpload" accept=".pdf, .doc, .docx" hidden />
-          <p class="text-gray-500">Drag & drop files here or <span class="text-blue-500 underline">browse</span></p>
-          <p class="text-sm text-gray-400">Only PDF or DOCX files</p>
-        </div>
-
-        <button
-          @click="uploadFiles"
-          :disabled="selectedFiles.length === 0 || uploading"
-          class="w-full mt-4 bg-blue-500 text-white px-4 py-3 rounded-lg shadow-md transition-all hover:bg-blue-600 disabled:bg-gray-400"
-        >
-          {{ uploading ? "Uploading..." : "Upload Lesson Plans" }}
-        </button>
-      </div>
-
-      <!-- Uploaded Files List (Right) -->
-      <div class="w-1/2 bg-white shadow-lg rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-3">Uploaded Files</h3>
-        <div v-if="uploadedFiles.length > 0" class="space-y-3">
-          <div v-for="(file, index) in uploadedFiles" :key="index" class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border">
-            <p class="text-gray-700 truncate w-40">{{ file.name }}</p>
-            <div class="flex space-x-3">
-              <a :href="file.url" target="_blank" class="text-blue-500 text-sm">View</a>
-              <button @click="removeFile(index)" class="text-red-500 text-sm">Delete</button>
+    <div class="p-6">
+        <!-- Pupils Card -->
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b bg-white text-gray-700 font-semibold">
+                Pupils
             </div>
-          </div>
+
+            <!-- Pupils List -->
+            <div class="p-4">
+                <div
+                    v-for="(pupil, index) in pupils"
+                    :key="index"
+                    class="flex items-center p-4 rounded-lg mb-2 cursor-pointer bg-blue-200 hover:bg-blue-300 transition-all"
+                >
+                    <span class="flex-1 font-medium text-gray-700">{{ pupil.name }}</span>
+                    <span class="flex-1 text-center text-gray-600">{{ pupil.subject }}</span>
+
+                    <!-- Schedule Button -->
+                    <button
+                        class="ml-3 p-2 rounded-md bg-white hover:bg-gray-300 transition-all"
+                        @click="openScheduleModal(pupil)"
+                    >
+                        <i class="pi pi-pencil text-gray-700"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        <p v-else class="text-gray-500 text-sm">No files uploaded yet.</p>
-      </div>
     </div>
-  </div>
+
+    <!-- Schedule Meeting Modal -->
+    <div v-if="showScheduleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-md w-96">
+            <h2 class="text-lg font-semibold mb-4">Schedule Meeting</h2>
+
+            <p><strong>Pupil:</strong> {{ selectedPupil.name }}</p>
+            <p><strong>Subject:</strong> {{ selectedPupil.subject }}</p>
+
+            <!-- Select Day -->
+            <div class="mb-4">
+                <label class="block text-gray-600 mb-1">Select Day:</label>
+                <select v-model="meetingDay" class="w-full p-2 border rounded-md">
+                    <option v-for="day in daysOfWeek" :key="day" :value="day">{{ day }}</option>
+                </select>
+            </div>
+
+            <!-- Styled Time Picker -->
+            <div class="mb-4">
+                <label class="block text-gray-600 mb-1">Select Time:</label>
+                <div class="relative flex items-center">
+                    <i class="pi pi-clock text-gray-500 absolute left-2"></i>
+                    <input
+                        type="text"
+                        v-model="meetingTime"
+                        class="w-full p-2 border rounded-md pl-8"
+                        placeholder="HH:MM AM/PM"
+                    />
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button @click="closeScheduleModal" class="px-4 py-2 bg-red-500 text-white rounded-md">Cancel</button>
+                <button @click="scheduleMeeting" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save</button>
+            </div>
+        </div>
+    </div>
 </template>
 
-<script>
-import { ref } from "vue";
+<script setup>
+import { ref } from 'vue';
+import { router } from '@inertiajs/vue3';
 
-export default {
-  setup() {
-    const selectedFiles = ref([]);
-    const uploadedFiles = ref([]);
-    const fileInput = ref(null);
-    const uploading = ref(false);
+// Sample pupil data
+const pupils = ref([
+    { name: 'MikeJerome Madulara', subject: 'Math' },
+    { name: 'John Doe', subject: 'Science' },
+    { name: 'Jane Smith', subject: 'English' },
+]);
 
-    const handleFileUpload = (event) => {
-      selectedFiles.value = [...event.target.files];
+const showScheduleModal = ref(false);
+const selectedPupil = ref(null);
+const meetingDay = ref('');
+const meetingTime = ref('');
+
+const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const openScheduleModal = (pupil) => {
+    selectedPupil.value = pupil;
+    showScheduleModal.value = true;
+};
+
+const closeScheduleModal = () => {
+    showScheduleModal.value = false;
+};
+
+// Schedule Meeting and Redirect to Meetings Page
+const scheduleMeeting = () => {
+    if (!meetingDay.value || !meetingTime.value) {
+        alert("Please select a day and time.");
+        return;
+    }
+
+    // Example: Store the meeting (in a real app, save to the backend)
+    const newMeeting = {
+        subject: selectedPupil.value.subject,
+        pupil: selectedPupil.value.name,
+        day: meetingDay.value,
+        time: meetingTime.value,
     };
 
-    const handleDrop = (event) => {
-      selectedFiles.value = [...event.dataTransfer.files];
-    };
+    localStorage.setItem('newMeeting', JSON.stringify(newMeeting)); // Simulating a backend save
 
-    const triggerFileInput = () => {
-      fileInput.value.click();
-    };
-
-    const uploadFiles = () => {
-      if (selectedFiles.value.length === 0) return;
-      uploading.value = true;
-      setTimeout(() => {
-        uploadedFiles.value = [...uploadedFiles.value, ...selectedFiles.value.map(file => ({ name: file.name, url: "#" }))];
-        selectedFiles.value = [];
-        uploading.value = false;
-      }, 1000);
-    };
-
-    const removeFile = (index) => {
-      uploadedFiles.value.splice(index, 1);
-    };
-
-    return { selectedFiles, uploadedFiles, handleFileUpload, uploadFiles, handleDrop, triggerFileInput, removeFile, fileInput, uploading };
-  },
+    // Close modal and redirect
+    closeScheduleModal();
+    router.visit('/meetings'); // Redirects to the meetings page
 };
 </script>
+
+<style scoped>
+.bg-blue-200 {
+    background-color: #b3d9ff;
+}
+.hover\:bg-blue-300:hover {
+    background-color: #99ccff;
+}
+</style>
