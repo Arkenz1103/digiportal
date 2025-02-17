@@ -1,8 +1,6 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ClassroomController;
-use App\Http\Controllers\LessonPlanController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\TeacherMiddleware;
 use App\Http\Middleware\StudentMiddleware;
@@ -19,49 +17,36 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected routes
 Route::middleware(['auth'])->group(function () {
-    // Admin routes
-    Route::middleware([AdminMiddleware::class])->prefix('admin')->name('admin.')->group(function () {
-
-        Route::get('/lessons', function(Request $request) {
-            return Inertia::render('Admin/Lessons', [
-                'user' => Auth::user(),
-                'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
-            ]);
-        })->name('lessons');
-    });
 
     // Teacher routes
     Route::middleware([TeacherMiddleware::class])->prefix('teacher')->name('teacher.')->group(function () {
 
-        Route::get('/class', function() {
-            return Inertia::render('Teacher/Class2', [
+        Route::get('/meetings', function() {
+            return Inertia::render('Teacher/Meetings', [
                 'user' => Auth::user()
             ]);
-        })->name('class');
+        })->name('meetings');
 
-        Route::get('/lessons', function(Request $request) {
-            return Inertia::render('Teacher/Lessons', [
+        Route::get('/pupils', function(Request $request) {
+            return Inertia::render('Teacher/Pupils', [
                 'user' => Auth::user(),
                 'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
             ]);
-        })->name('lessons');
+        })->name('pupils');
 
-        Route::get('/class/{className}', function($className) {
-            return Inertia::render('Teacher/ClassDetail2', [
-                'className' => ucfirst($className)
-            ]);
-        })->name('class.show');
-
-        Route::get('/calendar', function() {
-            return Inertia::render('Teacher/Calendar2', [
+        Route::get('/history', function() {
+            return Inertia::render('Teacher/History', [
                 'user' => Auth::user()
             ]);
-        })->name('calendar');
+        })->name('history');
 
-        Route::post('/lesson-plans/upload', [LessonPlanController::class, 'upload'])->name('lesson-plans.upload');
-        Route::get('/lesson-plans', [LessonPlanController::class, 'index'])->name('lesson-plans.index');
-
+         Route::get('/settings', function() {
+            return Inertia::render('Teacher/Settings', [
+                'user' => Auth::user()
+            ]);
+        })->name('settings');
     });
+
 
     // Student routes
     Route::middleware([StudentMiddleware::class])->prefix('student')->name('student.')->group(function () {

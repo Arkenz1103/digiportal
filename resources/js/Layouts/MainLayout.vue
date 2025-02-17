@@ -31,10 +31,10 @@ const sideBarItems = computed(() => {
     const roleBasedItems = {
 
         teacher: [
-            { label: 'Meetings', icon: 'pi pi-users', route: route('teacher.class') },
-            { label: 'Pupils', icon: 'pi pi-book', route: route('teacher.lessons') },
-            { label: 'History', icon: 'pi pi-calendar', route: route('teacher.calendar') },
-            { label: 'Settings', icon: 'pi pi-calendar', route: route('teacher.calendar') },
+            { label: 'Meetings', icon: 'pi pi-users', route: route('teacher.meetings') },
+            { label: 'Pupils', icon: 'pi pi-book', route: route('teacher.pupils') },
+            { label: 'History', icon: 'pi pi-calendar', route: route('teacher.history') },
+            { label: 'Settings', icon: 'pi pi-calendar', route: route('teacher.settings') },
         ],
         student: [
             { label: 'Dashboard', icon: 'pi pi-th-large', route: route('student.dashboard') },
@@ -87,7 +87,7 @@ const sideBarItems = computed(() => {
                             <div class="flex items-center space-x-3">
                                 <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlC4Z2-qQHdn_TKc6z-SJGsVH1_hJB4iu4DA&s"
                                     alt="Eduboard Logo" class="h-8 w-8 rounded-full">
-                                <span class="text-lg font-bold">StudentSphere</span>
+                                <span class="text-lg font-bold">StudySphere</span>
                             </div>
 
                             <!-- Right Navigation -->

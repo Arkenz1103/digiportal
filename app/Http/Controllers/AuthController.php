@@ -37,14 +37,12 @@ class AuthController extends Controller
             ]);
 
             switch($user->role) {
-                case 'admin':
-                    return redirect()->route('admin.lessons');
                 case 'teacher':
-                    return redirect()->route('teacher.class');
+                    return redirect()->route('teacher.meetings');
                 case 'student':
                     return redirect()->route('student.class');
                 default:
-                    return redirect()->route('class');
+                    return redirect()->route('meetings');
             }
        }
 
