@@ -29,8 +29,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/pupils', function(Request $request) {
             return Inertia::render('Teacher/Pupils', [
-                'user' => Auth::user(),
-                'view' => $request->query('view', 'urgent_and_upcoming') // Default to 'urgent_and_upcoming' view
+                'user' => Auth::user()
             ]);
         })->name('pupils');
 
@@ -40,11 +39,17 @@ Route::middleware(['auth'])->group(function () {
             ]);
         })->name('history');
 
-         Route::get('/settings', function() {
-            return Inertia::render('Teacher/Settings', [
+         Route::get('/quiz', function() {
+            return Inertia::render('Teacher/Quiz', [
                 'user' => Auth::user()
             ]);
-        })->name('settings');
+        })->name('quiz');
+
+        Route::get('/notify', function() {
+            return Inertia::render('Teacher/Notify', [
+                'user' => Auth::user()
+            ]);
+        })->name('notify');
     });
 
 
@@ -69,12 +74,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/calendar', function() {
             return Inertia::render('Student/Calendar');
         })->name('calendar');
+
+
     });
 
-    // Common routes (accessible to all authenticated users)
-    Route::get('/profile', function() {
-        return Inertia::render('Profile', [
-            'user' => Auth::user()
-        ]);
-    })->name('profile');
 });

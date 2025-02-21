@@ -27,7 +27,7 @@
                 <div class="w-full max-w-md">
                     <!-- Welcome Text with a Bouncy Animation -->
                     <h1 class="text-2xl font-bold mb-8 text-white text-center animate__animated animate__bounceIn">
-                        Welcome to EduBoard!
+                        Welcome to StudySphere!
                     </h1>
 
                     <!-- Slot for page content -->

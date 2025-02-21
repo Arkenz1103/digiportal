@@ -1,48 +1,54 @@
 <template>
-    <div class="p-4">
-        <!-- Meetings Card -->
-        <div class="bg-white shadow-md rounded-lg overflow-hidden">
-            <!-- Header -->
-            <div class="px-6 py-4 border-b bg-white text-gray-700 font-semibold">
-                Meetings
+    <div class="p-6">
+        <!-- Meetings Header -->
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">Meetings</h1>
+
+            <!-- Search & Filters -->
+            <div class="flex justify-between mb-4">
+                <input
+                    type="text"
+                    v-model="searchQuery"
+                    placeholder="Search for a meeting"
+                    class="p-2 border rounded-lg w-1/3"
+                />
+                <select v-model="filterDay" class="p-2 border rounded-lg w-1/3">
+                    <option value="">Filter by day</option>
+                    <option v-for="day in daysOfWeek" :key="day" :value="day">{{ day }}</option>
+                </select>
+                <button @click="openAddMeetingModal" class="bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    + Add Meeting
+                </button>
             </div>
 
-            <!-- Meeting List -->
-            <div class="p-4">
-                <div
-                    v-for="(meeting, index) in meetings"
-                    :key="index"
-                    class="flex items-center p-4 rounded-lg mb-2 cursor-pointer bg-gray-300 hover:bg-gray-400 transition-all"
-                    @click="openStartMeetingModal(meeting)"
-                >
-                    <span class="flex-1 font-medium text-gray-700">{{ meeting.subject }}</span>
-                    <span class="flex-1 text-center text-gray-600">{{ meeting.pupil }}</span>
-                    <span class="flex-1 text-right text-gray-700">{{ meeting.day }} {{ meeting.time }}</span>
-
-                    <!-- Edit Button (Separately Clickable) -->
-                    <button
-                        class="ml-3 p-2 rounded-md bg-transparent hover:bg-gray-400 transition-all"
-                        @click.stop="openEditMeetingModal(meeting, index, $event)"
-                    >
-                        <i class="pi pi-pencil text-gray-700"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Start Meeting Modal -->
-    <div v-if="showStartMeetingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-md w-96">
-            <h2 class="text-lg font-semibold mb-4">Start Meeting</h2>
-            <p><strong>Subject:</strong> {{ selectedMeeting.subject }}</p>
-            <p><strong>Pupil:</strong> {{ selectedMeeting.pupil }}</p>
-            <p><strong>Date:</strong> {{ selectedMeeting.day }}</p>
-            <p><strong>Time:</strong> {{ selectedMeeting.time }}</p>
-
-            <div class="flex justify-end space-x-2 mt-4">
-                <button @click="closeStartMeetingModal" class="px-4 py-2 bg-red-500 text-white rounded-md">Cancel</button>
-                <button class="px-4 py-2 bg-blue-600 text-white rounded-md">Start</button>
+            <!-- Meetings Table -->
+            <div class="overflow-hidden rounded-lg shadow">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700 text-left">
+                            <th class="p-3">SUBJECT</th>
+                            <th class="p-3">PUPIL</th>
+                            <th class="p-3">DAY & TIME</th>
+                            <th class="p-3 text-right">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="(meeting, index) in filteredMeetings"
+                            :key="index"
+                            class="border-t hover:bg-gray-100 transition-all"
+                        >
+                            <td class="p-3">{{ meeting.subject }}</td>
+                            <td class="p-3">{{ meeting.pupil }}</td>
+                            <td class="p-3">{{ meeting.day }} {{ meeting.time }}</td>
+                            <td class="p-3 text-right">
+                                <button @click="openEditMeetingModal(meeting, index)" class="text-blue-600">
+                                    <i class="pi pi-pencil"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -55,19 +61,14 @@
             <!-- Edit Form -->
             <div class="mb-4">
                 <label class="block text-gray-600 mb-1">Select Day:</label>
-                <div class="relative">
-                    <select v-model="selectedMeeting.day" class="w-full p-2 border rounded-md">
-                        <option v-for="day in daysOfWeek" :key="day" :value="day">{{ day }}</option>
-                    </select>
-                </div>
+                <select v-model="selectedMeeting.day" class="w-full p-2 border rounded-md">
+                    <option v-for="day in daysOfWeek" :key="day" :value="day">{{ day }}</option>
+                </select>
             </div>
 
             <div class="mb-4">
                 <label class="block text-gray-600 mb-1">Edit Time:</label>
-                <div class="relative flex items-center">
-                    <i class="pi pi-clock text-gray-500 absolute left-2"></i>
-                    <input type="text" v-model="selectedMeeting.time" class="w-full p-2 border rounded-md pl-8" />
-                </div>
+                <input type="text" v-model="selectedMeeting.time" class="w-full p-2 border rounded-md" />
             </div>
 
             <div class="flex justify-end space-x-2">
@@ -79,33 +80,31 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 const meetings = ref([
-    {
-        subject: 'Math',
-        pupil: 'MikeJerome Madulara',
-        day: 'Friday',
-        time: '6:00PM - 8:00PM'
-    }
+    { subject: 'Math', pupil: 'MikeJerome Madulara', day: 'Friday', time: '6:00PM - 8:00PM' },
+    { subject: 'Science', pupil: 'Jane Doe', day: 'Wednesday', time: '4:00PM - 5:00PM' }
 ]);
 
-const showStartMeetingModal = ref(false);
+const searchQuery = ref('');
+const filterDay = ref('');
 const showEditMeetingModal = ref(false);
 const selectedMeeting = ref(null);
 const selectedMeetingIndex = ref(null);
 
-const openStartMeetingModal = (meeting) => {
-    selectedMeeting.value = meeting;
-    showStartMeetingModal.value = true;
-};
+const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const closeStartMeetingModal = () => {
-    showStartMeetingModal.value = false;
-};
+const filteredMeetings = computed(() => {
+    return meetings.value.filter(meeting => {
+        return (
+            (!searchQuery.value || meeting.subject.toLowerCase().includes(searchQuery.value.toLowerCase())) &&
+            (!filterDay.value || meeting.day === filterDay.value)
+        );
+    });
+});
 
-const openEditMeetingModal = (meeting, index, event) => {
-    event.stopPropagation();
+const openEditMeetingModal = (meeting, index) => {
     selectedMeeting.value = { ...meeting };
     selectedMeetingIndex.value = index;
     showEditMeetingModal.value = true;
@@ -121,35 +120,28 @@ const saveMeetingChanges = () => {
     }
     closeEditMeetingModal();
 };
-
-const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 </script>
 
 <style scoped>
-/* Match the exact gray background */
-.bg-gray-300 {
-    background-color: #b3d9ff;
+/* Consistent Font & Text Size */
+h1 {
+    font-size: 1.5rem;
 }
 
-.text-gray-700 {
-    color: #374151;
+th {
+    font-weight: bold;
 }
 
-.text-gray-600 {
-    color: #4B5563;
+table {
+    width: 100%;
 }
 
-.hover\:bg-gray-400:hover {
-    background-color: #BFBFBF;
+td {
+    padding: 12px;
 }
 
-/* Make sure the row is rounded properly */
-.rounded-lg {
-    border-radius: 8px;
-}
-
-/* Transition effect */
-.transition-all {
-    transition: all 0.2s ease-in-out;
+/* Hover Effect */
+tr:hover {
+    background-color: #f1f5f9;
 }
 </style>

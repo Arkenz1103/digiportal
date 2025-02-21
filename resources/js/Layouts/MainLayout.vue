@@ -34,7 +34,8 @@ const sideBarItems = computed(() => {
             { label: 'Meetings', icon: 'pi pi-users', route: route('teacher.meetings') },
             { label: 'Pupils', icon: 'pi pi-book', route: route('teacher.pupils') },
             { label: 'History', icon: 'pi pi-calendar', route: route('teacher.history') },
-            { label: 'Settings', icon: 'pi pi-calendar', route: route('teacher.settings') },
+            { label: 'Quiz', icon: 'pi pi-calendar', route: route('teacher.quiz') },
+            { label: 'Notification', icon: 'pi pi-bell', route: route('teacher.notify') },
         ],
         student: [
             { label: 'Dashboard', icon: 'pi pi-th-large', route: route('student.dashboard') },
