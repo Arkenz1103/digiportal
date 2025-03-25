@@ -10,27 +10,19 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create Admin
-        User::create([
-            'name' => 'Admin',
-            'email' => 'admin@admin.com',
-            'password' => Hash::make('password123'),
-            'role' => 'admin',
-        ]);
-
         // Create Teacher
         User::create([
             'name' => 'Teacher',
-            'email' => 'teacher@teacher.com',
-            'password' => Hash::make('password123'),
+            'email' => 'teacher@gmail.com',
+            'password' => Hash::make('tpassword'),
             'role' => 'teacher',
         ]);
 
         // Create Student
         User::create([
             'name' => 'Student',
-            'email' => 'student@student.com',
-            'password' => Hash::make('password123'),
+            'email' => 'student@gmail.com',
+            'password' => Hash::make('spassword'),
             'role' => 'student',
         ]);
     }

@@ -22,7 +22,7 @@ createInertiaApp({
     }
     return page;
   },
-  title: (title) => `StudySphere ${title}`,
+  title: (title) => `DigiPort ${title}`,
   setup({ el, App, props, plugin }) {
     createApp({ render: () => h(App, props) })
       .use(plugin)

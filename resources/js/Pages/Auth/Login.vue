@@ -1,3 +1,64 @@
+<template>
+    <Head title="| Login"/>
+
+    <!-- Login Form Container -->
+    <div class="flex justify-center items-center min-h-screen bg-white-100 p-6">
+        <div class="max-w-lg w-full bg-white p-8 rounded-lg shadow-lg">
+            <h1 class="text-2xl font-bold text-gray-800 text-center mb-2">Welcome back!</h1>
+            <p class="text-gray-600 text-center mb-6">Enter your credentials to access your account.</p>
+
+            <!-- Login Form -->
+            <form @submit.prevent="submit" class="space-y-4">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-1">Email</label>
+                    <div class="relative">
+                        <InputText
+                            type="email"
+                            v-model="form.email"
+                            placeholder="Enter your email"  
+                            class="w-full h-12 pl-4 border rounded-lg"
+                            :class="{'p-invalid': form.errors.email}"
+                        />
+                    </div>
+                    <small class="text-red-500" v-if="form.errors.email">{{ form.errors.email }}</small>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <Password
+                            v-model="form.password"
+                            placeholder="Enter your password"
+                            :feedback="false"
+                            :toggleMask="true"
+                            class="w-full"
+                            :inputClass="{'p-invalid': form.errors.password}"
+                        />
+                    </div>
+                    <small class="text-red-500" v-if="form.errors.password">{{ form.errors.password }}</small>
+                </div>
+
+                <!-- Remember Me & Forgot Password -->
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center">
+                        <Checkbox v-model="form.remember" :binary="true" class="mr-2" />
+                        <label class="text-gray-700 select-none cursor-pointer">Remember me</label>
+                    </div>
+                    <a href="#" class="text-blue-600 hover:underline">Forgot Password?</a>
+                </div>
+
+                <!-- Login Button -->
+                <Button
+                    type="submit"
+                    label="Login"
+                    :loading="form.processing"
+                    class="w-full h-12 text-lg font-semibold bg-green-500 border-none text-white rounded-lg"
+                />
+            </form>
+        </div>
+    </div>
+</template>
+
 <script setup>
 import { useForm } from '@inertiajs/vue3';
 import { Head } from '@inertiajs/vue3';
@@ -16,27 +77,21 @@ const form = useForm({
 const submit = () => {
     form.clearErrors();
 
-    // Basic validation
     let hasError = false;
-
     if (!form.email) {
-        form.setError('email', 'Username is required');
+        form.setError('email', 'Email is required');
         hasError = true;
     }
-
     if (!form.password) {
         form.setError('password', 'Password is required');
         hasError = true;
-    } else if (form.password.length < 6) {
-        form.setError('password', 'Password must be at least 6 characters');
-        hasError = true;
     }
-
-    // Only submit if no errors
+    
     if (!hasError) {
-        form.post(route("login"), {
-            onError: () => {
-                form.setError('email', 'Invalid username or password');
+        form.post(route('login'), {
+            onError: (errors) => {
+                console.error('Login failed:', errors);
+                form.setError('email', 'Invalid email or password');
                 form.reset('password');
             }
         });
@@ -46,60 +101,11 @@ const submit = () => {
 defineOptions({layout: AuthLayout});
 </script>
 
-<template>
-    <Head title="| Login"/>
-
-    <!-- Login Form -->
-    <form @submit.prevent="submit" class="space-y-4">
-        <div class="mb-4">
-            <div class="relative">
-                <i class="pi pi-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10"></i>
-                <InputText
-                    type="text"
-                    v-model="form.email"
-                    placeholder="Enter your username"
-                    class="w-full h-12 pl-10 rounded-lg"
-                    :class="{'p-invalid': form.errors.email}"
-                />
-            </div>
-            <small class="text-red-500 mt-1 block" v-if="form.errors.email">{{ form.errors.email }}</small>
-        </div>
-
-        <div class="mb-4">
-            <div class="relative">
-                <i class="pi pi-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10"></i>
-                <Password
-                    v-model="form.password"
-                    placeholder="Enter your password"
-                    :feedback="false"
-                    :toggleMask="true"
-                    class="w-full"
-                    :inputClass="{'p-invalid': form.errors.password}"
-                />
-            </div>
-            <small class="text-red-500 mt-1 block" v-if="form.errors.password">{{ form.errors.password }}</small>
-        </div>
-
-        <!-- Remember Me -->
-        <div class="mb-6 flex items-center">
-            <Checkbox v-model="form.remember" :binary="true" class="mr-2" />
-            <label class="text-gray-700 select-none cursor-pointer">Remember me</label>
-        </div>
-
-        <Button
-            type="submit"
-            label="LOGIN"
-            :loading="form.processing"
-            class="w-full h-12 text-lg font-semibold"
-        />
-    </form>
-</template>
-
 <style scoped>
 :deep(.p-password-input) {
     width: 100%;
     height: 3rem;
-    padding-left: 2.5rem;
+    padding-left: 1rem;
     border-radius: 0.5rem;
 }
 
@@ -108,35 +114,19 @@ defineOptions({layout: AuthLayout});
 }
 
 :deep(.p-button) {
-    background: #1B2850;
+    background: #22c55e;
     border: none;
     border-radius: 0.5rem;
+    color: white;
 }
 
 :deep(.p-button:hover) {
-    background: #2a3d75;
+    background: #16a34a;
 }
 
 :deep(.p-inputtext) {
     width: 100%;
-    padding-left: 2.5rem;
-}
-
-/* Remove the bottom border from password input */
-:deep(.p-password .p-inputtext) {
-    border-bottom: none !important;
-}
-
-/* Ensure password toggle icon is properly positioned */
-:deep(.p-password i.p-password-icon) {
-    right: 0.75rem;
-    color: #6b7280;
-}
-
-/* Style checkbox */
-:deep(.p-checkbox) {
-    width: 1.25rem;
-    height: 1.25rem;
+    padding-left: 1rem;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {

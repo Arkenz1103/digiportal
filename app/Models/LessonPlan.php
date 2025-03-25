@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class LessonPlan extends Model
 {
     protected $fillable = [
-        'user_id', 
+        'edulib.user_id', 
         'title', 
         'filename', 
         'path', 
