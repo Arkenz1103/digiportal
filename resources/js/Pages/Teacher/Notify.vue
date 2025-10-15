@@ -2,8 +2,8 @@
   <div class="p-6 max-w-7xl mx-auto">
     <div class="bg-white rounded-lg shadow-lg">
       <!-- Header -->
-      <div class="border-b p-6">
-        <h1 class="text-2xl font-bold text-gray-900">Notifications</h1>
+      <div class="bg-[#B8AAFF] p-6">
+        <h1 class="text-2xl font-bold text-white">Notifications</h1>
       </div>
 
       <!-- Tabs -->
@@ -16,8 +16,8 @@
             class="px-6 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2"
             :class="[
               activeTab === tab 
-                ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm' 
-                : 'text-gray-600 hover:bg-gray-50'
+                ? 'bg-[#B6CFFF]/30 text-[#0E1836] font-semibold shadow-sm' 
+                : 'text-[#0E1836] hover:bg-[#B8AAFF]/10'
             ]"
           >
             <i :class="[
@@ -32,7 +32,7 @@
             <span v-if="tab !== 'all'" 
                   class="ml-1 px-2 py-0.5 text-xs rounded-full"
                   :class="[
-                    tab === 'new' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                    tab === 'new' ? 'bg-[#7BBBFE] text-white' : 'bg-[#B6CFFF] text-[#0E1836]'
                   ]">
               {{ tab === 'new' ? notifications.filter(n => n.isNew).length : notifications.filter(n => n.isUnread).length }}
             </span>
@@ -50,7 +50,7 @@
                 notification.isUnread ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
               ]"
             >
-              <div class="p-4 flex items-start justify-between gap-4">
+              <div class="p-4 flex items-start justify-between gap-4 hover:bg-[#F2FDFF] transition-colors">
                 <!-- Icon & Content -->
                 <div class="flex items-start gap-4">
                   <div
@@ -67,7 +67,7 @@
                     <div class="flex items-center gap-2">
                       <h3 class="font-semibold text-gray-900">{{ notification.title }}</h3>
                       <span v-if="notification.isNew" 
-                            class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                            class="px-2 py-0.5 bg-[#7BBBFE] text-white text-xs rounded-full">
                         New
                       </span>
                     </div>
@@ -83,12 +83,12 @@
                 <div class="flex items-center gap-2">
                   <button v-if="notification.isUnread"
                     @click="markAsRead(notification.id)"
-                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    class="p-2 text-[#0E1836] hover:bg-[#B6CFFF]/30 rounded-lg transition-colors">
                     <i class="pi pi-check"></i>
                   </button>
                   <button
                     @click="dismissNotification(notification.id)"
-                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    class="p-2 text-[#0E1836] hover:bg-[#B6CFFF]/30 rounded-lg transition-colors">
                     <i class="pi pi-trash"></i>
                   </button>
                 </div>
@@ -98,12 +98,12 @@
 
           <!-- Empty State -->
           <div v-if="filteredNotifications.length === 0" 
-               class="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-            <div class="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-              <i class="pi pi-bell text-gray-400 text-2xl"></i>
+               class="text-center py-12 bg-[#F2FDFF] rounded-xl border-2 border-dashed border-[#B6CFFF]">
+            <div class="w-16 h-16 mx-auto mb-4 bg-[#B6CFFF] rounded-full flex items-center justify-center">
+              <i class="pi pi-bell text-white text-2xl"></i>
             </div>
-            <h3 class="text-gray-600 font-medium">No notifications</h3>
-            <p class="text-gray-500 text-sm mt-1">You're all caught up!</p>
+            <h3 class="text-[#0E1836] font-medium">No notifications</h3>
+            <p class="text-[#0E1836]/80 text-sm mt-1">You're all caught up!</p>
           </div>
         </div>
       </div>
@@ -119,26 +119,26 @@ const notifications = ref([
   {
     id: 1,
     type: 'output',
-    title: 'New Student Output',
-    message: 'Alice Smith has submitted "Math Exercise 3" for Grade 1 - Section A',
+    title: 'Post Approval Request',
+    message: 'Alice Smith is requesting approval to post "Math Exercise 3" for Grade 1 - A',
     date: new Date(),
     isNew: true,
     isUnread: true,
   },
   {
     id: 2,
-    type: 'remark',
-    title: 'New Remark Added',
-    message: 'You added a behavioral remark for Bob Johnson in Grade 1 - Section B',
+    type: 'output',
+    title: 'Post Approval Request',
+    message: 'Bob Johnson is requesting approval to post "Science Project" for Grade 2 - A',
     date: new Date('2024-02-18 14:30'),
     isNew: true,
     isUnread: true,
   },
   {
     id: 3,
-    type: 'schedule',
-    title: 'Schedule Change',
-    message: 'Class schedule for Grade 2 - Section A has been updated to 1:30 PM - 3:30 PM',
+    type: 'output',
+    title: 'Post Approval Request',
+    message: 'Emma Davies is requesting approval to post "English Essay" for Grade 3 - A',
     date: new Date('2024-02-18 09:15'),
     isNew: true,
     isUnread: false,
@@ -146,26 +146,26 @@ const notifications = ref([
   {
     id: 4,
     type: 'output',
-    title: 'Missing Output',
-    message: 'Carol Williams has not submitted "Science Project" due yesterday',
+    title: 'Post Approval Request',
+    message: 'Carol Williams is requesting approval to post "History Timeline" for Grade 1 - A',
     date: new Date('2024-02-17 16:45'),
     isNew: false,
     isUnread: true,
   },
   {
     id: 5,
-    type: 'remark',
-    title: 'Remark Update',
-    message: 'Academic remark for David Brown has been updated',
+    type: 'output',
+    title: 'Post Approval Request',
+    message: 'David Brown is requesting approval to post "Geography Map" for Grade 2 - A',
     date: new Date('2024-02-17 11:20'),
     isNew: false,
     isUnread: true,
   },
   {
     id: 6,
-    type: 'schedule',
-    title: 'Upcoming Class',
-    message: 'Reminder: Grade 3 - Section B class starts in 30 minutes',
+    type: 'output',
+    title: 'Post Approval Request',
+    message: 'Frank Miller is requesting approval to post "Art Project" for Grade 3 - A',
     date: new Date('2024-02-17 10:00'),
     isNew: false,
     isUnread: false,
@@ -173,17 +173,17 @@ const notifications = ref([
   {
     id: 7,
     type: 'output',
-    title: 'Output Graded',
-    message: 'You have graded Emma Davies\'s "English Essay" as Excellent',
+    title: 'Post Approval Request',
+    message: 'Grace Taylor is requesting approval to post "Music Composition" for Grade 1 - A',
     date: new Date('2024-02-16 15:30'),
     isNew: false,
     isUnread: false,
   },
   {
     id: 8,
-    type: 'remark',
-    title: 'Multiple Remarks',
-    message: '3 new remarks have been added for Grade 1 - Section A students',
+    type: 'output',
+    title: 'Post Approval Request',
+    message: 'Henry Wilson is requesting approval to post "Physical Education Activity" for Grade 2 - A',
     date: new Date('2024-02-16 13:45'),
     isNew: false,
     isUnread: true,
@@ -206,13 +206,13 @@ const getNotificationIcon = (type) => {
 const getNotificationColor = (type) => {
   switch (type) {
     case 'output':
-      return 'from-blue-500 to-blue-600';
+      return 'from-[#7BBBFE] to-[#7BBBFE]';
     case 'remark':
-      return 'from-purple-500 to-purple-600';
+      return 'from-[#B8AAFF] to-[#B8AAFF]';
     case 'schedule':
-      return 'from-green-500 to-green-600';
+      return 'from-[#7BBBFE] to-[#7BBBFE]';
     default:
-      return 'from-gray-500 to-gray-600';
+      return 'from-[#B6CFFF] to-[#B6CFFF]';
   }
 };
 

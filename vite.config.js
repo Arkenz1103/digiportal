@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 import Components from 'unplugin-vue-components/vite';
 import {PrimeVueResolver} from '@primevue/auto-import-resolver';
@@ -7,14 +6,38 @@ import {PrimeVueResolver} from '@primevue/auto-import-resolver';
 export default defineConfig({
     plugins: [
         vue(),
-        laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
-            refresh: true,
-        }),
         Components({
             resolvers: [
               PrimeVueResolver()
             ]
         }),
     ],
+    server: {
+        port: 5173,
+        strictPort: true,
+        host: 'localhost',
+        cors: true,
+        hmr: {
+            host: 'localhost',
+        },
+        watch: {
+            ignored: [
+                '**/.be/**',           // Ignore Django backend folder
+                '**/node_modules/**',
+                '**/.git/**',
+            ]
+        },
+    },
+    build: {
+        manifest: true,
+        outDir: 'public/build',
+        rollupOptions: {
+            input: 'resources/js/app.js',
+        },
+    },
+    resolve: {
+        alias: {
+            '@': '/resources/js',
+        },
+    },
 });

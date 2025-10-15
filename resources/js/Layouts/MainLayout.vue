@@ -1,17 +1,16 @@
 <script setup>
-import { Link, usePage, useForm } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { Link, usePage, useForm, router } from '@inertiajs/vue3';
+import { ref, computed, onMounted, provide } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 
-// Get user from shared data
-const page = usePage();
-const auth = computed(() => page.props.auth);
-const currentRoute = computed(() => page.url); // Get the current route
+// Use a runtime URL so Vite doesn't transform it to an import
+const logoUrl = '/logo.jpg';
 
 // Sidebar collapse state
 const isCollapsed = ref(false);
+provide('isSidebarCollapsed', isCollapsed);
 
 // Profile dropdown state
 const isDropdownOpen = ref(false);
@@ -21,8 +20,8 @@ const isClassDropdownOpen = ref(false);
 
 // Add state for classes
 const classes = ref([
-    { id: 1, name: 'Grade 1 - A', theme: 'emerald' },
-    { id: 2, name: 'Grade 2 - A', theme: 'blue' },
+    { id: 1, name: 'Grade 1 - A', theme: 'purple' },
+    { id: 2, name: 'Grade 2 - A', theme: 'purple' },
     { id: 3, name: 'Grade 3 - A', theme: 'purple' },
 ]);
 
@@ -31,10 +30,10 @@ const showAddClassModal = ref(false);
 const newClassForm = useForm({
     grade: '',
     section: '',
-    theme: 'emerald', // default theme
+    theme: 'purple',
 });
 
-// Add these to your script setup section at the top
+// Notifications state
 const showNotifications = ref(false);
 const notifications = ref([
     {
@@ -66,7 +65,7 @@ const notifications = ref([
     },
 ]);
 
-// Add these helper functions
+// Helper functions
 const getNotificationIcon = (type) => {
     switch (type) {
         case 'output': return 'pi-file-edit';
@@ -78,10 +77,10 @@ const getNotificationIcon = (type) => {
 
 const getNotificationColor = (type) => {
     switch (type) {
-        case 'output': return 'text-blue-600 bg-blue-50';
-        case 'remark': return 'text-purple-600 bg-purple-50';
-        case 'schedule': return 'text-green-600 bg-green-50';
-        default: return 'text-gray-600 bg-gray-50';
+        case 'output': return 'text-indigo-600 bg-indigo-50';
+        case 'remark': return 'text-violet-600 bg-violet-50';
+        case 'schedule': return 'text-blue-600 bg-blue-50';
+        default: return 'text-indigo-600 bg-indigo-50';
     }
 };
 
@@ -92,7 +91,6 @@ const formatDate = (date) => {
     }).format(new Date(date));
 };
 
-// Function to mark notification as read
 const markAsRead = (id) => {
     const notification = notifications.value.find(n => n.id === id);
     if (notification) {
@@ -101,17 +99,14 @@ const markAsRead = (id) => {
     }
 };
 
-// Toggle sidebar visibility
 const toggleSidebar = () => {
     isCollapsed.value = !isCollapsed.value;
 };
 
-// Toggle profile dropdown
 const toggleDropdown = () => {
     isDropdownOpen.value = !isDropdownOpen.value;
 };
 
-// Toggle class dropdown
 const toggleClassDropdown = () => {
     isClassDropdownOpen.value = !isClassDropdownOpen.value;
 };
@@ -124,35 +119,32 @@ const sideBarItems = computed(() => {
 
     const roleBasedItems = {
         teacher: [
-            { label: 'Home', icon: 'pi pi-home', route: route('teacher.home') },
-            { label: 'Remarks', icon: 'pi pi-comments', route: route('teacher.remarks') },
-            { label: 'Archived', icon: 'pi pi-folder', route: route('teacher.archived') },
+            { label: 'Home', icon: 'pi pi-home', route: '/teacher/home' },
+            { label: 'Remarks', icon: 'pi pi-comments', route: '/teacher/remarks' },
+            { label: 'Notice', icon: 'pi pi-check-circle', route: '/teacher/notice' },
+            { label: 'Archived', icon: 'pi pi-folder', route: '/teacher/archived' },
         ],
         student: [
-            { label: 'Home', icon: 'pi pi-home', route: route('student.newsfeed') },
-            { label: 'Sketch', icon: 'pi pi-pencil', route: route('student.sketch') },
-            { label: 'Archived', icon: 'pi pi-folder', route: route('student.archived') },
+            { label: 'Home', icon: 'pi pi-home', route: '/student/newsfeed' },
+            { label: 'Sketch', icon: 'pi pi-pencil', route: '/student/sketch' },
+            { label: 'Archived', icon: 'pi pi-folder', route: '/student/archived' },
         ],
     };
 
-    // Return the appropriate items based on user role
     return roleBasedItems[auth.value.user.role] || [];
 });
 
-// Logout Function using Inertia
+// Logout Function
 const logoutForm = useForm({});
 const logout = () => {
-    logoutForm.post(route('logout'));
+    logoutForm.post('/logout');
 };
 
-// Add theme options
+// Theme options
 const themeOptions = [
-    { id: 'emerald', color: 'bg-emerald-500', name: 'Emerald' },
-    { id: 'blue', color: 'bg-blue-500', name: 'Blue' },
-    { id: 'purple', color: 'bg-purple-500', name: 'Purple' },
-    { id: 'rose', color: 'bg-rose-500', name: 'Rose' },
-    { id: 'amber', color: 'bg-amber-500', name: 'Amber' },
-    { id: 'teal', color: 'bg-teal-500', name: 'Teal' },
+    { id: 'indigo', color: 'bg-indigo-600', name: 'Indigo' },
+    { id: 'violet', color: 'bg-violet-600', name: 'Violet' },
+    { id: 'blue', color: 'bg-blue-600', name: 'Blue' }
 ];
 
 // Function to handle class creation
@@ -162,7 +154,7 @@ const addClass = () => {
     }
 
     const className = `Grade ${newClassForm.grade} - ${newClassForm.section.toUpperCase()}`;
-    
+
     classes.value.push({
         id: classes.value.length + 1,
         name: className,
@@ -173,130 +165,176 @@ const addClass = () => {
     showAddClassModal.value = false;
 };
 
-// Function to validate grade input
+// Validation functions
 const validateGrade = (event) => {
-    // Only allow numbers
     const value = event.target.value;
     if (!/^\d*$/.test(value)) {
         event.target.value = value.replace(/[^\d]/g, '');
     }
 };
 
-// Function to validate section input
 const validateSection = (event) => {
-    // Only allow single letters
     const value = event.target.value;
     if (!/^[a-zA-Z]?$/.test(value)) {
         event.target.value = value.slice(0, 1).toUpperCase();
     }
 };
 
-// Add new state for join class modal and form
+// Join class modal and form
 const showJoinClassModal = ref(false);
 const joinClassForm = useForm({
     code: '',
 });
 
-// Add this function to handle joining a class
 const joinClass = () => {
     if (!joinClassForm.code) {
         return;
     }
-    
-    // Here you would typically make an API call to join the class
-    // For now, we'll just close the modal
+
     joinClassForm.reset();
     showJoinClassModal.value = false;
 };
+
+// Function to get class color based on theme
+const getClassColor = (theme) => {
+    switch (theme) {
+        case 'indigo': return 'bg-indigo-600';
+        case 'violet': return 'bg-violet-600';
+        case 'blue': return 'bg-blue-600';
+        default: return 'bg-indigo-600';
+    }
+};
+
+// Check if a route is active
+const isRouteActive = (routePath) => {
+    // Special handling for class routes
+    if (routePath.includes('/class/')) {
+        return currentRoute.value.includes(routePath.split('/class/')[1]);
+    }
+    return currentRoute.value === routePath;
+};
+
+// Close dropdowns when clicking outside
+const closeDropdowns = () => {
+    isDropdownOpen.value = false;
+    showNotifications.value = false;
+};
+
+onMounted(() => {
+    document.addEventListener('click', closeDropdowns);
+});
+
+// Get user from shared data
+const page = usePage();
+const auth = computed(() => page.props.auth);
+const currentRoute = computed(() => page.url);
 </script>
 
 <template>
-    <div class="bg-gray-100">
+    <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
         <div class="flex">
             <!-- Sidebar -->
-            <div :class="['h-screen bg-white shadow-lg sticky top-0 flex flex-col transition-all duration-300', isCollapsed ? 'w-16' : 'w-48']">
+            <div :class="['bg-white/90 backdrop-blur-sm shadow-lg sticky top-0 flex flex-col transition-all duration-300 border-r border-indigo-100 z-10', isCollapsed ? 'w-20' : 'w-64']">
                 <!-- Sidebar Header -->
-                <div class="p-2 border-b h-[52px] flex items-center">
-                    <button @click="toggleSidebar" class="p-2 px-4 focus:outline-none">
-                        <i class="pi pi-bars text-xl"></i>
+                <div class="p-4 border-b h-[52px] flex items-center justify-between">
+                    <button @click="toggleSidebar" class="p-2 rounded-lg hover:bg-violet-500 transition-colors focus:outline-none">
+                        <i :class="['pi', isCollapsed ? 'pi-bars' : 'pi-arrow-left', 'text-gray-600']"></i>
                     </button>
                 </div>
 
                 <!-- Navigation Section -->
-                <nav class="flex-1 overflow-y-auto mt-4">
+                <nav class="flex-1 overflow-y-auto py-4 px-2">
                     <!-- Regular menu items -->
-                    <div v-for="(item, index) in sideBarItems" :key="index" class="px-4 py-2">
-                        <Link :href="item.route"
-                            class="flex items-center p-2 rounded-lg transition-colors duration-200"
-                            :class="{
-                                'bg-blue-50 text-blue-600 font-semibold': currentRoute === item.route,
-                                'text-gray-700 hover:bg-blue-50 hover:text-blue-600': currentRoute !== item.route
-                            }">
-                            <i :class="item.icon" class="text-lg"></i>
-                            <span v-show="!isCollapsed" class="ml-3 text-[0.875rem] font-medium">{{ item.label }}</span>
+                    <div class="space-y-1">
+                        <Link
+                            v-for="(item, index) in sideBarItems"
+                            :key="index"
+                            :href="item.route"
+                            :class="[
+                                'relative flex items-center rounded-lg transition-colors duration-200',
+                                isCollapsed ? 'justify-center p-3' : 'p-2',
+                                isRouteActive(item.route)
+                                    ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-50'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                            ]"
+                            :title="isCollapsed ? item.label : ''"
+                        >
+                            <i :class="[item.icon, isCollapsed ? 'text-lg' : 'text-lg mr-3', isRouteActive(item.route) ? 'text-indigo-600' : '']"></i>
+                            <span :class="[isCollapsed ? 'hidden' : '', isRouteActive(item.route) ? 'font-medium' : '']">{{ item.label }}</span>
+                            <div v-if="isRouteActive(item.route)" class="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-r"></div>
+                            <span v-if="isCollapsed && item.badge" class="absolute top-1 right-1 flex items-center justify-center h-4 w-4 text-xs font-medium text-white bg-red-500 rounded-full">{{ item.badge }}</span>
                         </Link>
                     </div>
 
                     <!-- Horizontal Line -->
-                    <div class="px-4 py-2">
-                        <hr class="border-gray-200">
+                    <div :class="['my-4', isCollapsed ? 'mx-2' : 'mx-3']">
+                        <div class="border-t border-gray-200"></div>
                     </div>
 
                     <!-- My Classes Section -->
-                    <div class="px-4 py-2" v-if="auth?.user?.role === 'teacher' || auth?.user?.role === 'student'">
-                        <div class="flex items-center justify-between p-2">
-                            <div class="flex items-center">
-                                <span v-show="!isCollapsed" class="text-[0.875rem] font-medium">My Classes</span>
+                    <div v-if="auth?.user?.role === 'teacher' || auth?.user?.role === 'student'" class="mb-4">
+                        <div class="flex items-center justify-between px-4 mb-2">
+                            <div v-if="!isCollapsed" class="text-xs uppercase font-semibold text-gray-500 tracking-wider">My Classes</div>
+                            <div :class="['flex', isCollapsed ? 'justify-center' : '']">
+                                <button
+                                    v-if="auth?.user?.role === 'teacher'"
+                                    @click="showAddClassModal = true"
+                                    class="text-indigo-600 hover:bg-indigo-50 rounded-lg p-1.5 transition-all duration-200"
+                                    :title="isCollapsed ? 'Add Class' : ''"
+                                >
+                                    <i class="pi pi-plus" :class="{'text-lg': isCollapsed}"></i>
+                                </button>
                             </div>
-                            <button 
-                                v-if="auth?.user?.role === 'teacher'"
-                                @click="showAddClassModal = true" 
-                                class="text-blue-600 hover:bg-blue-50 rounded-lg p-1 transition-all duration-200"
-                            >
-                                <i class="pi pi-plus text-sm"></i>
-                            </button>
                         </div>
 
                         <!-- Classes List -->
-                        <div class="ml-2 mt-2 space-y-1">
-                            <Link v-for="class_ in classes" 
-                                  :key="class_.id"
-                                  :href="route(auth?.user?.role + '.class.show', class_.name.toLowerCase().replace(' - ', '-'))"
-                                  class="flex items-center p-2 rounded-lg transition-all duration-200"
-                                  :class="{
-                                      'hover:bg-blue-50 hover:text-blue-600': true,
-                                      'bg-blue-50 text-blue-600': currentRoute === route(auth?.user?.role + '.class.show', class_.name.toLowerCase().replace(' - ', '-'))
-                                  }"
-                                  :title="class_.name">
-                                <div v-if="!isCollapsed" 
-                                     class="flex items-center gap-3">
-                                    <div :class="[
-                                        'w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm',
-                                        `bg-${class_.theme}-500`
-                                    ]">
+                        <div class="space-y-1">
+                            <Link
+                                v-for="class_ in classes"
+                                :key="class_.id"
+                                :href="`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`"
+                                class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden"
+                                :class="{
+                                    'bg-indigo-50 text-indigo-600 shadow-sm': isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`),
+                                    'hover:bg-indigo-50 hover:text-indigo-600': !isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`),
+                                    'active:bg-indigo-100 active:scale-[0.98]': true
+                                }"
+                                :style="isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`) ? 'background-color: rgba(99, 102, 241, 0.1);' : ''"
+                                :title="isCollapsed ? class_.name : ''"
+                            >
+                                <div v-if="isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`)" class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600"></div>
+                                <div class="flex items-center gap-3 w-full">
+                                    <div
+                                        :class="[
+                                            'w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm transition-all duration-200',
+                                            getClassColor(class_.theme),
+                                            isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`)
+                                                ? 'scale-110 ring-2 ring-offset-2 ring-indigo-600'
+                                                : 'group-hover:scale-105 group-hover:ring-2 group-hover:ring-offset-2 group-hover:ring-indigo-600/50'
+                                        ]"
+                                    >
                                         <span class="text-xs font-semibold">{{ class_.name.split(' ')[1] }}</span>
                                     </div>
-                                    <span class="text-sm font-medium">{{ class_.name }}</span>
-                                </div>
-                                <div v-else 
-                                     :class="[
-                                         'w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm',
-                                         `bg-${class_.theme}-500`
-                                     ]"
-                                     :title="class_.name">
-                                    <span class="text-xs font-semibold">{{ class_.name.split(' ')[1] }}</span>
+                                    <span v-if="!isCollapsed" class="text-sm font-medium truncate">{{ class_.name }}</span>
+                                    <div
+                                        v-if="isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`) && !isCollapsed"
+                                        class="ml-auto w-1.5 h-5 rounded-sm bg-indigo-600 transition-all duration-200"
+                                    ></div>
                                 </div>
                             </Link>
                         </div>
 
                         <!-- Join Class Button -->
-                        <div class="px-4 py-2" v-if="auth?.user?.role === 'student'">
-                            <button 
+                        <div class="mt-4 px-3" v-if="auth?.user?.role === 'student'">
+                            <button
                                 @click="showJoinClassModal = true"
-                                class="w-full flex items-center justify-center gap-2 p-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-200 border border-gray-300"
+                                :class="[
+                                    'flex items-center justify-center gap-2 p-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-200 w-full',
+                                    isCollapsed ? 'w-10 h-10 mx-auto' : 'w-full'
+                                ]"
                             >
                                 <i class="pi pi-plus text-sm"></i>
-                                <span v-show="!isCollapsed" class="text-sm font-medium">Join Class</span>
+                                <span v-if="!isCollapsed" class="text-sm font-medium">Join Class</span>
                             </button>
                         </div>
                     </div>
@@ -304,34 +342,34 @@ const joinClass = () => {
             </div>
 
             <!-- Main Content Area -->
-            <div class="flex-1">
-                <nav class="bg-white shadow-md sticky top-0 border-b h-[52px]">
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <nav class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 border-b border-indigo-100 h-[52px] z-10">
                     <div class="max-w-full mx-auto h-full">
-                        <div class="flex justify-between items-center pl-2 h-full">
+                        <div class="flex justify-between items-center px-4 h-full">
                             <!-- Logo -->
                             <div class="flex items-center">
-                                <button @click="toggleSidebar" class="p-2 focus:outline-none md:hidden">
-                                    <i class="pi pi-bars text-xl"></i>
+                                <button @click="toggleSidebar" class="p-2 rounded-lg hover:bg-violet-500 transition-colors focus:outline-none md:hidden">
+                                    <i class="pi pi-bars text-gray-600"></i>
                                 </button>
                                 <img
-                                    src="C:\Users\ncslogo.jpg"
+                                    :src="logoUrl"
                                     class="w-auto h-8 mr-2"
+                                    alt="DigiPort Logo"
                                 />
-                                <span class="text-xl font-bold">DigiPort</span>
+                                <span class="text-xl font-bold text-gray-800">DigiPort</span>
                             </div>
 
-                            <!-- Add Bell and User Profile -->
-                            <div class="flex items-center gap-6 pr-6">
+                            <!-- Bell and User Profile -->
+                            <div class="flex items-center gap-6">
                                 <!-- Bell Icon with Dropdown -->
                                 <div class="relative">
-                                    <button 
-                                        @click="showNotifications = !showNotifications" 
-                                        @blur="setTimeout(() => showNotifications = false, 200)"
+                                    <button
+                                        @click.stop="showNotifications = !showNotifications"
                                         class="relative p-2 hover:bg-gray-100 rounded-full transition-all duration-200 focus:outline-none"
                                     >
                                         <i class="pi pi-bell text-gray-600 text-xl"></i>
                                         <!-- Notification Badge -->
-                                        <div 
+                                        <div
                                             v-if="notifications.filter(n => n.isUnread).length > 0"
                                             class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full"
                                         >
@@ -340,17 +378,18 @@ const joinClass = () => {
                                     </button>
 
                                     <!-- Notifications Dropdown -->
-                                    <div 
+                                    <div
                                         v-show="showNotifications"
-                                        class="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                                        class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                                        @click.stop
                                     >
                                         <!-- Header -->
                                         <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
                                             <div class="flex items-center justify-between">
                                                 <h3 class="font-semibold text-gray-900">Notifications</h3>
-                                                <Link 
-                                                    :href="route('teacher.notify')"
-                                                    class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                                <Link
+                                                    :href="auth?.user?.role === 'teacher' ? '/teacher/notify' : route('student.notifications')"
+                                                    class="text-sm text-indigo-600 hover:text-indigo-900 font-medium"
                                                 >
                                                     View All
                                                 </Link>
@@ -359,52 +398,52 @@ const joinClass = () => {
 
                                         <!-- Notifications List -->
                                         <div class="max-h-[400px] overflow-y-auto">
-                                            <div 
-                                                v-for="notification in notifications.slice(0, 5)" 
+                                            <div
+                                                v-for="notification in notifications.slice(0, 5)"
                                                 :key="notification.id"
                                                 @click="markAsRead(notification.id)"
                                                 class="group px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0"
-                                                :class="{ 'bg-blue-50/60': notification.isUnread }"
+                                                :class="{ 'bg-indigo-50': notification.isUnread }"
                                             >
                                                 <div class="flex items-start gap-3">
                                                     <!-- Icon -->
-                                                    <div 
+                                                    <div
                                                         class="p-2 rounded-full shrink-0"
                                                         :class="getNotificationColor(notification.type)"
                                                     >
                                                         <i :class="['pi', getNotificationIcon(notification.type)]"></i>
                                                     </div>
-                                                    
+
                                                     <!-- Content -->
                                                     <div class="flex-1 min-w-0">
                                                         <div class="flex items-center gap-2 mb-1">
                                                             <p class="font-medium text-sm text-gray-900 truncate">
                                                                 {{ notification.title }}
                                                             </p>
-                                                            <span 
+                                                            <span
                                                                 v-if="notification.isNew"
                                                                 class="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium"
                                                             >
                                                                 New
                                                             </span>
                                                         </div>
-                                                        <p class="text-sm text-gray-600 line-clamp-2 mb-1">
+                                                        <p class="text-sm text-gray-600 line-clamp-2">
                                                             {{ notification.message }}
                                                         </p>
                                                         <p class="text-xs text-gray-500">
                                                             {{ formatDate(notification.date) }}
                                                         </p>
                                                     </div>
-                                                    
+
                                                     <!-- Unread Indicator -->
-                                                    <div v-if="notification.isUnread" 
-                                                        class="w-2 h-2 rounded-full bg-blue-600 shrink-0 mt-2">
+                                                    <div v-if="notification.isUnread"
+                                                        class="w-2 h-2 rounded-full bg-indigo-600 shrink-0 mt-2">
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <!-- Empty State -->
-                                            <div 
+                                            <div
                                                 v-if="notifications.length === 0"
                                                 class="px-4 py-8 text-center"
                                             >
@@ -420,13 +459,12 @@ const joinClass = () => {
 
                                 <!-- User Profile -->
                                 <div class="relative">
-                                    <button 
-                                        @click="toggleDropdown"
-                                        @blur="setTimeout(() => isDropdownOpen = false, 200)"
+                                    <button
+                                        @click.stop="toggleDropdown"
                                         class="flex items-center gap-3 hover:bg-gray-100 rounded-full py-1.5 px-2 transition-all duration-200"
                                     >
-                                        <img 
-                                            :src="auth?.user?.avatar || 'https://ui-avatars.com/api/?name=' + auth?.user?.name" 
+                                        <img
+                                            :src="auth?.user?.avatar || `https://ui-avatars.com/api/?name=${auth?.user?.name}`"
                                             class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
                                             :alt="auth?.user?.name"
                                         />
@@ -442,38 +480,39 @@ const joinClass = () => {
                                     </button>
 
                                     <!-- Dropdown Menu -->
-                                    <div 
-                                        v-show="isDropdownOpen" 
+                                    <div
+                                        v-show="isDropdownOpen"
                                         class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50"
+                                        @click.stop
                                     >
                                         <!-- User Info -->
                                         <div class="px-4 py-3 border-b border-gray-100">
                                             <p class="text-sm font-medium text-gray-900">{{ auth?.user?.name }}</p>
                                             <p class="text-xs text-gray-500">{{ auth?.user?.email }}</p>
                                         </div>
-                                        
+
                                         <!-- Menu Items -->
                                         <div class="py-1">
-                                            <Link 
-                                                href="#" 
-                                                class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                            <Link
+                                                href="#"
+                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
                                             >
                                                 <i class="pi pi-user text-gray-400"></i>
                                                 Profile
                                             </Link>
-                                            <Link 
-                                                href="#" 
-                                                class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                            <Link
+                                                href="#"
+                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
                                             >
                                                 <i class="pi pi-cog text-gray-400"></i>
                                                 Settings
                                             </Link>
                                         </div>
-                                        
+
                                         <!-- Logout -->
                                         <div class="border-t border-gray-100 py-1">
-                                            <button 
-                                                @click="logout" 
+                                            <button
+                                                @click="logout"
                                                 class="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
                                             >
                                                 <i class="pi pi-power-off text-red-500"></i>
@@ -488,7 +527,7 @@ const joinClass = () => {
                 </nav>
 
                 <!-- Page Content -->
-                <main class="p-6">
+                <main class="flex-1 overflow-y-auto p-6 bg-transparent">
                     <slot></slot>
                 </main>
             </div>
@@ -496,51 +535,49 @@ const joinClass = () => {
     </div>
 
     <!-- Add Class Modal -->
-    <Dialog 
-        v-model:visible="showAddClassModal" 
-        modal 
-        header="Add New Class" 
+    <Dialog
+        v-model:visible="showAddClassModal"
+        modal
+        header="Add New Class"
         :style="{ width: '30vw' }"
         :dismissableMask="true"
+        class="rounded-xl"
     >
         <div class="flex flex-col gap-4 p-4">
             <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium">Grade</label>
-                <InputText 
+                <label class="text-sm font-medium text-gray-700">Grade</label>
+                <InputText
                     v-model="newClassForm.grade"
                     placeholder="Enter grade number (1-12)"
                     @input="validateGrade"
-                    class="p-2"
-                />
-            </div>
-            
-            <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium">Section</label>
-                <InputText 
-                    v-model="newClassForm.section"
-                    placeholder="Enter section letter (A-Z)"
-                    @input="validateSection"
-                    class="p-2"
+                    class="p-2 w-full rounded-lg border-gray-300 focus:border-[#B8AAFF] focus:ring focus:ring-[#B8AAFF]/20 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 />
             </div>
 
-            <!-- Add Theme Selection -->
             <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium">Theme Color</label>
+                <label class="text-sm font-medium text-gray-700">Section</label>
+                <InputText
+                    v-model="newClassForm.section"
+                    placeholder="Enter section letter (A-Z)"
+                    @input="validateSection"
+                    class="p-2 w-full rounded-lg border-gray-300 focus:border-[#B8AAFF] focus:ring focus:ring-[#B8AAFF]/20 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                />
+            </div>
+
+            <!-- Theme Selection -->
+            <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium text-gray-700">Theme Color</label>
                 <div class="grid grid-cols-3 gap-2">
                     <button
                         v-for="theme in themeOptions"
                         :key="theme.id"
                         @click="newClassForm.theme = theme.id"
                         :class="[
-                            'p-2 rounded-lg border-2 flex items-center gap-2',
-                            newClassForm.theme === theme.id ? 'border-blue-500' : 'border-transparent'
+                            'p-2 rounded-lg border-2 flex items-center gap-2 transition-all',
+                            newClassForm.theme === theme.id ? 'border-[#7BBBFE] bg-[#7BBBFE]/10' : 'border-transparent hover:bg-gray-50'
                         ]"
                     >
-                        <div :class="[
-                            'w-4 h-4 rounded-full',
-                            theme.color
-                        ]"></div>
+                        <div :class="['w-4 h-4 rounded-full', theme.color]"></div>
                         <span class="text-sm">{{ theme.name }}</span>
                     </button>
                 </div>
@@ -549,35 +586,37 @@ const joinClass = () => {
 
         <template #footer>
             <div class="flex justify-end gap-2">
-                <Button 
-                    label="Cancel" 
+                <Button
+                    label="Cancel"
                     @click="showAddClassModal = false"
-                    class="p-button-text" 
+                    class="p-button-text"
                 />
-                <Button 
-                    label="Add Class" 
+                <Button
+                    label="Add Class"
                     @click="addClass"
                     :disabled="!newClassForm.grade || !newClassForm.section"
+                    class="bg-[#B8AAFF] border-[#B8AAFF] hover:bg-[#A799EE] hover:border-[#A799EE]"
                 />
             </div>
         </template>
     </Dialog>
 
     <!-- Join Class Modal -->
-    <Dialog 
-        v-model:visible="showJoinClassModal" 
-        modal 
-        header="Join Class" 
+    <Dialog
+        v-model:visible="showJoinClassModal"
+        modal
+        header="Join Class"
         :style="{ width: '30vw' }"
         :dismissableMask="true"
+        class="rounded-xl"
     >
         <div class="flex flex-col gap-4 p-4">
             <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium">Class Code</label>
-                <InputText 
+                <label class="text-sm font-medium text-gray-700">Class Code</label>
+                <InputText
                     v-model="joinClassForm.code"
                     placeholder="Enter class code"
-                    class="p-2"
+                    class="p-2 w-full rounded-lg border-gray-300 focus:border-[#B8AAFF] focus:ring focus:ring-[#B8AAFF]/20 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 />
                 <p class="text-xs text-gray-500">
                     Ask your teacher for the class code
@@ -587,15 +626,16 @@ const joinClass = () => {
 
         <template #footer>
             <div class="flex justify-end gap-2">
-                <Button 
-                    label="Cancel" 
+                <Button
+                    label="Cancel"
                     @click="showJoinClassModal = false"
-                    class="p-button-text" 
+                    class="p-button-text"
                 />
-                <Button 
-                    label="Join Class" 
+                <Button
+                    label="Join Class"
                     @click="joinClass"
                     :disabled="!joinClassForm.code"
+                    class="bg-[#B8AAFF] border-[#B8AAFF] hover:bg-[#A799EE] hover:border-[#A799EE]"
                 />
             </div>
         </template>
@@ -603,53 +643,6 @@ const joinClass = () => {
 </template>
 
 <style scoped>
-/* Add these styles for the modal */
-:deep(.p-dialog-header) {
-    padding: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-:deep(.p-dialog-footer) {
-    padding: 1.5rem;
-    border-top: 1px solid #e5e7eb;
-}
-
-:deep(.p-dialog-content) {
-    padding: 0;
-}
-
-:deep(.p-inputtext) {
-    width: 100%;
-}
-
-/* Add styles for theme selection */
-.theme-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-}
-
-.theme-option {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.theme-option:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.theme-color {
-    width: 1rem;
-    height: 1rem;
-    border-radius: 9999px;
-    margin-right: 0.5rem;
-}
-
-/* Add to existing styles */
 .line-clamp-1 {
     display: -webkit-box;
     -webkit-line-clamp: 1;
@@ -664,32 +657,32 @@ const joinClass = () => {
     overflow: hidden;
 }
 
-/* Smooth dropdown animations */
-.dropdown-enter-active,
-.dropdown-leave-active {
-    transition: all 0.2s;
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.dropdown-enter-from,
-.dropdown-leave-to {
-    opacity: 0;
-    transform: translateY(-10px);
+:deep(.p-dialog) {
+    border-radius: 0.75rem;
+    overflow: hidden;
 }
 
-/* Smooth transitions for class items */
-.transition-all {
-    transition-property: all;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
+:deep(.p-dialog-header) {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-/* Shadow for class indicators */
-.shadow-sm {
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+:deep(.p-dialog-footer) {
+    padding: 1.5rem;
+    border-top: 1px solid #e5e7eb;
 }
 
-/* Hover effect for class indicators */
-.hover\:shadow-md:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+:deep(.p-dialog-content) {
+    padding: 0;
+}
+
+:deep(.p-button) {
+    border-radius: 0.5rem;
 }
 </style>

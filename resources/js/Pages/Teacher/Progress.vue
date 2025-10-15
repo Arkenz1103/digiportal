@@ -1,59 +1,62 @@
 <template>
-  <div class="p-6 max-w-7xl mx-auto">
+  <div class="p-6 max-w-7xl mx-auto min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
     <!-- Header Section with Student Info -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-      <div class="bg-gradient-to-r from-blue-50 to-white p-6">
-        <div class="flex items-center justify-between">
-          <!-- Left side - Student Info -->
-          <div class="flex items-center gap-4">
-            <div class="w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center">
-              <span class="text-white text-2xl font-bold">{{ studentInfo.initial }}</span>
-            </div>
-            <div>
-              <h2 class="text-xl font-semibold text-gray-900">{{ studentInfo.name }}</h2>
-              <div class="flex items-center gap-4 mt-1">
-                <div class="flex items-center gap-2">
-                  <span class="text-gray-500">Student ID:</span>
-                  <span class="text-gray-900 font-medium">{{ studentInfo.id }}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-gray-500">Grade Level:</span>
-                  <span class="text-gray-900 font-medium">{{ studentInfo.grade }} {{ studentInfo.section }}</span>
+    <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden mb-6 border border-indigo-100">
+      <div class="bg-gradient-to-r from-indigo-50 to-white p-6">
+        <!-- Student Info Section -->
+        <div class="flex flex-col">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-full flex items-center justify-center">
+                <span class="text-white text-2xl font-bold">{{ studentInfo.initial }}</span>
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-indigo-900">{{ studentInfo.name }}</h2>
+                <div class="flex items-center gap-4 mt-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-indigo-700">Student ID:</span>
+                    <span class="text-indigo-900 font-medium">{{ studentInfo.id }}</span>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- Back Button -->
+            <button @click="goBack" 
+              class="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-all">
+              <i class="pi pi-arrow-left"></i>
+              <span>Back to Student Progress</span>
+            </button>
           </div>
 
-          <!-- Right side - Back Button -->
-          <button @click="goBack" 
-            class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl transition-all">
-            <i class="pi pi-arrow-left"></i>
-            <span>Back to List</span>
-          </button>
+          <!-- Teacher's Remarks Section -->
+          <div class="mt-6 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+            <div class="flex justify-between items-center mb-3">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-comments text-indigo-600"></i>
+                <h3 class="text-lg font-semibold text-indigo-900">Teacher's Remarks</h3>
+                <span class="text-sm text-white bg-gradient-to-r from-indigo-500 to-violet-500 px-2 py-0.5 rounded-full">{{ remarksDate }}</span>
+              </div>
+              <button @click="openRemarksDialog" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors flex items-center gap-1">
+                View All
+                <i class="pi pi-angle-right text-xs"></i>
+              </button>
+            </div>
+            <p class="text-indigo-900/80 leading-relaxed">
+              "{{ studentInfo.name }}" has shown consistent improvement in completing assignments on time. 
+              Actively participates in class discussions and demonstrates a strong understanding of course material. 
+              Shows particular strength in creative problem-solving.
+            </p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Remarks Section moved to header -->
-    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-6">
-      <div class="flex justify-between items-start mb-2">
-        <h3 class="text-lg font-semibold text-blue-800 flex items-center gap-2">
-          <i class="pi pi-comments"></i>
-          Teacher's Remarks
-        </h3>
-        <span class="text-sm text-blue-600">Last updated: {{ remarksDate }}</span>
-      </div>
-      <p class="text-blue-700 italic">
-        Student has shown improvement in completing assignments on time. 
-        Consistently participates in class activities and demonstrates good understanding of the subjects.
-      </p>
-    </div>
-
     <!-- Filters and Table Section -->
-    <div class="bg-white p-6 rounded-2xl shadow-lg">
+    <div class="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-indigo-100">
       <div class="flex flex-col space-y-6">
         <!-- Top row with statistics and search -->
-        <div class="flex flex-wrap gap-4">
+        <div class="flex flex-col lg:flex-row gap-4">
           <!-- Search on the left -->
           <div class="w-full lg:w-1/3">
             <div class="relative">
@@ -61,51 +64,51 @@
                 v-model="searchQuery"
                 type="text"
                 placeholder="Search outputs..."
-                class="w-full pl-12 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition-all duration-200 text-gray-700 placeholder-gray-400"
+                class="w-full pl-12 pr-4 py-2.5 rounded-lg border border-indigo-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-all duration-200 text-gray-700 placeholder-indigo-400"
               />
               <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <i class="pi pi-search text-gray-400"></i>
+                <i class="pi pi-search text-indigo-500"></i>
               </div>
             </div>
           </div>
 
-          <!-- Statistics on the right -->
-          <div class="grid grid-cols-3 gap-3 flex-1">
+            <!-- Statistics on the right -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
             <!-- Total Activities -->
-            <div class="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-xl border border-gray-200 shadow-sm">
-                <div class="flex items-center gap-2">
-                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        <i class="pi pi-book text-lg text-gray-600"></i>
+            <div class="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <i class="pi pi-book text-xl text-indigo-600"></i>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-600">Total Activities</p>
-                        <p class="text-lg font-bold text-gray-800">{{ records.length }}</p>
+                        <p class="text-xs text-indigo-600">Total Activities</p>
+                        <p class="text-lg font-bold text-indigo-900">{{ records.length }}</p>
                     </div>
                 </div>
             </div>
 
             <!-- Completed -->
-            <div class="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-xl border border-green-200 shadow-sm">
-                <div class="flex items-center gap-2">
-                    <div class="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center">
-                        <i class="pi pi-check text-lg text-green-600"></i>
+            <div class="bg-gradient-to-br from-green-50 to-white p-4 rounded-lg border border-green-100 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="pi pi-check text-xl text-green-600"></i>
                     </div>
                     <div>
                         <p class="text-xs text-green-600">Completed</p>
-                        <p class="text-lg font-bold text-green-700">{{ completedCount }}</p>
+                        <p class="text-lg font-bold text-indigo-900">{{ completedCount }}</p>
                     </div>
                 </div>
             </div>
 
             <!-- Pending -->
-            <div class="bg-gradient-to-br from-red-50 to-red-100 p-3 rounded-xl border border-red-200 shadow-sm">
-                <div class="flex items-center gap-2">
-                    <div class="w-10 h-10 bg-red-200 rounded-full flex items-center justify-center">
-                        <i class="pi pi-clock text-lg text-red-600"></i>
+            <div class="bg-gradient-to-br from-amber-50 to-white p-4 rounded-lg border border-amber-100 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                        <i class="pi pi-clock text-xl text-amber-600"></i>
                     </div>
                     <div>
-                        <p class="text-xs text-red-600">Pending</p>
-                        <p class="text-lg font-bold text-red-700">{{ pendingCount }}</p>
+                        <p class="text-xs text-amber-600">Pending</p>
+                        <p class="text-lg font-bold text-indigo-900">{{ pendingCount }}</p>
                     </div>
                 </div>
             </div>
@@ -114,9 +117,9 @@
 
         <!-- Search Results Notification -->
         <div v-if="searchQuery" 
-          class="p-3 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl flex items-center gap-2">
-          <i class="pi pi-filter"></i>
-          <span>Showing results for "<strong>{{ searchQuery }}</strong>"</span>
+          class="p-3 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-lg flex items-center gap-2">
+          <i class="pi pi-filter text-indigo-600"></i>
+          <span>Showing results for "<strong class="font-medium">{{ searchQuery }}</strong>"</span>
         </div>
 
         <!-- Updated DataTable -->
@@ -141,7 +144,7 @@
           <Column field="history" header="History">
             <template #body="slotProps">
               <span class="text-gray-600 text-sm">
-                <i class="pi pi-clock mr-2"></i>
+                <i class="pi pi-clock mr-2 text-[#7BBBFE]"></i>
                 {{ slotProps.data.history }}
               </span>
             </template>
@@ -150,19 +153,43 @@
       </div>
     </div>
   </div>
+
+  <!-- Remarks History Dialog -->
+  <Dialog v-model:visible="showRemarksDialog" modal header="Remarks History" :style="{width: '50vw'}" class="p-fluid">
+    <div class="space-y-4">
+      <!-- Current Remarks -->
+      <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-semibold text-indigo-900">Current Remarks</span>
+          <span class="text-sm text-white bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-1 rounded-full">{{ remarksDate }}</span>
+        </div>
+        <p class="text-indigo-900/80 leading-relaxed">
+          "{{ studentInfo.name }}" has shown consistent improvement in completing assignments on time. 
+          Actively participates in class discussions and demonstrates a strong understanding of course material. 
+          Shows particular strength in creative problem-solving.
+        </p>
+      </div>
+
+      <!-- Previous Remarks -->
+      <div v-for="(remark, index) in remarksHistory" :key="index" 
+           class="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-semibold text-indigo-900">Previous Remarks</span>
+          <span class="text-sm text-indigo-600">{{ remark.date }}</span>
+        </div>
+        <p class="text-indigo-900/80 leading-relaxed">{{ remark.content }}</p>
+      </div>
+    </div>
+  </Dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { router } from '@inertiajs/vue3';
-import InputText from "primevue/inputtext";
-import Dropdown from "primevue/dropdown";
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
-import Tag from "primevue/tag";
-import Button from "primevue/button";
-import Card from "primevue/card";
-import TeacherLayout from '@/Layouts/MainLayout.vue';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Tag from 'primevue/tag';
+import Dialog from 'primevue/dialog';
 
 const searchQuery = ref("");
 
@@ -201,23 +228,17 @@ const props = defineProps({
         required: false,
         default: () => ({
             id: 'N/A',
-            name: 'Unknown Student',
-            grade: 'Grade',
-            section: 'Section'
+            name: 'Unknown Student'
         })
     }
 });
 
-// Add computed properties for student info
 const studentInfo = computed(() => ({
     name: props.selectedStudent?.name || 'Unknown Student',
     id: props.selectedStudent?.id || 'N/A',
-    grade: props.selectedStudent?.grade || 'Grade',
-    section: props.selectedStudent?.section || 'Section',
     initial: (props.selectedStudent?.name || '?').charAt(0)
 }));
 
-// Update the onMounted hook to handle missing student data
 onMounted(() => {
     console.log('Received student data:', props.selectedStudent);
     if (!props.selectedStudent?.id) {
@@ -227,17 +248,35 @@ onMounted(() => {
 });
 
 const goBack = () => {
-    router.visit(route('teacher.class'));
+    router.visit(route('teacher.sprogress'));
 };
 
-// Add remarks date
 const remarksDate = ref(new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
 }));
 
-// Remove the percentage computeds since they're no longer needed
+const showRemarksDialog = ref(false);
+const remarksHistory = ref([
+    {
+        date: '2025-05-10',
+        content: 'Student shows good progress in recent assignments. Participation in group activities has improved significantly.'
+    },
+    {
+        date: '2025-05-03',
+        content: 'Completed all assignments for the week. Needs to work on time management for future projects.'
+    },
+    {
+        date: '2025-04-26',
+        content: 'Excellent performance in recent project presentation. Shows strong leadership qualities in team activities.'
+    }
+]);
+
+const openRemarksDialog = () => {
+    showRemarksDialog.value = true;
+};
+
 const completedCount = computed(() => {
     return records.value.filter(record => record.status === "Passed").length;
 });
@@ -248,6 +287,8 @@ const pendingCount = computed(() => {
 </script>
 
 <script>
+import TeacherLayout from '@/Layouts/MainLayout.vue';
+
 export default {
     layout: TeacherLayout
 };
@@ -256,47 +297,93 @@ export default {
 <style scoped>
 input:focus {
     outline: none;
+    @apply ring-2 ring-indigo-200 border-indigo-400;
 }
 
 :deep(.p-datatable) {
-    border-radius: 0.75rem;
-    overflow: hidden;
-    margin-top: 1rem;
+    @apply rounded-lg overflow-hidden mt-4 border border-indigo-100;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-    background-color: #f8fafc;
-    color: #1e293b;
-    font-weight: 600;
-    padding: 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    @apply bg-indigo-50 text-indigo-900 font-semibold p-4 border-b border-indigo-100;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
-    transition: background-color 0.2s;
+    @apply transition-colors duration-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-    background-color: #f1f5f9;
+    @apply bg-indigo-50;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
-    padding: 1rem;
+    @apply p-4 border-b border-indigo-50;
 }
 
-/* Add this new style for better responsive layout */
+:deep(.p-datatable .p-datatable-tbody > tr:last-child > td) {
+    @apply border-b-0;
+}
+
+/* Responsive adjustments */
 @media (max-width: 1024px) {
     .lg\:w-64 {
-        width: 100%;
+        @apply w-full;
     }
 }
 
-/* Add these styles for smooth transitions */
+/* Smooth transitions */
 .bg-gradient-to-br {
-    transition: all 0.3s ease;
+    @apply transition-all duration-300 ease-in-out;
 }
 
-.h-2 {
-    transition: width 0.5s ease;
+/* Custom scrollbar */
+:deep(::-webkit-scrollbar) {
+    @apply w-2 h-2;
 }
-</style> 
+
+:deep(::-webkit-scrollbar-track) {
+    @apply bg-indigo-50 rounded-full;
+}
+
+:deep(::-webkit-scrollbar-thumb) {
+    @apply bg-indigo-200 rounded-full hover:bg-indigo-300;
+}
+
+/* Dialog styles */
+:deep(.p-dialog) {
+    @apply rounded-xl overflow-hidden shadow-xl border border-indigo-100;
+}
+
+:deep(.p-dialog .p-dialog-header) {
+    @apply bg-indigo-50 border-b border-indigo-100 p-4;
+}
+
+:deep(.p-dialog .p-dialog-content) {
+    @apply bg-white p-6;
+}
+
+:deep(.p-dialog .p-dialog-footer) {
+    @apply bg-indigo-50 border-t border-indigo-100 p-4 flex justify-end gap-2;
+}
+
+/* Tag styles */
+:deep(.p-tag) {
+    @apply px-3 py-1.5 text-sm rounded-lg;
+}
+
+:deep(.p-tag.p-tag-success) {
+    @apply bg-green-100 text-green-800 border border-green-200;
+}
+
+:deep(.p-tag.p-tag-danger) {
+    @apply bg-red-100 text-red-800 border border-red-200;
+}
+
+:deep(.p-tag.p-tag-warning) {
+    @apply bg-amber-100 text-amber-800 border border-amber-200;
+}
+
+:deep(.p-tag.p-tag-info) {
+    @apply bg-blue-100 text-blue-800 border border-blue-200;
+}
+</style>

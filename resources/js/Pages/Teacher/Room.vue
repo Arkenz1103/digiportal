@@ -1,349 +1,306 @@
 <template>
     <Head :title="`| ${className}`"/>
-    <div class="min-h-screen bg-gray-50">
+    <div class="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
         <!-- Class Header -->
-        <div :class="[themeClasses.header, 'p-6 shadow-md rounded-[10px]']">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 :class="[themeClasses.badge, 'text-xl font-bold inline-block px-4 py-2 rounded-lg shadow-sm']">
+        <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-t-xl">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="space-y-3">
+                    <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
                         {{ className }}
                     </h1>
-                    <p class="text-white mt-2">Teacher: {{ auth.user.name }}</p>
+                    <p class="text-white/90 ml-2 flex items-center gap-2">
+                        <i class="pi pi-user"></i>
+                        Teacher: {{ auth.user.name }}
+                    </p>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button class="text-white hover:bg-white/20 p-2 rounded-full transition-colors">
-                        <i class="pi pi-cog text-xl"></i>
+                <div class="relative settings-dropdown" ref="settingsRef">
+                    <button
+                        @click.stop="toggleSettingsDropdown"
+                        type="button"
+                        class="flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:shadow-md border border-white/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-indigo-700 focus:ring-white"
+                        aria-label="Settings"
+                        aria-haspopup="true"
+                        :aria-expanded="showSettingsDropdown"
+                    >
+                        <i class="pi pi-cog text-lg"></i>
                     </button>
+
+                    <transition
+                        enter-active-class="transition ease-out duration-100"
+                        enter-from-class="transform opacity-0 scale-95"
+                        enter-to-class="transform opacity-100 scale-100"
+                        leave-active-class="transition ease-in duration-75"
+                        leave-from-class="transform opacity-100 scale-100"
+                        leave-to-class="transform opacity-0 scale-95"
+                    >
+                        <div
+                            v-if="showSettingsDropdown"
+                            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden"
+                        >
+                            <button
+                                @click="showArchiveDialog = true"
+                                type="button"
+                                class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
+                            >
+                                <i class="pi pi-archive"></i>
+                                <span>Archive Class</span>
+                            </button>
+                        </div>
+                    </transition>
                 </div>
             </div>
-            
+
             <!-- Navigation Tabs -->
-            <div class="flex gap-4 mt-6">
-                <button 
-                    v-for="tab in tabs" 
+            <div class="flex flex-wrap gap-2 md:gap-4 mt-4 md:mt-6">
+                <button
+                    v-for="tab in tabs"
                     :key="tab.id"
                     @click="activeTab = tab.id"
+                    class="flex items-center gap-2 text-white/90 px-4 py-2 md:px-6 md:py-3 rounded-lg transition-all duration-300 relative overflow-hidden group"
                     :class="[
-                        'text-white px-6 py-2 rounded-t-lg transition-colors',
-                        activeTab === tab.id ? 'bg-white/20 font-medium' : 'hover:bg-white/10'
+                        activeTab === tab.id
+                            ? 'font-semibold text-white'
+                            : 'hover:text-white hover:bg-white/5'
                     ]"
                 >
-                    <i :class="['pi', tab.icon, 'mr-2']"></i>
-                    {{ tab.name }}
+                    <span class="relative z-10 flex items-center gap-2">
+                        <i :class="['pi', tab.icon]"></i>
+                        <span>{{ tab.name }}</span>
+                    </span>
+                    <span 
+                        v-if="activeTab === tab.id"
+                        class="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full"
+                    ></span>
                 </button>
             </div>
         </div>
 
         <!-- Main Content Area -->
-        <div class="flex gap-6 p-6">
-            <!-- Left Sidebar - Members (Only show in pupil tab) -->
-            <div v-if="activeTab === 'pupil'" class="w-72">
-                <div class="bg-white rounded-[10px] shadow-sm">
-                    <!-- Members Header with Add Button -->
-                    <div :class="[themeClasses.memberHeader, 'text-white p-4 rounded-t-[10px] flex justify-between items-center']">
-                        <span class="font-medium">Members ({{ students.length }})</span>
-                        <button @click="openAddStudentDialog" class="hover:bg-white/20 p-1 rounded-lg">
-                            <i class="pi pi-plus"></i>
-                        </button>
-                    </div>
-                    <div class="divide-y">
-                        <div v-for="student in students" 
-                             :key="student.id" 
-                             @click="selectedStudent = student"
-                             class="flex items-center justify-between p-3 cursor-pointer transition-all"
-                             :class="{
-                                 'bg-gray-200': selectedStudent?.id === student.id,
-                                 'hover:bg-gray-100': selectedStudent?.id !== student.id
-                             }">
-                            <div class="flex items-center gap-3">
-                                <div :class="[
-                                    'w-8 h-8 rounded text-white flex items-center justify-center text-base font-medium',
-                                    'bg-blue-600'
-                                ]">
-                                    {{ student.initial }}
-                                </div>
-                                <div class="font-medium text-gray-900">{{ student.name }}</div>
+        <div class="w-full bg-white/80 flex-1">
+            <!-- Content Area -->
+            <div :class="['mx-auto px-4 sm:px-6 pt-1 pb-8 transition-all duration-300', 
+                        isSidebarCollapsed ? 'max-w-[95%]' : 'max-w-7xl']"
+                 :style="{ 'padding-left': isSidebarCollapsed ? '1.5rem' : '1.5rem', 'padding-right': '1.5rem' }">
+                <template v-if="activeTab === 'pupil'">
+                    <div class="p-4 md:p-6 bg-transparent">
+                        <!-- Show folders view when not in activities mode -->
+                        <div v-if="!showingActivities || $page.props.showingActivities === false" class="space-y-6">
+                            <!-- Header with title and New Folder button -->
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                <h2 class="text-xl md:text-2xl font-bold text-gray-900">Pupils Portfolio</h2>
+                                <button
+                                    @click="showNewFolderDialog = true"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                                >
+                                    <i class="pi pi-plus"></i>
+                                    <span>Create Class Portfolio</span>
+                                </button>
                             </div>
-                            
-                            <!-- Simple arrow without background -->
-                            <div v-if="selectedStudent?.id === student.id">
-                                <i class="pi pi-chevron-right text-gray-400"></i>
+
+                            <!-- Folders Grid -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                                <!-- Subject Folders -->
+                                <div v-for="folder in subjectFolders"
+                                    :key="folder.id"
+                                    @click="showSubjectActivities(folder.name)"
+                                    class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1 duration-200"
+                                >
+                                    <!-- Folder Preview -->
+                                    <div class="relative h-36 mb-4 p-4 md:p-6">
+                                        <!-- Stacked Preview Images with Dynamic Animation -->
+                                        <div class="absolute top-5 right-5 w-28 h-32 flex items-center justify-center">
+                                            <div class="absolute w-24 h-28 rounded-md transform rotate-[-15deg] transition-all duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
+                                            <div class="absolute w-24 h-28 rounded-md transform rotate-[-5deg] transition-all duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
+                                            <div class="absolute w-24 h-28 rounded-md transform rotate-[5deg] transition-all duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
+                                        </div>
+                                        <!-- Folder Title -->
+                                        <div class="relative z-10">
+                                            <h3 class="text-xl md:text-2xl font-bold mb-1 text-gray-900 group-hover:text-indigo-700 transition-colors">
+                                                {{ folder.name }}
+                                            </h3>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                                    {{ folder.items }} items
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Interactive Footer -->
+                                    <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center p-4 md:p-6">
+                                        <div class="flex items-center space-x-2 text-sm text-indigo-700">
+                                            <i class="pi pi-folder text-indigo-700"></i>
+                                            <span>View Contents</span>
+                                        </div>
+                                        <i class="pi pi-arrow-right text-indigo-700 transform group-hover:translate-x-1 transition-transform"></i>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Right Content Area -->
-            <div :class="[
-                'bg-white rounded-[10px] shadow-sm',
-                activeTab === 'schedule' ? 'w-full' : 'flex-1'
-            ]">
-                <template v-if="activeTab === 'pupil'">
-                    <!-- Portfolio/Progress Record Tabs -->
-                    <div class="flex gap-2 mb-4">
-                        <button 
-                            @click="activeContentTab = 'portfolio'"
-                            :class="[
-                                'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors',
-                                activeContentTab === 'portfolio' 
-                                    ? `bg-${props.theme}-500 text-white` 
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                            ]"
-                        >
-                            <i class="pi pi-images"></i>
-                            Portfolio
-                        </button>
-                        <button 
-                            @click="activeContentTab = 'progress'"
-                            :class="[
-                                'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors',
-                                activeContentTab === 'progress' 
-                                    ? `bg-${props.theme}-500 text-white` 
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                            ]"
-                        >
-                            <i class="pi pi-chart-line"></i>
-                            Progress Record
-                        </button>
-                    </div>
+                        <!-- Show activities list when a folder is selected -->
+                        <div v-else>
+                            <!-- Back button and List Header container -->
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                                <!-- List of Activities Header -->
+                                <div class="rounded-lg py-2 px-4">
+                                    <span class="text-2xl font-bold text-indigo-900">List of Activities - Portfolio {{ selectedSubject }}</span>
+                                </div>
 
-                    <!-- Content Area -->
-                    <div class="bg-white rounded-[10px] p-6">
-                        <template v-if="activeContentTab === 'portfolio'">
-                            <!-- Recent/Shared Tabs -->
-                            <div class="border-b border-gray-200 mb-6">
-                                <div class="flex gap-8">
-                                    <button 
-                                        v-for="tab in [
-                                            { name: 'Recent', id: 'recent', icon: 'pi-clock' },
-                                            { name: 'Shared', id: 'shared', icon: 'pi-share-alt' }
-                                        ]"
-                                        :key="tab.id"
-                                        @click="activePortfolioTab = tab.id"
-                                        class="flex items-center gap-2 pb-4 relative"
-                                        :class="[
-                                            activePortfolioTab === tab.id
-                                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                                : 'text-gray-600 hover:text-gray-900'
-                                        ]"
+                                <div class="flex flex-wrap gap-2">
+                                    <!-- Add Activity button -->
+                                    <button
+                                        @click="showAddActivityDialog = true"
+                                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                                     >
-                                        <i :class="['pi', tab.icon]"></i>
-                                        {{ tab.name }}
+                                        <i class="pi pi-plus"></i>
+                                        <span>Add Activity</span>
+                                    </button>
+
+                                    <!-- Track Progress button -->
+                                    <button
+                                        @click="$inertia.visit(route('teacher.sprogress'))"
+                                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                                    >
+                                        <i class="pi pi-chart-line"></i>
+                                        <span>Track Progress</span>
+                                    </button>
+
+                                    <!-- Back button -->
+                                    <button
+                                        @click="showingActivities = false"
+                                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                                    >
+                                        <i class="pi pi-arrow-left"></i>
+                                        <span>Back to Folders</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- Portfolio Grid -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                <!-- No Activities Message -->
-                                <div v-if="filteredActivities.length === 0" class="col-span-full">
-                                    <div class="flex flex-col items-center justify-center py-12">
-                                        <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                                            <i class="pi pi-inbox text-gray-400 text-xl"></i>
-                                        </div>
-                                        <p class="text-gray-500 text-center">
-                                            No activities available for this student.
-                                        </p>
+                            <!-- Activities Table -->
+                            <div class="bg-transparent rounded-xl shadow-sm overflow-hidden border-0">
+                                <!-- Table Header -->
+                                <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-100/80 border-b border-indigo-200/50 rounded-t-xl">
+                                    <div class="w-32">
+                                        <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
                                     </div>
+                                    <div class="w-32 md:w-48">
+                                        <span class="text-sm font-semibold text-indigo-900">Activity Tittle</span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <span class="text-sm font-semibold text-indigo-900">Description</span>
+                                    </div>
+                                    <div class="w-24 md:w-48 text-right">
+                                        <span class="text-sm font-semibold text-indigo-900">Due Date</span>
+                                    </div>
+                                    <div class="w-8"></div>
                                 </div>
 
-                                <!-- Activities Grid (only show if there are activities) -->
-                                <template v-else>
-                                    <div v-for="activity in filteredActivities" 
-                                         :key="activity.id"
-                                         class="bg-white rounded-lg border border-gray-100 overflow-hidden">
-                                        <!-- Activity Image -->
-                                        <img :src="activity.image" :alt="activity.title"
-                                            class="w-full h-48 object-cover">
+                                <!-- Activity Items -->
+                                <div v-for="(activity, index) in activities" :key="index"
+                                    class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
+                                    @click="$inertia.visit(route('teacher.outputs', {
+                                        id: index + 1,
+                                        activity: {
+                                            ...activity,
+                                            class: className,
+                                            subject: selectedSubject,
+                                            description: activity.description
+                                        }
+                                    }))">
+                                    <div class="w-32 flex items-center gap-2">
+                                        <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
+                                        <span v-if="activity.archived" class="text-amber-500" title="Archived">
+                                            <i class="pi pi-archive text-xs"></i>
+                                        </span>
+                                    </div>
+                                    <div class="w-32 md:w-48">
+                                        <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
+                                    </div>
+                                    <div class="w-24 md:w-48 text-right">
+                                        <span class="text-sm text-indigo-600">{{ activity.date }}</span>
+                                    </div>
+                                    <div class="w-12 flex justify-end opacity-100 relative" style="z-index: 50;">
+                                        <button 
+                                            class="p-1.5 rounded-full hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 focus:outline-none" 
+                                            @click.stop="toggleActivityMenu($event, activity, index)"
+                                            :ref="'menuButton' + index"
+                                            :aria-expanded="activeMenuIndex === index"
+                                            aria-haspopup="true"
+                                        >
+                                            <i class="pi pi-ellipsis-v"></i>
+                                        </button>
                                         
-                                        <!-- Activity Content -->
-                                        <div class="p-4">
-                                            <h4 class="font-medium text-gray-900 mb-2">{{ activity.title }}</h4>
-                                            <p class="text-gray-600 text-sm">{{ activity.description }}</p>
-
-                                            <!-- Comments Section -->
-                                            <div class="mt-4 pt-3 border-t border-gray-100">
-                                                <div class="flex items-center justify-between mb-2">
-                                                    <div class="flex items-center gap-2 text-gray-500">
-                                                        <i class="pi pi-comments text-[16px]"></i>
-                                                        <span class="text-sm">Teacher's Comments</span>
-                                                    </div>
-                                                    <button 
-                                                        @click="addComment(activity)"
-                                                        class="flex items-center gap-1.5 text-blue-600 text-sm hover:text-blue-700"
-                                                    >
-                                                        <i class="pi pi-pencil text-[14px]"></i>
-                                                        <span>Add</span>
-                                                    </button>
-                                                </div>
-                                                <p class="text-sm text-gray-500 italic">
-                                                    {{ activity.comment || 'No comments yet' }}
-                                                </p>
+                                        <!-- Activity Actions Menu -->
+                                        <transition
+                                            enter-active-class="transition ease-out duration-100"
+                                            enter-from-class="transform opacity-0 scale-95"
+                                            enter-to-class="transform opacity-100 scale-100"
+                                            leave-active-class="transition ease-in duration-75"
+                                            leave-from-class="transform opacity-100 scale-100"
+                                            leave-to-class="transform opacity-0 scale-95"
+                                        >
+                                            <div 
+                                                v-if="activeMenuIndex === index"
+                                                class="activity-menu-dropdown fixed z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
+                                                :style="{
+                                                    top: `${menuPosition.y}px`,
+                                                    left: `${menuPosition.x - 180}px`
+                                                }"
+                                                v-click-outside="closeMenu"
+                                            >
+                                                <button
+                                                    @click.stop="editActivity(activity, index)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"
+                                                >
+                                                    <i class="pi pi-pencil text-sm"></i>
+                                                    <span>Edit Activity</span>
+                                                </button>
+                                                <button
+                                                    @click.stop="confirmDelete(activity, index)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
+                                                >
+                                                    <i class="pi pi-trash text-sm"></i>
+                                                    <span>Delete</span>
+                                                </button>
+                                                <button
+                                                    @click.stop="archiveActivity(activity, index)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-2"
+                                                >
+                                                    <i class="pi pi-archive text-sm"></i>
+                                                    <span>Archive</span>
+                                                </button>
                                             </div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-
-                        <template v-else>
-                            <!-- Progress Record content -->
-                            <div class="p-6">
-                                <!-- Selected Student Indicator -->
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div :class="`w-10 h-10 rounded-full bg-${props.theme}-600 flex items-center justify-center text-white font-medium`">
-                                        {{ selectedStudent?.initial }}
-                                    </div>
-                                    <div>
-                                        <h3 class="font-medium text-gray-900">{{ selectedStudent?.name }}</h3>
-                                        <p class="text-sm text-gray-500">Student ID: {{ selectedStudent?.id }}</p>
-                                    </div>
-                                </div>
-
-                                <!-- Teacher's Remarks Card -->
-                                <div class="bg-blue-50 rounded-xl p-4 mb-6">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <div class="flex items-center gap-2 text-blue-700">
-                                            <i class="pi pi-comments"></i>
-                                            <h3 class="font-medium">Teacher's Remarks</h3>
-                                        </div>
-                                        <span class="text-sm text-blue-600">Last updated: {{ studentRemarks.date }}</span>
-                                    </div>
-                                    <p class="text-blue-700 italic">
-                                        {{ studentRemarks.text }}
-                                    </p>
-                                </div>
-
-                                <!-- Search and Stats Row -->
-                                <div class="flex items-center gap-4 mb-6">
-                                    <!-- Search Bar -->
-                                    <div class="relative flex-1">
-                                        <input
-                                            v-model="searchQuery"
-                                            type="text"
-                                            placeholder="Search outputs..."
-                                            class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200 transition-all"
-                                        />
-                                        <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                    </div>
-
-                                    <!-- Minimized Statistics with Labels -->
-                                    <div class="flex items-center gap-3">
-                                        <!-- Total Activities -->
-                                        <div class="flex flex-col items-center px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
-                                            <span class="text-sm font-medium text-gray-700">{{ filteredRecords.length }}</span>
-                                            <span class="text-[10px] text-gray-500 mt-0.5">Total Activities</span>
-                                        </div>
-
-                                        <!-- Completed -->
-                                        <div class="flex flex-col items-center px-3 py-1.5 bg-green-50 rounded-lg border border-green-200">
-                                            <div class="flex items-center gap-2">
-                                                <i class="pi pi-check text-green-600"></i>
-                                                <span class="text-sm font-medium text-green-700">{{ completedCount }}</span>
-                                            </div>
-                                            <span class="text-[10px] text-green-600 mt-0.5">Completed</span>
-                                        </div>
-
-                                        <!-- Pending -->
-                                        <div class="flex flex-col items-center px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
-                                            <div class="flex items-center gap-2">
-                                                <i class="pi pi-clock text-red-600"></i>
-                                                <span class="text-sm font-medium text-red-700">{{ pendingCount }}</span>
-                                            </div>
-                                            <span class="text-[10px] text-red-600 mt-0.5">Pending</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Search Results Notification -->
-                                <div v-if="searchQuery" 
-                                    class="p-3 mb-4 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg flex items-center gap-2">
-                                    <i class="pi pi-filter"></i>
-                                    <span>Showing results for "<strong>{{ searchQuery }}</strong>"</span>
-                                </div>
-
-                                <!-- Records Table -->
-                                <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                                    <DataTable 
-                                        :value="filteredRecords" 
-                                        :scrollable="true" 
-                                        scrollHeight="400px" 
-                                        class="p-datatable-custom"
-                                        stripedRows
-                                        showGridlines>
-                                        <Column field="subject" header="Subject">
-                                            <template #body="slotProps">
-                                                <span class="font-medium text-gray-900">{{ slotProps.data.subject }}</span>
-                                            </template>
-                                        </Column>
-                                        <Column field="output" header="Output Name"></Column>
-                                        <Column field="dueDate" header="Due Date"></Column>
-                                        <Column field="time" header="Time"></Column>
-                                        <Column field="status" header="Status">
-                                            <template #body="slotProps">
-                                                <div :class="[
-                                                    'px-3 py-1 rounded-lg text-sm inline-flex items-center',
-                                                    slotProps.data.status === 'Passed' 
-                                                        ? 'bg-green-100 text-green-700' 
-                                                        : 'bg-red-100 text-red-700'
-                                                ]">
-                                                    <i :class="[
-                                                        'pi mr-1.5',
-                                                        slotProps.data.status === 'Passed' 
-                                                            ? 'pi-check text-green-600' 
-                                                            : 'pi-clock text-red-600'
-                                                    ]"></i>
-                                                    {{ slotProps.data.status }}
-                                                </div>
-                                            </template>
-                                        </Column>
-                                        <Column field="history" header="History">
-                                            <template #body="slotProps">
-                                                <span class="text-gray-500 text-sm flex items-center gap-2">
-                                                    <i class="pi pi-clock"></i>
-                                                    {{ slotProps.data.history }}
-                                                </span>
-                                            </template>
-                                        </Column>
-                                    </DataTable>
-
-                                    <!-- No Records Message -->
-                                    <div v-if="filteredRecords.length === 0" 
-                                         class="text-center py-12">
-                                        <div :class="`w-16 h-16 rounded-full bg-${props.theme}-100 flex items-center justify-center mx-auto mb-4`">
-                                            <i :class="`pi pi-inbox text-2xl text-${props.theme}-600`"></i>
-                                        </div>
-                                        <p class="text-gray-500">
-                                            {{ searchQuery ? 'No records found matching your search.' : 'No records available for this student.' }}
-                                        </p>
+                                        </transition>
                                     </div>
                                 </div>
                             </div>
-                        </template>
+                        </div>
                     </div>
                 </template>
 
-                <!-- Schedule Tab Content -->
                 <template v-if="activeTab === 'schedule'">
-                    <div class="p-6">
+                    <div class="p-4 md:p-6 bg-transparent">
                         <!-- Calendar Header -->
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold" :class="`text-${props.theme}-700`">NOVEMBER 2025</h2>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                            <h2 class="text-xl font-bold text-indigo-900">NOVEMBER 2025</h2>
                             <div class="flex gap-4 items-center">
                                 <span class="flex items-center gap-2">
-                                    <div :class="`w-3 h-3 rounded-full bg-${props.theme}-100`"></div>
-                                    <span class="text-sm text-gray-600">Class Day</span>
+                                    <div class="w-3 h-3 rounded-full bg-indigo-600"></div>
+                                    <span class="text-sm text-indigo-700">Class Day</span>
                                 </span>
                                 <span class="flex items-center gap-2">
-                                    <div class="w-3 h-3 rounded-full bg-gray-100"></div>
-                                    <span class="text-sm text-gray-600">No Class</span>
+                                    <div class="w-3 h-3 rounded-full bg-indigo-100"></div>
+                                    <span class="text-sm text-indigo-700">No Class</span>
                                 </span>
                             </div>
                         </div>
 
                         <!-- Days of the Week -->
-                        <div class="grid grid-cols-7 text-center font-semibold text-gray-700 mb-4 bg-gray-50 p-3 rounded-lg">
+                        <div class="grid grid-cols-7 text-center font-semibold text-indigo-700 mb-2 bg-indigo-50 p-3 rounded-lg">
                             <div>Mon</div>
                             <div>Tue</div>
                             <div>Wed</div>
@@ -360,28 +317,27 @@
 
                             <!-- Dates with Class Schedule -->
                             <div v-for="(day, date) in schedule" :key="date"
-                                class="p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all"
-                                :class="{
-                                    [`bg-${props.theme}-100 border-${props.theme}-200`]: isClassDay(date + 1),
-                                    'bg-gray-50': !isClassDay(date + 1)
-                                }"
+                                class="p-2 md:p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all"
+                                :class="[
+                                    isClassDay(date + 1) ? 'bg-indigo-100 border-indigo-200' : 'bg-white border-indigo-100'
+                                ]"
                                 @click="showScheduleDetails(date + 1)">
-                                <div class="font-semibold text-gray-800">{{ date + 1 }}</div>
-                                <div v-if="isClassDay(date + 1)" :class="`text-sm text-${props.theme}-600 mt-1`">
+                                <div class="font-semibold text-indigo-900">{{ date + 1 }}</div>
+                                <div v-if="isClassDay(date + 1)" class="text-xs md:text-sm mt-1 text-indigo-700">
                                     {{ day.time }}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Current Schedule Display -->
-                        <div v-if="selectedDate" :class="`mt-6 p-4 bg-${props.theme}-50 rounded-lg`">
-                            <h3 :class="`font-semibold text-${props.theme}-800 mb-2`">
+                        <div v-if="selectedDate" class="mt-4 p-4 rounded-lg bg-indigo-50">
+                            <h3 class="font-semibold mb-2 text-indigo-900">
                                 Selected Date: November {{ selectedDate }}
                             </h3>
-                            <p v-if="isClassDay(selectedDate)" class="text-gray-700">
+                            <p v-if="isClassDay(selectedDate)" class="text-indigo-700">
                                 Class Time: {{ schedule[selectedDate - 1].time }}
                             </p>
-                            <p v-else class="text-gray-700">
+                            <p v-else class="text-indigo-700">
                                 No class scheduled for this date
                             </p>
                         </div>
@@ -390,172 +346,469 @@
             </div>
         </div>
 
-        <!-- Add Student Dialog -->
-        <Dialog v-model:visible="showAddStudentDialog" modal header="Add New Student" class="w-[500px]">
-            <div class="p-4 bg-gray-50 rounded-lg mb-6">
-                <div class="flex items-center justify-between">
+        <!-- New Folder Dialog -->
+        <Dialog v-model:visible="showNewFolderDialog"
+            modal
+            header="Create New - Portfolio Folder"
+            :style="{ width: '90%', maxWidth: '40rem' }">
+            <div class="p-6">
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Form Fields -->
+                    <div class="space-y-4">
+                        <div>
+                            <label for="folderTitle" class="block text-sm font-medium text-gray-900 mb-1">Title</label>
+                            <input
+                                id="folderTitle"
+                                v-model="newFolder.title"
+                                type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Enter folder title"
+                            >
+                        </div>
+                        <div>
+                            <label for="folderDescription" class="block text-sm font-medium text-gray-900 mb-1">Description</label>
+                            <textarea
+                                id="folderDescription"
+                                v-model="newFolder.description"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Enter folder description"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Preview -->
                     <div>
-                        <h3 class="font-medium text-gray-900">Classroom Code</h3>
-                        <p class="text-sm text-gray-600">Share this code with your students</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <code class="px-4 py-2 bg-white rounded-lg border font-mono text-lg">
-                            {{ classroomCode }}
-                        </code>
-                        <button 
-                            @click="copyCode"
-                            class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            :title="copied ? 'Copied!' : 'Copy code'"
-                        >
-                            <i class="pi" :class="copied ? 'pi-check text-green-500' : 'pi-copy'"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-4">
-                <!-- Email Input -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Student Email</label>
-                    <input 
-                        v-model="newStudent.email" 
-                        type="email" 
-                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="student@example.com"
-                    >
-                    <p class="text-xs text-gray-500 mt-1">
-                        An invitation will be sent to this email address
-                    </p>
-                </div>
-
-                <!-- Or Divider -->
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-200"></div>
-                    </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-white text-gray-500">or</span>
-                    </div>
-                </div>
-
-                <!-- Join with Code Section -->
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="font-medium text-gray-900 mb-2">Share Join Link</h3>
-                    <div class="flex gap-2">
-                        <input 
-                            type="text" 
-                            readonly 
-                            :value="`https://yourapp.com/join/${classroomCode}`"
-                            class="flex-1 px-3 py-2 bg-white border rounded-lg text-gray-600"
-                        >
-                        <button 
-                            @click="copyLink"
-                            class="px-4 py-2 border rounded-lg hover:bg-gray-100"
-                        >
-                            Copy Link
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Dialog Footer -->
-            <template #footer>
-                <div class="flex justify-between items-center">
-                    <button 
-                        @click="showAddStudentDialog = false"
-                        class="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        @click="addStudent"
-                        :disabled="!isValidStudent"
-                        :class="[
-                            'px-4 py-2 rounded-lg text-white',
-                            isValidStudent ? `bg-${props.theme}-500 hover:bg-${props.theme}-600` : 'bg-gray-300 cursor-not-allowed'
-                        ]"
-                    >
-                        Send Invitation
-                    </button>
-                </div>
-            </template>
-        </Dialog>
-
-        <!-- Add these new dialogs -->
-        <Dialog v-model:visible="commentDialog" 
-            modal 
-            header="Add Comment" 
-            :style="{ width: '30rem' }">
-            <div class="p-4">
-                <textarea
-                    v-model="newComment"
-                    rows="4"
-                    class="w-full p-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-200"
-                    placeholder="Enter your comment here..."
-                ></textarea>
-            </div>
-            <template #footer>
-                <div class="flex justify-end gap-2">
-                    <button @click="commentDialog = false"
-                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                        Cancel
-                    </button>
-                    <button @click="saveComment"
-                        :class="`px-4 py-2 bg-${props.theme}-600 text-white hover:bg-${props.theme}-700 rounded-lg transition-colors`">
-                        Save Comment
-                    </button>
-                </div>
-            </template>
-        </Dialog>
-
-        <Dialog v-model:visible="activityDetailDialog" 
-            modal 
-            :header="selectedActivity?.title || 'Activity Details'" 
-            :style="{ width: '50vw' }" 
-            :breakpoints="{ '960px': '75vw', '641px': '90vw' }">
-            <div v-if="selectedActivity" class="p-6">
-                <div class="space-y-6">
-                    <img :src="selectedActivity.image" 
-                        :alt="selectedActivity.title"
-                        class="w-full h-64 object-cover rounded-xl">
-
-                    <div class="bg-gray-50 p-4 rounded-xl">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Activity Overview</h3>
-                        <div class="space-y-4">
-                            <div>
-                                <h4 class="text-sm font-medium text-gray-600">Description</h4>
-                                <p class="text-gray-800 mt-1">{{ selectedActivity.description }}</p>
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <h4 class="text-sm font-medium text-gray-600">Activity Type</h4>
-                                    <p class="text-gray-800 mt-1">{{ selectedActivity.type || 'Class Activity' }}</p>
+                        <label class="block text-sm font-medium text-gray-900 mb-3">Preview</label>
+                        <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-6 group">
+                            <!-- Folder Preview -->
+                            <div class="relative h-32 mb-4">
+                                <!-- Stacked Preview Images -->
+                                <div class="absolute top-0 right-0 w-24 h-28 flex items-center justify-center">
+                                    <div class="absolute w-20 h-24 rounded-md transform rotate-[-15deg] transition-transform duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
+                                    <div class="absolute w-20 h-24 rounded-md transform rotate-[-5deg] transition-transform duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
+                                    <div class="absolute w-20 h-24 rounded-md transform rotate-[5deg] transition-transform duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
                                 </div>
-                                <div>
-                                    <h4 class="text-sm font-medium text-gray-600">Date Assigned</h4>
-                                    <p class="text-gray-800 mt-1">{{ selectedActivity.dateAssigned || 'Not specified' }}</p>
-                                </div>
+                                <!-- Folder Title -->
+                                <h3 class="text-xl font-semibold text-gray-900 mb-1 relative z-10">{{ newFolder.title || 'Folder Title' }}</h3>
+                                <span class="text-sm text-gray-600 relative z-10">0 items</span>
                             </div>
+                            <!-- Folder Description -->
+                            <p class="text-gray-600 text-sm">{{ newFolder.description || 'Your folder description will appear here' }}</p>
                         </div>
                     </div>
                 </div>
             </div>
+            <template #footer>
+                <div class="flex justify-between items-center">
+                    <p class="text-sm text-gray-500">* Preview updates as you type</p>
+                    <div class="flex gap-2">
+                        <button @click="showNewFolderDialog = false"
+                            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button
+                            @click="createNewFolder"
+                            :disabled="!newFolder.title"
+                            :class="[
+                                'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
+                                newFolder.title ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-indigo-100 text-indigo-300 cursor-not-allowed'
+                            ]"
+                        >
+                            <i class="pi pi-check"></i>
+                            Create Folder
+                        </button>
+                    </div>
+                </div>
+            </template>
         </Dialog>
+
+        <!-- Archive Class Dialog -->
+        <Dialog v-model:visible="showArchiveDialog"
+            modal
+            header="Archive Class"
+            :style="{ width: '90%', maxWidth: '30rem' }">
+            <div class="p-6">
+                <div class="mb-6 text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                        <i class="pi pi-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Archive this class?</h3>
+                    <p class="text-sm text-gray-500">
+                        This will move the class to the archived section. You can restore it later if needed.
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button @click="showArchiveDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+                        Cancel
+                    </button>
+                    <button @click="archiveClass"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2">
+                        <i class="pi pi-archive"></i>
+                        Archive Class
+                    </button>
+                </div>
+            </div>
+        </Dialog>
+
+        <!-- Add Activity Dialog -->
+        <Dialog v-model:visible="showAddActivityDialog"
+            modal
+            header="Add New Activity"
+            :style="{ width: '90%', maxWidth: '40rem' }">
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div>
+                        <label for="activityType" class="block text-sm font-medium text-gray-900 mb-1">Activity Type</label>
+                        <Dropdown
+                            id="activityType"
+                            v-model="newActivity.type"
+                            :options="activityTypes"
+                            optionLabel="name"
+                            placeholder="Select Activity Type"
+                            class="w-full"
+                            :class="{'p-invalid': !newActivity.type}"
+                        >
+                            <template #value="slotProps">
+                                <div v-if="slotProps.value" class="flex items-center">
+                                    <span>{{ slotProps.value.name }}</span>
+                                </div>
+                                <span v-else>
+                                    {{ slotProps.placeholder }}
+                                </span>
+                            </template>
+                            <template #option="slotProps">
+                                <div class="flex items-center">
+                                    <span>{{ slotProps.option.name }}</span>
+                                </div>
+                            </template>
+                        </Dropdown>
+                    </div>
+                    <div>
+                        <label for="activityTitle" class="block text-sm font-medium text-gray-900 mb-1">Activity Title</label>
+                        <input
+                            id="activityTitle"
+                            v-model="newActivity.title"
+                            type="text"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Enter activity title"
+                        >
+                    </div>
+                    <div>
+                        <label for="activityDescription" class="block text-sm font-medium text-gray-900 mb-1">Description</label>
+                        <textarea
+                            id="activityDescription"
+                            v-model="newActivity.description"
+                            rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Enter activity description"
+                        ></textarea>
+                    </div>
+                    <div>
+                        <label for="activityDate" class="block text-sm font-medium text-gray-900 mb-1">Due Date</label>
+                        <input
+                            id="activityDate"
+                            v-model="newActivity.date"
+                            type="date"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-between items-center">
+                    <p class="text-sm text-gray-500">* All fields are required</p>
+                    <div class="flex gap-2">
+                        <button @click="showAddActivityDialog = false"
+                            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button
+                            @click="addNewActivity"
+                            :disabled="!newActivity.type || !newActivity.title || !newActivity.description || !newActivity.date"
+                            :class="[
+                                'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
+                                newActivity.type && newActivity.title && newActivity.description && newActivity.date
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'bg-indigo-100 text-indigo-300 cursor-not-allowed'
+                            ]"
+                        >
+                            <i class="pi pi-check"></i>
+                            Add Activity
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Edit Activity Dialog -->
+        <Dialog v-model:visible="showEditDialog"
+                modal
+                header="Edit Activity"
+                :style="{ width: '90%', maxWidth: '40rem' }">
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div>
+                        <label for="editActivityType" class="block text-sm font-medium text-gray-900 mb-1">Activity Type</label>
+                        <Dropdown
+                            id="editActivityType"
+                            v-model="editActivityData.type"
+                            :options="activityTypes"
+                            optionLabel="name"
+                            placeholder="Select Activity Type"
+                            class="w-full"
+                            :class="{'p-invalid': !editActivityData.type}"
+                        >
+                            <template #value="slotProps">
+                                <div v-if="slotProps.value" class="flex items-center">
+                                    <span>{{ slotProps.value.name }}</span>
+                                </div>
+                                <span v-else>
+                                    {{ slotProps.placeholder }}
+                                </span>
+                            </template>
+                            <template #option="slotProps">
+                                <div class="flex items-center">
+                                    <span>{{ slotProps.option.name }}</span>
+                                </div>
+                            </template>
+                        </Dropdown>
+                    </div>
+                    <div>
+                        <label for="editActivityTitle" class="block text-sm font-medium text-gray-900 mb-1">Activity Title</label>
+                        <input
+                            id="editActivityTitle"
+                            v-model="editActivityData.title"
+                            type="text"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Enter activity title"
+                        >
+                    </div>
+                    <div>
+                        <label for="editActivityDescription" class="block text-sm font-medium text-gray-900 mb-1">Description</label>
+                        <textarea
+                            id="editActivityDescription"
+                            v-model="editActivityData.description"
+                            rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Enter activity description"
+                        ></textarea>
+                    </div>
+                    <div>
+                        <label for="editActivityDate" class="block text-sm font-medium text-gray-900 mb-1">Due Date</label>
+                        <input
+                            id="editActivityDate"
+                            v-model="editActivityData.dueDate"
+                            type="date"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-between items-center">
+                    <p class="text-sm text-gray-500">* All fields are required</p>
+                    <div class="flex gap-2">
+                        <button @click="showEditDialog = false"
+                            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button
+                            @click="updateActivity"
+                            :disabled="!editActivityData.type || !editActivityData.title || !editActivityData.description || !editActivityData.dueDate"
+                            :class="[
+                                'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
+                                editActivityData.type && editActivityData.title && editActivityData.description && editActivityData.dueDate
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'bg-indigo-100 text-indigo-300 cursor-not-allowed'
+                            ]"
+                        >
+                            <i class="pi pi-check"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Delete Confirmation Dialog -->
+        <Dialog v-model:visible="showDeleteDialog" 
+                modal 
+                header="Confirm Deletion" 
+                :style="{ width: '90%', maxWidth: '28rem' }">
+            <div class="p-6">
+                <div class="flex items-start gap-4">
+                    <div class="mt-1 flex-shrink-0">
+                        <div class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                            <i class="pi pi-exclamation-triangle text-red-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">Delete Activity</h3>
+                        <p class="mt-1 text-gray-600">
+                            Are you sure you want to delete "<span class="font-medium">{{ activityToDelete.activity?.title }}</span>"? 
+                            This action cannot be undone.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-3">
+                    <button @click="showDeleteDialog = false"
+                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Cancel
+                    </button>
+                    <button @click="handleDelete"
+                        class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center gap-2">
+                        <i class="pi pi-trash"></i>
+                        Delete
+                    </button>
+                </div>
+            </template>
+        </Dialog>
+        
+        <!-- Archive Toast -->
+        <div v-if="showArchiveToast" class="fixed bottom-4 right-4 z-[9999]">
+            <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden w-80">
+                <div class="p-4 flex items-start">
+                    <div class="flex-shrink-0">
+                        <div class="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                            <i class="pi pi-archive text-amber-600"></i>
+                        </div>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <p class="text-sm font-medium text-gray-900">Activity Archived</p>
+                        <p class="mt-1 text-sm text-gray-500">
+                            {{ archivedActivity?.title || 'Activity' }} has been moved to archive.
+                        </p>
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex">
+                        <button @click="undoArchive" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                            Undo
+                        </button>
+                        <button @click="showArchiveToast = false" class="ml-4 text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Close</span>
+                            <i class="pi pi-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-gray-100 h-1 w-full">
+                    <div class="bg-amber-500 h-full transition-all duration-5000 ease-linear" 
+                         :class="{'w-0': !showArchiveToast, 'w-full': showArchiveToast}"
+                         style="transition-duration: 5s;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { ref, computed, onMounted, onUnmounted, watch, inject, nextTick } from 'vue';
+import { Head, usePage, Link, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import Dialog from 'primevue/dialog';
+import Dropdown from 'primevue/dropdown';
+import InputText from 'primevue/inputtext';
+import Textarea from 'primevue/textarea';
+import Calendar from 'primevue/calendar';
+import Button from 'primevue/button';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 
+// Activity types
+const activityTypes = ref([
+    { name: 'Quiz', value: 'quiz' },
+    { name: 'Contest', value: 'contest' },
+    { name: 'Assignment', value: 'assignment' },
+    { name: 'Project', value: 'project' }
+]);
+
+// Subject folders data
+const subjectFolders = ref([
+    {
+        id: 1,
+        name: 'Mapeh',
+        items: 10,
+        description: 'Essay-related activities and writing projects.'
+    }
+]);
+
+// New Folder Dialog State
+const showNewFolderDialog = ref(false);
+const newFolder = ref({ title: '', description: '' });
+
+// Add Activity Dialog State
+const showAddActivityDialog = ref(false);
+const newActivity = ref({
+    title: '',
+    type: '',
+    description: '',
+    dueDate: ''
+});
+
+const editActivityData = ref({
+    id: null,
+    title: '',
+    type: '',
+    description: '',
+    dueDate: ''
+});
+
+const showEditDialog = ref(false);
+
+// Function to create new folder
+const createNewFolder = () => {
+    if (!newFolder.value.title) return;
+
+    subjectFolders.value.push({
+        id: Date.now(),
+        name: newFolder.value.title,
+        items: 0,
+        description: newFolder.value.description
+    });
+
+    showNewFolderDialog.value = false;
+    newFolder.value = { title: '', description: '' };
+};
+
+// Function to add new activity
+const addNewActivity = () => {
+    if (!newActivity.value.type || !newActivity.value.title || !newActivity.value.description || !newActivity.value.date) return;
+
+    // Format the date for display
+    const formattedDate = new Date(newActivity.value.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+
+    activities.value.unshift({
+        type: newActivity.value.type.value,
+        title: newActivity.value.title,
+        description: newActivity.value.description,
+        date: formattedDate
+    });
+
+    // Update the items count for the current subject folder
+    const currentFolder = subjectFolders.value.find(f => f.name === selectedSubject.value);
+    if (currentFolder) {
+        currentFolder.items += 1;
+    }
+
+    showAddActivityDialog.value = false;
+    newActivity.value = {
+        type: null,
+        title: '',
+        description: '',
+        date: ''
+    };
+};
+
 const page = usePage();
 const auth = computed(() => page.props.auth);
+const route = window.route; // Get the route helper from Inertia
 
 const props = defineProps({
     className: {
@@ -564,73 +817,17 @@ const props = defineProps({
     },
     theme: {
         type: String,
-        default: 'emerald'
+        default: 'neutral'
     }
 });
 
-// Computed theme classes
-const themeClasses = computed(() => ({
-    header: `bg-${props.theme}-400`,
-    badge: `bg-${props.theme}-200`,
-    memberHeader: `bg-${props.theme}-600`,
-    buttons: `bg-${props.theme}-500`,
-    activeTab: `bg-${props.theme}-400`
-}));
-
 const activeTab = ref('pupil');
-const activeContentTab = ref('portfolio');
-const activePortfolioTab = ref('recent');
 
 // Tab configurations
 const tabs = [
-    { id: 'pupil', name: 'Pupil', icon: 'pi-users' },
+    { id: 'pupil', name: 'Pupils Portfolio', icon: 'pi-users' },
     { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' }
 ];
-
-const contentTabs = [
-    { id: 'portfolio', name: 'Portfolio', icon: 'pi-images' },
-    { id: 'progress', name: 'Progress Record', icon: 'pi-chart-line' }
-];
-
-const portfolioTabs = [
-    { id: 'recent', name: 'Recent' },
-    { id: 'shared', name: 'Shared' }
-];
-
-// Sample student data
-const selectedStudent = ref(null);
-const students = [
-    { 
-        id: 'STD001', 
-        name: 'Alice Smith', 
-        initial: 'A',
-        portfolios: [
-            { id: 1, title: 'Portfolio Item 1', addedDate: '2 days ago' },
-            { id: 2, title: 'Portfolio Item 2', addedDate: '2 days ago' },
-            { id: 3, title: 'Portfolio Item 3', addedDate: '2 days ago' },
-            { id: 4, title: 'Portfolio Item 4', addedDate: '3 days ago' },
-            { id: 5, title: 'Portfolio Item 5', addedDate: '3 days ago' },
-            { id: 6, title: 'Portfolio Item 6', addedDate: '4 days ago' },
-        ]
-    },
-    { 
-        id: 'STD002', 
-        name: 'Bob Johnson', 
-        initial: 'B',
-        portfolios: [
-            { id: 7, title: 'Portfolio Item 1', addedDate: '1 day ago' },
-            { id: 8, title: 'Portfolio Item 2', addedDate: '1 day ago' },
-            { id: 9, title: 'Portfolio Item 3', addedDate: '2 days ago' },
-        ]
-    },
-    { id: 'STD003', name: 'Carol Williams', initial: 'C', portfolios: [] },
-    { id: 'STD004', name: 'David Brown', initial: 'D', portfolios: [] },
-];
-
-// Set first student as default selected
-onMounted(() => {
-    selectedStudent.value = students[0];
-});
 
 // Add these for the calendar functionality
 const selectedDate = ref(null);
@@ -643,7 +840,7 @@ const generateRandomSchedule = () => {
         '1:00 PM - 2:30 PM',
         '2:45 PM - 4:15 PM'
     ];
-    
+
     return Array.from({ length: 30 }, () => ({
         time: times[Math.floor(Math.random() * times.length)]
     }));
@@ -662,347 +859,250 @@ const showScheduleDetails = (date) => {
     selectedDate.value = date;
 };
 
-// Add Student Dialog State
-const showAddStudentDialog = ref(false);
-const classroomCode = ref(generateClassCode()); // Generate on component mount
-const copied = ref(false);
+// Settings Dropdown State
+const showSettingsDropdown = ref(false);
+const showArchiveDialog = ref(false);
+const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false));
+const activeMenuIndex = ref(null);
+const menuButtonRefs = ref({});
+const menuPosition = ref({ x: 0, y: 0 });
+const settingsRef = ref(null);
 
-// Generate random classroom code
-function generateClassCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length: 6 }, () => 
-        chars.charAt(Math.floor(Math.random() * chars.length))
-    ).join('');
-}
-
-// Copy code to clipboard
-const copyCode = async () => {
-    await navigator.clipboard.writeText(classroomCode.value);
-    copied.value = true;
-    setTimeout(() => copied.value = false, 2000);
-};
-
-// Copy join link
-const copyLink = async () => {
-    await navigator.clipboard.writeText(`https://yourapp.com/join/${classroomCode.value}`);
-    // Show success message or toast
-};
-
-// Modified student state
-const newStudent = ref({
-    email: '',
-    name: '', // Will be set after email verification
-    initial: '',
-    portfolios: []
+// Watch for sidebar state changes
+watch(isSidebarCollapsed, (newValue) => {
+    // This will trigger a re-render when the sidebar state changes
+    console.log('Sidebar collapsed state changed to:', newValue);
 });
 
-// Modified validation
-const isValidStudent = computed(() => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(newStudent.value.email);
+// Toggle activity action menu
+const toggleActivityMenu = (event, activity, index) => {
+    event.stopPropagation();
+    
+    if (activeMenuIndex.value === index) {
+        activeMenuIndex.value = null;
+    } else {
+        // Get the button's position
+        const buttonRect = event.currentTarget.getBoundingClientRect();
+        menuPosition.value = {
+            x: buttonRect.right,
+            y: buttonRect.bottom + window.scrollY
+        };
+        activeMenuIndex.value = index;
+    }
+};
+
+// Close the currently active menu
+const closeMenu = () => {
+    activeMenuIndex.value = null;
+};
+
+// Close menu when scrolling
+onMounted(() => {
+    window.addEventListener('scroll', closeMenu, true);
 });
 
-// Modified add student function
-const addStudent = () => {
-    if (!isValidStudent.value) return;
+onUnmounted(() => {
+    window.removeEventListener('scroll', closeMenu, true);
+});
 
-    // In a real application, you would:
-    // 1. Send invitation email to the student
-    // 2. Create a pending invitation in the database
-    // 3. Wait for the student to accept and complete their profile
+// Toggle settings dropdown
+const toggleSettingsDropdown = () => {
+    showSettingsDropdown.value = !showSettingsDropdown.value;
+};
 
-    // For demo purposes, we'll create the student immediately
-    const student = {
-        id: newStudent.value.email, // Use email as ID
-        email: newStudent.value.email,
-        name: newStudent.value.email.split('@')[0], // Temporary name from email
-        initial: newStudent.value.email[0].toUpperCase(),
-        portfolios: []
+// Close settings dropdown when clicking outside (robust)
+const handleDocumentClick = (event) => {
+    const root = settingsRef.value;
+    if (!root) return;
+    if (!root.contains(event.target)) {
+        showSettingsDropdown.value = false;
+    }
+};
+
+// Close menu when clicking outside
+const handleClickOutside = (event) => {
+    if (activeMenuIndex.value !== null) {
+        closeMenu();
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('click', handleDocumentClick, true);
+    document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside);
+    if (toastTimeout) clearTimeout(toastTimeout);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', handleDocumentClick, true);
+});
+
+// Subject activities state
+const showingActivities = ref(false);
+const selectedSubject = ref('');
+const activities = ref([
+    {
+        type: 'project',
+        title: 'Self-portrait',
+        description: 'Artworks: Create a self-portrait using mixed media techniques',
+        date: 'Nov 6, 2024',
+        archived: false
+    }
+]);
+
+// Function to show activities for a subject
+const showSubjectActivities = (subject) => {
+    selectedSubject.value = subject;
+    showingActivities.value = true;
+};
+
+// Handle edit activity
+const editActivity = (activity, index) => {
+    closeMenu();
+    // Find the activity type object that matches the current activity's type
+    const activityType = activityTypes.value.find(type => type.value === activity.type) || null;
+    
+    editActivityData.value = {
+        id: index,
+        title: activity.title,
+        type: activityType, // Store the full type object for the dropdown
+        description: activity.description,
+        dueDate: activity.date
     };
-
-    students.push(student);
-    showAddStudentDialog.value = false;
-    newStudent.value = { email: '' };
-    selectedStudent.value = student;
+    showEditDialog.value = true;
 };
 
-// Open dialog function
-const openAddStudentDialog = () => {
-    newStudent.value = { email: '' }; // Reset form
-    showAddStudentDialog.value = true;
+// Delete confirmation dialog state
+const showDeleteDialog = ref(false);
+const activityToDelete = ref({ activity: null, index: null });
+
+// Handle delete confirmation
+const confirmDelete = (activity, index) => {
+    closeMenu();
+    activityToDelete.value = { activity, index };
+    showDeleteDialog.value = true;
 };
 
-// Add these new refs and data
-const commentDialog = ref(false);
-const activityDetailDialog = ref(false);
-const selectedActivity = ref(null);
-const newComment = ref('');
-
-const studentActivities = ref([
-    { 
-        id: 1, 
-        studentId: 'STD001',
-        title: "Activity 1", 
-        description: "Science experiment on gravity.", 
-        image: "/assets/images/activity1.jpg",
-        comment: null
-    },
-    { 
-        id: 2, 
-        studentId: 'STD001',
-        title: "Activity 2", 
-        description: "Math quiz results in advanced algebra.", 
-        image: "/assets/images/activity2.jpg",
-        comment: null
-    },
-    {
-        id: 3,
-        studentId: 'STD002',
-        title: "Activity 3", 
-        description: "Watercolor painting of local wildlife.", 
-        image: "/assets/images/activity3.jpg",
-        comment: null
-    },
-    {
-        id: 4,
-        studentId: 'STD002',
-        title: "Activity 4", 
-        description: "History essay on Ancient Egyptian civilization.", 
-        image: "/assets/images/activity4.jpg",
-        comment: null
-    },
-    {
-        id: 5,
-        studentId: 'STD003',
-        title: "Activity 5", 
-        description: "Chemistry lab experiments on chemical reactions.", 
-        image: "/assets/images/activity5.jpg",
-        comment: null
-    },
-    {
-        id: 6,
-        studentId: 'STD003',
-        title: "Activity 6", 
-        description: "Literature analysis of Shakespeare's Macbeth.", 
-        image: "/assets/images/activity6.jpg",
-        comment: null
-    }
-]);
-
-const sharedActivities = ref([
-    { 
-        id: 1, 
-        studentId: 'STD001',
-        title: "Group Project", 
-        description: "Led team research on renewable energy sources.", 
-        image: "/assets/images/group-project.jpg",
-        comment: null
-    },
-    { 
-        id: 2, 
-        studentId: 'STD001',
-        title: "Class Presentation", 
-        description: "Presented findings on climate change impact.", 
-        image: "/assets/images/presentation.jpg",
-        comment: null
-    },
-    {
-        id: 3,
-        studentId: 'STD002',
-        title: "Team Debate", 
-        description: "Participated in inter-class debate competition.", 
-        image: "/assets/images/debate.jpg",
-        comment: null
-    },
-    {
-        id: 4,
-        studentId: 'STD002',
-        title: "Music Performance", 
-        description: "Performed in school orchestra concert.", 
-        image: "/assets/images/music.jpg",
-        comment: null
-    },
-    {
-        id: 5,
-        studentId: 'STD003',
-        title: "Sports Tournament", 
-        description: "Won second place in school basketball tournament.", 
-        image: "/assets/images/sports.jpg",
-        comment: null
-    },
-    {
-        id: 6,
-        studentId: 'STD003',
-        title: "Art Exhibition", 
-        description: "Displayed artwork in school gallery.", 
-        image: "/assets/images/art-exhibit.jpg",
-        comment: null
-    }
-]);
-
-// Update the portfolio grid section to filter activities by selected student
-const filteredActivities = computed(() => {
-    if (!selectedStudent.value) return [];
-    return activePortfolioTab.value === 'recent'
-        ? studentActivities.value.filter(activity => activity.studentId === selectedStudent.value.id)
-        : sharedActivities.value.filter(activity => activity.studentId === selectedStudent.value.id);
-});
-
-// Add these new methods
-const addComment = (activity) => {
-    selectedActivity.value = activity;
-    newComment.value = activity.comment || '';
-    commentDialog.value = true;
-};
-
-const saveComment = () => {
-    if (selectedActivity.value && newComment.value.trim()) {
-        selectedActivity.value.comment = newComment.value;
-        selectedActivity.value.commentDate = new Date().toLocaleDateString();
-        commentDialog.value = false;
-        selectedActivity.value = null;
-        newComment.value = '';
+// Handle actual deletion
+const handleDelete = async () => {
+    if (activityToDelete.value.activity && activityToDelete.value.index !== null) {
+        await deleteActivity(activityToDelete.value.activity, activityToDelete.value.index);
+        showDeleteDialog.value = false;
+        activityToDelete.value = { activity: null, index: null };
     }
 };
 
-const showActivityDetails = (activity) => {
-    selectedActivity.value = activity;
-    activityDetailDialog.value = true;
+// Handle delete activity
+const deleteActivity = async (activity, index) => {
+    try {
+        // Here you would typically make an API call to delete the activity
+        console.log('Deleting activity:', activity, 'at index:', index);
+        
+        // Example API call (uncomment and modify as needed):
+        // const response = await axios.delete(`/api/activities/${activity.id}`);
+        // if (response.data.success) {
+        //     // Remove the activity from the local state
+        //     activities.value.splice(index, 1);
+        //     // Show success message
+        //     toast.success('Activity deleted successfully');
+        // }
+        
+        // For now, just remove from local state
+        activities.value.splice(index, 1);
+        
+    } catch (error) {
+        console.error('Error deleting activity:', error);
+        // Show error message
+        // toast.error('Failed to delete activity');
+    }
 };
 
-// Add these refs and computed properties
-const searchQuery = ref("");
-const remarksDate = ref("");
-const records = ref([
-    // Records for Alice Smith (STD001)
-    { 
-        studentId: 'STD001',
-        subject: "Math", 
-        output: "Algebra Quiz", 
-        dueDate: "10/10/24 - 10/22/24", 
-        time: "12:00 PM", 
-        status: "Passed", 
-        history: "Last Edit 5 days ago" 
-    },
-    { 
-        studentId: 'STD001',
-        subject: "Science", 
-        output: "Physics Lab Report", 
-        dueDate: "12/12/24 - 12/16/24", 
-        time: "3:30 PM", 
-        status: "Missing", 
-        history: "Last Edit 2 days ago" 
-    },
-    
-    // Records for Bob Johnson (STD002)
-    { 
-        studentId: 'STD002',
-        subject: "English", 
-        output: "Literature Essay", 
-        dueDate: "12/12/24 - 12/16/24", 
-        time: "3:30 PM", 
-        status: "Passed", 
-        history: "Last Edit 2 days ago" 
-    },
-    { 
-        studentId: 'STD002',
-        subject: "Art", 
-        output: "Landscape Painting", 
-        dueDate: "01/15/25 - 01/20/25", 
-        time: "2:00 PM", 
-        status: "Missing", 
-        history: "Last Edit 3 days ago" 
-    },
-
-    // Records for Carol Williams (STD003)
-    { 
-        studentId: 'STD003',
-        subject: "Chemistry", 
-        output: "Chemical Reactions Lab", 
-        dueDate: "02/10/25 - 02/15/25", 
-        time: "1:00 PM", 
-        status: "Passed", 
-        history: "Last Edit 1 day ago" 
-    },
-    { 
-        studentId: 'STD003',
-        subject: "History", 
-        output: "World War II Essay", 
-        dueDate: "03/05/25 - 03/10/25", 
-        time: "11:00 AM", 
-        status: "Missing", 
-        history: "Last Edit 4 days ago" 
-    }
-]);
-
-// Update the filtered records computed property to filter by both search query and selected student
-const filteredRecords = computed(() => {
-    // First filter by selected student
-    let studentRecords = records.value.filter(record => 
-        record.studentId === selectedStudent.value?.id
-    );
-    
-    // Then apply search filter if there's a query
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        return studentRecords.filter(record => 
-            record.subject.toLowerCase().includes(query) ||
-            record.output.toLowerCase().includes(query) ||
-            record.status.toLowerCase().includes(query) ||
-            record.history.toLowerCase().includes(query)
-        );
-    }
-    
-    return studentRecords;
-});
-
-// Update the completed and pending counts to only count selected student's records
-const completedCount = computed(() => {
-    return records.value.filter(record => 
-        record.studentId === selectedStudent.value?.id && 
-        record.status === "Passed"
-    ).length;
-});
-
-const pendingCount = computed(() => {
-    return records.value.filter(record => 
-        record.studentId === selectedStudent.value?.id && 
-        record.status === "Missing"
-    ).length;
-});
-
-// Add a computed property for student-specific remarks
-const studentRemarks = computed(() => {
-    const remarks = {
-        'STD001': {
-            text: "Alice shows excellent progress in mathematics and consistent effort in science subjects.",
-            date: "February 15, 2024"
-        },
-        'STD002': {
-            text: "Bob demonstrates strong creative abilities and has improved significantly in written assignments.",
-            date: "February 14, 2024"
-        },
-        'STD003': {
-            text: "Carol excels in laboratory work and shows great attention to detail in all assignments.",
-            date: "February 13, 2024"
+// Update activity
+const updateActivity = async () => {
+    try {
+        // Update the activity in the local state
+        const index = editActivityData.value.id;
+        if (index !== null && activities.value[index]) {
+            activities.value[index] = {
+                ...activities.value[index],
+                title: editActivityData.value.title,
+                type: editActivityData.value.type.value, // Store just the value
+                description: editActivityData.value.description,
+                date: editActivityData.value.dueDate
+            };
+            
+            // Here you would typically make an API call to update the activity
+            // Example:
+            // await axios.put(`/api/activities/${editActivityData.value.id}`, {
+            //     title: editActivityData.value.title,
+            //     type: editActivityData.value.type.value,
+            //     description: editActivityData.value.description,
+            //     due_date: editActivityData.value.dueDate
+            // });
+            
+            showEditDialog.value = false;
+            // Show success message
+            // Example: toast.success('Activity updated successfully');
         }
-    };
-    
-    return remarks[selectedStudent.value?.id] || {
-        text: "No remarks available yet.",
-        date: new Date().toLocaleDateString()
-    };
-});
+    } catch (error) {
+        console.error('Error updating activity:', error);
+        // Show error message
+        // Example: toast.error('Failed to update activity');
+    }
+};
 
-// Helper function to get status color based on status
-const getStatusColor = (status) => {
-    switch (status) {
-        case 'Completed':
-            return 'success';
-        case 'Pending':
-            return 'warning';
-        default:
-            return 'secondary';
+// Archive state
+const archivedActivity = ref(null);
+const showArchiveToast = ref(false);
+let toastTimeout = null;
+
+// Handle archive activity
+const archiveActivity = (activity, index) => {
+    closeMenu();
+    
+    // Store the activity and its index for potential undo
+    archivedActivity.value = { ...activity, originalIndex: index };
+    
+    // Remove from the current list
+    activities.value.splice(index, 1);
+    
+    // Show toast with undo option
+    showArchiveToast.value = true;
+    
+    // Hide toast after 5 seconds
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        showArchiveToast.value = false;
+        // After timeout, you might want to make the archive permanent
+        // by calling an API endpoint
+        if (archivedActivity.value) {
+            // makeArchivePermanent(archivedActivity.value);
+            archivedActivity.value = null;
+        }
+    }, 5000);
+};
+
+// Handle undo archive
+const undoArchive = () => {
+    if (archivedActivity.value) {
+        // Add the activity back to its original position
+        activities.value.splice(
+            archivedActivity.value.originalIndex, 
+            0, 
+            archivedActivity.value
+        );
+        
+        // Hide toast and clear the archived activity
+        showArchiveToast.value = false;
+        archivedActivity.value = null;
+        
+        if (toastTimeout) {
+            clearTimeout(toastTimeout);
+            toastTimeout = null;
+        }
     }
 };
 
@@ -1022,11 +1122,11 @@ defineOptions({
 }
 
 .calendar-day-active {
-    @apply font-semibold text-gray-800;
+    @apply font-semibold text-gray-900;
 }
 
 .calendar-time {
-    @apply text-sm mt-1;
+    @apply text-sm mt-1 text-gray-700;
 }
 
 /* DataTable styles */
@@ -1037,11 +1137,11 @@ defineOptions({
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-    background-color: #f8fafc;
-    color: #1e293b;
+    background-color: #f9fafb;
+    color: #111827;
     font-weight: 600;
     padding: 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid #e5e7eb;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -1049,20 +1149,53 @@ defineOptions({
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-    background-color: #f1f5f9;
+    background-color: #f9fafb;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
     padding: 1rem;
 }
 
-/* Responsive and transition styles */
+/* Dialog styles */
+::deep(.p-dialog-header) {
+    background: linear-gradient(90deg, #4338ca, #6d28d9, #2563eb);
+    color: white;
+}
+
+::deep(.p-dialog-content) {
+    background-color: white;
+}
+
+/* Dropdown styles */
+::deep(.p-dropdown) {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+::deep(.p-dropdown:not(.p-disabled).p-focus) {
+    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.35);
+    border-color: #6366f1;
+}
+
+::deep(.p-dropdown-panel .p-dropdown-items .p-dropdown-item) {
+    padding: 0.5rem 1rem;
+}
+
+::deep(.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight) {
+    background-color: #4338ca;
+    color: white;
+}
+
+/* Add this new style for better responsive layout */
 @media (max-width: 1024px) {
     .lg\:w-64 {
         width: 100%;
     }
 }
 
+/* Add these styles for smooth transitions */
 .bg-gradient-to-br {
     transition: all 0.3s ease;
 }
@@ -1070,4 +1203,12 @@ defineOptions({
 .h-2 {
     transition: width 0.5s ease;
 }
-</style> 
+
+/* Line clamp for text truncation */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>

@@ -1,636 +1,541 @@
 <template>
-    <Head :title="`| ${className}`"/>
-    <div class="min-h-screen bg-gray-50">
-        <!-- Class Header -->
-        <div :class="[themeClasses.header, 'p-6 shadow-md rounded-[10px]']">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 :class="[themeClasses.badge, 'text-xl font-bold inline-block px-4 py-2 rounded-lg shadow-sm']">
-                        {{ className }}
-                    </h1>
-                    <p class="text-white mt-2">Student: {{ auth.user.name }}</p>
-                </div>
-                <div class="flex items-center gap-4">
-                    <button class="text-white hover:bg-white/20 p-2 rounded-full transition-colors">
-                        <i class="pi pi-cog text-xl"></i>
-                    </button>
-                </div>
+  <Head :title="`| ${className}`"/>
+  <div class="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
+    <!-- Class Header -->
+    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-t-xl">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="space-y-3">
+          <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
+            {{ className }}
+          </h1>
+          <p class="text-white/90 ml-2 flex items-center gap-2">
+            <i class="pi pi-user"></i>
+            Student: {{ auth.user.name }}
+          </p>
+        </div>
+        <div class="relative settings-dropdown" ref="settingsRef">
+          <button
+            @click.stop="toggleSettingsDropdown"
+            type="button"
+            class="flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:shadow-md border border-white/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-indigo-700 focus:ring-white"
+            aria-label="Settings"
+            aria-haspopup="true"
+            :aria-expanded="showSettingsDropdown"
+          >
+            <i class="pi pi-cog text-lg"></i>
+          </button>
+
+          <transition
+            enter-active-class="transition ease-out duration-100"
+            enter-from-class="transform opacity-0 scale-95"
+            enter-to-class="transform opacity-100 scale-100"
+            leave-active-class="transition ease-in duration-75"
+            leave-from-class="transform opacity-100 scale-100"
+            leave-to-class="transform opacity-0 scale-95"
+          >
+            <div
+              v-if="showSettingsDropdown"
+              class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden"
+            >
+              <button
+                @click="showArchiveDialog = true"
+                type="button"
+                class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
+              >
+                <i class="pi pi-archive"></i>
+                <span>Archive Class</span>
+              </button>
             </div>
-            
-            <!-- Navigation Tabs -->
-            <div class="flex gap-4 mt-6">
-                <button 
-                    v-for="tab in tabs" 
-                    :key="tab.id"
-                    @click="activeTab = tab.id"
-                    :class="[
-                        'text-white px-6 py-2 rounded-t-lg transition-colors',
-                        activeTab === tab.id ? 'bg-white/20 font-medium' : 'hover:bg-white/10'
-                    ]"
+          </transition>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex flex-wrap gap-2 md:gap-4 mt-4 md:mt-6">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="activeTab = tab.id"
+          class="flex items-center gap-2 text-white/90 px-4 py-2 md:px-6 md:py-3 rounded-lg transition-all duration-300 relative overflow-hidden group"
+          :class="[
+            activeTab === tab.id
+              ? 'font-semibold text-white'
+              : 'hover:text-white hover:bg-white/5'
+          ]"
+        >
+          <span class="relative z-10 flex items-center gap-2">
+            <i :class="['pi', tab.icon]"></i>
+            <span>{{ tab.name }}</span>
+          </span>
+          <span 
+            v-if="activeTab === tab.id"
+            class="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full"
+          ></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="w-full bg-white/80 flex-1">
+      <!-- Content Area -->
+      <div :class="['mx-auto px-4 sm:px-6 pt-1 pb-8 transition-all duration-300', 
+                  isSidebarCollapsed ? 'max-w-[95%]' : 'max-w-7xl']"
+           :style="{ 'padding-left': isSidebarCollapsed ? '1.5rem' : '1.5rem', 'padding-right': '1.5rem' }">
+        <template v-if="activeTab === 'portfolio'">
+          <div v-if="!portfolioCreated" class="p-8">
+            <div class="flex flex-col items-center justify-center text-center max-w-md mx-auto">
+            </div>
+          </div>
+          <div v-else class="p-4 md:p-6">
+            <!-- Portfolio Content -->
+            <div>
+              <!-- Activities List View -->
+              <div v-if="selectedFolder" class="space-y-6">
+                <!-- Combined Header with Back Button -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                  <!-- List of Activities Header -->
+                  <div class="rounded-lg py-2 px-4">
+                    <span class="text-2xl font-bold text-indigo-900">List of Activities - Portfolio {{ selectedFolder.title }}</span>
+                  </div>
+
+                  <div class="flex flex-wrap gap-2">
+                    <!-- Back button -->
+                    <button
+                      v-if="!selectedActivity"
+                      @click="backToFolders"
+                      class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <i class="pi pi-arrow-left"></i>
+                      <span>Back to Folders</span>
+                    </button>
+                    <button
+                      v-if="selectedActivity"
+                      @click="selectedActivity = null"
+                      class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <i class="pi pi-arrow-left"></i>
+                      <span>Back to Activities</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Activity Detail View -->
+                <div v-if="selectedActivity" class="bg-white rounded-xl shadow-lg p-6 mb-6 border border-indigo-100">
+                  <!-- Activity Header with Title and Buttons -->
+                  <div class="flex flex-col gap-4 mb-6">
+                    <div class="flex justify-between items-center flex-wrap gap-4">
+                      <div class="flex items-center gap-4">
+                        <h2 class="text-lg font-bold text-gray-900">{{ selectedActivity.title }}</h2>
+                        <span class="px-3 py-1 rounded-full text-sm font-medium text-gray-900 inline-block w-fit">
+                          Due: {{ selectedActivity.date }}
+                          <span class="text-xs block mt-1 text-gray-900/70">You cannot submit after the due date</span>
+                        </span>
+                      </div>
+                      <div class="flex items-center gap-4 w-full sm:w-auto justify-center sm:justify-end mt-4 sm:mt-0">
+                        <button
+                          v-if="!hasSubmitted(selectedActivity)"
+                          @click="addSampleProduct"
+                          class="group flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                        >
+                          <i class="pi pi-plus"></i>
+                          <span>Turn in</span>
+                        </button>
+                        <span
+                          v-else
+                          class="px-4 py-2 rounded-lg bg-green-100 text-green-800"
+                        >
+                          <i class="pi pi-check-circle"></i>
+                          <span>Submitted</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Activity Type and Description -->
+                    <div class="mt-1/2 space-y-1/2">
+                      <div class="flex items-start gap-2">
+                        <span class="text-sm font-medium text-gray-900">Type:</span>
+                        <span class="text-sm text-gray-600 capitalize">{{ selectedActivity.type }}</span>
+                      </div>
+                      <div class="flex items-start gap-2">
+                        <span class="text-sm font-medium text-gray-900">Description:</span>
+                        <p class="text-sm text-gray-600">{{ selectedActivity.description }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Student Submissions Section -->
+                  <div class="mt-6 border-t border-indigo-100 pt-6" v-if="studentSubmissions.length > 0">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Your Submissions:</h3>
+
+                    <!-- Student Submission Cards -->
+                    <div class="flex flex-wrap justify-center gap-4">
+                      <div v-for="(submission, index) in studentSubmissions" :key="index"
+                           class="bg-white rounded-lg border border-indigo-100 overflow-hidden hover:shadow-md transition-all w-full max-w-2xl mx-auto">
+                        <div class="aspect-video relative bg-white overflow-hidden flex items-center justify-center p-4">
+                          <template v-if="submission.isImage">
+                            <img
+                              :src="submission.previewUrl"
+                              :alt="submission.caption || 'Submitted work'"
+                              class="w-full h-full object-contain absolute inset-0 m-auto transition-opacity duration-200"
+                              @error="handleImageError(submission)"
+                              v-show="!submission.loadError"
+                            />
+                            <div v-if="submission.loadError" class="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400">
+                              <i class="pi pi-image text-4xl mb-2"></i>
+                              <span class="text-sm">Image preview not available</span>
+                            </div>
+                          </template>
+                          <div v-else class="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-indigo-700">
+                            <i class="pi pi-file text-4xl mb-2"></i>
+                            <span class="text-sm">{{ submission.file?.name || 'File submission' }}</span>
+                          </div>
+                        </div>
+                        <div class="p-4">
+                          <p v-if="submission.caption" class="text-sm text-gray-600">{{ submission.caption }}</p>
+                          <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs text-gray-500">{{ submission.date }}</span>
+                            <span class="text-xs px-2 py-1 rounded"
+                                  :class="submission.status === 'submitted' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'">
+                              {{ submission.status }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Activities Table -->
+                <div v-else class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-indigo-100">
+                  <!-- Table Header -->
+                  <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-50 border-b border-indigo-100">
+                    <div class="w-32">
+                      <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
+                    </div>
+                    <div class="w-32 md:w-48">
+                      <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
+                    </div>
+                    <div class="flex-1">
+                      <span class="text-sm font-semibold text-indigo-900">Description</span>
+                    </div>
+                    <div class="w-32 md:w-48 text-right">
+                      <span class="text-sm font-semibold text-indigo-900">Due Date</span>
+                    </div>
+                  </div>
+
+                  <!-- Activity Items -->
+                  <div v-for="(activity, index) in folderActivities" :key="index"
+                      class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
+                      @click="openActivity(activity)">
+                    <div class="w-32">
+                      <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
+                    </div>
+                    <div class="w-32 md:w-48">
+                      <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
+                    </div>
+                    <div class="flex-1">
+                      <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
+                    </div>
+                    <div class="w-32 md:w-48 text-right">
+                      <span class="text-sm text-indigo-600">{{ activity.date }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Folder Grid -->
+              <div v-if="!selectedFolder" class="space-y-6">
+                <!-- Header with title -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                  <h2 class="text-xl md:text-2xl font-bold text-gray-900">My Portfolio</h2>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                  <div v-for="folder in portfolioFolders"
+                    :key="folder.id"
+                    @click="openFolderContent(folder)"
+                    class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1 duration-200"
+                  >
+                    <!-- Folder Preview -->
+                    <div class="relative h-36 mb-4 p-4 md:p-6">
+                      <!-- Stacked Preview Images with Dynamic Animation -->
+                      <div class="absolute top-5 right-5 w-28 h-32 flex items-center justify-center">
+                        <div class="absolute w-24 h-28 rounded-md transform rotate-[-15deg] transition-all duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
+                        <div class="absolute w-24 h-28 rounded-md transform rotate-[-5deg] transition-all duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
+                        <div class="absolute w-24 h-28 rounded-md transform rotate-[5deg] transition-all duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
+                      </div>
+                      <!-- Folder Title -->
+                      <div class="relative z-10">
+                        <h3 class="text-xl md:text-2xl font-bold mb-1 text-gray-900 group-hover:text-indigo-700 transition-colors">
+                          {{ folder.title }}
+                        </h3>
+                        <div class="flex items-center space-x-2">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                            {{ folder.items }} items
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Interactive Footer -->
+                    <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center p-4 md:p-6">
+                      <div class="flex items-center space-x-2 text-sm text-indigo-700">
+                        <i class="pi pi-folder text-indigo-700"></i>
+                        <span>View Contents</span>
+                      </div>
+                      <i class="pi pi-arrow-right text-indigo-700 transform group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Schedule Tab Content -->
+        <template v-if="activeTab === 'schedule'">
+          <div class="p-4 md:p-6">
+            <!-- Calendar Header -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h2 class="text-xl font-bold text-gray-900">NOVEMBER 2025</h2>
+              <div class="flex gap-4 items-center">
+                <span class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full bg-indigo-100"></div>
+                  <span class="text-sm text-gray-600">Class Day</span>
+                </span>
+                <span class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full bg-gray-100"></div>
+                  <span class="text-sm text-gray-600">No Class</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Days of the Week -->
+            <div class="grid grid-cols-7 text-center font-semibold text-gray-700 mb-4 bg-gray-50 p-3 rounded-lg">
+              <div>Mon</div>
+              <div>Tue</div>
+              <div>Wed</div>
+              <div>Thu</div>
+              <div>Fri</div>
+              <div class="text-red-500">Sat</div>
+              <div class="text-red-500">Sun</div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="grid grid-cols-7 gap-2">
+              <!-- Empty Spaces for the Start of the Month -->
+              <div v-for="i in 3" :key="'empty-' + i" class="p-4"></div>
+
+              <!-- Dates with Class Schedule -->
+              <div v-for="(day, date) in schedule" :key="date"
+                class="p-2 md:p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all"
+                :class="[
+                  isClassDay(date + 1) ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-50 border-gray-200'
+                ]"
+                @click="showScheduleDetails(date + 1)">
+                <div class="font-semibold text-gray-900">{{ date + 1 }}</div>
+                <div v-if="isClassDay(date + 1)" class="text-xs md:text-sm mt-1 text-gray-900">
+                  {{ day.time }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Current Schedule Display -->
+            <div v-if="selectedDate" class="mt-6 p-4 rounded-lg bg-indigo-100/10">
+              <h3 class="font-semibold mb-2 text-gray-900">
+                Selected Date: November {{ selectedDate }}
+              </h3>
+              <p v-if="isClassDay(selectedDate)" class="text-gray-700">
+                Class Time: {{ schedule[selectedDate - 1].time }}
+              </p>
+              <p v-else class="text-gray-700">
+                No class scheduled for this date
+              </p>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Submit Dialog -->
+    <Dialog v-model:visible="showSubmitDialog" modal header="Submit Activity" :style="{ width: '450px' }">
+      <div class="space-y-4">
+        <div>
+          <label for="product-caption" class="block text-sm font-medium text-gray-700 mb-1">Caption</label>
+          <textarea
+            id="product-caption"
+            v-model="newProductCaption"
+            rows="2"
+            class="w-full px-3 py-2 border border-indigo-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Add a caption to your work..."
+          ></textarea>
+        </div>
+
+      </div>
+      <template #footer>
+        <button
+          @click="showSubmitDialog = false"
+          class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+        >
+          Cancel
+        </button>
+      </template>
+    </Dialog>
+
+    <!-- Add Product Dialog -->
+    <Dialog v-model:visible="showProductUploadModal" modal header="Submit Your Work" :style="{ width: '550px' }">
+      <div class="space-y-6">
+        <!-- Caption Input moved to top -->
+        <div>
+          <label for="product-caption" class="block text-sm font-medium text-gray-700 mb-1">Caption</label>
+          <textarea
+            id="product-caption"
+            v-model="newProductCaption"
+            rows="2"
+            class="w-full px-3 py-2 border border-indigo-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Add a caption to your work..."
+          ></textarea>
+        </div>
+
+        <!-- File Upload Area -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Upload Your Work</label>
+
+          <!-- File Upload Area -->
+          <div v-if="!selectedFile" class="flex items-center justify-center w-full">
+            <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-indigo-100 rounded-lg cursor-pointer hover:bg-indigo-100/10">
+              <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                <i class="pi pi-upload text-2xl text-indigo-700 mb-2"></i>
+                <p class="text-sm text-gray-500">Click to upload or drag and drop</p>
+                <p class="text-xs text-gray-500">(PDF, DOC, DOCX, or Images)</p>
+              </div>
+              <input
+                type="file"
+                class="hidden"
+                @change="handleFileChange"
+                accept=".pdf,.doc,.docx,image/*"
+                required
+              />
+            </label>
+          </div>
+
+          <!-- Selected File Preview -->
+          <div v-else class="bg-white rounded-lg border border-indigo-100 p-4">
+            <div class="flex flex-col gap-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <!-- Image Preview for Images -->
+                  <div v-if="previewUrl" class="h-16 w-16 relative rounded overflow-hidden">
+                    <img
+                      :src="previewUrl"
+                      alt="Preview"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <!-- File Icon for Documents -->
+                  <div v-else class="h-16 w-16 bg-indigo-50/30 rounded flex items-center justify-center">
+                    <i class="pi pi-file-pdf text-2xl text-indigo-700"></i>
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900">{{ selectedFile.name }}</p>
+                    <p class="text-sm text-gray-500">
+                      {{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  @click="clearFile"
+                  class="text-gray-500 hover:text-red-500 p-2 rounded-full hover:bg-gray-100"
                 >
-                    <i :class="['pi', tab.icon, 'mr-2']"></i>
-                    {{ tab.name }}
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+
+              <!-- File Preview -->
+              <div class="mt-2">
+                <div v-if="previewUrl" class="aspect-video bg-gray-50 rounded-md overflow-hidden border border-indigo-100">
+                  <img
+                    :src="previewUrl"
+                    alt="File preview"
+                    class="w-full h-full object-contain"
+                  />
+                </div>
+                <div v-else class="aspect-video bg-gray-50 rounded-md border border-indigo-100 flex items-center justify-center">
+                  <i class="pi pi-file text-4xl text-indigo-700"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Post Output Option -->
+        <div class="flex items-center mt-4">
+          <input
+            type="checkbox"
+            id="post-output"
+            v-model="postOutputOption"
+            class="w-4 h-4 text-indigo-700 border-indigo-100 rounded focus:ring-indigo-500"
+          />
+          <label for="post-output" class="ml-2 text-sm font-medium text-gray-700">
+            Post this output to feeds (visible to class)
+          </label>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button
+            @click="showProductUploadModal = false"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="submitNewProduct"
+            class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2"
+            :disabled="!selectedFile"
+            :class="{'opacity-50 cursor-not-allowed': !selectedFile}"
+          >
+            <i class="pi pi-check"></i>
+            Submit Work
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Archive Class Dialog -->
+    <Dialog v-model:visible="showArchiveDialog"
+        modal
+        header="Archive Class"
+        :style="{ width: '90%', maxWidth: '30rem' }">
+        <div class="p-6">
+            <div class="mb-6 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                    <i class="pi pi-exclamation-triangle text-red-600 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Archive this class?</h3>
+                <p class="text-sm text-gray-500">
+                    This will move the class to the archived section. You can restore it later if needed.
+                </p>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button @click="showArchiveDialog = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Cancel
+                </button>
+                <button @click="confirmArchive"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2">
+                    <i class="pi pi-archive"></i>
+                    Archive Class
                 </button>
             </div>
         </div>
-
-        <!-- Main Content Area -->
-        <div class="flex gap-6 p-6">
-            <!-- Right Content Area -->
-            <div :class="[
-                'bg-white rounded-[10px] shadow-sm w-full'
-            ]">
-                <template v-if="activeTab === 'portfolio'">
-                    <div v-if="!portfolioCreated" class="p-8">
-                        <div class="flex flex-col items-center justify-center text-center max-w-md mx-auto">
-                            <!-- Portfolio Icon -->
-                            <div class="w-32 h-32 mb-6">
-                                <div class="bg-orange-100 w-full h-full rounded-lg flex items-center justify-center relative">
-                                    <i class="pi pi-pencil text-orange-500 text-4xl"></i>
-                                    <div class="absolute -top-2 -right-2">
-                                        <i class="pi pi-sun text-orange-400 text-2xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Inspirational Quote -->
-                            <p class="text-gray-600 text-lg font-medium mb-2">
-                                "Every output tells a story of creativity, perseverance, and excellence."
-                            </p>
-                            
-                            <!-- No Results Message -->
-                            <p class="text-gray-400 text-sm mb-6">No results for portfolio</p>
-                            
-                            <!-- Create Button -->
-                            <button 
-                                class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full flex items-center gap-2 transition-colors"
-                                @click="createPortfolio"
-                            >
-                                <i class="pi pi-plus"></i>
-                                Create now
-                            </button>
-                        </div>
-                    </div>
-                    <div v-else class="p-6">
-                        <!-- Portfolio Content -->
-                        <div class="w-full" :class="{
-                            'bg-white': selectedPortfolioTheme !== 'dark',
-                            'bg-gray-900': selectedPortfolioTheme === 'dark'
-                        }">
-                            <!-- Toolbar -->
-                            <div class="mb-6 shadow-sm p-4 rounded-lg flex justify-between items-center"
-                                :class="{
-                                    'bg-white': selectedPortfolioTheme === 'minimal',
-                                    'bg-gradient-to-r from-purple-50 to-pink-50': selectedPortfolioTheme === 'creative',
-                                    'bg-blue-50': selectedPortfolioTheme === 'professional',
-                                    'bg-gradient-to-r from-emerald-50 to-teal-50': selectedPortfolioTheme === 'modern',
-                                    'bg-gray-800': selectedPortfolioTheme === 'dark',
-                                    'bg-gradient-to-r from-yellow-50 to-orange-50': selectedPortfolioTheme === 'playful'
-                                }"
-                            >
-                                <div class="flex flex-col">
-                                    <h2 class="text-3xl font-bold flex items-center gap-2"
-                                        :class="{
-                                            'text-gray-800': selectedPortfolioTheme === 'minimal',
-                                            'text-purple-600': selectedPortfolioTheme === 'creative',
-                                            'text-blue-800': selectedPortfolioTheme === 'professional',
-                                            'text-emerald-600': selectedPortfolioTheme === 'modern',
-                                            'text-white': selectedPortfolioTheme === 'dark',
-                                            'text-orange-600': selectedPortfolioTheme === 'playful'
-                                        }"
-                                    >
-                                        {{ selectedFolder ? selectedFolder.title : 'My Portfolio' }}
-                                    </h2>
-                                    <!-- Tabs for selected folder -->
-                                    <div v-if="selectedFolder" class="flex space-x-4 mt-2">
-                                        <button 
-                                            v-for="tab in [
-                                                { id: 'Recent', icon: 'pi-clock' },
-                                                { id: 'Shared', icon: 'pi-share-alt' },
-                                                { id: 'Favorites', icon: 'pi-star' }
-                                            ]" 
-                                            :key="tab.id"
-                                            class="px-3 py-1 rounded-full text-sm transition-colors flex items-center gap-2"
-                                            :class="[
-                                                selectedTab === tab.id 
-                                                    ? {
-                                                        'bg-gray-200 text-gray-800': selectedPortfolioTheme === 'minimal',
-                                                        'bg-purple-100 text-purple-600': selectedPortfolioTheme === 'creative',
-                                                        'bg-blue-100 text-blue-600': selectedPortfolioTheme === 'professional',
-                                                        'bg-emerald-100 text-emerald-600': selectedPortfolioTheme === 'modern',
-                                                        'bg-gray-700 text-white': selectedPortfolioTheme === 'dark',
-                                                        'bg-orange-100 text-orange-600': selectedPortfolioTheme === 'playful'
-                                                    }
-                                                    : 'text-gray-500 hover:text-gray-700'
-                                            ]"
-                                            @click="selectedTab = tab.id"
-                                        >
-                                            <i :class="['pi', tab.icon]"></i>
-                                            {{ tab.id }}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="flex space-x-3">
-                                    <button v-if="selectedFolder" 
-                                        @click="showAddProjectDialog = true"
-                                        :class="[
-                                            'px-4 py-2 rounded-lg flex items-center gap-2 transition-colors',
-                                            {
-                                                'bg-gray-900 text-white hover:bg-gray-800': selectedPortfolioTheme === 'minimal',
-                                                'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700': selectedPortfolioTheme === 'creative',
-                                                'bg-blue-600 text-white hover:bg-blue-700': selectedPortfolioTheme === 'professional',
-                                                'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700': selectedPortfolioTheme === 'modern',
-                                                'bg-gray-700 text-white hover:bg-gray-600': selectedPortfolioTheme === 'dark',
-                                                'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600': selectedPortfolioTheme === 'playful'
-                                            }
-                                        ]">
-                                        <i class="pi pi-plus"></i>
-                                        Add Project
-                                    </button>
-                                    <button v-if="!selectedFolder" 
-                                        :class="[
-                                            'px-4 py-2 rounded-lg flex items-center gap-2 transition-colors',
-                                            {
-                                                'bg-gray-900 text-white hover:bg-gray-800': selectedPortfolioTheme === 'minimal',
-                                                'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700': selectedPortfolioTheme === 'creative',
-                                                'bg-blue-600 text-white hover:bg-blue-700': selectedPortfolioTheme === 'professional',
-                                                'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700': selectedPortfolioTheme === 'modern',
-                                                'bg-gray-700 text-white hover:bg-gray-600': selectedPortfolioTheme === 'dark',
-                                                'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600': selectedPortfolioTheme === 'playful'
-                                            }
-                                        ]"
-                                        @click="showNewFolderDialog = true">
-                                        <i class="pi pi-folder"></i>
-                                        New Folder
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Folder Grid -->
-                            <div v-if="!selectedFolder" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                <div v-for="folder in portfolioFolders" 
-                                    :key="folder.id"
-                                    @click="openFolderContent(folder)"
-                                    class="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all cursor-pointer p-6"
-                                    :class="{
-                                        'border-gray-200 hover:border-gray-300': selectedPortfolioTheme === 'minimal',
-                                        'border-purple-100 hover:border-purple-200': selectedPortfolioTheme === 'creative',
-                                        'border-blue-100 hover:border-blue-200': selectedPortfolioTheme === 'professional',
-                                        'border-emerald-100 hover:border-emerald-200': selectedPortfolioTheme === 'modern',
-                                        'border-gray-700 hover:border-gray-600': selectedPortfolioTheme === 'dark',
-                                        'border-orange-100 hover:border-orange-200': selectedPortfolioTheme === 'playful'
-                                    }">
-                                    <!-- Folder Preview -->
-                                    <div class="relative h-32 mb-4">
-                                        <!-- Stacked Preview Images -->
-                                        <div class="absolute top-0 right-0 w-24 h-28 flex items-center justify-center">
-                                            <div class="absolute w-20 h-24 bg-gray-100 rounded-lg transform rotate-[-15deg] transition-transform group-hover:rotate-[-20deg]"></div>
-                                            <div class="absolute w-20 h-24 bg-gray-200 rounded-lg transform rotate-[-5deg] transition-transform group-hover:rotate-[-10deg]"></div>
-                                            <div class="absolute w-20 h-24 bg-gray-300 rounded-lg transform rotate-[5deg] transition-transform group-hover:rotate-[10deg]"></div>
-                                        </div>
-                                        <!-- Folder Title -->
-                                        <h3 class="text-xl font-semibold text-gray-800 mb-1 relative z-10">{{ folder.title }}</h3>
-                                        <span class="text-sm text-gray-500 relative z-10">{{ folder.items }} items</span>
-                                    </div>
-                                    
-                                    <!-- Folder Description -->
-                                    <p class="text-gray-600 text-sm">{{ folder.description }}</p>
-                                </div>
-                            </div>
-
-                            <!-- Selected Folder Content -->
-                            <div v-else class="space-y-6">
-                                <!-- Back Button and Folder Header -->
-                                <div class="flex items-center justify-between mb-4">
-                                    <h2 class="text-2xl font-bold text-gray-800">{{ selectedFolder.title }}</h2>
-                                    <button @click="selectedFolder = null" 
-                                        :class="[
-                                            'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors',
-                                            {
-                                                'bg-gray-100 text-gray-700 hover:bg-gray-200': selectedPortfolioTheme === 'minimal',
-                                                'bg-purple-50 text-purple-600 hover:bg-purple-100': selectedPortfolioTheme === 'creative',
-                                                'bg-blue-50 text-blue-600 hover:bg-blue-100': selectedPortfolioTheme === 'professional',
-                                                'bg-emerald-50 text-emerald-600 hover:bg-emerald-100': selectedPortfolioTheme === 'modern',
-                                                'bg-gray-700 text-white hover:bg-gray-600': selectedPortfolioTheme === 'dark',
-                                                'bg-orange-50 text-orange-600 hover:bg-orange-100': selectedPortfolioTheme === 'playful'
-                                            }
-                                        ]"
-                                    >
-                                        <i class="pi pi-arrow-left"></i>
-                                        <span>Back to Folders</span>
-                                    </button>
-                                </div>
-
-                                <!-- Activities Grid -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div v-for="(activity, index) in folderActivities" 
-                                        :key="index"
-                                        class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
-                                        :class="{
-                                            'border-gray-200': selectedPortfolioTheme === 'minimal',
-                                            'border-purple-100': selectedPortfolioTheme === 'creative',
-                                            'border-blue-100': selectedPortfolioTheme === 'professional',
-                                            'border-emerald-100': selectedPortfolioTheme === 'modern',
-                                            'border-gray-700': selectedPortfolioTheme === 'dark',
-                                            'border-orange-100': selectedPortfolioTheme === 'playful'
-                                        }">
-                                        <!-- Activity Image -->
-                                        <div class="aspect-video w-full bg-gray-100 relative">
-                                            <img :src="activity.image" 
-                                                :alt="activity.title"
-                                                class="w-full h-full object-cover">
-                                            <div class="absolute top-2 right-2">
-                                                <span :class="[
-                                                    'px-2 py-1 rounded-full text-xs font-medium',
-                                                    {
-                                                        'bg-green-100 text-green-700': activity.status === 'Completed',
-                                                        'bg-yellow-100 text-yellow-700': activity.status === 'In Progress',
-                                                        'bg-blue-100 text-blue-700': activity.status === 'New'
-                                                    }
-                                                ]">
-                                                    {{ activity.status }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Activity Content -->
-                                        <div class="p-4">
-                                            <h4 class="text-lg font-semibold text-gray-800 mb-2">{{ activity.title }}</h4>
-                                            <p class="text-gray-600 text-sm mb-4 line-clamp-2">{{ activity.description }}</p>
-                                            
-                                            <!-- Activity Meta -->
-                                            <div class="flex items-center justify-between text-sm">
-                                                <span class="text-gray-500">{{ activity.date }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- Schedule Tab Content -->
-                <template v-if="activeTab === 'schedule'">
-                    <div class="p-6">
-                        <!-- Calendar Header -->
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold" :class="`text-${props.theme}-700`">NOVEMBER 2025</h2>
-                            <div class="flex gap-4 items-center">
-                                <span class="flex items-center gap-2">
-                                    <div :class="`w-3 h-3 rounded-full bg-${props.theme}-100`"></div>
-                                    <span class="text-sm text-gray-600">Class Day</span>
-                                </span>
-                                <span class="flex items-center gap-2">
-                                    <div class="w-3 h-3 rounded-full bg-gray-100"></div>
-                                    <span class="text-sm text-gray-600">No Class</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Days of the Week -->
-                        <div class="grid grid-cols-7 text-center font-semibold text-gray-700 mb-4 bg-gray-50 p-3 rounded-lg">
-                            <div>Mon</div>
-                            <div>Tue</div>
-                            <div>Wed</div>
-                            <div>Thu</div>
-                            <div>Fri</div>
-                            <div class="text-red-500">Sat</div>
-                            <div class="text-red-500">Sun</div>
-                        </div>
-
-                        <!-- Calendar Grid -->
-                        <div class="grid grid-cols-7 gap-2">
-                            <!-- Empty Spaces for the Start of the Month -->
-                            <div v-for="i in 3" :key="'empty-' + i" class="p-4"></div>
-
-                            <!-- Dates with Class Schedule -->
-                            <div v-for="(day, date) in schedule" :key="date"
-                                class="p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all"
-                                :class="{
-                                    [`bg-${props.theme}-100 border-${props.theme}-200`]: isClassDay(date + 1),
-                                    'bg-gray-50': !isClassDay(date + 1)
-                                }"
-                                @click="showScheduleDetails(date + 1)">
-                                <div class="font-semibold text-gray-800">{{ date + 1 }}</div>
-                                <div v-if="isClassDay(date + 1)" :class="`text-sm text-${props.theme}-600 mt-1`">
-                                    {{ day.time }}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Current Schedule Display -->
-                        <div v-if="selectedDate" :class="`mt-6 p-4 bg-${props.theme}-50 rounded-lg`">
-                            <h3 :class="`font-semibold text-${props.theme}-800 mb-2`">
-                                Selected Date: November {{ selectedDate }}
-                            </h3>
-                            <p v-if="isClassDay(selectedDate)" class="text-gray-700">
-                                Class Time: {{ schedule[selectedDate - 1].time }}
-                            </p>
-                            <p v-else class="text-gray-700">
-                                No class scheduled for this date
-                            </p>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-
-        <!-- Portfolio Theme Selection Dialog -->
-        <Dialog v-model:visible="showPortfolioThemeDialog" 
-            modal 
-            header="Choose Your Portfolio Theme" 
-            :style="{ width: '80vw' }"
-            :breakpoints="{ '960px': '85vw', '641px': '95vw' }">
-            <div class="p-6">
-                <h3 class="text-lg text-gray-700 mb-6">Select a theme that best represents your style</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <!-- Minimal Theme -->
-                    <div 
-                        class="border rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg"
-                        :class="{ 'ring-2 ring-blue-500': selectedTheme === 'minimal' }"
-                        @click="selectedTheme = 'minimal'"
-                    >
-                        <div class="bg-gray-100 h-40 rounded-lg mb-4 flex items-center justify-center">
-                            <i class="pi pi-minus-circle text-4xl text-gray-400"></i>
-                        </div>
-                        <h4 class="font-medium text-gray-800">Minimal</h4>
-                        <p class="text-sm text-gray-500">Clean and simple design focusing on content</p>
-                    </div>
-
-                    <!-- Creative Theme -->
-                    <div 
-                        class="border rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg"
-                        :class="{ 'ring-2 ring-blue-500': selectedTheme === 'creative' }"
-                        @click="selectedTheme = 'creative'"
-                    >
-                        <div class="bg-gradient-to-br from-purple-100 to-pink-100 h-40 rounded-lg mb-4 flex items-center justify-center">
-                            <i class="pi pi-palette text-4xl text-purple-400"></i>
-                        </div>
-                        <h4 class="font-medium text-gray-800">Creative</h4>
-                        <p class="text-sm text-gray-500">Vibrant and artistic with dynamic layouts</p>
-                    </div>
-
-                    <!-- Professional Theme -->
-                    <div 
-                        class="border rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg"
-                        :class="{ 'ring-2 ring-blue-500': selectedTheme === 'professional' }"
-                        @click="selectedTheme = 'professional'"
-                    >
-                        <div class="bg-blue-100 h-40 rounded-lg mb-4 flex items-center justify-center">
-                            <i class="pi pi-briefcase text-4xl text-blue-400"></i>
-                        </div>
-                        <h4 class="font-medium text-gray-800">Professional</h4>
-                        <p class="text-sm text-gray-500">Sophisticated and structured presentation</p>
-                    </div>
-
-                    <!-- Modern Theme -->
-                    <div 
-                        class="border rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg"
-                        :class="{ 'ring-2 ring-blue-500': selectedTheme === 'modern' }"
-                        @click="selectedTheme = 'modern'"
-                    >
-                        <div class="bg-gradient-to-br from-emerald-100 to-teal-100 h-40 rounded-lg mb-4 flex items-center justify-center">
-                            <i class="pi pi-compass text-4xl text-emerald-400"></i>
-                        </div>
-                        <h4 class="font-medium text-gray-800">Modern</h4>
-                        <p class="text-sm text-gray-500">Contemporary design with bold elements</p>
-                    </div>
-
-                    <!-- Dark Theme -->
-                    <div 
-                        class="border rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg"
-                        :class="{ 'ring-2 ring-blue-500': selectedTheme === 'dark' }"
-                        @click="selectedTheme = 'dark'"
-                    >
-                        <div class="bg-gray-900 h-40 rounded-lg mb-4 flex items-center justify-center">
-                            <i class="pi pi-moon text-4xl text-gray-400"></i>
-                        </div>
-                        <h4 class="font-medium text-gray-800">Dark</h4>
-                        <p class="text-sm text-gray-500">Elegant dark mode with high contrast</p>
-                    </div>
-
-                    <!-- Playful Theme -->
-                    <div 
-                        class="border rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg"
-                        :class="{ 'ring-2 ring-blue-500': selectedTheme === 'playful' }"
-                        @click="selectedTheme = 'playful'"
-                    >
-                        <div class="bg-gradient-to-br from-yellow-100 via-orange-100 to-red-100 h-40 rounded-lg mb-4 flex items-center justify-center">
-                            <i class="pi pi-star text-4xl text-yellow-400"></i>
-                        </div>
-                        <h4 class="font-medium text-gray-800">Playful</h4>
-                        <p class="text-sm text-gray-500">Fun and energetic with bright colors</p>
-                    </div>
-                </div>
-            </div>
-            <template #footer>
-                <div class="flex justify-end gap-2">
-                    <button @click="showPortfolioThemeDialog = false"
-                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                        Cancel
-                    </button>
-                    <button 
-                        @click="createPortfolioWithTheme"
-                        :disabled="!selectedTheme"
-                        :class="[
-                            'px-4 py-2 rounded-lg transition-colors',
-                            selectedTheme ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        ]"
-                    >
-                        Create Portfolio
-                    </button>
-                </div>
-            </template>
-        </Dialog>
-
-        <!-- New Folder Dialog -->
-        <Dialog v-model:visible="showNewFolderDialog" 
-            modal 
-            header="Create New Folder" 
-            :style="{ width: '40rem' }">
-            <div class="p-6">
-                <div class="grid grid-cols-2 gap-6">
-                    <!-- Form Fields -->
-                    <div class="space-y-4">
-                        <div>
-                            <label for="folderTitle" class="block text-sm font-medium text-gray-700 mb-1">Folder Title</label>
-                            <input 
-                                id="folderTitle"
-                                v-model="newFolder.title"
-                                type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Enter folder title"
-                            >
-                        </div>
-                        <div>
-                            <label for="folderDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                            <textarea 
-                                id="folderDescription"
-                                v-model="newFolder.description"
-                                rows="3"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Enter folder description"
-                            ></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Preview -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-3">Preview</label>
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <!-- Folder Preview -->
-                            <div class="relative h-32 mb-4">
-                                <!-- Stacked Preview Images -->
-                                <div class="absolute top-0 right-0 w-24 h-28 flex items-center justify-center">
-                                    <div class="absolute w-20 h-24 bg-gray-100 rounded-lg transform rotate-[-15deg] transition-transform"></div>
-                                    <div class="absolute w-20 h-24 bg-gray-200 rounded-lg transform rotate-[-5deg] transition-transform"></div>
-                                    <div class="absolute w-20 h-24 bg-gray-300 rounded-lg transform rotate-[5deg] transition-transform"></div>
-                                </div>
-                                <!-- Folder Title -->
-                                <h3 class="text-xl font-semibold text-gray-800 mb-1 relative z-10">{{ newFolder.title || 'Folder Title' }}</h3>
-                                <span class="text-sm text-gray-500 relative z-10">0 items</span>
-                            </div>
-                            <!-- Folder Description -->
-                            <p class="text-gray-600 text-sm">{{ newFolder.description || 'Your folder description will appear here' }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <template #footer>
-                <div class="flex justify-between items-center">
-                    <p class="text-sm text-gray-500">* Preview updates as you type</p>
-                    <div class="flex gap-2">
-                        <button @click="showNewFolderDialog = false"
-                            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                            Cancel
-                        </button>
-                        <button 
-                            @click="createNewFolder"
-                            :disabled="!newFolder.title"
-                            :class="[
-                                'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
-                                newFolder.title ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            ]"
-                        >
-                            <i class="pi pi-check"></i>
-                            Create Folder
-                        </button>
-                    </div>
-                </div>
-            </template>
-        </Dialog>
-
-        <!-- Add Project Dialog -->
-        <Dialog v-model:visible="showAddProjectDialog" 
-            modal 
-            header="Add New Project" 
-            :style="{ width: '40rem' }">
-            <div class="p-6">
-                <div class="grid grid-cols-2 gap-6">
-                    <!-- Form Fields -->
-                    <div class="space-y-4">
-                        <div>
-                            <label for="projectTitle" class="block text-sm font-medium text-gray-700 mb-1">Project Title</label>
-                            <input 
-                                id="projectTitle"
-                                v-model="newProject.title"
-                                type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Enter project title"
-                            >
-                        </div>
-                        <div>
-                            <label for="projectDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                            <textarea 
-                                id="projectDescription"
-                                v-model="newProject.description"
-                                rows="3"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Enter project description"
-                            ></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
-                            <select 
-                                v-model="newProject.type"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="document">Document</option>
-                                <option value="presentation">Presentation</option>
-                                <option value="spreadsheet">Spreadsheet</option>
-                                <option value="image">Image</option>
-                                <option value="video">Video</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Preview -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-3">Preview</label>
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <div class="mb-4">
-                                <div :class="[
-                                    'w-full h-32 rounded-lg mb-3 flex items-center justify-center',
-                                    {
-                                        'bg-blue-50': newProject.type === 'document',
-                                        'bg-purple-50': newProject.type === 'presentation',
-                                        'bg-green-50': newProject.type === 'spreadsheet',
-                                        'bg-yellow-50': newProject.type === 'image',
-                                        'bg-red-50': newProject.type === 'video',
-                                        'bg-gray-50': newProject.type === 'other'
-                                    }
-                                ]">
-                                    <i :class="[
-                                        'pi text-2xl',
-                                        {
-                                            'pi-file-pdf text-blue-500': newProject.type === 'document',
-                                            'pi-images text-purple-500': newProject.type === 'presentation',
-                                            'pi-table text-green-500': newProject.type === 'spreadsheet',
-                                            'pi-image text-yellow-600': newProject.type === 'image',
-                                            'pi-video text-red-500': newProject.type === 'video',
-                                            'pi-file text-gray-500': newProject.type === 'other'
-                                        }
-                                    ]"></i>
-                                </div>
-                                <h3 class="text-lg font-semibold text-gray-800">{{ newProject.title || 'Project Title' }}</h3>
-                                <p class="text-sm text-gray-500 capitalize">{{ newProject.type || 'Type' }}</p>
-                            </div>
-                            <p class="text-gray-600 text-sm">{{ newProject.description || 'Project description will appear here' }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <template #footer>
-                <div class="flex justify-between items-center">
-                    <p class="text-sm text-gray-500">* Preview updates as you type</p>
-                    <div class="flex gap-2">
-                        <button @click="showAddProjectDialog = false"
-                            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                            Cancel
-                        </button>
-                        <button 
-                            @click="createNewProject"
-                            :disabled="!newProject.title"
-                            :class="[
-                                'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
-                                newProject.title ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            ]"
-                        >
-                            <i class="pi pi-check"></i>
-                            Create Project
-                        </button>
-                    </div>
-                </div>
-            </template>
-        </Dialog>
-    </div>
+    </Dialog>
+  </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
+import { Head, usePage, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import Dialog from 'primevue/dialog';
 
@@ -638,291 +543,361 @@ const page = usePage();
 const auth = computed(() => page.props.auth);
 
 const props = defineProps({
-    className: {
-        type: String,
-        required: true,
-        default: 'Digital Arts'
-    },
-    theme: {
-        type: String,
-        default: 'emerald'
-    }
+  className: {
+    type: String,
+    required: true,
+    default: 'Digital Arts'
+  },
+  theme: {
+    type: String,
+    default: 'emerald'
+  }
 });
 
-// Computed theme classes
-const themeClasses = computed(() => ({
-    header: `bg-${props.theme}-400`,
-    badge: `bg-${props.theme}-200`,
-    memberHeader: `bg-${props.theme}-600`,
-    buttons: `bg-${props.theme}-500`,
-    activeTab: `bg-${props.theme}-400`
-}));
-
 const activeTab = ref('portfolio');
-const activeContentTab = ref('portfolio');
+const activeContentTab = ref('samples');
 
-// Tab configurations
+// Navigation tabs
 const tabs = [
-    { id: 'portfolio', name: 'My Portfolio', icon: 'pi-image' },
-    { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' }
+  { id: 'portfolio', name: 'Portfolio', icon: 'pi-folder' },
+  { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' },
 ];
 
 // Portfolio state
 const showPortfolioThemeDialog = ref(false);
 const selectedTheme = ref(null);
-const portfolioCreated = ref(false);
+const portfolioCreated = ref(true);
 const selectedPortfolioTheme = ref('minimal'); // Default theme
-
-// Folder and Activity State
-const selectedFolder = ref(null);
-const selectedTab = ref('Recent');
-
-// Sample activities data for each folder
-const getFolderActivities = (folderId) => {
-    const activities = {
-        'Mapeh': [
-            {
-                title: "Essay on Arts History",
-                description: "A comprehensive analysis of Renaissance art and its influence on modern culture.",
-                image: "https://images.unsplash.com/photo-1577083552431-6e5fd01988ec?ixlib=rb-4.0.3",
-                status: "Completed",
-                date: "Mar 20, 2025",
-                files: [
-                    { name: "renaissance_essay.pdf", size: "2.4 MB" },
-                    { name: "art_references.zip", size: "5.1 MB" }
-                ]
-            },
-            {
-                title: "Music Theory Assignment",
-                description: "Analysis of classical music compositions and their structures.",
-                image: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?ixlib=rb-4.0.3",
-                status: "In Progress",
-                date: "Mar 22, 2025",
-                files: [
-                    { name: "music_notes.pdf", size: "1.8 MB" },
-                    { name: "composition.mp3", size: "3.2 MB" }
-                ]
-            }
-        ],
-        'Science': [
-            {
-                title: "Lab Report: Photosynthesis",
-                description: "Detailed documentation of our plant growth experiment and findings.",
-                image: "https://images.unsplash.com/photo-1576086213369-97a306d36557?ixlib=rb-4.0.3",
-                status: "Completed",
-                date: "Mar 22, 2025",
-                files: [
-                    { name: "lab_report.docx", size: "1.8 MB" },
-                    { name: "experiment_photos.zip", size: "5.2 MB" }
-                ]
-            },
-            {
-                title: "Chemistry Experiment Results",
-                description: "Analysis of chemical reactions and their outcomes.",
-                image: "https://images.unsplash.com/photo-1532187643603-ba119ca4109e?ixlib=rb-4.0.3",
-                status: "In Progress",
-                date: "Mar 24, 2025",
-                files: [
-                    { name: "chemistry_data.xlsx", size: "1.1 MB" }
-                ]
-            }
-        ],
-        'English': [
-            {
-                title: "Literary Analysis Essay",
-                description: "Critical analysis of Shakespeare's Macbeth.",
-                image: "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?ixlib=rb-4.0.3",
-                status: "Completed",
-                date: "Mar 18, 2025",
-                files: [
-                    { name: "macbeth_analysis.pdf", size: "3.1 MB" }
-                ]
-            }
-        ],
-        'Math': [
-            {
-                title: "Calculus Problem Set",
-                description: "Solutions to advanced calculus problems and proofs.",
-                image: "https://images.unsplash.com/photo-1635372722656-389f87a941b7?ixlib=rb-4.0.3",
-                status: "New",
-                date: "Mar 24, 2025",
-                files: [
-                    { name: "calculus_solutions.pdf", size: "3.1 MB" }
-                ]
-            }
-        ],
-        'AP': [
-            {
-                title: "Historical Research Paper",
-                description: "Analysis of World War II impacts on Southeast Asia.",
-                image: "https://images.unsplash.com/photo-1447069387593-a5de0862481e?ixlib=rb-4.0.3",
-                status: "In Progress",
-                date: "Mar 21, 2025",
-                files: [
-                    { name: "research_paper.docx", size: "4.2 MB" },
-                    { name: "historical_data.pdf", size: "2.8 MB" }
-                ]
-            }
-        ]
-    };
-    return activities[folderId] || [];
-};
 
 // Portfolio folders data
 const portfolioFolders = [
-    { id: 'Mapeh', title: 'Mapeh', description: 'Essay-related activities and writing projects.', items: 10 },
-    { id: 'Science', title: 'Science', description: 'Lab reports, experiments, and notes.', items: 15 },
-    { id: 'English', title: 'English', description: 'Essays, literature reviews, and projects.', items: 12 },
-    { id: 'Math', title: 'Math', description: 'Problem sets, formulas, and worksheets.', items: 18 },
-    { id: 'AP', title: 'AP', description: 'History and social studies documents.', items: 8 }
+  { id: 'Mapeh', title: 'Mapeh', items: 10 }
 ];
 
+// Selected folder and activity state
+const selectedFolder = ref(null);
+const selectedActivity = ref(null);
+
 // Folder activities data
-const folderActivities = ref([]);
+const folderActivities = ref([
+  {
+    type: 'project',
+    title: 'Self-portrait',
+    description: 'Artworks: Create a self-portrait using mixed media techniques',
+    date: 'Nov 6, 2024'
+  }
+]);
+
+// Student submissions
+const studentSubmissions = ref([]);
+
+// File upload state
+const selectedFile = ref(null);
+const previewUrl = ref(null);
+const showSubmitDialog = ref(false);
+const showProductUploadModal = ref(false);
+const newProductCaption = ref('');
+const postOutputOption = ref(false);
+
+// Function to check if activity has been submitted
+const hasSubmitted = (activity) => {
+  return studentSubmissions.value.some(sub => sub.activityId === activity.title);
+};
+
+// Function to handle image loading errors
+const handleImageError = (submission) => {
+  submission.loadError = true;
+  // Revoke the object URL to free memory
+  if (submission.previewUrl) {
+    URL.revokeObjectURL(submission.previewUrl);
+  }
+};
 
 // Function to open folder content
 const openFolderContent = (folder) => {
-    selectedFolder.value = folder;
-    folderActivities.value = getFolderActivities(folder.id);
+  selectedFolder.value = folder;
 };
 
-// New Folder Dialog State
-const showNewFolderDialog = ref(false);
-const newFolder = ref({ title: '', description: '' });
-
-// Function to create new folder
-const createNewFolder = () => {
-    // Add new folder to portfolioFolders array
-    portfolioFolders.push({ id: newFolder.value.title, title: newFolder.value.title, description: newFolder.value.description, items: 0 });
-    showNewFolderDialog.value = false;
-    newFolder.value = { title: '', description: '' };
+// Function to go back to folders view
+const backToFolders = () => {
+  selectedFolder.value = null;
 };
 
-// Add Project Dialog State
-const showAddProjectDialog = ref(false);
-const newProject = ref({ title: '', description: '', type: '' });
-
-// Function to create new project
-const createNewProject = () => {
-    // Add new project to folderActivities array
-    folderActivities.value.push({
-        title: newProject.value.title,
-        description: newProject.value.description,
-        type: newProject.value.type,
-        status: 'New',
-        date: 'Mar 24, 2025',
-        files: []
-    });
-    showAddProjectDialog.value = false;
-    newProject.value = { title: '', description: '', type: '' };
+// Function to open activity with all details
+const openActivity = (activity) => {
+  selectedActivity.value = activity;
 };
+
+// Handle file selection
+const handleFileChange = (e) => {
+  if (e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
+    selectedFile.value = file;
+
+    // Create preview URL for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewUrl.value = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      previewUrl.value = null;
+    }
+  }
+};
+
+// Clear selected file
+const clearFile = () => {
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value);
+  }
+  selectedFile.value = null;
+  previewUrl.value = null;
+};
+
+// Submit work function
+const submitWork = (type) => {
+  // Here you would handle the submission based on type ('private' or 'public')
+  console.log(`Submitting work as ${type} with file:`, selectedFile.value);
+
+  // Close dialog and reset form
+  showSubmitDialog.value = false;
+
+  // Show success message or redirect as needed
+  // For demo purposes, we'll just clear the form
+  clearFile();
+};
+
+// Settings Dropdown State
+const showSettingsDropdown = ref(false);
+const showArchiveDialog = ref(false);
+const showAddActivityDialog = ref(false);
+const settingsRef = ref(null);
+const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false));
+
+// Toggle settings dropdown
+const toggleSettingsDropdown = () => {
+    showSettingsDropdown.value = !showSettingsDropdown.value;
+};
+
+// Close settings dropdown when clicking outside (robust)
+const handleDocumentClick = (event) => {
+  if (settingsRef.value && !settingsRef.value.contains(event.target)) {
+    showSettingsDropdown.value = false;
+  }
+};
+
+// Close menu when clicking outside
+const handleClickOutside = (event) => {
+  if (settingsRef.value && !settingsRef.value.contains(event.target)) {
+    showSettingsDropdown.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick, true);
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleDocumentClick, true);
+  document.removeEventListener('click', handleClickOutside);
+});
 
 // Add these for the calendar functionality
 const selectedDate = ref(null);
 
 // Generate random schedule
 const generateRandomSchedule = () => {
-    const times = [
-        '8:00 AM - 9:30 AM',
-        '9:45 AM - 11:15 AM',
-        '1:00 PM - 2:30 PM',
-        '2:45 PM - 4:15 PM'
-    ];
-    
-    return Array.from({ length: 30 }, () => ({
-        time: times[Math.floor(Math.random() * times.length)]
-    }));
+  const times = [
+    '8:00 AM - 9:30 AM',
+    '9:45 AM - 11:15 AM',
+    '1:00 PM - 2:30 PM',
+    '2:45 PM - 4:15 PM'
+  ];
+
+  return Array.from({ length: 30 }, () => ({
+    time: times[Math.floor(Math.random() * times.length)]
+  }));
 };
 
 const schedule = ref(generateRandomSchedule());
 
 // Helper function to determine if it's a class day (Monday & Wednesday)
 const isClassDay = (date) => {
-    const dayOfWeek = new Date(2025, 10, date).getDay(); // 0 = Sunday, 1 = Monday, etc.
-    return dayOfWeek === 1 || dayOfWeek === 3; // Monday or Wednesday
+  const dayOfWeek = new Date(2025, 10, date).getDay(); // 0 = Sunday, 1 = Monday, etc.
+  return dayOfWeek === 1 || dayOfWeek === 3; // Monday or Wednesday
 };
 
 // Show schedule details
 const showScheduleDetails = (date) => {
-    selectedDate.value = date;
+  selectedDate.value = date;
 };
 
-// Portfolio functions
-const createPortfolio = () => {
-    showPortfolioThemeDialog.value = true;
+// Add sample product function
+const addSampleProduct = () => {
+  // Show the product upload modal
+  showProductUploadModal.value = true;
+  // Reset form fields
+  newProductCaption.value = '';
+  postOutputOption.value = false;
+  clearFile();
 };
 
-const createPortfolioWithTheme = () => {
-    if (!selectedTheme.value) return;
-    
-    selectedPortfolioTheme.value = selectedTheme.value;
-    showPortfolioThemeDialog.value = false;
-    selectedTheme.value = null;
-    portfolioCreated.value = true;
+// Archive the current class
+const confirmArchive = () => {
+  // TODO: Implement actual archive functionality
+  console.log('Archiving class:', className.value);
+
+  // Show success message
+  // In a real app, you would make an API call here
+  alert('Class archived successfully!');
+
+  // Close the dialog
+  showArchiveDialog.value = false;
+
+  // Optionally redirect to the archived classes page
+  // router.get('/archived-classes');
+};
+
+// Submit new product
+const submitNewProduct = () => {
+  if (selectedFile.value) {
+    // Create a new submission object
+    const newSubmission = {
+      activityId: selectedActivity.value.title,
+      caption: newProductCaption.value,
+      previewUrl: previewUrl.value,
+      file: selectedFile.value,
+      isImage: selectedFile.value.type.startsWith('image/'),
+      date: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }),
+      status: postOutputOption.value ? 'shared' : 'submitted',
+      loadError: false // Initialize load error state
+    };
+
+    // Add the submission to the student's submissions
+    studentSubmissions.value.push(newSubmission);
+
+    // Close modal and reset form
+    showProductUploadModal.value = false;
+    newProductCaption.value = '';
+    postOutputOption.value = false;
+    clearFile();
+
+    // Show success message
+    console.log('Work submitted successfully:', newSubmission);
+  }
 };
 
 defineOptions({
-    layout: MainLayout
+  layout: MainLayout
 });
 </script>
 
 <style scoped>
+/* Image container styles */
 .aspect-video {
-    aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 9;
+  @apply relative overflow-hidden bg-slate-100;
+}
+
+/* Image styles */
+.aspect-video img {
+  @apply max-h-full max-w-full object-contain;
+  @apply transition-all duration-300 ease-in-out;
+}
+
+/* Fallback container styles */
+.aspect-video .fallback-container {
+  @apply flex flex-col items-center justify-center h-full w-full;
+  @apply bg-gray-50 text-gray-400;
 }
 
 /* Add these styles for consistent calendar styling */
 .calendar-day {
-    @apply p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all;
+  @apply p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all;
 }
 
 .calendar-day-active {
-    @apply font-semibold text-gray-800;
+  @apply font-semibold text-gray-900;
 }
 
 .calendar-time {
-    @apply text-sm mt-1;
+  @apply text-sm mt-1 text-gray-900;
 }
 
 /* DataTable styles */
 :deep(.p-datatable) {
-    border-radius: 0.75rem;
-    overflow: hidden;
-    margin-top: 1rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-top: 1rem;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-    background-color: #f8fafc;
-    color: #1e293b;
-    font-weight: 600;
-    padding: 1rem;
-    border-bottom: 2px solid #e2e8f0;
+  background-color: #f9fafb;
+  color: #111827;
+  font-weight: 600;
+  padding: 1rem;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
-    transition: background-color 0.2s;
+  transition: background-color 0.2s;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-    background-color: #f1f5f9;
+  background-color: #f9fafb;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
-    padding: 1rem;
+  padding: 1rem;
 }
 
-/* Responsive and transition styles */
+/* Dialog styles */
+:deep(.p-dialog-header) {
+  background: linear-gradient(90deg, #4338ca, #6d28d9, #2563eb);
+  color: white;
+}
+
+:deep(.p-dialog-content) {
+  background-color: white;
+}
+
+/* Add this new style for better responsive layout */
 @media (max-width: 1024px) {
-    .lg\:w-64 {
-        width: 100%;
-    }
+  .lg\:w-64 {
+    width: 100%;
+  }
 }
 
+/* Add these styles for smooth transitions */
 .bg-gradient-to-br {
-    transition: all 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .h-2 {
-    transition: width 0.5s ease;
+  transition: width 0.5s ease;
+}
+
+/* Line clamp for text truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Add theme variables */
+:root {
+  --theme-purple: #4338ca;
+  --theme-blue: #2563eb;
+  --theme-light: #f9fafb;
+  --theme-accent: #6366f1;
+  --theme-dark: #111827;
 }
 </style>
