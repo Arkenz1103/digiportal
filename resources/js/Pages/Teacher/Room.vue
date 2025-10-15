@@ -1,6 +1,5 @@
 <template>
-    <Head :title="`| ${className}`"/>
-    <div class="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
+    <div class="flex flex-col">
         <!-- Class Header -->
         <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-t-xl">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -10,7 +9,7 @@
                     </h1>
                     <p class="text-white/90 ml-2 flex items-center gap-2">
                         <i class="pi pi-user"></i>
-                        Teacher: {{ auth.user.name }}
+                        Teacher: {{ currentUser.name }}
                     </p>
                 </div>
                 <div class="relative settings-dropdown" ref="settingsRef">
@@ -84,7 +83,7 @@
                 <template v-if="activeTab === 'pupil'">
                     <div class="p-4 md:p-6 bg-transparent">
                         <!-- Show folders view when not in activities mode -->
-                        <div v-if="!showingActivities || $page.props.showingActivities === false" class="space-y-6">
+                        <div v-if="!showingActivities" class="space-y-6">
                             <!-- Header with title and New Folder button -->
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                                 <h2 class="text-xl md:text-2xl font-bold text-gray-900">Pupils Portfolio</h2>
@@ -159,7 +158,7 @@
 
                                     <!-- Track Progress button -->
                                     <button
-                                        @click="$inertia.visit(route('teacher.sprogress'))"
+                                        @click="navigateToProgress"
                                         class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                                     >
                                         <i class="pi pi-chart-line"></i>
@@ -199,15 +198,7 @@
                                 <!-- Activity Items -->
                                 <div v-for="(activity, index) in activities" :key="index"
                                     class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
-                                    @click="$inertia.visit(route('teacher.outputs', {
-                                        id: index + 1,
-                                        activity: {
-                                            ...activity,
-                                            class: className,
-                                            subject: selectedSubject,
-                                            description: activity.description
-                                        }
-                                    }))">
+                                    @click="navigateToActivityOutputs(activity, index)">
                                     <div class="w-32 flex items-center gap-2">
                                         <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
                                         <span v-if="activity.archived" class="text-amber-500" title="Archived">
@@ -509,7 +500,7 @@
                         <label for="activityDate" class="block text-sm font-medium text-gray-900 mb-1">Due Date</label>
                         <input
                             id="activityDate"
-                            v-model="newActivity.date"
+                            v-model="newActivity.dueDate"
                             type="date"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         >
@@ -705,8 +696,6 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, inject, nextTick } from 'vue';
-import { Head, usePage, Link, router } from '@inertiajs/vue3';
-import MainLayout from '@/Layouts/MainLayout.vue';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import InputText from 'primevue/inputtext';
@@ -716,6 +705,38 @@ import Button from 'primevue/button';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
+
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
+// Navigate to activity outputs
+const navigateToActivityOutputs = (activity, index) => {
+    // Store the selected activity for the outputs page
+    localStorage.setItem('selected_activity', JSON.stringify({
+        id: activity.type + '-' + index,
+        title: activity.title,
+        description: activity.description,
+        type: activity.type,
+        date: activity.date,
+        class: className.value,
+        subject: selectedSubject.value || 'General'
+    }));
+    
+    // Navigate to outputs page
+    emit('navigate', 'TeacherOutputs');
+};
+
+// Navigate to special progress page
+const navigateToProgress = () => {
+    // Store current class context for progress tracking
+    localStorage.setItem('progress_class_context', JSON.stringify({
+        className: className.value,
+        subject: selectedSubject.value || 'General'
+    }));
+    
+    // Navigate to special progress page
+    emit('navigate', 'TeacherSprogress');
+};
 
 // Activity types
 const activityTypes = ref([
@@ -802,19 +823,29 @@ const addNewActivity = () => {
         type: null,
         title: '',
         description: '',
-        date: ''
+        dueDate: ''
     };
 };
 
-const page = usePage();
-const auth = computed(() => page.props.auth);
-const route = window.route; // Get the route helper from Inertia
+// Get selected class from localStorage
+const selectedClass = ref(null);
+const className = ref('Grade 1 - A'); // Default class name
+const currentUser = ref({
+    name: 'Teacher Name',
+    email: 'teacher@example.com',
+    role: 'teacher'
+});
+
+// Load selected class on mount
+onMounted(() => {
+    const savedClass = localStorage.getItem('digiportal_selected_class');
+    if (savedClass) {
+        selectedClass.value = JSON.parse(savedClass);
+        className.value = selectedClass.value.name;
+    }
+});
 
 const props = defineProps({
-    className: {
-        type: String,
-        required: true
-    },
     theme: {
         type: String,
         default: 'neutral'
@@ -1106,9 +1137,6 @@ const undoArchive = () => {
     }
 };
 
-defineOptions({
-    layout: MainLayout
-});
 </script>
 
 <style scoped>
@@ -1118,15 +1146,26 @@ defineOptions({
 
 /* Add these styles for consistent calendar styling */
 .calendar-day {
-    @apply p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all;
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.calendar-day:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .calendar-day-active {
-    @apply font-semibold text-gray-900;
+    font-weight: 600;
+    color: #111827;
 }
 
 .calendar-time {
-    @apply text-sm mt-1 text-gray-700;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    color: #374151;
 }
 
 /* DataTable styles */
@@ -1208,6 +1247,7 @@ defineOptions({
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }

@@ -1,14 +1,4 @@
 <template>
-    <!-- Back to Home Button -->
-    <div class="absolute top-4 left-4 z-50">
-        <button 
-            @click="emit('navigate', 'landing')"
-            class="bg-white text-[#6366F1] px-6 py-2 rounded-full hover:bg-gray-100 transition-all hover:shadow-lg hover:-translate-y-0.5 font-semibold flex items-center gap-2"
-        >
-            <i class="pi pi-arrow-left"></i>
-            Back to Home
-        </button>
-    </div>
     
     <!-- Main Container - Centered and Expanded -->
     <div class="flex min-h-screen bg-gradient-to-br from-gray-150 to-gray-100 items-center justify-center p-4">
@@ -309,13 +299,30 @@ const submitLogin = async () => {
         setTimeout(() => {
             loginForm.processing = false;
             
-            // For demo: redirect based on email
-            if (loginForm.email.includes('teacher')) {
-                emit('navigate', 'teacher-home');
+            // For demo: redirect based on email or use a more robust system
+            // You can replace this with actual authentication logic
+            let userRole = 'student'; // Default to student
+            
+            // Simple role detection - you can enhance this
+            if (loginForm.email.includes('teacher') || loginForm.email.includes('admin')) {
+                userRole = 'teacher';
             } else if (loginForm.email.includes('student')) {
-                emit('navigate', 'student-newsfeed');
+                userRole = 'student';
+            }
+            
+            // Store user role for the session
+            localStorage.setItem('digiportal_user_role', userRole);
+            localStorage.setItem('digiportal_user_email', loginForm.email);
+            
+            // Set a default name based on role (you can enhance this)
+            const userName = userRole === 'teacher' ? 'Teacher User' : 'Student User';
+            localStorage.setItem('digiportal_user_name', userName);
+            
+            // Navigate based on role
+            if (userRole === 'teacher') {
+                emit('navigate', 'TeacherHome');
             } else {
-                emit('navigate', 'landing');
+                emit('navigate', 'StudentNewsfeed');
             }
         }, 1000);
     }
@@ -372,10 +379,18 @@ const submitRegister = async () => {
         // Simulate API call - replace with actual backend call later
         setTimeout(() => {
             registerForm.processing = false;
-            alert(`Welcome ${registerForm.name}! Your account has been created.`);
             
-            // Switch to login form
-            isRegisterActive.value = false;
+            // Store user data for the session
+            localStorage.setItem('digiportal_user_role', registerForm.role);
+            localStorage.setItem('digiportal_user_email', registerForm.email);
+            localStorage.setItem('digiportal_user_name', registerForm.name);
+            
+            // Navigate based on role
+            if (registerForm.role === 'teacher') {
+                emit('navigate', 'TeacherHome');
+            } else {
+                emit('navigate', 'StudentNewsfeed');
+            }
             
             // Clear register form
             registerForm.name = '';

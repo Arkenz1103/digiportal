@@ -1,6 +1,5 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 
@@ -52,7 +51,7 @@ const pendingOutputs = ref([
 const showPreviewDialog = ref(false);
 const showRejectionDialog = ref(false);
 const selectedOutput = ref(null);
-const feedbackForm = useForm({
+const feedbackForm = ref({
     isApproved: false,
     rejectionReason: '',
     rejectionDetails: ''
@@ -70,7 +69,7 @@ const previewOutput = (output) => {
 };
 
 const submitFeedback = (isApproved) => {
-    feedbackForm.isApproved = isApproved;
+    feedbackForm.value.isApproved = isApproved;
 
     const index = pendingOutputs.value.findIndex(o => o.id === selectedOutput.value.id);
     if (index !== -1) {
@@ -79,7 +78,12 @@ const submitFeedback = (isApproved) => {
 
     showPreviewDialog.value = false;
     showRejectionDialog.value = false;
-    feedbackForm.reset();
+    // Reset form
+    feedbackForm.value = {
+        isApproved: false,
+        rejectionReason: '',
+        rejectionDetails: ''
+    };
 };
 
 const showRejectionReasonsDialog = () => {
@@ -88,13 +92,13 @@ const showRejectionReasonsDialog = () => {
 
 const cancelRejection = () => {
     showRejectionDialog.value = false;
-    feedbackForm.rejectionReason = '';
-    feedbackForm.rejectionDetails = '';
+    feedbackForm.value.rejectionReason = '';
+    feedbackForm.value.rejectionDetails = '';
 };
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50 p-4 md:p-6">
+    <div class="p-4 md:p-6">
         <div class="rounded-2xl shadow-lg bg-white/90 backdrop-blur-sm border border-indigo-100 overflow-hidden">
             <!-- Header -->
             <div class="p-6 bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700">
@@ -134,6 +138,11 @@ const cancelRejection = () => {
                                             :alt="`Sample of ${output.title}`"
                                         />
                                     </div>
+                                    <button
+                                        class="text-sm text-indigo-600 hover:text-indigo-900 font-medium"
+                                    >
+                                        View All
+                                    </button>
                                 </div>
                                 <div class="mt-2 flex items-center space-x-4 text-sm">
                                     <span class="text-indigo-700/80">
@@ -294,7 +303,7 @@ const cancelRejection = () => {
                                 type="radio"
                                 :id="reason.id"
                                 :value="reason.id"
-                                v-model="feedbackForm.rejectionReason"
+                                v-model="feedbackForm.value.rejectionReason"
                                 class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
                             />
                             <label :for="reason.id" class="ml-3 block text-sm text-gray-700">
@@ -311,7 +320,7 @@ const cancelRejection = () => {
                     </label>
                     <textarea
                         id="rejectionDetails"
-                        v-model="feedbackForm.rejectionDetails"
+                        v-model="feedbackForm.value.rejectionDetails"
                         rows="4"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                         placeholder="Please provide any additional comments or specific feedback for the student..."
@@ -332,7 +341,7 @@ const cancelRejection = () => {
                         class="p-button-danger"
                         style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;" 
                         @click="submitFeedback(false)"
-                        :disabled="!feedbackForm.rejectionReason"
+                        :disabled="!feedbackForm.value.rejectionReason"
                     />
                 </div>
             </template>

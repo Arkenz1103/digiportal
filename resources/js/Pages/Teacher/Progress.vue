@@ -185,7 +185,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { router } from '@inertiajs/vue3';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';

@@ -1,15 +1,4 @@
 <template>
-    <!-- Back to Home Button -->
-    <div class="absolute top-4 left-4 z-50">
-        <button 
-            @click="emit('navigate', 'landing')"
-            class="bg-white text-[#6366F1] px-6 py-2 rounded-full hover:bg-gray-100 transition-all hover:shadow-lg hover:-translate-y-0.5 font-semibold flex items-center gap-2 shadow-lg"
-        >
-            <i class="pi pi-arrow-left"></i>
-            Back to Home
-        </button>
-    </div>
-
     <div class="p-6 max-w-4xl mx-auto">
         <!-- Posts Feed -->
         <div class="space-y-6">

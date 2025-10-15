@@ -1,6 +1,5 @@
 <template>
-  <Head :title="`| ${className}`"/>
-  <div class="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
+  <div class="flex flex-col">
     <!-- Class Header -->
     <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-t-xl">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -10,7 +9,7 @@
           </h1>
           <p class="text-white/90 ml-2 flex items-center gap-2">
             <i class="pi pi-user"></i>
-            Student: {{ auth.user.name }}
+            Student: {{ currentUser.name }}
           </p>
         </div>
         <div class="relative settings-dropdown" ref="settingsRef">
@@ -535,12 +534,25 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
-import { Head, usePage, router } from '@inertiajs/vue3';
-import MainLayout from '@/Layouts/MainLayout.vue';
 import Dialog from 'primevue/dialog';
 
-const page = usePage();
-const auth = computed(() => page.props.auth);
+// Get selected class from localStorage
+const selectedClass = ref(null);
+const className = ref('Grade 1 - A'); // Default class name
+const currentUser = ref({
+    name: 'Student Name',
+    email: 'student@example.com',
+    role: 'student'
+});
+
+// Load selected class on mount
+onMounted(() => {
+    const savedClass = localStorage.getItem('digiportal_selected_class');
+    if (savedClass) {
+        selectedClass.value = JSON.parse(savedClass);
+        className.value = selectedClass.value.name;
+    }
+});
 
 const props = defineProps({
   className: {
@@ -758,7 +770,7 @@ const confirmArchive = () => {
   showArchiveDialog.value = false;
 
   // Optionally redirect to the archived classes page
-  // router.get('/archived-classes');
+  // You can implement navigation here if needed
 };
 
 // Submit new product
@@ -794,41 +806,59 @@ const submitNewProduct = () => {
   }
 };
 
-defineOptions({
-  layout: MainLayout
-});
 </script>
 
 <style scoped>
 /* Image container styles */
 .aspect-video {
   aspect-ratio: 16 / 9;
-  @apply relative overflow-hidden bg-slate-100;
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f5f9;
 }
 
 /* Image styles */
 .aspect-video img {
-  @apply max-h-full max-w-full object-contain;
-  @apply transition-all duration-300 ease-in-out;
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  transition: all 0.3s ease-in-out;
 }
 
 /* Fallback container styles */
 .aspect-video .fallback-container {
-  @apply flex flex-col items-center justify-center h-full w-full;
-  @apply bg-gray-50 text-gray-400;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background-color: #f9fafb;
+  color: #9ca3af;
 }
 
 /* Add these styles for consistent calendar styling */
 .calendar-day {
-  @apply p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.calendar-day:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .calendar-day-active {
-  @apply font-semibold text-gray-900;
+  font-weight: 600;
+  color: #111827;
 }
 
 .calendar-time {
-  @apply text-sm mt-1 text-gray-900;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  color: #111827;
 }
 
 /* DataTable styles */
@@ -888,6 +918,7 @@ defineOptions({
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

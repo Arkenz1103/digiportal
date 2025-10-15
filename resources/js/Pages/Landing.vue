@@ -31,7 +31,7 @@ const emit = defineEmits(['navigate']);
 
 // Navigation functions
 const navigateToLogin = () => {
-  emit('navigate', 'login');
+  emit('navigate', 'Login');
 };
 
 const navigateToContact = () => {

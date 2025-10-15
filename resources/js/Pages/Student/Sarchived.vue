@@ -1,7 +1,5 @@
 <template>
-    <Head title="Archived Classes" />
-
-    <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
+    <div>
         <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-b-3xl">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="space-y-3">
@@ -199,8 +197,6 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
-import MainLayout from '@/Layouts/MainLayout.vue';
 
 // Component state
 const showingSubject = ref(false);
@@ -300,9 +296,6 @@ const formatDate = (dateString) => {
     }
 };
 
-defineOptions({
-    layout: MainLayout
-});
 </script>
 
 <style scoped>

@@ -1,23 +1,32 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
-import MainLayout from '@/Layouts/MainLayout.vue';
+import { ref, computed, onMounted } from 'vue';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
 
-const props = defineProps({
-    activity: {
-        type: Object,
-        required: true
+// Load activity from localStorage
+const activity = ref({
+    title: 'Student Activity',
+    description: 'View student submissions for this activity'
+});
+
+// Load selected activity on component mount
+onMounted(() => {
+    const savedActivity = localStorage.getItem('selected_activity');
+    if (savedActivity) {
+        const parsedActivity = JSON.parse(savedActivity);
+        activity.value = {
+            title: parsedActivity.title,
+            description: 'View student submissions for this activity',
+            id: parsedActivity.id
+        };
     }
 });
 
-const page = usePage();
-const route = page.props.route;
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
 
 const goBack = () => {
-    // Simply go back to the previous page in history
-    window.history.back();
+    emit('navigate', 'TeacherHome');
 };
 
 // Add view mode state
@@ -229,9 +238,6 @@ const getMedalDetails = (rank) => {
     };
 };
 
-defineOptions({
-    layout: MainLayout
-});
 </script>
 
 <style scoped>
@@ -611,7 +617,6 @@ defineOptions({
 </style>
 
 <template>
-    <Head :title="activity.title" />
     <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
 <!-- Header -->
 <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-lg">

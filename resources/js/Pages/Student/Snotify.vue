@@ -99,10 +99,17 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
 
-const page = usePage();
-const auth = computed(() => page.props.auth);
+// Mock user data for notifications
+const currentUser = ref({
+    name: 'Student Name',
+    email: 'student@example.com',
+    role: 'student'
+});
+
+const auth = computed(() => ({
+    user: currentUser.value
+}));
 const activeTab = ref('all');
 
 // Sample notifications data - in a real app, this would come from your backend

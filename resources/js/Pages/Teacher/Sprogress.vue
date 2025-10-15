@@ -253,10 +253,20 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
 
-const page = usePage();
-const auth = computed(() => page.props.auth);
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
+// Mock user data
+const currentUser = ref({
+    name: 'Teacher Name',
+    email: 'teacher@example.com',
+    role: 'teacher'
+});
+
+const auth = computed(() => ({
+    user: currentUser.value
+}));
 
 // Sample student data
 const students = ref([
@@ -499,7 +509,15 @@ const prevImage = () => {
 };
 
 const viewDetails = (student) => {
-    router.visit(route('teacher.progress', { student: student }));
+    // Store selected student data for progress page
+    localStorage.setItem('selected_student_progress', JSON.stringify({
+        student: student,
+        className: 'Grade 1 - A', // You can make this dynamic based on current class
+        timestamp: new Date().toISOString()
+    }));
+    
+    // Navigate to progress page
+    emit('navigate', 'TeacherProgress');
 };
 
 const viewOutputs = (student) => {

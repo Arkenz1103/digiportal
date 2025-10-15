@@ -1,7 +1,6 @@
 <template>
-  <Head title="Student Remarks" />
   
-  <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50 p-4 md:p-6">
+  <div class="p-4 md:p-6">
     <div class="rounded-2xl shadow-lg bg-white/90 backdrop-blur-sm border border-indigo-100 overflow-hidden">
       <!-- Header -->
       <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6">
@@ -135,7 +134,7 @@
     </div>
   </div>
 
-  <!-- Delete Confirmation Dialog -->
+    <!-- Delete Confirmation Dialog -->
   <Dialog 
     v-model:visible="showDeleteDialog" 
     :style="{ width: '450px' }" 
@@ -159,16 +158,14 @@
         class="p-button-danger"
       />
     </template>
-  </Dialog>
+    </Dialog>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
-import { Head } from '@inertiajs/vue3';
 import Button from "primevue/button";
 import Textarea from "primevue/textarea";
 import Dialog from 'primevue/dialog';
-import TeacherLayout from '@/Layouts/MainLayout.vue';
 
 const students = ref([
   { id: 1, name: "Alice Smith", remarks: [
@@ -268,11 +265,6 @@ function addRemark() {
 }
 </script>
 
-<script>
-export default {
-  layout: TeacherLayout
-};
-</script>
 
 <style scoped>
 /* Theme variables */

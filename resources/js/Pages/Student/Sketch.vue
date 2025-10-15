@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { Head } from '@inertiajs/vue3';
 
 const canvas = ref(null);
 const ctx = ref(null);
@@ -205,7 +204,6 @@ const handleImageUpload = (e) => {
 </script>
 
 <template>
-    <Head title="Sketch Pad" />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-indigo-100">
@@ -416,6 +414,7 @@ canvas {
 /* Custom color picker styling */
 input[type="color"] {
     -webkit-appearance: none;
+    appearance: none;
     border: none;
     padding: 0;
     border-radius: 0.5rem;

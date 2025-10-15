@@ -22,9 +22,7 @@ const isClassDropdownOpen = ref(false);
 
 // Add state for classes
 const classes = ref([
-    { id: 1, name: 'Grade 1 - A', theme: 'purple' },
-    { id: 2, name: 'Grade 2 - A', theme: 'purple' },
-    { id: 3, name: 'Grade 3 - A', theme: 'purple' },
+    { id: 1, name: 'Grade 1 - A', theme: 'purple' }
 ]);
 
 // Add new state for the modal and form
@@ -101,6 +99,7 @@ const markAsRead = (id) => {
     }
 };
 
+
 const toggleSidebar = () => {
     isCollapsed.value = !isCollapsed.value;
 };
@@ -113,35 +112,54 @@ const toggleClassDropdown = () => {
     isClassDropdownOpen.value = !isClassDropdownOpen.value;
 };
 
-// Mock user data (replace with actual user data later)
+// User data loaded from localStorage
 const currentUser = ref({
-    name: 'Teacher Name',
-    email: 'teacher@example.com',
-    role: 'teacher',
+    name: 'User Name',
+    email: 'user@example.com',
+    role: 'student', // Default to student
     avatar: null
 });
 
-// Current page tracking
-const currentRoute = ref('teacher-home');
+// Load user data from localStorage
+const loadUserData = () => {
+    const savedRole = localStorage.getItem('digiportal_user_role');
+    const savedEmail = localStorage.getItem('digiportal_user_email');
+    const savedName = localStorage.getItem('digiportal_user_name');
+    
+    if (savedRole) {
+        currentUser.value.role = savedRole;
+    }
+    if (savedEmail) {
+        currentUser.value.email = savedEmail;
+    }
+    if (savedName) {
+        currentUser.value.name = savedName;
+    } else {
+        // Fallback names based on role
+        if (savedRole === 'teacher') {
+            currentUser.value.name = 'Teacher Name';
+        } else {
+            currentUser.value.name = 'Student Name';
+        }
+    }
+};
+
+// Current page tracking - default based on role
+const currentRoute = ref('StudentNewsfeed'); // Default to student, will be updated by loadUserData
 
 // Sidebar menu items
 const sideBarItems = computed(() => {
     const roleBasedItems = {
         teacher: [
-            { label: 'Home', icon: 'pi pi-home', route: 'teacher-home' },
-            { label: 'Outputs', icon: 'pi pi-file-edit', route: 'teacher-outputs' },
-            { label: 'Room', icon: 'pi pi-users', route: 'teacher-room' },
-            { label: 'Notify', icon: 'pi pi-bell', route: 'teacher-notify' },
-            { label: 'Progress', icon: 'pi pi-chart-line', route: 'teacher-progress' },
-            { label: 'Special Progress', icon: 'pi pi-star', route: 'teacher-sprogress' },
-            { label: 'Remarks', icon: 'pi pi-comments', route: 'teacher-remarks' },
-            { label: 'Notice', icon: 'pi pi-check-circle', route: 'teacher-notice' },
-            { label: 'Archived', icon: 'pi pi-folder', route: 'teacher-archived' },
+            { label: 'Home', icon: 'pi pi-home', route: 'TeacherHome' },
+            { label: 'Remarks', icon: 'pi pi-comments', route: 'TeacherRemarks' },
+            { label: 'Notice', icon: 'pi pi-check-circle', route: 'TeacherNotice' },
+            { label: 'Archived', icon: 'pi pi-folder', route: 'TeacherArchived' },
         ],
         student: [
-            { label: 'Home', icon: 'pi pi-home', route: 'student-newsfeed' },
-            { label: 'Sketch', icon: 'pi pi-pencil', route: 'student-sketch' },
-            { label: 'Archived', icon: 'pi pi-folder', route: 'student-archived' },
+            { label: 'Home', icon: 'pi pi-home', route: 'StudentNewsfeed' },
+            { label: 'Sketch', icon: 'pi pi-pencil', route: 'StudentSketch' },
+            { label: 'Archived', icon: 'pi pi-folder', route: 'StudentArchived' },
         ],
     };
 
@@ -150,7 +168,13 @@ const sideBarItems = computed(() => {
 
 // Logout Function
 const logout = () => {
-    emit('navigate', 'landing');
+    // Clear session storage
+    localStorage.removeItem('digiportal_logged_in');
+    localStorage.removeItem('digiportal_user_role');
+    localStorage.removeItem('digiportal_current_page');
+    
+    // Navigate to landing page
+    emit('navigate', 'Landing');
 };
 
 // Theme options
@@ -237,6 +261,29 @@ const navigateToPage = (page) => {
     emit('navigate', page);
 };
 
+// Navigate to class room
+const navigateToClass = (class_) => {
+    // Store selected class information
+    localStorage.setItem('digiportal_selected_class', JSON.stringify(class_));
+    
+    // Navigate to room based on user role
+    if (currentUser.value.role === 'teacher') {
+        navigateToPage('TeacherRoom');
+    } else if (currentUser.value.role === 'student') {
+        navigateToPage('StudentRoom');
+    }
+};
+
+// Navigate to notifications
+const navigateToNotifications = () => {
+    if (currentUser.value.role === 'teacher') {
+        navigateToPage('TeacherNotify');
+    } else {
+        navigateToPage('StudentNotify');
+    }
+    showNotifications.value = false;
+};
+
 // Close dropdowns when clicking outside
 const closeDropdowns = () => {
     isDropdownOpen.value = false;
@@ -245,6 +292,10 @@ const closeDropdowns = () => {
 
 onMounted(() => {
     document.addEventListener('click', closeDropdowns);
+    loadUserData(); // Load user data when component mounts
+    
+    // Debug: Log user data
+    console.log('MainLayout mounted, user data:', currentUser.value);
 });
 
 // Computed auth for template compatibility
@@ -312,26 +363,26 @@ const auth = computed(() => ({
 
                         <!-- Classes List -->
                         <div class="space-y-1">
-                            <Link
+                            <button
                                 v-for="class_ in classes"
                                 :key="class_.id"
-                                :href="`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`"
-                                class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden"
+                                @click="navigateToClass(class_)"
+                                class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left"
                                 :class="{
-                                    'bg-indigo-50 text-indigo-600 shadow-sm': isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`),
-                                    'hover:bg-indigo-50 hover:text-indigo-600': !isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`),
+                                    'bg-indigo-50 text-indigo-600 shadow-sm': isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'),
+                                    'hover:bg-indigo-50 hover:text-indigo-600': !isRouteActive('TeacherRoom') && !isRouteActive('StudentRoom'),
                                     'active:bg-indigo-100 active:scale-[0.98]': true
                                 }"
-                                :style="isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`) ? 'background-color: rgba(99, 102, 241, 0.1);' : ''"
+                                :style="(isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')) ? 'background-color: rgba(99, 102, 241, 0.1);' : ''"
                                 :title="isCollapsed ? class_.name : ''"
                             >
-                                <div v-if="isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`)" class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600"></div>
+                                <div v-if="isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')" class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600"></div>
                                 <div class="flex items-center gap-3 w-full">
                                     <div
                                         :class="[
                                             'w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm transition-all duration-200',
                                             getClassColor(class_.theme),
-                                            isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`)
+                                            (isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'))
                                                 ? 'scale-110 ring-2 ring-offset-2 ring-indigo-600'
                                                 : 'group-hover:scale-105 group-hover:ring-2 group-hover:ring-offset-2 group-hover:ring-indigo-600/50'
                                         ]"
@@ -340,11 +391,11 @@ const auth = computed(() => ({
                                     </div>
                                     <span v-if="!isCollapsed" class="text-sm font-medium truncate">{{ class_.name }}</span>
                                     <div
-                                        v-if="isRouteActive(`/${auth?.user?.role}/class/${class_.name.toLowerCase().replace(' - ', '-')}`) && !isCollapsed"
+                                        v-if="(isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')) && !isCollapsed"
                                         class="ml-auto w-1.5 h-5 rounded-sm bg-indigo-600 transition-all duration-200"
                                     ></div>
                                 </div>
-                            </Link>
+                            </button>
                         </div>
 
                         <!-- Join Class Button -->
@@ -365,9 +416,9 @@ const auth = computed(() => ({
             </div>
 
             <!-- Main Content Area -->
-            <div class="flex-1 flex flex-col overflow-hidden">
-                <nav class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 border-b border-indigo-100 h-[52px] z-10">
-                    <div class="max-w-full mx-auto h-full">
+            <div class="flex-1 flex flex-col overflow-hidden w-full min-h-screen">
+                <nav class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 border-b border-indigo-100 h-[52px] z-10 w-full">
+                    <div class="w-full h-full">
                         <div class="flex justify-between items-center px-4 h-full">
                             <!-- Logo -->
                             <div class="flex items-center">
@@ -410,12 +461,12 @@ const auth = computed(() => ({
                                         <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
                                             <div class="flex items-center justify-between">
                                                 <h3 class="font-semibold text-gray-900">Notifications</h3>
-                                                <Link
-                                                    :href="auth?.user?.role === 'teacher' ? '/teacher/notify' : route('student.notifications')"
+                                                <button
+                                                    @click="navigateToNotifications"
                                                     class="text-sm text-indigo-600 hover:text-indigo-900 font-medium"
                                                 >
                                                     View All
-                                                </Link>
+                                                </button>
                                             </div>
                                         </div>
 
@@ -516,20 +567,18 @@ const auth = computed(() => ({
 
                                         <!-- Menu Items -->
                                         <div class="py-1">
-                                            <Link
-                                                href="#"
+                                            <button
                                                 class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
                                             >
                                                 <i class="pi pi-user text-gray-400"></i>
                                                 Profile
-                                            </Link>
-                                            <Link
-                                                href="#"
+                                            </button>
+                                            <button
                                                 class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
                                             >
                                                 <i class="pi pi-cog text-gray-400"></i>
                                                 Settings
-                                            </Link>
+                                            </button>
                                         </div>
 
                                         <!-- Logout -->
@@ -550,7 +599,7 @@ const auth = computed(() => ({
                 </nav>
 
                 <!-- Page Content -->
-                <main class="flex-1 overflow-y-auto p-6 bg-transparent">
+                <main class="flex-1 overflow-y-auto bg-transparent min-h-screen">
                     <slot></slot>
                 </main>
             </div>
@@ -669,6 +718,7 @@ const auth = computed(() => ({
 .line-clamp-1 {
     display: -webkit-box;
     -webkit-line-clamp: 1;
+    line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -676,6 +726,7 @@ const auth = computed(() => ({
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
