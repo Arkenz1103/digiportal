@@ -1,9 +1,11 @@
 <script setup>
-import { Link, usePage, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, onMounted, provide } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
+
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
 
 // Use a runtime URL so Vite doesn't transform it to an import
 const logoUrl = '/logo.jpg';
@@ -27,7 +29,7 @@ const classes = ref([
 
 // Add new state for the modal and form
 const showAddClassModal = ref(false);
-const newClassForm = useForm({
+const newClassForm = ref({
     grade: '',
     section: '',
     theme: 'purple',
@@ -111,33 +113,44 @@ const toggleClassDropdown = () => {
     isClassDropdownOpen.value = !isClassDropdownOpen.value;
 };
 
+// Mock user data (replace with actual user data later)
+const currentUser = ref({
+    name: 'Teacher Name',
+    email: 'teacher@example.com',
+    role: 'teacher',
+    avatar: null
+});
+
+// Current page tracking
+const currentRoute = ref('teacher-home');
+
 // Sidebar menu items
 const sideBarItems = computed(() => {
-    if (!auth.value?.user) {
-        return [];
-    }
-
     const roleBasedItems = {
         teacher: [
-            { label: 'Home', icon: 'pi pi-home', route: '/teacher/home' },
-            { label: 'Remarks', icon: 'pi pi-comments', route: '/teacher/remarks' },
-            { label: 'Notice', icon: 'pi pi-check-circle', route: '/teacher/notice' },
-            { label: 'Archived', icon: 'pi pi-folder', route: '/teacher/archived' },
+            { label: 'Home', icon: 'pi pi-home', route: 'teacher-home' },
+            { label: 'Outputs', icon: 'pi pi-file-edit', route: 'teacher-outputs' },
+            { label: 'Room', icon: 'pi pi-users', route: 'teacher-room' },
+            { label: 'Notify', icon: 'pi pi-bell', route: 'teacher-notify' },
+            { label: 'Progress', icon: 'pi pi-chart-line', route: 'teacher-progress' },
+            { label: 'Special Progress', icon: 'pi pi-star', route: 'teacher-sprogress' },
+            { label: 'Remarks', icon: 'pi pi-comments', route: 'teacher-remarks' },
+            { label: 'Notice', icon: 'pi pi-check-circle', route: 'teacher-notice' },
+            { label: 'Archived', icon: 'pi pi-folder', route: 'teacher-archived' },
         ],
         student: [
-            { label: 'Home', icon: 'pi pi-home', route: '/student/newsfeed' },
-            { label: 'Sketch', icon: 'pi pi-pencil', route: '/student/sketch' },
-            { label: 'Archived', icon: 'pi pi-folder', route: '/student/archived' },
+            { label: 'Home', icon: 'pi pi-home', route: 'student-newsfeed' },
+            { label: 'Sketch', icon: 'pi pi-pencil', route: 'student-sketch' },
+            { label: 'Archived', icon: 'pi pi-folder', route: 'student-archived' },
         ],
     };
 
-    return roleBasedItems[auth.value.user.role] || [];
+    return roleBasedItems[currentUser.value.role] || [];
 });
 
 // Logout Function
-const logoutForm = useForm({});
 const logout = () => {
-    logoutForm.post('/logout');
+    emit('navigate', 'landing');
 };
 
 // Theme options
@@ -149,19 +162,24 @@ const themeOptions = [
 
 // Function to handle class creation
 const addClass = () => {
-    if (!newClassForm.grade || !newClassForm.section) {
+    if (!newClassForm.value.grade || !newClassForm.value.section) {
         return;
     }
 
-    const className = `Grade ${newClassForm.grade} - ${newClassForm.section.toUpperCase()}`;
+    const className = `Grade ${newClassForm.value.grade} - ${newClassForm.value.section.toUpperCase()}`;
 
     classes.value.push({
         id: classes.value.length + 1,
         name: className,
-        theme: newClassForm.theme,
+        theme: newClassForm.value.theme,
     });
 
-    newClassForm.reset();
+    // Reset form
+    newClassForm.value = {
+        grade: '',
+        section: '',
+        theme: 'purple',
+    };
     showAddClassModal.value = false;
 };
 
@@ -182,16 +200,19 @@ const validateSection = (event) => {
 
 // Join class modal and form
 const showJoinClassModal = ref(false);
-const joinClassForm = useForm({
+const joinClassForm = ref({
     code: '',
 });
 
 const joinClass = () => {
-    if (!joinClassForm.code) {
+    if (!joinClassForm.value.code) {
         return;
     }
 
-    joinClassForm.reset();
+    // Reset form
+    joinClassForm.value = {
+        code: '',
+    };
     showJoinClassModal.value = false;
 };
 
@@ -207,11 +228,13 @@ const getClassColor = (theme) => {
 
 // Check if a route is active
 const isRouteActive = (routePath) => {
-    // Special handling for class routes
-    if (routePath.includes('/class/')) {
-        return currentRoute.value.includes(routePath.split('/class/')[1]);
-    }
     return currentRoute.value === routePath;
+};
+
+// Navigation function
+const navigateToPage = (page) => {
+    currentRoute.value = page;
+    emit('navigate', page);
 };
 
 // Close dropdowns when clicking outside
@@ -224,10 +247,10 @@ onMounted(() => {
     document.addEventListener('click', closeDropdowns);
 });
 
-// Get user from shared data
-const page = usePage();
-const auth = computed(() => page.props.auth);
-const currentRoute = computed(() => page.url);
+// Computed auth for template compatibility
+const auth = computed(() => ({
+    user: currentUser.value
+}));
 </script>
 
 <template>
@@ -246,12 +269,12 @@ const currentRoute = computed(() => page.url);
                 <nav class="flex-1 overflow-y-auto py-4 px-2">
                     <!-- Regular menu items -->
                     <div class="space-y-1">
-                        <Link
+                        <button
                             v-for="(item, index) in sideBarItems"
                             :key="index"
-                            :href="item.route"
+                            @click="navigateToPage(item.route)"
                             :class="[
-                                'relative flex items-center rounded-lg transition-colors duration-200',
+                                'relative flex items-center rounded-lg transition-colors duration-200 w-full text-left',
                                 isCollapsed ? 'justify-center p-3' : 'p-2',
                                 isRouteActive(item.route)
                                     ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-50'
@@ -263,7 +286,7 @@ const currentRoute = computed(() => page.url);
                             <span :class="[isCollapsed ? 'hidden' : '', isRouteActive(item.route) ? 'font-medium' : '']">{{ item.label }}</span>
                             <div v-if="isRouteActive(item.route)" class="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-r"></div>
                             <span v-if="isCollapsed && item.badge" class="absolute top-1 right-1 flex items-center justify-center h-4 w-4 text-xs font-medium text-white bg-red-500 rounded-full">{{ item.badge }}</span>
-                        </Link>
+                        </button>
                     </div>
 
                     <!-- Horizontal Line -->
