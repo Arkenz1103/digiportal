@@ -1,5 +1,14 @@
 <template>
-    <Head title="- Newsfeeds" />
+    <!-- Back to Home Button -->
+    <div class="absolute top-4 left-4 z-50">
+        <button 
+            @click="emit('navigate', 'landing')"
+            class="bg-white text-[#6366F1] px-6 py-2 rounded-full hover:bg-gray-100 transition-all hover:shadow-lg hover:-translate-y-0.5 font-semibold flex items-center gap-2 shadow-lg"
+        >
+            <i class="pi pi-arrow-left"></i>
+            Back to Home
+        </button>
+    </div>
 
     <div class="p-6 max-w-4xl mx-auto">
         <!-- Posts Feed -->
@@ -171,13 +180,15 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+
+// Define emits
+const emit = defineEmits(['navigate']);
 
 const posts = ref([
   {
     id: 1,
     user: "Emma Garcia",
-    content: "My watercolor landscape inspired by our field trip to the mountains last week. Used techniques we learned in class about wet-on-wet blending. �️🎨",
+    content: "My watercolor landscape inspired by our field trip to the mountains last week. Used techniques we learned in class about wet-on-wet blending. 🏔️🎨",
     image: "https://images.unsplash.com/photo-1579762715118-a6f1d4b934f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
     likes: 24,
     isLiked: false,

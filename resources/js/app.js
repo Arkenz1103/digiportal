@@ -1,7 +1,6 @@
 import './bootstrap';
 
 import { createApp } from 'vue'
-import { createRouter, createWebHistory } from 'vue-router'
 
 // PrimeVue
 import PrimeVue from 'primevue/config';
@@ -11,46 +10,11 @@ import 'primeicons/primeicons.css'
 // Global CSS
 import '../css/app.css'
 
-// Import routes
-import { routes } from './utils/routes'
-
-// Import main App component
+// Import App component
 import App from './App.vue'
 
-// Create router
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-  scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition
-    } else {
-      return { top: 0 }
-    }
-  }
-})
-
-// Router guards
-router.beforeEach((to, from, next) => {
-  // Update document title
-  if (to.meta.title) {
-    document.title = to.meta.title
-  }
-  
-  // Handle authentication (for future implementation)
-  if (to.meta.requiresAuth) {
-    // For now, just proceed - you can add auth logic later
-    console.log(`Route ${to.name} requires authentication`)
-  }
-  
-  next()
-})
-
-// Create Vue app
+// Create Vue app with App component
 const app = createApp(App)
-
-// Use router
-app.use(router)
 
 // Use PrimeVue
 app.use(PrimeVue, {

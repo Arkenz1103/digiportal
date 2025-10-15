@@ -26,18 +26,16 @@ onMounted(() => {
   setTimeout(() => { isLoaded.value = true; }, 2000);
 });
 
-// Import router
-import { useRouter } from 'vue-router';
+// Define emits
+const emit = defineEmits(['navigate']);
 
 // Navigation functions
-const router = useRouter();
-
 const navigateToLogin = () => {
-  router.push('/login');
+  emit('navigate', 'login');
 };
 
 const navigateToContact = () => {
-  router.push('/contact');
+  alert('Contact page coming soon!');
 };
 </script>
 

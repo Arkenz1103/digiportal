@@ -6,8 +6,6 @@
 // Import components directly
 import Landing from '../Pages/Landing.vue'
 import AuthLogin from '../Pages/Auth/Login.vue'
-import Contact from '../Pages/Contact.vue'
-import NotFound from '../Pages/NotFound.vue'
 
 // Teacher pages
 import TeacherHome from '../Pages/Teacher/Home.vue'
@@ -40,12 +38,6 @@ export const routes = [
         name: 'Login',
         component: AuthLogin,
         meta: { title: 'Authentication - DigiPortal' }
-    },
-    {
-        path: '/contact',
-        name: 'Contact',
-        component: Contact,
-        meta: { title: 'Contact Us - DigiPortal' }
     },
     // Teacher Routes
     {
@@ -137,7 +129,7 @@ export const routes = [
     {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
-        component: NotFound,
+        component: () => import('../Pages/Landing.vue'), // Redirect to landing for now
         meta: { title: '404 - Page Not Found' }
     }
 ];

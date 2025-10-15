@@ -1,4 +1,15 @@
 <template>
+    <!-- Back to Home Button -->
+    <div class="absolute top-4 left-4 z-50">
+        <button 
+            @click="emit('navigate', 'landing')"
+            class="bg-white text-[#6366F1] px-6 py-2 rounded-full hover:bg-gray-100 transition-all hover:shadow-lg hover:-translate-y-0.5 font-semibold flex items-center gap-2"
+        >
+            <i class="pi pi-arrow-left"></i>
+            Back to Home
+        </button>
+    </div>
+    
     <!-- Main Container - Centered and Expanded -->
     <div class="flex min-h-screen bg-gradient-to-br from-gray-150 to-gray-100 items-center justify-center p-4">
         <!-- Expanded Form Container with Glow Effect -->
@@ -254,13 +265,13 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 
-const router = useRouter();
+// Define emits
+const emit = defineEmits(['navigate']);
 
 // Toggle between login and register forms
 const isRegisterActive = ref(false);
@@ -300,11 +311,11 @@ const submitLogin = async () => {
             
             // For demo: redirect based on email
             if (loginForm.email.includes('teacher')) {
-                router.push('/teacher/home');
+                emit('navigate', 'teacher-home');
             } else if (loginForm.email.includes('student')) {
-                router.push('/student/newsfeed');
+                emit('navigate', 'student-newsfeed');
             } else {
-                router.push('/');
+                emit('navigate', 'landing');
             }
         }, 1000);
     }
