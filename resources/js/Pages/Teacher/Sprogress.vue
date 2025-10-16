@@ -49,7 +49,7 @@
                     <div class="w-12 text-sm font-semibold text-indigo-900">#</div>
                     <div class="w-48 text-sm font-semibold text-indigo-900">Student Name</div>
                     <div class="w-32 text-sm font-semibold text-indigo-900">ID</div>
-                    <div class="w-80 text-sm font-semibold text-indigo-900">Total Activities</div>
+                    <div class="w-80 text-sm font-semibold text-indigo-900">Outputs</div>
                     <div class="w-56 text-sm font-semibold text-indigo-900">Outputs List</div>
                     <div class="flex-1 text-sm font-semibold text-indigo-900 text-right pr-12">Progress Records</div>
                 </div>
@@ -68,13 +68,7 @@
                         <span class="text-indigo-700 font-medium">{{ student.id }}</span>
                     </div>
                     <div class="w-80">
-                        <div class="w-48 flex-1 h-2 bg-indigo-100 rounded-full overflow-hidden">
-                            <div 
-                                class="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-300"
-                                :style="{ width: `${student.progress}%` }"
-                            ></div>
-                        </div>
-                        <span class="text-sm font-medium text-indigo-700">{{ student.completedActivities }}/{{ student.totalActivities }}</span>
+                        <span class="text-2xl font-bold text-indigo-700">{{ student.totalActivities }}</span>
                     </div>
                     <div class="w-56">
                         <button 
@@ -115,7 +109,12 @@
                         
                         <!-- Dialog Content -->
                         <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                            <div class="flex flex-col items-center">
+                            <!-- Loading State -->
+                            <div v-if="isLoadingOutputs" class="flex justify-center items-center py-12">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                            </div>
+                            
+                            <div v-else class="flex flex-col items-center">
                                 <!-- Subject Tabs -->
                                 <div class="w-full max-w-2xl mb-6">
                                     <div class="flex space-x-1 bg-indigo-100 p-1 rounded-lg">
@@ -252,7 +251,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import axios from 'axios';
 
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
@@ -301,16 +301,17 @@ const showOutputsDialog = ref(false);
 const selectedStudent = ref(null);
 const currentImageIndex = ref(0);
 const selectedSubject = ref('all');
+const isLoadingOutputs = ref(false);
 
-// Subject tabs data
+// Portfolio folders (loaded from API)
+const portfolioFolders = ref([]);
+
+// Subject tabs data (dynamically loaded from folders)
 const subjects = ref([
-    { id: 'all', name: 'All' },
-    { id: 'mapeh', name: 'Mapeh' },
-    { id: 'english', name: 'English' },
-    { id: 'math', name: 'Math' }
+    { id: 'all', name: 'All' }
 ]);
 
-// Sample student outputs organized by subject with dates
+// Student outputs organized by folder (loaded from API)
 const studentOutputs = ref({
     mapeh: [
         { 
@@ -520,14 +521,181 @@ const viewDetails = (student) => {
     emit('navigate', 'TeacherProgress');
 };
 
-const viewOutputs = (student) => {
+// Calculate total outputs (submissions) for a student
+const calculateTotalOutputs = async (studentId) => {
+    let totalOutputs = 0;
+    try {
+        for (const folder of portfolioFolders.value) {
+            const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
+            const activities = activitiesResponse.data || [];
+            
+            for (const activity of activities) {
+                try {
+                    const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
+                    const submissions = submissionsResponse.data || [];
+                    
+                    console.log(`Activity ${activity.id} submissions:`, submissions);
+                    
+                    // Count all submissions (not filtered by student for now to see total)
+                    totalOutputs += submissions.length;
+                } catch (error) {
+                    console.error(`Error checking submissions for activity ${activity.id}:`, error);
+                }
+            }
+        }
+        console.log(`Total outputs for student ${studentId}:`, totalOutputs);
+        return totalOutputs;
+    } catch (error) {
+        console.error('Error calculating total outputs:', error);
+        return 0;
+    }
+};
+
+// Calculate completed activities for a student
+const calculateCompletedActivities = async (studentId) => {
+    let completedCount = 0;
+    try {
+        for (const folder of portfolioFolders.value) {
+            const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
+            const activities = activitiesResponse.data || [];
+            
+            for (const activity of activities) {
+                try {
+                    const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
+                    const submissions = submissionsResponse.data || [];
+                    
+                    // Check if this student has submitted
+                    const hasSubmitted = submissions.some(sub => sub.student.id === studentId || sub.student.username === studentId);
+                    if (hasSubmitted) {
+                        completedCount++;
+                    }
+                } catch (error) {
+                    console.error(`Error checking submissions for activity ${activity.id}:`, error);
+                }
+            }
+        }
+        return completedCount;
+    } catch (error) {
+        console.error('Error calculating completed activities:', error);
+        return 0;
+    }
+};
+
+// Update student progress data
+const updateStudentProgress = async () => {
+    // Update each student's outputs count
+    for (const student of students.value) {
+        const totalOutputs = await calculateTotalOutputs(student.id);
+        student.totalActivities = totalOutputs; // Store in totalActivities for display
+        student.completedActivities = totalOutputs; // Keep for compatibility
+        student.progress = 100; // Not used anymore but keep for compatibility
+    }
+    
+    console.log('Updated student outputs:', students.value);
+};
+
+// Load portfolio folders
+const loadPortfolioFolders = async () => {
+    try {
+        const response = await axios.get('/api/portfolio/folders/');
+        if (response.data) {
+            portfolioFolders.value = response.data;
+            
+            // Update subjects based on folders
+            subjects.value = [
+                { id: 'all', name: 'All' },
+                ...response.data.map(folder => ({
+                    id: folder.id.toString(),
+                    name: folder.name
+                }))
+            ];
+            
+            console.log('Loaded portfolio folders:', portfolioFolders.value);
+            
+            // Update student progress after loading folders
+            await updateStudentProgress();
+        }
+    } catch (error) {
+        console.error('Error loading portfolio folders:', error);
+    }
+};
+
+// Load student submissions for a specific student
+const loadStudentSubmissions = async (studentId) => {
+    isLoadingOutputs.value = true;
+    try {
+        // Clear previous outputs
+        studentOutputs.value = {};
+        
+        // Load submissions for each folder
+        for (const folder of portfolioFolders.value) {
+            try {
+                // Get activities for this folder
+                const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
+                const activities = activitiesResponse.data || [];
+                
+                // Get submissions for each activity
+                const folderOutputs = [];
+                for (const activity of activities) {
+                    try {
+                        const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
+                        const submissions = submissionsResponse.data || [];
+                        
+                        // Add all submissions to outputs (showing all student work)
+                        submissions.forEach(submission => {
+                            if (submission.file_type === 'image' && submission.file_path) {
+                                folderOutputs.push({
+                                    url: submission.file_path,
+                                    date: new Date(submission.submitted_at),
+                                    title: activity.title,
+                                    activityType: activity.activity_type,
+                                    caption: submission.caption,
+                                    score: submission.score,
+                                    status: submission.status,
+                                    studentName: submission.student_name || submission.student?.username
+                                });
+                            }
+                        });
+                        
+                        console.log(`Activity ${activity.id} - ${activity.title}: ${submissions.length} submissions`);
+                    } catch (error) {
+                        console.error(`Error loading submissions for activity ${activity.id}:`, error);
+                    }
+                }
+                
+                // Store outputs by folder id
+                if (folderOutputs.length > 0) {
+                    studentOutputs.value[folder.id.toString()] = folderOutputs;
+                }
+            } catch (error) {
+                console.error(`Error loading activities for folder ${folder.id}:`, error);
+            }
+        }
+        
+        console.log('Loaded student outputs:', studentOutputs.value);
+    } catch (error) {
+        console.error('Error loading student submissions:', error);
+    } finally {
+        isLoadingOutputs.value = false;
+    }
+};
+
+const viewOutputs = async (student) => {
     selectedStudent.value = student;
     currentImageIndex.value = 0; // Reset to first image
     selectedSubject.value = 'all'; // Reset to 'All' subject
     isMinimizedView.value = true; // Start with minimized view
     expandedImageIndex.value = null; // Reset expanded image
     showOutputsDialog.value = true;
+    
+    // Load student submissions
+    await loadStudentSubmissions(student.id);
 };
+
+// Load folders on mount
+onMounted(() => {
+    loadPortfolioFolders();
+});
 
 // Watch for subject changes and reset view state
 watch(selectedSubject, () => {
