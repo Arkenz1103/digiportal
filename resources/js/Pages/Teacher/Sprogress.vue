@@ -14,7 +14,7 @@
                 </div>
                 <div>
                     <button 
-                        @click="router.visit('/teacher/class/grade1-a')"
+                        @click="goBackToRoom"
                         class="flex items-center gap-2 px-4 py-2 bg-white/20 text-white hover:bg-white/30 rounded-lg transition-all">
                         <i class="pi pi-arrow-left"></i>
                         <span>Back to Folder</span>
@@ -43,46 +43,55 @@
             </div>
 
             <!-- Student List Section -->
-            <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-indigo-100">
+            <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-indigo-100">
                 <!-- Table Header -->
-                <div class="flex items-center px-6 py-4 bg-indigo-50 border-b border-indigo-100">
-                    <div class="w-12 text-sm font-semibold text-indigo-900">#</div>
-                    <div class="w-48 text-sm font-semibold text-indigo-900">Student Name</div>
-                    <div class="w-32 text-sm font-semibold text-indigo-900">ID</div>
-                    <div class="w-80 text-sm font-semibold text-indigo-900">Outputs</div>
-                    <div class="w-56 text-sm font-semibold text-indigo-900">Outputs List</div>
-                    <div class="flex-1 text-sm font-semibold text-indigo-900 text-right pr-12">Progress Records</div>
+                <div class="flex items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 border-b border-indigo-200">
+                    <div class="w-16 text-sm font-bold text-white">#</div>
+                    <div class="w-64 text-sm font-bold text-white">Student Name</div>
+                    <div class="w-40 text-sm font-bold text-white">Student ID</div>
+                    <div class="w-32 text-sm font-bold text-white text-center">Outputs</div>
+                    <div class="flex-1 text-sm font-bold text-white text-center">Actions</div>
                 </div>
 
                 <!-- Student Items -->
                 <div v-for="(student, index) in students" :key="student.id" 
-                    class="group flex items-center px-6 py-5 hover:bg-indigo-50 border-b border-indigo-100 transition-all duration-200">
-                    <div class="w-12 text-gray-500 font-medium">{{ index + 1 }}</div>
-                    <div class="w-48 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
-                            <span class="text-white font-medium">{{ student.initial }}</span>
+                    class="group flex items-center px-6 py-6 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 border-b border-indigo-100 transition-all duration-300 hover:shadow-md">
+                    <div class="w-16">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center border-2 border-indigo-200">
+                            <span class="text-indigo-700 font-bold">{{ index + 1 }}</span>
                         </div>
-                        <span class="font-medium text-indigo-900 group-hover:text-indigo-700 transition-colors">{{ student.name }}</span>
                     </div>
-                    <div class="w-32">
-                        <span class="text-indigo-700 font-medium">{{ student.id }}</span>
+                    <div class="w-64 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md ring-2 ring-indigo-200 ring-offset-2">
+                            <span class="text-white font-bold text-lg">{{ student.initial }}</span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-indigo-900 group-hover:text-indigo-700 transition-colors block">{{ student.name }}</span>
+                            <span class="text-xs text-indigo-600">Student</span>
+                        </div>
                     </div>
-                    <div class="w-80">
-                        <span class="text-2xl font-bold text-indigo-700">{{ student.totalActivities }}</span>
+                    <div class="w-40">
+                        <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200">
+                            <i class="pi pi-id-card text-indigo-600 text-sm"></i>
+                            <span class="text-indigo-700 font-medium text-sm">{{ student.id }}</span>
+                        </div>
                     </div>
-                    <div class="w-56">
+                    <div class="w-32 text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 shadow-sm">
+                            <span class="text-3xl font-bold text-green-600">{{ student.totalActivities }}</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 flex items-center justify-center gap-3">
                         <button 
-                            class="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-medium hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+                            class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                             @click="viewOutputs(student)">
                             <span class="flex items-center gap-2">
-                                <i class="pi pi-list"></i>
+                                <i class="pi pi-images"></i>
                                 View Outputs
                             </span>
                         </button>
-                    </div>
-                    <div class="flex-1 text-right pr-12">
                         <button 
-                            class="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-medium hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+                            class="px-5 py-2.5 rounded-lg bg-white text-indigo-700 font-medium hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg border-2 border-indigo-200 transform hover:-translate-y-0.5"
                             @click="viewDetails(student)">
                             <span class="flex items-center gap-2">
                                 <i class="pi pi-chart-line"></i>
@@ -534,10 +543,15 @@ const calculateTotalOutputs = async (studentId) => {
                     const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                     const submissions = submissionsResponse.data || [];
                     
-                    console.log(`Activity ${activity.id} submissions:`, submissions);
+                    // Count only submissions from THIS student
+                    const studentSubmissions = submissions.filter(sub => 
+                        sub.student.id === studentId || sub.student.username === studentId
+                    );
+                    totalOutputs += studentSubmissions.length;
                     
-                    // Count all submissions (not filtered by student for now to see total)
-                    totalOutputs += submissions.length;
+                    if (studentSubmissions.length > 0) {
+                        console.log(`Activity ${activity.id}: Student ${studentId} has ${studentSubmissions.length} submission(s)`);
+                    }
                 } catch (error) {
                     console.error(`Error checking submissions for activity ${activity.id}:`, error);
                 }
@@ -706,6 +720,11 @@ watch(selectedSubject, () => {
 
 const closeOutputsDialog = () => {
     showOutputsDialog.value = false;
+};
+
+// Navigate back to Room page
+const goBackToRoom = () => {
+    emit('navigate', 'TeacherRoom');
 };
 </script>
 

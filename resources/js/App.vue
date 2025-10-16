@@ -107,6 +107,31 @@ const handleNavigation = (page) => {
   }
   
   document.title = titles[page] || 'DigiPortal'
+  
+  // Update URL to match current page
+  const urlMap = {
+    'Landing': '/',
+    'Login': '/login',
+    'TeacherHome': '/teacher/home',
+    'TeacherRoom': '/teacher/room',
+    'TeacherOutputs': '/teacher/outputs',
+    'TeacherSprogress': '/teacher/sprogress',
+    'TeacherProgress': '/teacher/progress',
+    'TeacherRemarks': '/teacher/remarks',
+    'TeacherNotice': '/teacher/notice',
+    'TeacherNotify': '/teacher/notify',
+    'TeacherArchived': '/teacher/archived',
+    'StudentNewsfeed': '/student/newsfeed',
+    'StudentRoom': '/student/room',
+    'StudentSketch': '/student/sketch',
+    'StudentNotify': '/student/notify',
+    'StudentArchived': '/student/archived'
+  }
+  
+  const newUrl = urlMap[page] || '/'
+  if (window.location.pathname !== newUrl) {
+    window.history.pushState({}, '', newUrl)
+  }
 }
 
 // Check for existing session on app load
