@@ -792,12 +792,16 @@ const createNewFolder = async () => {
     if (!newFolder.value.title) return;
 
     try {
+        console.log('Creating folder:', newFolder.value);
+        console.log('Class name:', className.value);
         const response = await axios.post('/api/portfolio/folders/', {
             name: newFolder.value.title,
-            description: newFolder.value.description || ''
+            description: newFolder.value.description || '',
+            class_name: className.value || 'Grade 1 - A'
         });
 
         if (response.data) {
+            console.log('Folder created successfully:', response.data);
             // Add the new folder to the list
             subjectFolders.value.unshift({
                 id: response.data.id,
@@ -808,10 +812,26 @@ const createNewFolder = async () => {
 
             showNewFolderDialog.value = false;
             newFolder.value = { title: '', description: '' };
+            
+            // Show success message
+            alert('Portfolio folder created successfully!');
         }
     } catch (error) {
         console.error('Error creating folder:', error);
-        // You can add toast notification here
+        console.error('Error response:', error.response?.data);
+        
+        // Show detailed error message
+        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to create folder';
+        alert(`Error: ${errorMsg}\n\nPlease check the console for more details.`);
+        
+        // If authentication failed, try to re-authenticate
+        if (error.response?.status === 401) {
+            console.log('Authentication failed, attempting to re-authenticate...');
+            const authenticated = await authenticateWithBackend();
+            if (authenticated) {
+                alert('Re-authenticated successfully. Please try creating the folder again.');
+            }
+        }
     }
 };
 
