@@ -35,4 +35,9 @@ urlpatterns = [
     path('api/portfolio/folders/', views.portfolio_folders_api, name='portfolio_folders_api'),
     path('api/portfolio/folders/<int:folder_id>/', views.portfolio_folder_detail_api, name='portfolio_folder_detail_api'),
     path('api/portfolio/folders/<int:folder_id>/activities/', views.portfolio_activities_api, name='portfolio_activities_api'),
+    
+    # Submission API routes
+    path('api/activities/<int:activity_id>/submissions/', views.activity_submissions_api, name='activity_submissions_api'),
+    path('api/submissions/unscored/', views.unscored_submissions_api, name='unscored_submissions_api'),
+    path('api/submissions/<int:submission_id>/score/', views.score_submission_api, name='score_submission_api'),
 ]

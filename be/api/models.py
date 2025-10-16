@@ -86,3 +86,29 @@ class PortfolioActivity(models.Model):
     
     def __str__(self):
         return f"{self.title} ({self.activity_type}) - {self.folder.name}"
+
+
+class StudentSubmission(models.Model):
+    """Student submission model for portfolio activities"""
+    STATUS_CHOICES = [
+        ('unscored', 'Unscored'),
+        ('scored', 'Scored'),
+    ]
+    
+    activity = models.ForeignKey(PortfolioActivity, on_delete=models.CASCADE, related_name='submissions')
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions')
+    caption = models.TextField(null=True, blank=True)
+    file_path = models.CharField(max_length=500, null=True, blank=True)
+    file_type = models.CharField(max_length=50, null=True, blank=True)
+    score = models.IntegerField(null=True, blank=True)
+    feedback = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='unscored')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    scored_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'student_submissions'
+        unique_together = ['activity', 'student']  # One submission per student per activity
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.activity.title} ({self.status})"

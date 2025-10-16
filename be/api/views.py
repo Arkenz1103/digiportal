@@ -4,14 +4,15 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity
-from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission
+from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer
 import json
 
 
@@ -472,3 +473,117 @@ def portfolio_activities_api(request, folder_id):
             print(f"Error creating activity: {str(e)}")
             print(error_trace)
             return Response({'error': str(e), 'details': error_trace}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET', 'POST'])
+def activity_submissions_api(request, activity_id):
+    """
+    GET: List all submissions for an activity (teacher) or student's own submission
+    POST: Submit work for an activity (student only)
+    """
+    try:
+        activity = PortfolioActivity.objects.get(id=activity_id)
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        # Teachers see all submissions, students see only their own
+        if request.user.role == 'teacher':
+            submissions = StudentSubmission.objects.filter(activity=activity).order_by('-submitted_at')
+        else:
+            submissions = StudentSubmission.objects.filter(activity=activity, student=request.user)
+        
+        serializer = StudentSubmissionSerializer(submissions, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        # Only students can submit
+        if not request.user.is_authenticated or request.user.role != 'student':
+            return Response({'error': 'Only students can submit work'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            data = request.data
+            print(f"Received submission data: {data}")
+            
+            # Check if student already submitted
+            existing_submission = StudentSubmission.objects.filter(
+                activity=activity,
+                student=request.user
+            ).first()
+            
+            if existing_submission:
+                # Update existing submission
+                existing_submission.caption = data.get('caption', '')
+                existing_submission.file_path = data.get('file_path', '')
+                existing_submission.file_type = data.get('file_type', '')
+                existing_submission.save()
+                serializer = StudentSubmissionSerializer(existing_submission)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                # Create new submission directly
+                submission = StudentSubmission.objects.create(
+                    activity=activity,
+                    student=request.user,
+                    caption=data.get('caption', ''),
+                    file_path=data.get('file_path', ''),
+                    file_type=data.get('file_type', ''),
+                    status='unscored'
+                )
+                
+                serializer = StudentSubmissionSerializer(submission)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"Error creating submission: {str(e)}")
+            print(error_trace)
+            return Response({'error': str(e), 'details': error_trace}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def unscored_submissions_api(request):
+    """
+    GET: List all unscored submissions (teacher only)
+    """
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can view unscored submissions'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Get all unscored submissions
+        submissions = StudentSubmission.objects.filter(status='unscored').order_by('-submitted_at')
+        serializer = StudentSubmissionSerializer(submissions, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"Error fetching unscored submissions: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['PUT'])
+def score_submission_api(request, submission_id):
+    """
+    PUT: Score a submission (teacher only)
+    """
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can score submissions'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        submission = StudentSubmission.objects.get(id=submission_id)
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        data = request.data
+        submission.score = data.get('score')
+        submission.feedback = data.get('feedback', '')
+        submission.status = 'scored'
+        submission.scored_at = timezone.now()
+        submission.save()
+        
+        serializer = StudentSubmissionSerializer(submission)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"Error scoring submission: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
