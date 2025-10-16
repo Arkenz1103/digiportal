@@ -77,9 +77,8 @@
         <!-- Main Content Area -->
         <div class="w-full bg-white/80 flex-1">
             <!-- Content Area -->
-            <div :class="['mx-auto px-4 sm:px-6 pt-1 pb-8 transition-all duration-300', 
-                        isSidebarCollapsed ? 'max-w-[95%]' : 'max-w-7xl']"
-                 :style="{ 'padding-left': isSidebarCollapsed ? '1.5rem' : '1.5rem', 'padding-right': '1.5rem' }">
+            <div class="w-full px-4 sm:px-6 pt-1 pb-8 transition-all duration-300"
+                 :style="{ 'padding-left': '1.5rem', 'padding-right': '1.5rem' }">
                 <template v-if="activeTab === 'pupil'">
                     <div class="p-4 md:p-6 bg-transparent">
                         <!-- Show folders view when not in activities mode -->
@@ -96,8 +95,23 @@
                                 </button>
                             </div>
 
+                            <!-- Loading State -->
+                            <div v-if="isLoadingFolders" class="flex justify-center items-center py-12">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                <span class="ml-3 text-gray-600">Loading folders...</span>
+                            </div>
+                            
+                            <!-- Empty State -->
+                            <div v-else-if="subjectFolders.length === 0" class="text-center py-12">
+                                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
+                                    <i class="pi pi-folder text-gray-400 text-xl"></i>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Portfolio Folders</h3>
+                                <p class="text-gray-500">Click "Create Class Portfolio" to create your first folder.</p>
+                            </div>
+                            
                             <!-- Folders Grid -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                 <!-- Subject Folders -->
                                 <div v-for="folder in subjectFolders"
                                     :key="folder.id"
@@ -241,7 +255,6 @@
                                                     top: `${menuPosition.y}px`,
                                                     left: `${menuPosition.x - 180}px`
                                                 }"
-                                                v-click-outside="closeMenu"
                                             >
                                                 <button
                                                     @click.stop="editActivity(activity, index)"
@@ -696,6 +709,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, inject, nextTick } from 'vue';
+import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import InputText from 'primevue/inputtext';
@@ -747,14 +761,8 @@ const activityTypes = ref([
 ]);
 
 // Subject folders data
-const subjectFolders = ref([
-    {
-        id: 1,
-        name: 'Mapeh',
-        items: 10,
-        description: 'Essay-related activities and writing projects.'
-    }
-]);
+const subjectFolders = ref([]);
+const isLoadingFolders = ref(false);
 
 // New Folder Dialog State
 const showNewFolderDialog = ref(false);
@@ -780,18 +788,58 @@ const editActivityData = ref({
 const showEditDialog = ref(false);
 
 // Function to create new folder
-const createNewFolder = () => {
+const createNewFolder = async () => {
     if (!newFolder.value.title) return;
 
-    subjectFolders.value.push({
-        id: Date.now(),
-        name: newFolder.value.title,
-        items: 0,
-        description: newFolder.value.description
-    });
+    try {
+        const response = await axios.post('/api/portfolio/folders/', {
+            name: newFolder.value.title,
+            description: newFolder.value.description || ''
+        });
 
-    showNewFolderDialog.value = false;
-    newFolder.value = { title: '', description: '' };
+        if (response.data) {
+            // Add the new folder to the list
+            subjectFolders.value.unshift({
+                id: response.data.id,
+                name: response.data.name,
+                items: 0,
+                description: response.data.description || ''
+            });
+
+            showNewFolderDialog.value = false;
+            newFolder.value = { title: '', description: '' };
+        }
+    } catch (error) {
+        console.error('Error creating folder:', error);
+        // You can add toast notification here
+    }
+};
+
+// Function to load portfolio folders
+const loadPortfolioFolders = async () => {
+    isLoadingFolders.value = true;
+    try {
+        const response = await axios.get('/api/portfolio/folders/');
+        
+        console.log('API Response:', response.data); // Debug log
+        
+        if (response.data && Array.isArray(response.data)) {
+            subjectFolders.value = response.data.map(folder => ({
+                id: folder.id,
+                name: folder.name,
+                items: folder.activities ? folder.activities.length : 0,
+                description: folder.description || ''
+            }));
+        } else {
+            console.warn('API did not return an array:', response.data);
+            subjectFolders.value = [];
+        }
+    } catch (error) {
+        console.error('Error loading folders:', error);
+        subjectFolders.value = [];
+    } finally {
+        isLoadingFolders.value = false;
+    }
 };
 
 // Function to add new activity
@@ -957,9 +1005,41 @@ const handleClickOutside = (event) => {
     }
 };
 
-onMounted(() => {
+// Function to authenticate with backend
+const authenticateWithBackend = async () => {
+    try {
+        // First check if already authenticated
+        const checkResponse = await axios.get('/api/validate-session/');
+        if (checkResponse.data.authenticated) {
+            console.log('Already authenticated:', checkResponse.data.user);
+            return true;
+        }
+    } catch (error) {
+        // Not authenticated, try to create session
+        try {
+            const authResponse = await axios.post('/api/validate-session/', {
+                role: 'teacher'
+            });
+            console.log('Authentication successful:', authResponse.data.user);
+            return true;
+        } catch (authError) {
+            console.error('Authentication failed:', authError);
+            return false;
+        }
+    }
+};
+
+onMounted(async () => {
     document.addEventListener('click', handleDocumentClick, true);
     document.addEventListener('click', handleClickOutside);
+    
+    // Authenticate with backend first, then load folders
+    const authenticated = await authenticateWithBackend();
+    if (authenticated) {
+        loadPortfolioFolders();
+    } else {
+        console.error('Failed to authenticate with backend');
+    }
 });
 
 onUnmounted(() => {

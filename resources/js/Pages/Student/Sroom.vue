@@ -77,9 +77,8 @@
     <!-- Main Content Area -->
     <div class="w-full bg-white/80 flex-1">
       <!-- Content Area -->
-      <div :class="['mx-auto px-4 sm:px-6 pt-1 pb-8 transition-all duration-300', 
-                  isSidebarCollapsed ? 'max-w-[95%]' : 'max-w-7xl']"
-           :style="{ 'padding-left': isSidebarCollapsed ? '1.5rem' : '1.5rem', 'padding-right': '1.5rem' }">
+      <div class="w-full px-4 sm:px-6 pt-1 pb-8 transition-all duration-300"
+           :style="{ 'padding-left': '1.5rem', 'padding-right': '1.5rem' }">
         <template v-if="activeTab === 'portfolio'">
           <div v-if="!portfolioCreated" class="p-8">
             <div class="flex flex-col items-center justify-center text-center max-w-md mx-auto">
@@ -248,7 +247,23 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <h2 class="text-xl md:text-2xl font-bold text-gray-900">My Portfolio</h2>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                <!-- Loading State -->
+                <div v-if="isLoadingFolders" class="flex justify-center items-center py-12">
+                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                  <span class="ml-3 text-gray-600">Loading folders...</span>
+                </div>
+                
+                <!-- Empty State -->
+                <div v-else-if="portfolioFolders.length === 0" class="text-center py-12">
+                  <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
+                    <i class="pi pi-folder text-gray-400 text-xl"></i>
+                  </div>
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">No Portfolio Folders</h3>
+                  <p class="text-gray-500">Your teacher hasn't created any portfolio folders yet.</p>
+                </div>
+                
+                <!-- Folders Grid -->
+                <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                   <div v-for="folder in portfolioFolders"
                     :key="folder.id"
                     @click="openFolderContent(folder)"
@@ -534,6 +549,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
+import axios from 'axios';
 import Dialog from 'primevue/dialog';
 
 // Get selected class from localStorage
@@ -582,9 +598,8 @@ const portfolioCreated = ref(true);
 const selectedPortfolioTheme = ref('minimal'); // Default theme
 
 // Portfolio folders data
-const portfolioFolders = [
-  { id: 'Mapeh', title: 'Mapeh', items: 10 }
-];
+const portfolioFolders = ref([]);
+const isLoadingFolders = ref(false);
 
 // Selected folder and activity state
 const selectedFolder = ref(null);
@@ -630,6 +645,33 @@ const openFolderContent = (folder) => {
   selectedFolder.value = folder;
 };
 
+// Function to load portfolio folders
+const loadPortfolioFolders = async () => {
+  isLoadingFolders.value = true;
+  try {
+    const response = await axios.get('/api/portfolio/folders/');
+    
+    console.log('Student API Response:', response.data); // Debug log
+    
+    if (response.data && Array.isArray(response.data)) {
+      portfolioFolders.value = response.data.map(folder => ({
+        id: folder.id,
+        title: folder.name,
+        items: folder.activities ? folder.activities.length : 0,
+        description: folder.description || ''
+      }));
+    } else {
+      console.warn('API did not return an array:', response.data);
+      portfolioFolders.value = [];
+    }
+  } catch (error) {
+    console.error('Error loading folders:', error);
+    portfolioFolders.value = [];
+  } finally {
+    isLoadingFolders.value = false;
+  }
+};
+
 // Function to go back to folders view
 const backToFolders = () => {
   selectedFolder.value = null;
@@ -667,6 +709,41 @@ const clearFile = () => {
   selectedFile.value = null;
   previewUrl.value = null;
 };
+
+// Function to authenticate with backend
+const authenticateWithBackend = async () => {
+  try {
+    // First check if already authenticated
+    const checkResponse = await axios.get('/api/validate-session/');
+    if (checkResponse.data.authenticated) {
+      console.log('Already authenticated:', checkResponse.data.user);
+      return true;
+    }
+  } catch (error) {
+    // Not authenticated, try to create session
+    try {
+      const authResponse = await axios.post('/api/validate-session/', {
+        role: 'student'
+      });
+      console.log('Authentication successful:', authResponse.data.user);
+      return true;
+    } catch (authError) {
+      console.error('Authentication failed:', authError);
+      return false;
+    }
+  }
+};
+
+// Load portfolio folders when component mounts
+onMounted(async () => {
+  // Authenticate with backend first, then load folders
+  const authenticated = await authenticateWithBackend();
+  if (authenticated) {
+    loadPortfolioFolders();
+  } else {
+    console.error('Failed to authenticate with backend');
+  }
+});
 
 // Submit work function
 const submitWork = (type) => {
