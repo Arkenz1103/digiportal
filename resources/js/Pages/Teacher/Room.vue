@@ -876,12 +876,22 @@ const addNewActivity = async () => {
             return;
         }
 
+        // Validate and format the date properly
+        let formattedDueDate = newActivity.value.dueDate;
+        if (formattedDueDate) {
+            // Ensure date is in YYYY-MM-DD format
+            const dateObj = new Date(formattedDueDate);
+            if (!isNaN(dateObj.getTime())) {
+                formattedDueDate = dateObj.toISOString().split('T')[0];
+            }
+        }
+
         console.log('Creating activity:', {
             folder_id: currentFolder.id,
-            activity_type: newActivity.value.type.value,
+            activity_type: newActivity.value.type?.value || newActivity.value.type,
             title: newActivity.value.title,
             description: newActivity.value.description,
-            due_date: newActivity.value.dueDate
+            due_date: formattedDueDate
         });
 
         // Save to database via API
@@ -889,7 +899,7 @@ const addNewActivity = async () => {
             activity_type: newActivity.value.type?.value || newActivity.value.type,
             title: newActivity.value.title,
             description: newActivity.value.description,
-            due_date: newActivity.value.dueDate
+            due_date: formattedDueDate
         });
 
         if (response.data) {
