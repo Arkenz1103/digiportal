@@ -115,7 +115,7 @@
                                 <!-- Subject Folders -->
                                 <div v-for="folder in subjectFolders"
                                     :key="folder.id"
-                                    @click="showSubjectActivities(folder.name)"
+                                    @click="showSubjectActivities(folder.name, folder.id)"
                                     class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1 duration-200"
                                 >
                                     <!-- Folder Preview -->
@@ -192,25 +192,38 @@
 
                             <!-- Activities Table -->
                             <div class="bg-transparent rounded-xl shadow-sm overflow-hidden border-0">
-                                <!-- Table Header -->
-                                <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-100/80 border-b border-indigo-200/50 rounded-t-xl">
-                                    <div class="w-32">
-                                        <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
-                                    </div>
-                                    <div class="w-32 md:w-48">
-                                        <span class="text-sm font-semibold text-indigo-900">Activity Tittle</span>
-                                    </div>
-                                    <div class="flex-1">
-                                        <span class="text-sm font-semibold text-indigo-900">Description</span>
-                                    </div>
-                                    <div class="w-24 md:w-48 text-right">
-                                        <span class="text-sm font-semibold text-indigo-900">Due Date</span>
-                                    </div>
-                                    <div class="w-8"></div>
+                                <!-- Loading State -->
+                                <div v-if="isLoadingActivities" class="flex justify-center items-center py-12">
+                                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
                                 </div>
 
-                                <!-- Activity Items -->
-                                <div v-for="(activity, index) in activities" :key="index"
+                                <!-- Empty State -->
+                                <div v-else-if="activities.length === 0" class="text-center py-12">
+                                    <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
+                                    <p class="text-gray-500">No activities yet. Click "Add Activity" to create one.</p>
+                                </div>
+
+                                <!-- Activities List -->
+                                <template v-else>
+                                    <!-- Table Header -->
+                                    <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-100/80 border-b border-indigo-200/50 rounded-t-xl">
+                                        <div class="w-32">
+                                            <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
+                                        </div>
+                                        <div class="w-32 md:w-48">
+                                            <span class="text-sm font-semibold text-indigo-900">Activity Tittle</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <span class="text-sm font-semibold text-indigo-900">Description</span>
+                                        </div>
+                                        <div class="w-24 md:w-48 text-right">
+                                            <span class="text-sm font-semibold text-indigo-900">Due Date</span>
+                                        </div>
+                                        <div class="w-8"></div>
+                                    </div>
+
+                                    <!-- Activity Items -->
+                                    <div v-for="(activity, index) in activities" :key="activity.id"
                                     class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
                                     @click="navigateToActivityOutputs(activity, index)">
                                     <div class="w-32 flex items-center gap-2">
@@ -281,6 +294,7 @@
                                         </transition>
                                     </div>
                                 </div>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -905,25 +919,11 @@ const addNewActivity = async () => {
         if (response.data) {
             console.log('Activity created successfully:', response.data);
             
-            // Format the date for display
-            const formattedDate = new Date(newActivity.value.dueDate).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
-
-            // Add to local activities array
-            activities.value.unshift({
-                id: response.data.id,
-                type: newActivity.value.type?.value || newActivity.value.type,
-                title: newActivity.value.title,
-                description: newActivity.value.description,
-                date: formattedDate,
-                due_date: newActivity.value.dueDate
-            });
-
             // Update the items count
             currentFolder.items += 1;
+
+            // Reload activities from database to ensure sync
+            await loadActivities(currentFolder.id);
 
             showAddActivityDialog.value = false;
             newActivity.value = {
@@ -1120,20 +1120,48 @@ onUnmounted(() => {
 // Subject activities state
 const showingActivities = ref(false);
 const selectedSubject = ref('');
-const activities = ref([
-    {
-        type: 'project',
-        title: 'Self-portrait',
-        description: 'Artworks: Create a self-portrait using mixed media techniques',
-        date: 'Nov 6, 2024',
-        archived: false
-    }
-]);
+const selectedFolderId = ref(null);
+const activities = ref([]);
+const isLoadingActivities = ref(false);
 
 // Function to show activities for a subject
-const showSubjectActivities = (subject) => {
+const showSubjectActivities = async (subject, folderId) => {
     selectedSubject.value = subject;
+    selectedFolderId.value = folderId;
     showingActivities.value = true;
+    
+    // Load activities from database
+    await loadActivities(folderId);
+};
+
+// Function to load activities from database
+const loadActivities = async (folderId) => {
+    isLoadingActivities.value = true;
+    try {
+        const response = await axios.get(`/api/portfolio/folders/${folderId}/activities/`);
+        if (response.data) {
+            // Format activities for display
+            activities.value = response.data.map(activity => ({
+                id: activity.id,
+                type: activity.activity_type,
+                title: activity.title,
+                description: activity.description,
+                date: activity.due_date ? new Date(activity.due_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }) : '',
+                due_date: activity.due_date,
+                archived: false
+            }));
+            console.log('Loaded activities:', activities.value);
+        }
+    } catch (error) {
+        console.error('Error loading activities:', error);
+        activities.value = [];
+    } finally {
+        isLoadingActivities.value = false;
+    }
 };
 
 // Handle edit activity

@@ -37,6 +37,7 @@ class PortfolioFolderSerializer(serializers.ModelSerializer):
 
 class StudentSubmissionSerializer(serializers.ModelSerializer):
     student = UserSerializer(read_only=True)
+    student_name = serializers.CharField(source='student.username', read_only=True)
     activity_title = serializers.CharField(source='activity.title', read_only=True)
     activity_type = serializers.CharField(source='activity.activity_type', read_only=True)
     

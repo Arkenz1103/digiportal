@@ -95,6 +95,12 @@ class StudentSubmission(models.Model):
         ('scored', 'Scored'),
     ]
     
+    APPROVAL_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
     activity = models.ForeignKey(PortfolioActivity, on_delete=models.CASCADE, related_name='submissions')
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions')
     caption = models.TextField(null=True, blank=True)
@@ -103,6 +109,8 @@ class StudentSubmission(models.Model):
     score = models.IntegerField(null=True, blank=True)
     feedback = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='unscored')
+    post_to_feed = models.BooleanField(default=False)
+    approval_status = models.CharField(max_length=50, choices=APPROVAL_CHOICES, default='pending')
     submitted_at = models.DateTimeField(auto_now_add=True)
     scored_at = models.DateTimeField(null=True, blank=True)
     

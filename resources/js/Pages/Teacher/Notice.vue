@@ -1,9 +1,45 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 
-const pendingOutputs = ref([
+const pendingOutputs = ref([]);
+const isLoadingPending = ref(false);
+
+// Load pending approvals from API
+const loadPendingApprovals = async () => {
+    isLoadingPending.value = true;
+    try {
+        const response = await axios.get('/api/submissions/pending-approvals/');
+        if (response.data) {
+            pendingOutputs.value = response.data.map(submission => ({
+                id: submission.id,
+                studentName: submission.student_name || submission.student.username,
+                title: submission.activity_title,
+                description: submission.caption,
+                submittedDate: new Date(submission.submitted_at).toISOString().split('T')[0],
+                subject: submission.activity_type,
+                sampleImages: submission.file_type === 'image' ? [submission.file_path] : [],
+                status: 'Pending'
+            }));
+            console.log('Loaded pending approvals:', pendingOutputs.value);
+        }
+    } catch (error) {
+        console.error('Error loading pending approvals:', error);
+        pendingOutputs.value = [];
+    } finally {
+        isLoadingPending.value = false;
+    }
+};
+
+// Load on mount
+onMounted(() => {
+    loadPendingApprovals();
+});
+
+// Old hardcoded data (keeping for reference)
+const oldPendingOutputs = ref([
     {
         id: '2021-0001',
         studentName: 'John Smith',
@@ -50,6 +86,7 @@ const pendingOutputs = ref([
 
 const showPreviewDialog = ref(false);
 const showRejectionDialog = ref(false);
+const showApprovalDialog = ref(false);
 const selectedOutput = ref(null);
 const feedbackForm = ref({
     isApproved: false,
@@ -68,26 +105,65 @@ const previewOutput = (output) => {
     showPreviewDialog.value = true;
 };
 
-const submitFeedback = (isApproved) => {
-    feedbackForm.value.isApproved = isApproved;
-
-    const index = pendingOutputs.value.findIndex(o => o.id === selectedOutput.value.id);
-    if (index !== -1) {
-        pendingOutputs.value.splice(index, 1);
+const submitFeedback = async (isApproved) => {
+    if (!selectedOutput.value) return;
+    
+    try {
+        const action = isApproved ? 'approve' : 'reject';
+        const response = await axios.put(`/api/submissions/${selectedOutput.value.id}/approve/`, {
+            action: action
+        });
+        
+        if (response.data) {
+            console.log(`Submission ${action}d:`, response.data);
+            
+            // Remove from pending list
+            const index = pendingOutputs.value.findIndex(o => o.id === selectedOutput.value.id);
+            if (index !== -1) {
+                pendingOutputs.value.splice(index, 1);
+            }
+            
+            showPreviewDialog.value = false;
+            showRejectionDialog.value = false;
+            
+            // Reset form
+            feedbackForm.value = {
+                isApproved: false,
+                rejectionReason: '',
+                rejectionDetails: ''
+            };
+            
+            alert(`Submission ${action}d successfully!`);
+        }
+    } catch (error) {
+        console.error('Error submitting feedback:', error);
+        alert('Failed to submit feedback: ' + (error.response?.data?.error || error.message));
     }
+};
 
-    showPreviewDialog.value = false;
-    showRejectionDialog.value = false;
-    // Reset form
-    feedbackForm.value = {
-        isApproved: false,
-        rejectionReason: '',
-        rejectionDetails: ''
-    };
+const showApprovalConfirmDialog = () => {
+    showApprovalDialog.value = true;
+};
+
+const confirmApproval = async () => {
+    showApprovalDialog.value = false;
+    await submitFeedback(true);
+};
+
+const cancelApproval = () => {
+    showApprovalDialog.value = false;
 };
 
 const showRejectionReasonsDialog = () => {
     showRejectionDialog.value = true;
+};
+
+const confirmRejection = async () => {
+    if (!feedbackForm.value.rejectionReason) {
+        alert('Please select a reason for rejection');
+        return;
+    }
+    await submitFeedback(false);
 };
 
 const cancelRejection = () => {
@@ -270,7 +346,7 @@ const cancelRejection = () => {
                     <Button 
                         label="Approve"
                         style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; color: white;" 
-                        @click="submitFeedback(true)"
+                        @click="showApprovalConfirmDialog"
                     />
                 </div>
             </template>
@@ -340,9 +416,64 @@ const cancelRejection = () => {
                         label="Confirm Rejection"
                         class="p-button-danger"
                         style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;" 
-                        @click="submitFeedback(false)"
-                        :disabled="!feedbackForm.value.rejectionReason"
+                        @click="confirmRejection"
+                        :disabled="!feedbackForm.rejectionReason"
                     />
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Approval Confirmation Dialog -->
+        <Dialog 
+            v-model:visible="showApprovalDialog"
+            modal
+            header="Confirm Approval"
+            :style="{ width: '90vw', maxWidth: '500px' }"
+            :dismissableMask="true"
+        >
+            <div class="p-6">
+                <div class="mb-6 text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                        <i class="pi pi-check-circle text-3xl text-green-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Approve this submission?</h3>
+                    <p class="text-sm text-gray-600">
+                        This will approve <strong>{{ selectedOutput?.studentName }}'s</strong> work 
+                        "<strong>{{ selectedOutput?.title }}</strong>" to be posted to the class feed.
+                    </p>
+                </div>
+
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-start gap-3">
+                        <i class="pi pi-info-circle text-green-600 mt-0.5"></i>
+                        <div class="text-sm text-green-800">
+                            <p class="font-medium mb-1">What happens next:</p>
+                            <ul class="list-disc list-inside space-y-1 text-green-700">
+                                <li>The submission will be visible to all students in the class</li>
+                                <li>It will appear in the class newsfeed</li>
+                                <li>The student will be notified of the approval</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="flex justify-end gap-3 px-6 pb-6">
+                    <Button 
+                        label="Cancel"
+                        class="p-button-secondary"
+                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;" 
+                        @click="cancelApproval"
+                    />
+                    <Button 
+                        label="Yes, Approve"
+                        style="background: linear-gradient(to right, #10b981, #059669); border: none; color: white;" 
+                        @click="confirmApproval"
+                    >
+                        <i class="pi pi-check mr-2"></i>
+                        Yes, Approve
+                    </Button>
                 </div>
             </template>
         </Dialog>

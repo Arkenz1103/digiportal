@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
 
@@ -65,26 +66,45 @@ const studentOutputs = ref({
     }
 });
 
-const submissions = ref([
-    {
-        id: '2021-0001',
-        name: 'John Smith',
-        status: 'Submitted',
-        date: 'Mar 27, 2025'
-    },
-    {
-        id: '2021-0002',
-        name: 'Maria Garcia',
-        status: 'Late',
-        date: 'Mar 26, 2025'
-    },
-    {
-        id: '2021-0003',
-        name: 'James Wilson',
-        status: 'Missing',
-        date: '-'
+const submissions = ref([]);
+const isLoadingSubmissions = ref(false);
+
+// Load unscored submissions from API
+const loadUnscoredSubmissions = async () => {
+    isLoadingSubmissions.value = true;
+    try {
+        const response = await axios.get('/api/submissions/unscored/');
+        if (response.data) {
+            submissions.value = response.data.map(submission => ({
+                id: submission.id,
+                studentId: submission.student.id,
+                name: submission.student.username,
+                activityTitle: submission.activity_title,
+                activityType: submission.activity_type,
+                caption: submission.caption,
+                filePath: submission.file_path,
+                fileType: submission.file_type,
+                status: 'Submitted',
+                date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                })
+            }));
+            console.log('Loaded unscored submissions:', submissions.value);
+        }
+    } catch (error) {
+        console.error('Error loading submissions:', error);
+        submissions.value = [];
+    } finally {
+        isLoadingSubmissions.value = false;
     }
-]);
+};
+
+// Load submissions on mount
+onMounted(() => {
+    loadUnscoredSubmissions();
+});
 
 // Dialog state and selected submission
 const showSubmissionDialog = ref(false);
@@ -99,9 +119,15 @@ const requirementsScore = ref('');
 const viewSubmission = (submission) => {
     selectedSubmission.value = {
         ...submission,
-        content: studentOutputs.value[submission.id],
-        newRemark: studentOutputs.value[submission.id]?.remarks || '',
-        rank: studentOutputs.value[submission.id]?.rank || null
+        content: {
+            title: submission.activityTitle || 'Submission',
+            description: submission.caption || 'No description provided',
+            image: submission.filePath,
+            date: submission.date,
+            status: submission.status
+        },
+        newRemark: '',
+        rank: null
     };
     showSubmissionDialog.value = true;
 };
@@ -686,8 +712,19 @@ const getMedalDetails = (rank) => {
                         </div>
                     </div>
 
+                <!-- Loading State -->
+                <div v-if="isLoadingSubmissions" class="flex justify-center items-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else-if="unscoredSubmissions.length === 0" class="text-center py-12">
+                    <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500">No unscored submissions yet.</p>
+                </div>
+
                 <!-- List View -->
-                <template v-if="viewMode === 'list'">
+                <template v-else-if="viewMode === 'list'">
                     <!-- Table Header -->
                     <div class="px-6 py-4 flex items-center text-sm font-medium text-gray-600 border-b border-indigo-100 bg-indigo-50">
                         <div class="w-1/3 flex items-center gap-2">
@@ -1039,9 +1076,9 @@ const getMedalDetails = (rank) => {
                                 <div class="bg-white rounded-xl overflow-hidden border-2 border-indigo-100" style="height: 400px;">
                                     <div class="w-full h-full flex items-center justify-center p-4 bg-white relative">
                                         <!-- Image -->
-                                        <img v-if="studentOutputs[selectedSubmission.id]?.image"
-                                            :src="studentOutputs[selectedSubmission.id].image"
-                                            :alt="studentOutputs[selectedSubmission.id].title"
+                                        <img v-if="selectedSubmission.content?.image"
+                                            :src="selectedSubmission.content.image"
+                                            :alt="selectedSubmission.content.title"
                                             class="max-h-full max-w-full object-contain"
                                             style="max-height: 100%; max-width: 100%; object-fit: contain;"
                                         />
@@ -1128,7 +1165,7 @@ const getMedalDetails = (rank) => {
                                         Description
                                     </h4>
                                     <p class="text-gray-600 text-sm">
-                                        {{ studentOutputs[selectedSubmission.id]?.description || 'No description provided.' }}
+                                        {{ selectedSubmission.content?.description || 'No description provided.' }}
                                     </p>
                                 </div>
                             </div>

@@ -522,13 +522,16 @@ def activity_submissions_api(request, activity_id):
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 # Create new submission directly
+                post_to_feed = data.get('post_to_feed', False)
                 submission = StudentSubmission.objects.create(
                     activity=activity,
                     student=request.user,
                     caption=data.get('caption', ''),
                     file_path=data.get('file_path', ''),
                     file_type=data.get('file_type', ''),
-                    status='unscored'
+                    status='unscored',
+                    post_to_feed=post_to_feed,
+                    approval_status='pending' if post_to_feed else 'approved'
                 )
                 
                 serializer = StudentSubmissionSerializer(submission)
@@ -586,4 +589,61 @@ def score_submission_api(request, submission_id):
         return Response(serializer.data)
     except Exception as e:
         print(f"Error scoring submission: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def pending_approvals_api(request):
+    """
+    GET: List all pending feed approvals (teacher only)
+    """
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can view pending approvals'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Get all submissions that are marked for posting to feed and pending approval
+        submissions = StudentSubmission.objects.filter(
+            post_to_feed=True,
+            approval_status='pending'
+        ).order_by('-submitted_at')
+        
+        serializer = StudentSubmissionSerializer(submissions, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"Error fetching pending approvals: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['PUT'])
+def approve_submission_api(request, submission_id):
+    """
+    PUT: Approve or reject a submission for feed posting (teacher only)
+    """
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can approve submissions'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        submission = StudentSubmission.objects.get(id=submission_id)
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        data = request.data
+        action = data.get('action')  # 'approve' or 'reject'
+        
+        if action == 'approve':
+            submission.approval_status = 'approved'
+        elif action == 'reject':
+            submission.approval_status = 'rejected'
+        else:
+            return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        submission.save()
+        
+        serializer = StudentSubmissionSerializer(submission)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"Error approving submission: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

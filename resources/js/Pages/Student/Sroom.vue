@@ -5,7 +5,7 @@
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div class="space-y-3">
           <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
-            {{ className }}
+            {{ props.className }}
           </h1>
           <p class="text-white/90 ml-2 flex items-center gap-2">
             <i class="pi pi-user"></i>
@@ -108,7 +108,7 @@
                     </button>
                     <button
                       v-if="selectedActivity"
-                      @click="selectedActivity = null"
+                      @click="backToActivitiesList"
                       class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                     >
                       <i class="pi pi-arrow-left"></i>
@@ -131,7 +131,7 @@
                       </div>
                       <div class="flex items-center gap-4 w-full sm:w-auto justify-center sm:justify-end mt-4 sm:mt-0">
                         <button
-                          v-if="!hasSubmitted(selectedActivity)"
+                          v-if="!hasSubmittedWork"
                           @click="addSampleProduct"
                           class="group flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                         >
@@ -140,7 +140,7 @@
                         </button>
                         <span
                           v-else
-                          class="px-4 py-2 rounded-lg bg-green-100 text-green-800"
+                          class="px-4 py-2 rounded-lg bg-green-100 text-green-800 flex items-center gap-2"
                         >
                           <i class="pi pi-check-circle"></i>
                           <span>Submitted</span>
@@ -205,24 +205,37 @@
 
                 <!-- Activities Table -->
                 <div v-else class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-indigo-100">
-                  <!-- Table Header -->
-                  <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-50 border-b border-indigo-100">
-                    <div class="w-32">
-                      <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
-                    </div>
-                    <div class="w-32 md:w-48">
-                      <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
-                    </div>
-                    <div class="flex-1">
-                      <span class="text-sm font-semibold text-indigo-900">Description</span>
-                    </div>
-                    <div class="w-32 md:w-48 text-right">
-                      <span class="text-sm font-semibold text-indigo-900">Due Date</span>
-                    </div>
+                  <!-- Loading State -->
+                  <div v-if="isLoadingActivities" class="flex justify-center items-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
                   </div>
 
-                  <!-- Activity Items -->
-                  <div v-for="(activity, index) in folderActivities" :key="index"
+                  <!-- Empty State -->
+                  <div v-else-if="folderActivities.length === 0" class="text-center py-12">
+                    <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500">No activities available yet.</p>
+                  </div>
+
+                  <!-- Activities List -->
+                  <template v-else>
+                    <!-- Table Header -->
+                    <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-50 border-b border-indigo-100">
+                      <div class="w-32">
+                        <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
+                      </div>
+                      <div class="w-32 md:w-48">
+                        <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
+                      </div>
+                      <div class="flex-1">
+                        <span class="text-sm font-semibold text-indigo-900">Description</span>
+                      </div>
+                      <div class="w-32 md:w-48 text-right">
+                        <span class="text-sm font-semibold text-indigo-900">Due Date</span>
+                      </div>
+                    </div>
+
+                    <!-- Activity Items -->
+                    <div v-for="(activity, index) in folderActivities" :key="activity.id"
                       class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
                       @click="openActivity(activity)">
                     <div class="w-32">
@@ -234,10 +247,15 @@
                     <div class="flex-1">
                       <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
                     </div>
-                    <div class="w-32 md:w-48 text-right">
+                    <div class="w-32 md:w-48 text-right flex items-center justify-end gap-2">
                       <span class="text-sm text-indigo-600">{{ activity.date }}</span>
+                      <span v-if="activity.hasSubmitted" class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
+                        <i class="pi pi-check-circle"></i>
+                        Submitted
+                      </span>
                     </div>
                   </div>
+                  </template>
                 </div>
               </div>
 
@@ -505,12 +523,13 @@
           </button>
           <button
             @click="submitNewProduct"
-            class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2"
-            :disabled="!selectedFile"
-            :class="{'opacity-50 cursor-not-allowed': !selectedFile}"
+            class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+            :disabled="!selectedFile || isSubmitting"
+            :class="{'opacity-50 cursor-not-allowed': !selectedFile || isSubmitting}"
           >
-            <i class="pi pi-check"></i>
-            Submit Work
+            <i v-if="!isSubmitting" class="pi pi-check"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isSubmitting ? 'Submitting...' : 'Submit Work' }}
           </button>
         </div>
       </template>
@@ -552,34 +571,24 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
 
-// Get selected class from localStorage
-const selectedClass = ref(null);
-const className = ref('Grade 1 - A'); // Default class name
-const currentUser = ref({
-    name: 'Student Name',
-    email: 'student@example.com',
-    role: 'student'
-});
-
-// Load selected class on mount
-onMounted(() => {
-    const savedClass = localStorage.getItem('digiportal_selected_class');
-    if (savedClass) {
-        selectedClass.value = JSON.parse(savedClass);
-        className.value = selectedClass.value.name;
-    }
-});
-
 const props = defineProps({
   className: {
     type: String,
-    required: true,
-    default: 'Digital Arts'
+    required: false,
+    default: 'Grade 1 - A'
   },
   theme: {
     type: String,
     default: 'emerald'
   }
+});
+
+// Get selected class from localStorage
+const selectedClass = ref(null);
+const currentUser = ref({
+    name: 'Student Name',
+    email: 'student@example.com',
+    role: 'student'
 });
 
 const activeTab = ref('portfolio');
@@ -606,14 +615,8 @@ const selectedFolder = ref(null);
 const selectedActivity = ref(null);
 
 // Folder activities data
-const folderActivities = ref([
-  {
-    type: 'project',
-    title: 'Self-portrait',
-    description: 'Artworks: Create a self-portrait using mixed media techniques',
-    date: 'Nov 6, 2024'
-  }
-]);
+const folderActivities = ref([]);
+const isLoadingActivities = ref(false);
 
 // Student submissions
 const studentSubmissions = ref([]);
@@ -625,11 +628,11 @@ const showSubmitDialog = ref(false);
 const showProductUploadModal = ref(false);
 const newProductCaption = ref('');
 const postOutputOption = ref(false);
+const isSubmitting = ref(false);
 
-// Function to check if activity has been submitted
-const hasSubmitted = (activity) => {
-  return studentSubmissions.value.some(sub => sub.activityId === activity.title);
-};
+// Check if student has already submitted (reactive state)
+const hasSubmittedWork = ref(false);
+const existingSubmission = ref(null);
 
 // Function to handle image loading errors
 const handleImageError = (submission) => {
@@ -641,8 +644,55 @@ const handleImageError = (submission) => {
 };
 
 // Function to open folder content
-const openFolderContent = (folder) => {
+const openFolderContent = async (folder) => {
   selectedFolder.value = folder;
+  // Load activities for this folder
+  await loadFolderActivities(folder.id);
+};
+
+// Function to load activities from database
+const loadFolderActivities = async (folderId) => {
+  isLoadingActivities.value = true;
+  try {
+    const response = await axios.get(`/api/portfolio/folders/${folderId}/activities/`);
+    if (response.data) {
+      // Format activities for display and check submission status for each
+      const activitiesWithStatus = await Promise.all(
+        response.data.map(async (activity) => {
+          // Check if student has submitted for this activity
+          let hasSubmitted = false;
+          try {
+            const submissionResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
+            hasSubmitted = submissionResponse.data && submissionResponse.data.length > 0;
+          } catch (error) {
+            console.error(`Error checking submission for activity ${activity.id}:`, error);
+          }
+
+          return {
+            id: activity.id,
+            type: activity.activity_type,
+            title: activity.title,
+            description: activity.description,
+            date: activity.due_date ? new Date(activity.due_date).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            }) : '',
+            due_date: activity.due_date,
+            hasSubmitted: hasSubmitted
+          };
+        })
+      );
+      
+      folderActivities.value = activitiesWithStatus;
+      console.log('Loaded activities for student:', folderActivities.value);
+    }
+  } catch (error) {
+    console.error('Error loading activities:', error);
+    folderActivities.value = [];
+  } finally {
+    isLoadingActivities.value = false;
+  }
 };
 
 // Function to load portfolio folders
@@ -675,11 +725,77 @@ const loadPortfolioFolders = async () => {
 // Function to go back to folders view
 const backToFolders = () => {
   selectedFolder.value = null;
+  selectedActivity.value = null;
+  studentSubmissions.value = [];
+};
+
+// Function to go back to activities list
+const backToActivitiesList = () => {
+  selectedActivity.value = null;
+  studentSubmissions.value = [];
+  hasSubmittedWork.value = false;
 };
 
 // Function to open activity with all details
-const openActivity = (activity) => {
+const openActivity = async (activity) => {
   selectedActivity.value = activity;
+  
+  // Use the hasSubmitted status from the activity object if available
+  if (activity.hasSubmitted !== undefined) {
+    hasSubmittedWork.value = activity.hasSubmitted;
+  } else {
+    // Otherwise, check submission status from API
+    await checkSubmissionStatus(activity.id);
+  }
+  
+  // Load submissions for this activity
+  await loadActivitySubmissions(activity.id);
+};
+
+// Load submissions for the current activity
+const loadActivitySubmissions = async (activityId) => {
+  try {
+    const response = await axios.get(`/api/activities/${activityId}/submissions/`);
+    if (response.data && response.data.length > 0) {
+      // Map API response to display format
+      studentSubmissions.value = response.data.map(submission => ({
+        activityId: activityId,
+        caption: submission.caption,
+        previewUrl: submission.file_path,
+        isImage: submission.file_type === 'image',
+        date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }),
+        status: submission.status,
+        loadError: false
+      }));
+      console.log('Loaded submissions:', studentSubmissions.value);
+    } else {
+      studentSubmissions.value = [];
+    }
+  } catch (error) {
+    console.error('Error loading submissions:', error);
+    studentSubmissions.value = [];
+  }
+};
+
+const checkSubmissionStatus = async (activityId) => {
+  try {
+    const response = await axios.get(`/api/activities/${activityId}/submissions/`);
+    if (response.data && response.data.length > 0) {
+      hasSubmittedWork.value = true;
+      existingSubmission.value = response.data[0];
+      console.log('Student already submitted:', existingSubmission.value);
+    } else {
+      hasSubmittedWork.value = false;
+      existingSubmission.value = null;
+    }
+  } catch (error) {
+    console.error('Error checking submission status:', error);
+    hasSubmittedWork.value = false;
+  }
 };
 
 // Handle file selection
@@ -837,7 +953,7 @@ const addSampleProduct = () => {
 // Archive the current class
 const confirmArchive = () => {
   // TODO: Implement actual archive functionality
-  console.log('Archiving class:', className.value);
+  console.log('Archiving class:', props.className);
 
   // Show success message
   // In a real app, you would make an API call here
@@ -851,35 +967,77 @@ const confirmArchive = () => {
 };
 
 // Submit new product
-const submitNewProduct = () => {
-  if (selectedFile.value) {
-    // Create a new submission object
-    const newSubmission = {
-      activityId: selectedActivity.value.title,
+const submitNewProduct = async () => {
+  // Prevent multiple submissions
+  if (isSubmitting.value) {
+    console.log('Already submitting, please wait...');
+    return;
+  }
+
+  if (!selectedFile.value || !selectedActivity.value) {
+    alert('Please select a file and activity');
+    return;
+  }
+
+  isSubmitting.value = true;
+
+  try {
+    // Get file type
+    const fileType = selectedFile.value.type.startsWith('image/') ? 'image' : 
+                     selectedFile.value.type.includes('pdf') ? 'pdf' : 'document';
+
+    // For now, we'll store the file as a data URL (base64)
+    // In production, you should upload to a file server
+    const filePath = previewUrl.value || URL.createObjectURL(selectedFile.value);
+
+    console.log('Submitting work for activity:', selectedActivity.value);
+
+    // Submit to API
+    const response = await axios.post(`/api/activities/${selectedActivity.value.id}/submissions/`, {
       caption: newProductCaption.value,
-      previewUrl: previewUrl.value,
-      file: selectedFile.value,
-      isImage: selectedFile.value.type.startsWith('image/'),
-      date: new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      }),
-      status: postOutputOption.value ? 'shared' : 'submitted',
-      loadError: false // Initialize load error state
-    };
+      file_path: filePath,
+      file_type: fileType,
+      post_to_feed: postOutputOption.value
+    });
 
-    // Add the submission to the student's submissions
-    studentSubmissions.value.push(newSubmission);
+    if (response.data) {
+      console.log('Work submitted successfully:', response.data);
 
-    // Close modal and reset form
-    showProductUploadModal.value = false;
-    newProductCaption.value = '';
-    postOutputOption.value = false;
-    clearFile();
+      // Update submission status
+      hasSubmittedWork.value = true;
+      existingSubmission.value = response.data;
 
-    // Show success message
-    console.log('Work submitted successfully:', newSubmission);
+      // Add to local submissions array
+      const newSubmission = {
+        activityId: selectedActivity.value.id,
+        caption: newProductCaption.value,
+        previewUrl: filePath,
+        file: selectedFile.value,
+        isImage: fileType === 'image',
+        date: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }),
+        status: 'submitted',
+        loadError: false
+      };
+
+      studentSubmissions.value.push(newSubmission);
+
+      // Close modal and reset form
+      showProductUploadModal.value = false;
+      newProductCaption.value = '';
+      postOutputOption.value = false;
+      clearFile();
+
+      alert('Work submitted successfully!');
+    }
+  } catch (error) {
+    console.error('Error submitting work:', error);
+    alert('Failed to submit work: ' + (error.response?.data?.error || error.message));
+  } finally {
+    isSubmitting.value = false;
   }
 };
 
