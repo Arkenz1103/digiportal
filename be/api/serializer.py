@@ -38,8 +38,14 @@ class PortfolioFolderSerializer(serializers.ModelSerializer):
 class StudentSubmissionSerializer(serializers.ModelSerializer):
     student = UserSerializer(read_only=True)
     student_name = serializers.CharField(source='student.username', read_only=True)
-    activity_title = serializers.CharField(source='activity.title', read_only=True)
-    activity_type = serializers.CharField(source='activity.activity_type', read_only=True)
+    activity_title = serializers.SerializerMethodField()
+    activity_type = serializers.SerializerMethodField()
+    
+    def get_activity_title(self, obj):
+        return obj.activity.title if obj.activity else 'Sketch Pad'
+    
+    def get_activity_type(self, obj):
+        return obj.activity.activity_type if obj.activity else 'Sketch'
     
     class Meta:
         model = StudentSubmission

@@ -101,7 +101,7 @@ class StudentSubmission(models.Model):
         ('rejected', 'Rejected'),
     ]
     
-    activity = models.ForeignKey(PortfolioActivity, on_delete=models.CASCADE, related_name='submissions')
+    activity = models.ForeignKey(PortfolioActivity, on_delete=models.CASCADE, related_name='submissions', null=True, blank=True)
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions')
     caption = models.TextField(null=True, blank=True)
     file_path = models.CharField(max_length=500, null=True, blank=True)
@@ -116,7 +116,7 @@ class StudentSubmission(models.Model):
     
     class Meta:
         db_table = 'student_submissions'
-        unique_together = ['activity', 'student']  # One submission per student per activity
     
     def __str__(self):
-        return f"{self.student.username} - {self.activity.title} ({self.status})"
+        activity_title = self.activity.title if self.activity else 'Sketch Pad'
+        return f"{self.student.username} - {activity_title} ({self.status})"

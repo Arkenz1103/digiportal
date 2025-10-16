@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import axios from 'axios';
 
 const canvas = ref(null);
 const ctx = ref(null);
@@ -14,6 +15,9 @@ const mySketches = ref([]);
 const showMySketches = ref(false);
 const showSketchDialog = ref(false);
 const currentSketch = ref(null);
+const showPostToFeedModal = ref(false);
+const selectedSketchForPost = ref(null);
+const postCaption = ref('');
 
 const tools = [
     { id: 'brush', name: 'Brush', icon: 'pi-pencil', description: 'Free drawing' },
@@ -164,6 +168,55 @@ const useSketch = () => {
     showSketchDialog.value = false;
 };
 
+// Open post to newsfeed modal
+const openPostToFeedModal = () => {
+    if (mySketches.value.length === 0) {
+        alert('Please save a sketch first before posting to newsfeed!');
+        return;
+    }
+    showPostToFeedModal.value = true;
+};
+
+// Select sketch for posting
+const selectSketchForPost = (sketch) => {
+    selectedSketchForPost.value = sketch;
+};
+
+// Post sketch to newsfeed
+const postToNewsfeed = async () => {
+    if (!selectedSketchForPost.value) {
+        alert('Please select a sketch to post');
+        return;
+    }
+    
+    if (!postCaption.value.trim()) {
+        alert('Please add a caption for your post');
+        return;
+    }
+    
+    try {
+        // Submit sketch to API
+        const response = await axios.post('/api/sketch/submit/', {
+            caption: postCaption.value,
+            file_path: selectedSketchForPost.value.dataURL,
+            file_type: 'image'
+        });
+        
+        if (response.data) {
+            console.log('Sketch posted successfully:', response.data);
+            alert('Sketch submitted for approval! It will appear in the newsfeed once approved by your teacher.');
+            
+            // Reset and close modal
+            showPostToFeedModal.value = false;
+            selectedSketchForPost.value = null;
+            postCaption.value = '';
+        }
+    } catch (error) {
+        console.error('Error posting to newsfeed:', error);
+        alert('Failed to post sketch: ' + (error.response?.data?.error || error.message));
+    }
+};
+
 const triggerFileInput = () => {
     fileInput.value.click();
 };
@@ -223,6 +276,11 @@ const handleImageUpload = (e) => {
                             class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm">
                         <i class="pi pi-download"></i>
                         <span>Save</span>
+                    </button>
+                    <button @click="openPostToFeedModal"
+                            class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all shadow-sm">
+                        <i class="pi pi-send"></i>
+                        <span>Post to Newsfeed</span>
                     </button>
                 </div>
             </div>
@@ -391,6 +449,81 @@ const handleImageUpload = (e) => {
                 <button @click="useSketch" class="px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center gap-2">
                     <i class="pi pi-palette"></i>
                     <span>Use This Sketch</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post to Newsfeed Modal -->
+    <div v-if="showPostToFeedModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-indigo-100">
+            <div class="px-6 py-4 border-b border-indigo-100 bg-indigo-50 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-indigo-900">Post Sketch to Newsfeed</h3>
+                <button @click="showPostToFeedModal = false" class="text-indigo-600 hover:bg-indigo-100 p-1.5 rounded-full transition-colors">
+                    <i class="pi pi-times"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Select Sketch Section -->
+                <div class="mb-6">
+                    <h4 class="text-md font-semibold text-indigo-900 mb-3">Select a Sketch</h4>
+                    
+                    <div v-if="mySketches.length === 0" class="text-center py-8 bg-indigo-50 rounded-lg">
+                        <i class="pi pi-inbox text-3xl text-indigo-400 mb-2"></i>
+                        <p class="text-indigo-600">No saved sketches. Save a sketch first!</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        <div v-for="sketch in mySketches" 
+                             :key="sketch.id"
+                             @click="selectSketchForPost(sketch)"
+                             class="relative group cursor-pointer">
+                            <img :src="sketch.dataURL" 
+                                 class="w-full h-24 object-contain bg-gray-100 rounded-lg border-2 transition-all"
+                                 :class="selectedSketchForPost?.id === sketch.id ? 'border-indigo-600 ring-2 ring-indigo-300' : 'border-gray-300 hover:border-indigo-400'">
+                            <div v-if="selectedSketchForPost?.id === sketch.id" 
+                                 class="absolute top-1 right-1 bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                <i class="pi pi-check text-xs"></i>
+                            </div>
+                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 px-2 rounded-b-lg truncate">
+                                {{ sketch.date }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Caption Section -->
+                <div class="mb-4">
+                    <label class="block text-md font-semibold text-indigo-900 mb-2">Add a Caption</label>
+                    <textarea v-model="postCaption"
+                              placeholder="Write something about your sketch..."
+                              class="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                              rows="4"></textarea>
+                </div>
+                
+                <!-- Preview Section -->
+                <div v-if="selectedSketchForPost" class="bg-indigo-50 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-indigo-900 mb-2">Preview</h4>
+                    <div class="bg-white rounded-lg p-3 border border-indigo-200">
+                        <img :src="selectedSketchForPost.dataURL" 
+                             class="w-full max-h-48 object-contain mb-2 rounded">
+                        <p class="text-sm text-gray-700">{{ postCaption || 'No caption' }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="px-6 py-4 border-t border-indigo-100 bg-gray-50 flex justify-end gap-3">
+                <button @click="showPostToFeedModal = false" 
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                    Cancel
+                </button>
+                <button @click="postToNewsfeed"
+                        :disabled="!selectedSketchForPost || !postCaption.trim()"
+                        :class="!selectedSketchForPost || !postCaption.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                    <i class="pi pi-send"></i>
+                    <span>Post to Newsfeed</span>
                 </button>
             </div>
         </div>

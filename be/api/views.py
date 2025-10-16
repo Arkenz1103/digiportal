@@ -647,3 +647,58 @@ def approve_submission_api(request, submission_id):
     except Exception as e:
         print(f"Error approving submission: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def newsfeed_api(request):
+    """
+    GET: Get all approved submissions for the newsfeed
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Get all approved submissions that are marked for posting to feed
+        submissions = StudentSubmission.objects.filter(
+            post_to_feed=True,
+            approval_status='approved'
+        ).select_related('student', 'activity').order_by('-submitted_at')
+        
+        serializer = StudentSubmissionSerializer(submissions, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"Error fetching newsfeed: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def sketch_submission_api(request):
+    """
+    POST: Submit a sketch to newsfeed (creates a submission without activity)
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        data = request.data
+        
+        # Create a sketch submission (activity_id can be null or use a special "Sketch" activity)
+        # For now, we'll create it without an activity or you can create a default "Sketch Pad" activity
+        submission = StudentSubmission.objects.create(
+            activity_id=None,  # No specific activity for sketches
+            student=request.user,
+            caption=data.get('caption', ''),
+            file_path=data.get('file_path', ''),
+            file_type='image',
+            status='unscored',
+            post_to_feed=True,
+            approval_status='pending'
+        )
+        
+        serializer = StudentSubmissionSerializer(submission)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        print(f"Error creating sketch submission: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

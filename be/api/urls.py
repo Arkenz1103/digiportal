@@ -44,4 +44,10 @@ urlpatterns = [
     # Feed approval routes
     path('api/submissions/pending-approvals/', views.pending_approvals_api, name='pending_approvals_api'),
     path('api/submissions/<int:submission_id>/approve/', views.approve_submission_api, name='approve_submission_api'),
+    
+    # Newsfeed route
+    path('api/newsfeed/', views.newsfeed_api, name='newsfeed_api'),
+    
+    # Sketch submission route
+    path('api/sketch/submit/', views.sketch_submission_api, name='sketch_submission_api'),
 ]
