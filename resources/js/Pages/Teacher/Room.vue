@@ -530,10 +530,10 @@
                         </button>
                         <button
                             @click="addNewActivity"
-                            :disabled="!newActivity.type || !newActivity.title || !newActivity.description || !newActivity.date"
+                            :disabled="!newActivity.type || !newActivity.title || !newActivity.description || !newActivity.dueDate"
                             :class="[
                                 'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
-                                newActivity.type && newActivity.title && newActivity.description && newActivity.date
+                                newActivity.type && newActivity.title && newActivity.description && newActivity.dueDate
                                     ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                                     : 'bg-indigo-100 text-indigo-300 cursor-not-allowed'
                             ]"
@@ -752,12 +752,14 @@ const navigateToProgress = () => {
     emit('navigate', 'TeacherSprogress');
 };
 
-// Activity types
+// Activity types (must match backend model choices)
 const activityTypes = ref([
-    { name: 'Quiz', value: 'quiz' },
-    { name: 'Contest', value: 'contest' },
-    { name: 'Assignment', value: 'assignment' },
-    { name: 'Project', value: 'project' }
+    { name: 'Quiz', value: 'Quiz' },
+    { name: 'Assignment', value: 'Assignment' },
+    { name: 'Project', value: 'Project' },
+    { name: 'Exam', value: 'Exam' },
+    { name: 'Presentation', value: 'Presentation' },
+    { name: 'Other', value: 'Other' }
 ]);
 
 // Subject folders data
@@ -863,36 +865,70 @@ const loadPortfolioFolders = async () => {
 };
 
 // Function to add new activity
-const addNewActivity = () => {
-    if (!newActivity.value.type || !newActivity.value.title || !newActivity.value.description || !newActivity.value.date) return;
+const addNewActivity = async () => {
+    if (!newActivity.value.type || !newActivity.value.title || !newActivity.value.description || !newActivity.value.dueDate) return;
 
-    // Format the date for display
-    const formattedDate = new Date(newActivity.value.date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    try {
+        // Get the current folder ID
+        const currentFolder = subjectFolders.value.find(f => f.name === selectedSubject.value);
+        if (!currentFolder) {
+            alert('Please select a folder first');
+            return;
+        }
 
-    activities.value.unshift({
-        type: newActivity.value.type.value,
-        title: newActivity.value.title,
-        description: newActivity.value.description,
-        date: formattedDate
-    });
+        console.log('Creating activity:', {
+            folder_id: currentFolder.id,
+            activity_type: newActivity.value.type.value,
+            title: newActivity.value.title,
+            description: newActivity.value.description,
+            due_date: newActivity.value.dueDate
+        });
 
-    // Update the items count for the current subject folder
-    const currentFolder = subjectFolders.value.find(f => f.name === selectedSubject.value);
-    if (currentFolder) {
-        currentFolder.items += 1;
+        // Save to database via API
+        const response = await axios.post(`/api/portfolio/folders/${currentFolder.id}/activities/`, {
+            activity_type: newActivity.value.type?.value || newActivity.value.type,
+            title: newActivity.value.title,
+            description: newActivity.value.description,
+            due_date: newActivity.value.dueDate
+        });
+
+        if (response.data) {
+            console.log('Activity created successfully:', response.data);
+            
+            // Format the date for display
+            const formattedDate = new Date(newActivity.value.dueDate).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+
+            // Add to local activities array
+            activities.value.unshift({
+                id: response.data.id,
+                type: newActivity.value.type?.value || newActivity.value.type,
+                title: newActivity.value.title,
+                description: newActivity.value.description,
+                date: formattedDate,
+                due_date: newActivity.value.dueDate
+            });
+
+            // Update the items count
+            currentFolder.items += 1;
+
+            showAddActivityDialog.value = false;
+            newActivity.value = {
+                type: null,
+                title: '',
+                description: '',
+                dueDate: ''
+            };
+
+            alert('Activity added successfully!');
+        }
+    } catch (error) {
+        console.error('Error creating activity:', error);
+        alert('Failed to create activity: ' + (error.response?.data?.message || error.message));
     }
-
-    showAddActivityDialog.value = false;
-    newActivity.value = {
-        type: null,
-        title: '',
-        description: '',
-        dueDate: ''
-    };
 };
 
 // Get selected class from localStorage
