@@ -422,9 +422,6 @@ const auth = computed(() => ({
                         <div class="flex justify-between items-center px-4 h-full">
                             <!-- Logo -->
                             <div class="flex items-center">
-                                <button @click="toggleSidebar" class="p-2 rounded-lg hover:bg-violet-500 transition-colors focus:outline-none md:hidden">
-                                    <i class="pi pi-bars text-gray-600"></i>
-                                </button>
                                 <img
                                     :src="logoUrl"
                                     class="w-auto h-8 mr-2"

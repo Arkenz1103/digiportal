@@ -478,6 +478,65 @@ def portfolio_activities_api(request, folder_id):
 
 
 @csrf_exempt
+@api_view(['GET', 'PUT', 'DELETE'])
+def activity_detail_api(request, activity_id):
+    """
+    GET: Get activity details
+    PUT: Update activity (teacher only)
+    DELETE: Delete activity (teacher only)
+    """
+    try:
+        activity = PortfolioActivity.objects.get(id=activity_id)
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        serializer = PortfolioActivitySerializer(activity)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        # Only teachers can update
+        if not request.user.is_authenticated or request.user.role != 'teacher':
+            return Response({'error': 'Only teachers can update activities'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            data = request.data
+            print(f"Updating activity {activity_id} with data: {data}")
+            
+            # Update activity fields
+            activity.title = data.get('title', activity.title)
+            activity.activity_type = data.get('activity_type', activity.activity_type)
+            activity.description = data.get('description', activity.description)
+            activity.due_date = data.get('due_date', activity.due_date)
+            activity.scoring_criteria = data.get('scoring_criteria', activity.scoring_criteria)
+            activity.save()
+            
+            print(f"✅ Activity {activity_id} updated successfully")
+            serializer = PortfolioActivitySerializer(activity)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"❌ Error updating activity: {str(e)}")
+            print(error_trace)
+            return Response({'error': str(e), 'details': error_trace}, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        # Only teachers can delete
+        if not request.user.is_authenticated or request.user.role != 'teacher':
+            return Response({'error': 'Only teachers can delete activities'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            print(f"Deleting activity {activity_id}")
+            activity.delete()
+            print(f"✅ Activity {activity_id} deleted successfully")
+            return Response({'message': 'Activity deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"❌ Error deleting activity: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
 @api_view(['GET', 'POST'])
 def activity_submissions_api(request, activity_id):
     """

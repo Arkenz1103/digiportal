@@ -223,7 +223,7 @@
                             </div>
 
                             <!-- Activities Table -->
-                            <div class="bg-transparent rounded-xl shadow-sm overflow-hidden border-0">
+                            <div class="bg-transparent rounded-xl shadow-sm overflow-visible border-0">
                                 <!-- Loading State -->
                                 <div v-if="isLoadingActivities" class="flex justify-center items-center py-12">
                                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -295,32 +295,22 @@
                                         >
                                             <div 
                                                 v-if="activeMenuIndex === index"
-                                                class="activity-menu-dropdown fixed z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
-                                                :style="{
-                                                    top: `${menuPosition.y}px`,
-                                                    left: `${menuPosition.x - 180}px`
-                                                }"
+                                                class="activity-menu-dropdown absolute z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
+                                                style="bottom: 100%; margin-bottom: 0.5rem; right: 0;"
                                             >
                                                 <button
                                                     @click.stop="editActivity(activity, index)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2 transition-colors"
                                                 >
                                                     <i class="pi pi-pencil text-sm"></i>
                                                     <span>Edit Activity</span>
                                                 </button>
                                                 <button
                                                     @click.stop="confirmDelete(activity, index)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors"
                                                 >
                                                     <i class="pi pi-trash text-sm"></i>
                                                     <span>Delete</span>
-                                                </button>
-                                                <button
-                                                    @click.stop="archiveActivity(activity, index)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-2"
-                                                >
-                                                    <i class="pi pi-archive text-sm"></i>
-                                                    <span>Archive</span>
                                                 </button>
                                             </div>
                                         </transition>
@@ -840,63 +830,131 @@
         <Dialog v-model:visible="showEditDialog"
                 modal
                 header="Edit Activity"
-                :style="{ width: '90%', maxWidth: '40rem' }">
+                :style="{ width: '98%', maxWidth: '80rem' }"
+                :contentStyle="{ maxHeight: '85vh', overflow: 'auto' }">
             <div class="p-6">
-                <div class="space-y-4">
-                    <div>
-                        <label for="editActivityType" class="block text-sm font-medium text-gray-900 mb-1">Activity Type</label>
-                        <Dropdown
-                            id="editActivityType"
-                            v-model="editActivityData.type"
-                            :options="activityTypes"
-                            optionLabel="name"
-                            placeholder="Select Activity Type"
-                            class="w-full"
-                            :class="{'p-invalid': !editActivityData.type}"
-                        >
-                            <template #value="slotProps">
-                                <div v-if="slotProps.value" class="flex items-center">
-                                    <span>{{ slotProps.value.name }}</span>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left Column: Activity Details -->
+                    <div class="space-y-2.5">
+                        <h3 class="text-base font-semibold text-gray-900 mb-2">Activity Details</h3>
+                        
+                        <div>
+                            <label for="editActivityType" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Type</label>
+                            <Dropdown
+                                id="editActivityType"
+                                v-model="editActivityData.type"
+                                :options="activityTypes"
+                                optionLabel="name"
+                                placeholder="Select type"
+                                class="w-full text-sm"
+                                :class="{'p-invalid': !editActivityData.type}"
+                            >
+                                <template #value="slotProps">
+                                    <div v-if="slotProps.value" class="flex items-center">
+                                        <span>{{ slotProps.value.name }}</span>
+                                    </div>
+                                    <span v-else>
+                                        {{ slotProps.placeholder }}
+                                    </span>
+                                </template>
+                                <template #option="slotProps">
+                                    <div class="flex items-center">
+                                        <span>{{ slotProps.option.name }}</span>
+                                    </div>
+                                </template>
+                            </Dropdown>
+                        </div>
+                        <div>
+                            <label for="editActivityTitle" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Title</label>
+                            <input
+                                id="editActivityTitle"
+                                v-model="editActivityData.title"
+                                type="text"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Enter title"
+                            >
+                        </div>
+                        <div>
+                            <label for="editActivityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Description</label>
+                            <textarea
+                                id="editActivityDescription"
+                                v-model="editActivityData.description"
+                                rows="2"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                                placeholder="Enter description"
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label for="editActivityDate" class="block text-xs font-medium text-gray-700 mb-0.5">Due Date</label>
+                            <input
+                                id="editActivityDate"
+                                v-model="editActivityData.dueDate"
+                                type="date"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Scoring Criteria -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">Scoring Criteria</h3>
+                            <button
+                                @click="editScoringCriteria.push({ name: '', maxScore: 0, isCreated: false, isEditing: false })"
+                                type="button"
+                                class="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            >
+                                <i class="pi pi-plus text-xs"></i>
+                                Add Criterion
+                            </button>
+                        </div>
+                        
+                        <!-- Criteria List -->
+                        <div class="space-y-2.5 max-h-96 overflow-y-auto pr-2">
+                            <div
+                                v-for="(criterion, index) in editScoringCriteria"
+                                :key="index"
+                                class="p-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 transition-colors"
+                            >
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full flex-shrink-0 bg-indigo-500"></div>
+                                    <input
+                                        v-model="criterion.name"
+                                        type="text"
+                                        placeholder="Name"
+                                        class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    />
+                                    <input
+                                        v-model.number="criterion.maxScore"
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        placeholder="Score"
+                                        class="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                    />
+                                    <span class="text-xs text-gray-500 font-medium">pts</span>
+                                    
+                                    <!-- Remove Button -->
+                                    <button
+                                        @click="editScoringCriteria.splice(index, 1)"
+                                        type="button"
+                                        class="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                    >
+                                        Remove
+                                    </button>
                                 </div>
-                                <span v-else>
-                                    {{ slotProps.placeholder }}
+                            </div>
+                        </div>
+                        
+                        <!-- Total Points Display -->
+                        <div v-if="editScoringCriteria.length > 0" class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-semibold text-indigo-900">Total Points:</span>
+                                <span class="text-2xl font-bold text-indigo-700">
+                                    {{ editScoringCriteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0) }}
                                 </span>
-                            </template>
-                            <template #option="slotProps">
-                                <div class="flex items-center">
-                                    <span>{{ slotProps.option.name }}</span>
-                                </div>
-                            </template>
-                        </Dropdown>
-                    </div>
-                    <div>
-                        <label for="editActivityTitle" class="block text-sm font-medium text-gray-900 mb-1">Activity Title</label>
-                        <input
-                            id="editActivityTitle"
-                            v-model="editActivityData.title"
-                            type="text"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="Enter activity title"
-                        >
-                    </div>
-                    <div>
-                        <label for="editActivityDescription" class="block text-sm font-medium text-gray-900 mb-1">Description</label>
-                        <textarea
-                            id="editActivityDescription"
-                            v-model="editActivityData.description"
-                            rows="3"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="Enter activity description"
-                        ></textarea>
-                    </div>
-                    <div>
-                        <label for="editActivityDate" class="block text-sm font-medium text-gray-900 mb-1">Due Date</label>
-                        <input
-                            id="editActivityDate"
-                            v-model="editActivityData.dueDate"
-                            type="date"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        >
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1098,6 +1156,7 @@ const editActivityData = ref({
     dueDate: ''
 });
 
+const editScoringCriteria = ref([]);
 const showEditDialog = ref(false);
 
 // Function to create new folder
@@ -1543,7 +1602,7 @@ const settingsRef = ref(null);
 // Watch for sidebar state changes
 watch(isSidebarCollapsed, (newValue) => {
     // This will trigger a re-render when the sidebar state changes
-    console.log('Sidebar collapsed state changed to:', newValue);
+    // console.log('Sidebar collapsed state changed to:', newValue);
 });
 
 // Toggle activity action menu
@@ -1553,12 +1612,6 @@ const toggleActivityMenu = (event, activity, index) => {
     if (activeMenuIndex.value === index) {
         activeMenuIndex.value = null;
     } else {
-        // Get the button's position
-        const buttonRect = event.currentTarget.getBoundingClientRect();
-        menuPosition.value = {
-            x: buttonRect.right,
-            y: buttonRect.bottom + window.scrollY
-        };
         activeMenuIndex.value = index;
     }
 };
@@ -1733,7 +1786,7 @@ const loadActivities = async (folderId) => {
                     }) : '',
                     due_date: activity.due_date,
                     archived: false,
-                    scoring_criteria: scoringCriteria
+                    scoringCriteria: scoringCriteria  // Use camelCase for consistency
                 };
             });
             console.log('✅ Final loaded activities:', activities.value);
@@ -1749,16 +1802,37 @@ const loadActivities = async (folderId) => {
 // Handle edit activity
 const editActivity = (activity, index) => {
     closeMenu();
+    
+    console.log('📝 Editing activity:', activity);
+    console.log('📊 Activity scoring criteria:', activity.scoringCriteria);
+    
     // Find the activity type object that matches the current activity's type
     const activityType = activityTypes.value.find(type => type.value === activity.type) || null;
     
     editActivityData.value = {
-        id: index,
+        id: activity.id, // Use actual activity ID from database
         title: activity.title,
-        type: activityType, // Store the full type object for the dropdown
+        type: activityType,
         description: activity.description,
         dueDate: activity.date
     };
+    
+    // Load scoring criteria if exists
+    if (activity.scoringCriteria && activity.scoringCriteria.length > 0) {
+        editScoringCriteria.value = activity.scoringCriteria.map(c => ({
+            name: c.name,
+            maxScore: c.maxScore,
+            isCreated: false,
+            isEditing: false,
+            originalName: c.name,
+            originalScore: c.maxScore
+        }));
+        console.log('✅ Loaded criteria for editing:', editScoringCriteria.value);
+    } else {
+        editScoringCriteria.value = [];
+        console.log('⚠️ No criteria found for this activity');
+    }
+    
     showEditDialog.value = true;
 };
 
@@ -1785,17 +1859,19 @@ const handleDelete = async () => {
 // Handle delete activity
 const deleteActivity = async (activity, index) => {
     try {
-        // Here you would typically make an API call to delete the activity
-        console.log('Deleting activity:', activity, 'at index:', index);
+        console.log('Deleting activity:', activity.id);
         
-        // Example API call (uncomment and modify as needed):
-        // const response = await axios.delete(`/api/activities/${activity.id}`);
-        // if (response.data.success) {
-        //     // Remove the activity from the local state
-        //     activities.value.splice(index, 1);
-        //     // Show success message
-        //     toast.success('Activity deleted successfully');
-        // }
+        // Make API call to delete the activity
+        const response = await axios.delete(`/api/activities/${activity.id}/`);
+        
+        console.log('✅ Activity deleted:', response.data);
+        
+        // Reload activities for the current folder
+        if (selectedFolderId.value) {
+            await loadActivities(selectedFolderId.value);
+        }
+        
+        alert('Activity deleted successfully!');
         
         // For now, just remove from local state
         activities.value.splice(index, 1);
@@ -1810,34 +1886,39 @@ const deleteActivity = async (activity, index) => {
 // Update activity
 const updateActivity = async () => {
     try {
-        // Update the activity in the local state
-        const index = editActivityData.value.id;
-        if (index !== null && activities.value[index]) {
-            activities.value[index] = {
-                ...activities.value[index],
-                title: editActivityData.value.title,
-                type: editActivityData.value.type.value, // Store just the value
-                description: editActivityData.value.description,
-                date: editActivityData.value.dueDate
-            };
-            
-            // Here you would typically make an API call to update the activity
-            // Example:
-            // await axios.put(`/api/activities/${editActivityData.value.id}`, {
-            //     title: editActivityData.value.title,
-            //     type: editActivityData.value.type.value,
-            //     description: editActivityData.value.description,
-            //     due_date: editActivityData.value.dueDate
-            // });
-            
-            showEditDialog.value = false;
-            // Show success message
-            // Example: toast.success('Activity updated successfully');
+        const activityId = editActivityData.value.id;
+        
+        console.log('Updating activity:', activityId);
+        
+        // Prepare scoring criteria
+        const scoringCriteria = editScoringCriteria.value
+            .filter(c => c.name && c.maxScore > 0)
+            .map(c => ({
+                name: c.name,
+                maxScore: parseInt(c.maxScore)
+            }));
+        
+        // Make API call to update the activity
+        const response = await axios.put(`/api/activities/${activityId}/`, {
+            title: editActivityData.value.title,
+            activity_type: editActivityData.value.type.value,
+            description: editActivityData.value.description,
+            due_date: editActivityData.value.dueDate,
+            scoring_criteria: JSON.stringify(scoringCriteria)
+        });
+        
+        console.log('✅ Activity updated:', response.data);
+        
+        // Reload activities for the current folder
+        if (selectedFolderId.value) {
+            await loadActivities(selectedFolderId.value);
         }
+        
+        showEditDialog.value = false;
+        alert('Activity updated successfully!');
     } catch (error) {
-        console.error('Error updating activity:', error);
-        // Show error message
-        // Example: toast.error('Failed to update activity');
+        console.error('❌ Error updating activity:', error);
+        alert('Failed to update activity: ' + (error.response?.data?.error || error.message));
     }
 };
 
