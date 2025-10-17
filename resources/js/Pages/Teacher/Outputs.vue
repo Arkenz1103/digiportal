@@ -7,7 +7,8 @@ import Textarea from 'primevue/textarea';
 // Load activity from localStorage
 const activity = ref({
     title: 'Student Activity',
-    description: 'View student submissions for this activity'
+    description: 'View student submissions for this activity',
+    id: null
 });
 
 // Load selected activity on component mount
@@ -17,17 +18,38 @@ onMounted(() => {
         const parsedActivity = JSON.parse(savedActivity);
         activity.value = {
             title: parsedActivity.title,
-            description: 'View student submissions for this activity',
-            id: parsedActivity.id
+            description: parsedActivity.description || 'View student submissions for this activity',
+            id: parsedActivity.id,
+            type: parsedActivity.type,
+            dueDate: parsedActivity.dueDate,
+            scoringCriteria: parsedActivity.scoringCriteria,
+            subject: parsedActivity.subject  // Add subject field
         };
+        console.log('Loaded activity:', activity.value);
     }
+    
+    // Load submissions for this specific activity
+    loadUnscoredSubmissions();
+    loadScoredSubmissions();
 });
 
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
 
 const goBack = () => {
-    emit('navigate', 'TeacherHome');
+    // Store the subject/folder context so Room.vue can show the activities list
+    console.log('Going back with activity:', activity.value);
+    if (activity.value.subject) {
+        const returnData = {
+            subject: activity.value.subject,
+            showActivities: true
+        };
+        console.log('Storing return context:', returnData);
+        localStorage.setItem('return_to_activities', JSON.stringify(returnData));
+    } else {
+        console.warn('No subject found in activity, cannot restore activities view');
+    }
+    emit('navigate', 'TeacherRoom');
 };
 
 // Add view mode state
@@ -67,6 +89,7 @@ const studentOutputs = ref({
 });
 
 const submissions = ref([]);
+const scoredSubmissionsData = ref([]);
 const isLoadingSubmissions = ref(false);
 
 // Load unscored submissions from API
@@ -75,15 +98,25 @@ const loadUnscoredSubmissions = async () => {
     try {
         const response = await axios.get('/api/submissions/unscored/');
         if (response.data) {
-            submissions.value = response.data.map(submission => ({
+            console.log('All unscored submissions:', response.data);
+            console.log('Filtering by activity ID:', activity.value.id);
+            
+            // Filter submissions by the current activity ID
+            const filteredSubmissions = response.data.filter(submission => {
+                // Try both activity and activity_id fields
+                const submissionActivityId = submission.activity || submission.activity_id;
+                console.log('Submission activity ID:', submissionActivityId, 'matches:', submissionActivityId === activity.value.id);
+                return submissionActivityId === activity.value.id;
+            });
+            
+            submissions.value = filteredSubmissions.map(submission => ({
                 id: submission.id,
                 studentId: submission.student.id,
                 name: submission.student.username,
                 activityTitle: submission.activity_title,
                 activityType: submission.activity_type,
                 caption: submission.caption,
-                filePath: submission.file_path,
-                fileType: submission.file_type,
+                score: submission.score,
                 status: 'Submitted',
                 date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
                     year: 'numeric',
@@ -91,7 +124,7 @@ const loadUnscoredSubmissions = async () => {
                     day: 'numeric'
                 })
             }));
-            console.log('Loaded unscored submissions:', submissions.value);
+            console.log('Loaded unscored submissions for activity:', activity.value.id, submissions.value);
         }
     } catch (error) {
         console.error('Error loading submissions:', error);
@@ -101,14 +134,79 @@ const loadUnscoredSubmissions = async () => {
     }
 };
 
-// Load submissions on mount
-onMounted(() => {
-    loadUnscoredSubmissions();
-});
+// Load scored submissions from API
+const loadScoredSubmissions = async () => {
+    try {
+        const response = await axios.get('/api/submissions/scored/');
+        if (response.data) {
+            console.log('All scored submissions:', response.data);
+            
+            // Filter submissions by the current activity ID
+            const filteredSubmissions = response.data.filter(submission => {
+                // Try both activity and activity_id fields
+                const submissionActivityId = submission.activity || submission.activity_id;
+                return submissionActivityId === activity.value.id;
+            });
+            
+            scoredSubmissionsData.value = filteredSubmissions.map(submission => ({
+                id: submission.id,
+                studentId: submission.student.id,
+                name: submission.student.username,
+                activityTitle: submission.activity_title,
+                activityType: submission.activity_type,
+                caption: submission.caption,
+                score: submission.score,
+                status: 'Scored',
+                date: new Date(submission.scored_at || submission.submitted_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                })
+            }));
+            console.log('Loaded scored submissions for activity:', activity.value.id, scoredSubmissionsData.value);
+        }
+    } catch (error) {
+        console.error('Error loading scored submissions:', error);
+        scoredSubmissionsData.value = [];
+    }
+};
 
 // Dialog state and selected submission
 const showSubmissionDialog = ref(false);
 const selectedSubmission = ref(null);
+const isLoadingSubmissionDetail = ref(false);
+
+// Load full submission details including image
+const loadSubmissionDetail = async (submissionId) => {
+    isLoadingSubmissionDetail.value = true;
+    try {
+        const response = await axios.get(`/api/submissions/${submissionId}/`);
+        if (response.data) {
+            return {
+                id: response.data.id,
+                studentId: response.data.student.id,
+                name: response.data.student.username,
+                activityTitle: response.data.activity_title,
+                activityType: response.data.activity_type,
+                caption: response.data.caption,
+                filePath: response.data.file_path,
+                fileType: response.data.file_type,
+                score: response.data.score,
+                status: response.data.status === 'scored' ? 'Scored' : 'Submitted',
+                date: new Date(response.data.submitted_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                })
+            };
+        }
+    } catch (error) {
+        console.error('Error loading submission detail:', error);
+        return null;
+    } finally {
+        isLoadingSubmissionDetail.value = false;
+    }
+};
 
 // Add score dialog state
 const showAddScoreDialog = ref(false);
@@ -116,20 +214,27 @@ const creativityScore = ref('');
 const technicalScore = ref('');
 const requirementsScore = ref('');
 
-const viewSubmission = (submission) => {
-    selectedSubmission.value = {
-        ...submission,
-        content: {
-            title: submission.activityTitle || 'Submission',
-            description: submission.caption || 'No description provided',
-            image: submission.filePath,
-            date: submission.date,
-            status: submission.status
-        },
-        newRemark: '',
-        rank: null
-    };
-    showSubmissionDialog.value = true;
+const viewSubmission = async (submission) => {
+    // Load full submission details including image
+    const fullSubmission = await loadSubmissionDetail(submission.id);
+    
+    if (fullSubmission) {
+        selectedSubmission.value = {
+            ...fullSubmission,
+            content: {
+                title: fullSubmission.activityTitle || 'Submission',
+                description: fullSubmission.caption || 'No description provided',
+                image: fullSubmission.filePath,
+                date: fullSubmission.date,
+                status: fullSubmission.status
+            },
+            newRemark: '',
+            rank: null
+        };
+        showSubmissionDialog.value = true;
+    } else {
+        alert('Failed to load submission details');
+    }
 };
 
 const saveRemarks = () => {
@@ -159,28 +264,53 @@ const addScore = () => {
     showAddScoreDialog.value = true;
 };
 
-const saveScore = () => {
+const saveScore = async () => {
     if (selectedSubmission.value && creativityScore.value && technicalScore.value && requirementsScore.value) {
-        // Ensure the student output exists
-        if (!studentOutputs.value[selectedSubmission.value.id]) {
-            studentOutputs.value[selectedSubmission.value.id] = {};
+        try {
+            const totalScore = calculateTotalScore();
+            
+            // Call the backend API to save the score
+            const response = await axios.post(`/api/submissions/${selectedSubmission.value.id}/score/`, {
+                scores: {
+                    creativity: parseInt(creativityScore.value),
+                    creativity_max: 10,
+                    technical_skill: parseInt(technicalScore.value),
+                    technical_skill_max: 10,
+                    requirements: parseInt(requirementsScore.value),
+                    requirements_max: 10
+                },
+                feedback: '', // You can add a feedback field later
+                total_score: totalScore,
+                max_score: 30
+            });
+            
+            console.log('Score saved successfully:', response.data);
+            
+            // Update local state
+            if (!studentOutputs.value[selectedSubmission.value.id]) {
+                studentOutputs.value[selectedSubmission.value.id] = {};
+            }
+            
+            studentOutputs.value[selectedSubmission.value.id].scores = {
+                creativity: parseInt(creativityScore.value),
+                technical: parseInt(technicalScore.value),
+                requirements: parseInt(requirementsScore.value),
+                total: totalScore
+            };
+            
+            // Close the dialog
+            closeAddScoreDialog();
+            
+            // Refresh both lists
+            await loadUnscoredSubmissions();
+            await loadScoredSubmissions();
+            
+            // Show success message
+            alert('Score saved successfully!');
+        } catch (error) {
+            console.error('Error saving score:', error);
+            alert('Failed to save score: ' + (error.response?.data?.error || error.message));
         }
-        
-        // Save individual criteria scores
-        const scores = {
-            creativity: parseInt(creativityScore.value),
-            technical: parseInt(technicalScore.value),
-            requirements: parseInt(requirementsScore.value),
-            total: calculateTotalScore()
-        };
-        
-        studentOutputs.value[selectedSubmission.value.id].scores = scores;
-        
-        // Show success message
-        console.log('Scores saved successfully for:', selectedSubmission.value.name, 'Total:', scores.total);
-        
-        // Close the dialog
-        closeAddScoreDialog();
     }
 };
 
@@ -199,9 +329,7 @@ const unscoredSubmissions = computed(() => {
 });
 
 const scoredSubmissions = computed(() => {
-    return submissions.value.filter(submission => 
-        studentOutputs.value[submission.id]?.scores
-    );
+    return scoredSubmissionsData.value;
 });
 
 const validateScoreInput = (value, type) => {
@@ -656,7 +784,7 @@ const getMedalDetails = (rank) => {
                 class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
                 <i class="pi pi-arrow-left"></i>
-                <span>Back to Folders</span>
+                <span>Back to Activities</span>
             </button>
         </div>
         <div class="flex flex-col gap-2 ml-2">
@@ -885,8 +1013,14 @@ const getMedalDetails = (rank) => {
                         </h2>
                     </div>
 
+                    <!-- Empty State -->
+                    <div v-if="scoredSubmissions.length === 0" class="text-center py-12">
+                        <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
+                        <p class="text-gray-500">No scored submissions yet.</p>
+                    </div>
+
                     <!-- List View -->
-                    <template v-if="viewMode === 'list'">
+                    <template v-else-if="viewMode === 'list'">
                         <!-- Table Header -->
                         <div class="px-6 py-4 flex items-center text-sm font-medium text-gray-600 border-b border-indigo-100 bg-indigo-50">
                             <div class="w-1/3 flex items-center gap-2">

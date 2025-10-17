@@ -113,15 +113,47 @@
                             <!-- Folders Grid -->
                             <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                 <!-- Subject Folders -->
-                                <div v-for="folder in subjectFolders"
+                                <div v-for="(folder, index) in subjectFolders"
                                     :key="folder.id"
                                     @click="showSubjectActivities(folder.name, folder.id)"
                                     class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1 duration-200"
                                 >
                                     <!-- Folder Preview -->
                                     <div class="relative h-36 mb-4 p-4 md:p-6">
+                                        <!-- 3-Dot Menu Button -->
+                                        <div class="absolute top-2 right-2 z-20">
+                                            <button
+                                                @click.stop="toggleFolderMenu($event, folder, index)"
+                                                class="p-2 rounded-full hover:bg-indigo-100 text-gray-600 hover:text-indigo-700 transition-colors"
+                                                :ref="'folderMenuButton' + index"
+                                            >
+                                                <i class="pi pi-ellipsis-v"></i>
+                                            </button>
+                                            
+                                            <!-- Dropdown Menu -->
+                                            <div
+                                                v-if="activeFolderMenuIndex === index"
+                                                class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                                            >
+                                                <button
+                                                    @click.stop="openUpdateFolderDialog(folder)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"
+                                                >
+                                                    <i class="pi pi-pencil text-sm"></i>
+                                                    <span>Update</span>
+                                                </button>
+                                                <button
+                                                    @click.stop="openDropFolderDialog(folder)"
+                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
+                                                >
+                                                    <i class="pi pi-trash text-sm"></i>
+                                                    <span>Drop</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
                                         <!-- Stacked Preview Images with Dynamic Animation -->
-                                        <div class="absolute top-5 right-5 w-28 h-32 flex items-center justify-center">
+                                        <div class="absolute top-5 right-12 w-28 h-32 flex items-center justify-center">
                                             <div class="absolute w-24 h-28 rounded-md transform rotate-[-15deg] transition-all duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
                                             <div class="absolute w-24 h-28 rounded-md transform rotate-[-5deg] transition-all duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
                                             <div class="absolute w-24 h-28 rounded-md transform rotate-[5deg] transition-all duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
@@ -398,21 +430,36 @@
                     <!-- Preview -->
                     <div>
                         <label class="block text-sm font-medium text-gray-900 mb-3">Preview</label>
-                        <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-6 group">
+                        <div class="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden group">
                             <!-- Folder Preview -->
-                            <div class="relative h-32 mb-4">
-                                <!-- Stacked Preview Images -->
-                                <div class="absolute top-0 right-0 w-24 h-28 flex items-center justify-center">
-                                    <div class="absolute w-20 h-24 rounded-md transform rotate-[-15deg] transition-transform duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
-                                    <div class="absolute w-20 h-24 rounded-md transform rotate-[-5deg] transition-transform duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
-                                    <div class="absolute w-20 h-24 rounded-md transform rotate-[5deg] transition-transform duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
+                            <div class="relative h-36 mb-4 p-4 md:p-6">
+                                <!-- Stacked Preview Images with Dynamic Animation -->
+                                <div class="absolute top-5 right-5 w-28 h-32 flex items-center justify-center">
+                                    <div class="absolute w-24 h-28 rounded-md transform rotate-[-15deg] transition-all duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
+                                    <div class="absolute w-24 h-28 rounded-md transform rotate-[-5deg] transition-all duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
+                                    <div class="absolute w-24 h-28 rounded-md transform rotate-[5deg] transition-all duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
                                 </div>
                                 <!-- Folder Title -->
-                                <h3 class="text-xl font-semibold text-gray-900 mb-1 relative z-10">{{ newFolder.title || 'Folder Title' }}</h3>
-                                <span class="text-sm text-gray-600 relative z-10">0 items</span>
+                                <div class="relative z-10">
+                                    <h3 class="text-xl md:text-2xl font-bold mb-1 text-gray-900 group-hover:text-indigo-700 transition-colors">
+                                        {{ newFolder.title || 'Folder Title' }}
+                                    </h3>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                            0 items
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                            <!-- Folder Description -->
-                            <p class="text-gray-600 text-sm">{{ newFolder.description || 'Your folder description will appear here' }}</p>
+
+                            <!-- Interactive Footer -->
+                            <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center p-4 md:p-6">
+                                <div class="flex items-center space-x-2 text-sm text-indigo-700">
+                                    <i class="pi pi-folder text-indigo-700"></i>
+                                    <span>View Contents</span>
+                                </div>
+                                <i class="pi pi-arrow-right text-indigo-700 transform group-hover:translate-x-1 transition-transform"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -437,6 +484,101 @@
                             Create Folder
                         </button>
                     </div>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Update Folder Dialog -->
+        <Dialog v-model:visible="showUpdateFolderDialog"
+            modal
+            header="Update Portfolio Folder"
+            :style="{ width: '90%', maxWidth: '40rem' }">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Folder Name</label>
+                    <input
+                        v-model="updateFolderData.title"
+                        type="text"
+                        placeholder="e.g., Portfolio A, Math Portfolio"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                    <textarea
+                        v-model="updateFolderData.description"
+                        rows="3"
+                        placeholder="Add a description for this portfolio folder..."
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    ></textarea>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-2">
+                    <button @click="showUpdateFolderDialog = false"
+                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button
+                        @click="updateFolder"
+                        :disabled="!updateFolderData.title"
+                        :class="[
+                            'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
+                            updateFolderData.title ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-indigo-100 text-indigo-300 cursor-not-allowed'
+                        ]"
+                    >
+                        <i class="pi pi-check"></i>
+                        Update Folder
+                    </button>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Drop Folder Dialog -->
+        <Dialog v-model:visible="showDropFolderDialog"
+            modal
+            header="Drop Portfolio Folder"
+            :style="{ width: '90%', maxWidth: '35rem' }">
+            <div class="space-y-4">
+                <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <i class="pi pi-exclamation-triangle text-red-600 text-xl mt-0.5"></i>
+                    <div>
+                        <h4 class="font-semibold text-red-900 mb-1">Warning: Permanent Action</h4>
+                        <p class="text-sm text-red-700">
+                            Dropping this portfolio folder will permanently delete:
+                        </p>
+                        <ul class="text-sm text-red-700 mt-2 ml-4 list-disc space-y-1">
+                            <li>All activities in this folder</li>
+                            <li>All student submissions for these activities</li>
+                            <li>All student portfolios created under this folder</li>
+                        </ul>
+                        <p class="text-sm text-red-700 mt-2 font-medium">
+                            This action cannot be undone!
+                        </p>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <p class="text-sm text-gray-700">
+                        <strong>Folder:</strong> {{ dropFolderData.name }}
+                    </p>
+                    <p class="text-sm text-gray-700 mt-1">
+                        <strong>Items:</strong> {{ dropFolderData.items }} activities
+                    </p>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-2">
+                    <button @click="showDropFolderDialog = false"
+                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button
+                        @click="dropFolder"
+                        class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <i class="pi pi-trash"></i>
+                        Drop Folder
+                    </button>
                 </div>
             </template>
         </Dialog>
@@ -474,63 +616,197 @@
         <Dialog v-model:visible="showAddActivityDialog"
             modal
             header="Add New Activity"
-            :style="{ width: '90%', maxWidth: '40rem' }">
+            :style="{ width: '98%', maxWidth: '80rem' }"
+            :contentStyle="{ maxHeight: '85vh', overflow: 'auto' }">
             <div class="p-6">
-                <div class="space-y-4">
-                    <div>
-                        <label for="activityType" class="block text-sm font-medium text-gray-900 mb-1">Activity Type</label>
-                        <Dropdown
-                            id="activityType"
-                            v-model="newActivity.type"
-                            :options="activityTypes"
-                            optionLabel="name"
-                            placeholder="Select Activity Type"
-                            class="w-full"
-                            :class="{'p-invalid': !newActivity.type}"
-                        >
-                            <template #value="slotProps">
-                                <div v-if="slotProps.value" class="flex items-center">
-                                    <span>{{ slotProps.value.name }}</span>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left Column: Activity Area -->
+                    <div class="space-y-2.5">
+                        <h3 class="text-base font-semibold text-gray-900 mb-2">Activity Details</h3>
+                        
+                        <div>
+                            <label for="activityType" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Type</label>
+                            <Dropdown
+                                id="activityType"
+                                v-model="newActivity.type"
+                                :options="activityTypes"
+                                optionLabel="name"
+                                placeholder="Select type"
+                                class="w-full text-sm"
+                                :class="{'p-invalid': !newActivity.type}"
+                            >
+                                <template #value="slotProps">
+                                    <div v-if="slotProps.value" class="flex items-center">
+                                        <span>{{ slotProps.value.name }}</span>
+                                    </div>
+                                    <span v-else>
+                                        {{ slotProps.placeholder }}
+                                    </span>
+                                </template>
+                                <template #option="slotProps">
+                                    <div class="flex items-center">
+                                        <span>{{ slotProps.option.name }}</span>
+                                    </div>
+                                </template>
+                            </Dropdown>
+                        </div>
+                        <div>
+                            <label for="activityTitle" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Title</label>
+                            <input
+                                id="activityTitle"
+                                v-model="newActivity.title"
+                                type="text"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Enter title"
+                            >
+                        </div>
+                        <div>
+                            <label for="activityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Description</label>
+                            <textarea
+                                id="activityDescription"
+                                v-model="newActivity.description"
+                                rows="2"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                                placeholder="Enter description"
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label for="activityDate" class="block text-xs font-medium text-gray-700 mb-0.5">Due Date</label>
+                            <input
+                                id="activityDate"
+                                v-model="newActivity.dueDate"
+                                type="date"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Scoring Criteria -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">Scoring Criteria</h3>
+                            <button
+                                @click="addCriterion"
+                                type="button"
+                                class="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            >
+                                <i class="pi pi-plus text-xs"></i>
+                                Add Criterion
+                            </button>
+                        </div>
+                        
+                        <!-- Criteria List -->
+                        <div class="space-y-2.5 max-h-96 overflow-y-auto pr-2">
+                            <div
+                                v-for="(criterion, index) in savedCriteria"
+                                :key="index"
+                                class="p-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 transition-colors"
+                                :class="{ 'border-green-200 bg-green-50': criterion.isCreated }"
+                            >
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full flex-shrink-0"
+                                         :class="criterion.isCreated ? 'bg-green-500' : 'bg-indigo-500'"></div>
+                                    <input
+                                        v-model="criterion.name"
+                                        type="text"
+                                        placeholder="Name"
+                                        required
+                                        :disabled="criterion.isCreated && !criterion.isEditing"
+                                        class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        :class="{ 
+                                            'border-red-300': !criterion.name && !criterion.isCreated,
+                                            'bg-gray-50 cursor-not-allowed': criterion.isCreated && !criterion.isEditing
+                                        }"
+                                    />
+                                    <input
+                                        v-model.number="criterion.maxScore"
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        placeholder="Score"
+                                        required
+                                        :disabled="criterion.isCreated && !criterion.isEditing"
+                                        class="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                        :class="{ 
+                                            'border-red-300': (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined) && !criterion.isCreated,
+                                            'bg-gray-50 cursor-not-allowed': criterion.isCreated && !criterion.isEditing
+                                        }"
+                                    />
+                                    <span class="text-xs text-gray-500 font-medium">pts</span>
+                                    
+                                    <!-- Create Button (only for new criteria) -->
+                                    <button
+                                        v-if="!criterion.isCreated"
+                                        @click="createCriterion(index)"
+                                        type="button"
+                                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                                    >
+                                        Create
+                                    </button>
+                                    
+                                    <!-- Remove Button (only for new criteria) -->
+                                    <button
+                                        v-if="!criterion.isCreated"
+                                        @click="removeNewCriterion(index)"
+                                        type="button"
+                                        class="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                    >
+                                        Remove
+                                    </button>
+                                    
+                                    <!-- Update Button (only for created criteria not being edited) -->
+                                    <button
+                                        v-if="criterion.isCreated && !criterion.isEditing"
+                                        @click="enableEdit(index)"
+                                        type="button"
+                                        class="px-4 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                                    >
+                                        Update
+                                    </button>
+                                    
+                                    <!-- Confirm Button (only when editing) -->
+                                    <button
+                                        v-if="criterion.isCreated && criterion.isEditing"
+                                        @click="confirmEdit(index)"
+                                        type="button"
+                                        class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                                    >
+                                        Confirm
+                                    </button>
+                                    
+                                    <!-- Cancel Button (only when editing) -->
+                                    <button
+                                        v-if="criterion.isCreated && criterion.isEditing"
+                                        @click="cancelEdit(index)"
+                                        type="button"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    
+                                    <!-- Delete Button (only for created criteria not being edited) -->
+                                    <button
+                                        v-if="criterion.isCreated && !criterion.isEditing"
+                                        @click="removeSavedCriterion(index)"
+                                        type="button"
+                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete criterion"
+                                    >
+                                        <i class="pi pi-trash text-sm"></i>
+                                    </button>
                                 </div>
-                                <span v-else>
-                                    {{ slotProps.placeholder }}
+                            </div>
+                        </div>
+                        
+                        <!-- Total Score Display -->
+                        <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                            <div class="flex items-center justify-between">
+                                <span class="text-base font-semibold text-indigo-900">Total Points:</span>
+                                <span class="text-2xl font-bold text-indigo-700">
+                                    {{ savedCriteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0) }} pts
                                 </span>
-                            </template>
-                            <template #option="slotProps">
-                                <div class="flex items-center">
-                                    <span>{{ slotProps.option.name }}</span>
-                                </div>
-                            </template>
-                        </Dropdown>
-                    </div>
-                    <div>
-                        <label for="activityTitle" class="block text-sm font-medium text-gray-900 mb-1">Activity Title</label>
-                        <input
-                            id="activityTitle"
-                            v-model="newActivity.title"
-                            type="text"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="Enter activity title"
-                        >
-                    </div>
-                    <div>
-                        <label for="activityDescription" class="block text-sm font-medium text-gray-900 mb-1">Description</label>
-                        <textarea
-                            id="activityDescription"
-                            v-model="newActivity.description"
-                            rows="3"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="Enter activity description"
-                        ></textarea>
-                    </div>
-                    <div>
-                        <label for="activityDate" class="block text-sm font-medium text-gray-900 mb-1">Due Date</label>
-                        <input
-                            id="activityDate"
-                            v-model="newActivity.dueDate"
-                            type="date"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        >
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -741,13 +1017,15 @@ const emit = defineEmits(['navigate']);
 const navigateToActivityOutputs = (activity, index) => {
     // Store the selected activity for the outputs page
     localStorage.setItem('selected_activity', JSON.stringify({
-        id: activity.type + '-' + index,
+        id: activity.id, // Use the actual database ID
         title: activity.title,
         description: activity.description,
         type: activity.type,
         date: activity.date,
+        dueDate: activity.due_date,
         class: className.value,
-        subject: selectedSubject.value || 'General'
+        subject: selectedSubject.value || 'General',
+        scoringCriteria: activity.scoring_criteria
     }));
     
     // Navigate to outputs page
@@ -784,14 +1062,33 @@ const isLoadingFolders = ref(false);
 const showNewFolderDialog = ref(false);
 const newFolder = ref({ title: '', description: '' });
 
+// Update Folder Dialog State
+const showUpdateFolderDialog = ref(false);
+const updateFolderData = ref({ id: null, title: '', description: '' });
+
+// Drop Folder Dialog State
+const showDropFolderDialog = ref(false);
+const dropFolderData = ref({ id: null, name: '', items: 0 });
+
+// Folder Menu State
+const activeFolderMenuIndex = ref(null);
+
 // Add Activity Dialog State
 const showAddActivityDialog = ref(false);
 const newActivity = ref({
     title: '',
     type: '',
     description: '',
-    dueDate: ''
+    dueDate: '',
+    scoringCriteria: [
+        { name: '', maxScore: 10 }
+    ]
 });
+
+// Saved criteria list (displayed on the right side)
+const savedCriteria = ref([
+    { name: '', maxScore: 0, isCreated: false, isEditing: false, originalName: '', originalScore: 0 }
+]);
 
 const editActivityData = ref({
     id: null,
@@ -851,6 +1148,113 @@ const createNewFolder = async () => {
     }
 };
 
+// Toggle folder menu
+const toggleFolderMenu = (event, folder, index) => {
+    event.stopPropagation();
+    activeFolderMenuIndex.value = activeFolderMenuIndex.value === index ? null : index;
+};
+
+// Open update folder dialog
+const openUpdateFolderDialog = (folder) => {
+    updateFolderData.value = {
+        id: folder.id,
+        title: folder.name,
+        description: folder.description || ''
+    };
+    showUpdateFolderDialog.value = true;
+    activeFolderMenuIndex.value = null;
+};
+
+// Update folder
+const updateFolder = async () => {
+    if (!updateFolderData.value.title) return;
+    
+    try {
+        console.log('Updating folder:', updateFolderData.value);
+        
+        const response = await axios.put(`/api/portfolio/folders/${updateFolderData.value.id}/`, {
+            name: updateFolderData.value.title,
+            description: updateFolderData.value.description || ''
+        });
+        
+        if (response.data) {
+            console.log('Folder updated successfully:', response.data);
+            
+            // Update the folder in the list
+            const folderIndex = subjectFolders.value.findIndex(f => f.id === updateFolderData.value.id);
+            if (folderIndex !== -1) {
+                subjectFolders.value[folderIndex].name = response.data.name;
+                subjectFolders.value[folderIndex].description = response.data.description || '';
+            }
+            
+            // If we're currently viewing this folder's activities, update the selected subject name
+            if (selectedFolderId.value === updateFolderData.value.id) {
+                selectedSubject.value = response.data.name;
+            }
+            
+            showUpdateFolderDialog.value = false;
+            updateFolderData.value = { id: null, title: '', description: '' };
+            alert('Portfolio folder updated successfully! The change is reflected in the database and for all students.');
+        }
+    } catch (error) {
+        console.error('Error updating folder:', error);
+        console.error('Error details:', error.response?.data);
+        
+        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
+        alert('Failed to update folder: ' + errorMsg);
+    }
+};
+
+// Open drop folder dialog
+const openDropFolderDialog = (folder) => {
+    dropFolderData.value = {
+        id: folder.id,
+        name: folder.name,
+        items: folder.items || 0
+    };
+    showDropFolderDialog.value = true;
+    activeFolderMenuIndex.value = null;
+};
+
+// Drop folder
+const dropFolder = async () => {
+    try {
+        console.log('Dropping folder:', dropFolderData.value);
+        
+        // Delete folder from database (will cascade delete all activities, submissions, and student portfolios)
+        const response = await axios.delete(`/api/portfolio/folders/${dropFolderData.value.id}/`);
+        
+        console.log('Folder dropped successfully:', response.data);
+        
+        // Remove the folder from the list
+        subjectFolders.value = subjectFolders.value.filter(f => f.id !== dropFolderData.value.id);
+        
+        // If we're currently viewing this folder's activities, go back to folder view
+        if (selectedFolderId.value === dropFolderData.value.id) {
+            showingActivities.value = false;
+            selectedSubject.value = '';
+            selectedFolderId.value = null;
+            activities.value = [];
+        }
+        
+        showDropFolderDialog.value = false;
+        dropFolderData.value = { id: null, name: '', items: 0 };
+        
+        alert('Portfolio folder and all associated data (activities, submissions, and student portfolios) have been permanently deleted.');
+    } catch (error) {
+        console.error('Error dropping folder:', error);
+        console.error('Error details:', error.response?.data);
+        
+        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
+        alert('Failed to drop folder: ' + errorMsg);
+    }
+};
+
+// Close folder menu when clicking outside
+const closeFolderMenu = () => {
+    activeFolderMenuIndex.value = null;
+};
+
 // Function to load portfolio folders
 const loadPortfolioFolders = async () => {
     isLoadingFolders.value = true;
@@ -878,6 +1282,110 @@ const loadPortfolioFolders = async () => {
     }
 };
 
+// Add a new criterion
+const addCriterion = () => {
+    savedCriteria.value.push({ name: '', maxScore: 0, isCreated: false, isEditing: false, originalName: '', originalScore: 0 });
+};
+
+// Create a criterion (validates and marks as created)
+const createCriterion = (index) => {
+    const criterion = savedCriteria.value[index];
+    
+    // Validate name
+    if (!criterion.name || !criterion.name.trim()) {
+        alert('Criterion name is required');
+        return;
+    }
+    
+    // Validate score - must be a number and required
+    if (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined || isNaN(criterion.maxScore)) {
+        alert('Score level is required');
+        return;
+    }
+    
+    if (criterion.maxScore < 0) {
+        alert('Score must be 0 or greater');
+        return;
+    }
+    
+    // Mark as created
+    criterion.isCreated = true;
+    
+    console.log('Criterion created:', criterion);
+};
+
+// Enable editing for a created criterion
+const enableEdit = (index) => {
+    const criterion = savedCriteria.value[index];
+    
+    // Save original values for cancel
+    criterion.originalName = criterion.name;
+    criterion.originalScore = criterion.maxScore;
+    
+    // Enable editing mode
+    criterion.isEditing = true;
+    
+    console.log('Criterion edit enabled:', criterion);
+};
+
+// Confirm edit changes
+const confirmEdit = (index) => {
+    const criterion = savedCriteria.value[index];
+    
+    // Validate name
+    if (!criterion.name || !criterion.name.trim()) {
+        alert('Criterion name is required');
+        return;
+    }
+    
+    // Validate score - must be a number and required
+    if (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined || isNaN(criterion.maxScore)) {
+        alert('Score level is required');
+        return;
+    }
+    
+    if (criterion.maxScore < 0) {
+        alert('Score must be 0 or greater');
+        return;
+    }
+    
+    // Disable editing mode
+    criterion.isEditing = false;
+    
+    console.log('Criterion updated:', criterion);
+};
+
+// Cancel edit changes
+const cancelEdit = (index) => {
+    const criterion = savedCriteria.value[index];
+    
+    // Restore original values
+    criterion.name = criterion.originalName;
+    criterion.maxScore = criterion.originalScore;
+    
+    // Disable editing mode
+    criterion.isEditing = false;
+    
+    console.log('Edit cancelled:', criterion);
+};
+
+// Remove a new criterion (before it's created)
+const removeNewCriterion = (index) => {
+    // Prevent removing the last criterion
+    if (savedCriteria.value.length === 1) {
+        alert('You must have at least one criterion');
+        return;
+    }
+    savedCriteria.value.splice(index, 1);
+};
+
+// Remove a saved criterion (after it's created)
+const removeSavedCriterion = (index) => {
+    if (confirm('Are you sure you want to delete this criterion?')) {
+        savedCriteria.value.splice(index, 1);
+    }
+};
+
 // Function to add new activity
 const addNewActivity = async () => {
     if (!newActivity.value.type || !newActivity.value.title || !newActivity.value.description || !newActivity.value.dueDate) return;
@@ -900,12 +1408,20 @@ const addNewActivity = async () => {
             }
         }
 
+        // Validate that at least one criterion has been created
+        const createdCriteria = savedCriteria.value.filter(c => c.isCreated);
+        if (createdCriteria.length === 0) {
+            alert('Please create at least one scoring criterion before creating the activity');
+            return;
+        }
+
         console.log('Creating activity:', {
             folder_id: currentFolder.id,
             activity_type: newActivity.value.type?.value || newActivity.value.type,
             title: newActivity.value.title,
             description: newActivity.value.description,
-            due_date: formattedDueDate
+            due_date: formattedDueDate,
+            scoring_criteria: createdCriteria
         });
 
         // Save to database via API
@@ -913,7 +1429,8 @@ const addNewActivity = async () => {
             activity_type: newActivity.value.type?.value || newActivity.value.type,
             title: newActivity.value.title,
             description: newActivity.value.description,
-            due_date: formattedDueDate
+            due_date: formattedDueDate,
+            scoring_criteria: JSON.stringify(createdCriteria)
         });
 
         if (response.data) {
@@ -930,8 +1447,14 @@ const addNewActivity = async () => {
                 type: null,
                 title: '',
                 description: '',
-                dueDate: ''
+                dueDate: '',
+                scoringCriteria: [
+                    { name: '', maxScore: 10 }
+                ]
             };
+            savedCriteria.value = [
+                { name: '', maxScore: 0, isCreated: false, isEditing: false, originalName: '', originalScore: 0 }
+            ];
 
             alert('Activity added successfully!');
         }
@@ -1098,11 +1621,40 @@ const authenticateWithBackend = async () => {
 onMounted(async () => {
     document.addEventListener('click', handleDocumentClick, true);
     document.addEventListener('click', handleClickOutside);
+    document.addEventListener('click', closeFolderMenu);
     
     // Authenticate with backend first, then load folders
     const authenticated = await authenticateWithBackend();
     if (authenticated) {
-        loadPortfolioFolders();
+        await loadPortfolioFolders();
+        
+        // Check if returning from Outputs page to show activities list
+        const returnContext = localStorage.getItem('return_to_activities');
+        if (returnContext) {
+            try {
+                const context = JSON.parse(returnContext);
+                console.log('Return context:', context);
+                console.log('Available folders:', subjectFolders.value);
+                
+                if (context.showActivities && context.subject) {
+                    // Find the folder for this subject
+                    const folder = subjectFolders.value.find(f => f.name === context.subject);
+                    console.log('Found folder:', folder);
+                    
+                    if (folder) {
+                        console.log('Showing activities for:', context.subject, folder.id);
+                        await showSubjectActivities(context.subject, folder.id);
+                    } else {
+                        console.error('Folder not found for subject:', context.subject);
+                    }
+                }
+                // Clear the flag after using it
+                localStorage.removeItem('return_to_activities');
+            } catch (error) {
+                console.error('Error restoring activities view:', error);
+                localStorage.removeItem('return_to_activities');
+            }
+        }
     } else {
         console.error('Failed to authenticate with backend');
     }
@@ -1110,6 +1662,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
+    document.removeEventListener('click', closeFolderMenu);
     if (toastTimeout) clearTimeout(toastTimeout);
 });
 
