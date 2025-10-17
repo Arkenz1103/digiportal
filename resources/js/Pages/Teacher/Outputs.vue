@@ -16,6 +16,12 @@ onMounted(() => {
     const savedActivity = localStorage.getItem('selected_activity');
     if (savedActivity) {
         const parsedActivity = JSON.parse(savedActivity);
+        
+        console.log('📦 Raw saved activity from localStorage:', parsedActivity);
+        console.log('📊 Raw scoring criteria:', parsedActivity.scoringCriteria);
+        console.log('📊 Type:', typeof parsedActivity.scoringCriteria);
+        console.log('📊 Is Array:', Array.isArray(parsedActivity.scoringCriteria));
+        
         activity.value = {
             title: parsedActivity.title,
             description: parsedActivity.description || 'View student submissions for this activity',
@@ -25,7 +31,7 @@ onMounted(() => {
             scoringCriteria: parsedActivity.scoringCriteria,
             subject: parsedActivity.subject  // Add subject field
         };
-        console.log('Loaded activity:', activity.value);
+        console.log('✅ Loaded activity:', activity.value);
     }
     
     // Load submissions for this specific activity
@@ -213,6 +219,7 @@ const showAddScoreDialog = ref(false);
 const creativityScore = ref('');
 const technicalScore = ref('');
 const requirementsScore = ref('');
+const criteriaScores = ref([]); // Dynamic scores based on activity criteria
 
 const viewSubmission = async (submission) => {
     // Load full submission details including image
@@ -260,57 +267,89 @@ const addScore = () => {
     technicalScore.value = '';
     requirementsScore.value = '';
     
+    // Initialize criteria scores from activity
+    console.log('Full activity object:', activity.value);
+    console.log('Activity scoring criteria:', activity.value.scoringCriteria);
+    console.log('Type of scoring criteria:', typeof activity.value.scoringCriteria);
+    
+    if (activity.value.scoringCriteria && activity.value.scoringCriteria.length > 0) {
+        criteriaScores.value = activity.value.scoringCriteria.map(criterion => ({
+            name: criterion.name,
+            maxScore: criterion.maxScore,
+            score: ''
+        }));
+        console.log('✅ Initialized criteria scores:', criteriaScores.value);
+    } else {
+        // Fallback to default criteria if none exist
+        criteriaScores.value = [];
+        console.log('❌ No scoring criteria found - using empty array');
+    }
+    
     // Show the add score dialog
     showAddScoreDialog.value = true;
 };
 
 const saveScore = async () => {
-    if (selectedSubmission.value && creativityScore.value && technicalScore.value && requirementsScore.value) {
-        try {
-            const totalScore = calculateTotalScore();
-            
-            // Call the backend API to save the score
-            const response = await axios.post(`/api/submissions/${selectedSubmission.value.id}/score/`, {
-                scores: {
-                    creativity: parseInt(creativityScore.value),
-                    creativity_max: 10,
-                    technical_skill: parseInt(technicalScore.value),
-                    technical_skill_max: 10,
-                    requirements: parseInt(requirementsScore.value),
-                    requirements_max: 10
-                },
-                feedback: '', // You can add a feedback field later
-                total_score: totalScore,
-                max_score: 30
-            });
-            
-            console.log('Score saved successfully:', response.data);
-            
-            // Update local state
-            if (!studentOutputs.value[selectedSubmission.value.id]) {
-                studentOutputs.value[selectedSubmission.value.id] = {};
-            }
-            
-            studentOutputs.value[selectedSubmission.value.id].scores = {
-                creativity: parseInt(creativityScore.value),
-                technical: parseInt(technicalScore.value),
-                requirements: parseInt(requirementsScore.value),
-                total: totalScore
+    // Validate that all criteria have scores
+    const allScoresEntered = criteriaScores.value.every(criterion => 
+        criterion.score !== '' && criterion.score !== null && criterion.score !== undefined
+    );
+    
+    if (!selectedSubmission.value || !allScoresEntered) {
+        alert('Please enter scores for all criteria');
+        return;
+    }
+    
+    try {
+        const totalScore = calculateDynamicTotalScore();
+        const maxScore = calculateMaxTotalScore();
+        
+        // Build scores object from criteria
+        const scoresData = {};
+        criteriaScores.value.forEach((criterion, index) => {
+            scoresData[`criterion_${index}`] = {
+                name: criterion.name,
+                score: parseInt(criterion.score),
+                maxScore: parseInt(criterion.maxScore)
             };
-            
-            // Close the dialog
-            closeAddScoreDialog();
-            
-            // Refresh both lists
-            await loadUnscoredSubmissions();
-            await loadScoredSubmissions();
-            
-            // Show success message
-            alert('Score saved successfully!');
-        } catch (error) {
-            console.error('Error saving score:', error);
-            alert('Failed to save score: ' + (error.response?.data?.error || error.message));
+        });
+        
+        // Call the backend API to save the score
+        const response = await axios.post(`/api/submissions/${selectedSubmission.value.id}/score/`, {
+            score: totalScore,
+            feedback: '', // You can add a feedback field later
+            criteria_scores: JSON.stringify(criteriaScores.value.map(c => ({
+                name: c.name,
+                score: parseInt(c.score),
+                maxScore: parseInt(c.maxScore)
+            })))
+        });
+        
+        console.log('Score saved successfully:', response.data);
+        
+        // Update local state
+        if (!studentOutputs.value[selectedSubmission.value.id]) {
+            studentOutputs.value[selectedSubmission.value.id] = {};
         }
+        
+        studentOutputs.value[selectedSubmission.value.id].scores = {
+            criteria: criteriaScores.value,
+            total: totalScore,
+            maxTotal: maxScore
+        };
+        
+        // Close the dialog
+        closeAddScoreDialog();
+        
+        // Refresh both lists
+        await loadUnscoredSubmissions();
+        await loadScoredSubmissions();
+        
+        // Show success message
+        alert('Score saved successfully!');
+    } catch (error) {
+        console.error('Error saving score:', error);
+        alert('Failed to save score: ' + (error.response?.data?.error || error.message));
     }
 };
 
@@ -319,6 +358,20 @@ const calculateTotalScore = () => {
     const technical = parseInt(technicalScore.value) || 0;
     const requirements = parseInt(requirementsScore.value) || 0;
     return creativity + technical + requirements;
+};
+
+// Calculate total score from dynamic criteria
+const calculateDynamicTotalScore = () => {
+    return criteriaScores.value.reduce((total, criterion) => {
+        return total + (parseInt(criterion.score) || 0);
+    }, 0);
+};
+
+// Calculate maximum possible score
+const calculateMaxTotalScore = () => {
+    return criteriaScores.value.reduce((total, criterion) => {
+        return total + (parseInt(criterion.maxScore) || 0);
+    }, 0);
 };
 
 // Computed properties for filtering submissions
@@ -350,6 +403,7 @@ const closeAddScoreDialog = () => {
     creativityScore.value = '';
     technicalScore.value = '';
     requirementsScore.value = '';
+    criteriaScores.value = [];
 };
 
 const closeDialog = () => {
@@ -1356,70 +1410,43 @@ const getMedalDetails = (rank) => {
             <!-- Scoring Criteria -->
             <div>
                 <h4 class="text-sm font-medium text-gray-700 mb-3">Scoring Criteria:</h4>
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div v-if="criteriaScores.length > 0" class="space-y-3">
+                    <div v-for="(criterion, index) in criteriaScores" :key="index" 
+                         class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div class="flex items-start gap-2">
                             <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5"></div>
-                            <p class="text-sm text-gray-600">Creativity and originality</p>
+                            <p class="text-sm text-gray-600">{{ criterion.name }}</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <input
-                                v-model="creativityScore"
+                                v-model="criterion.score"
                                 type="number"
-                                min="1"
-                                max="10"
-                                @input="validateScoreInput(creativityScore, 'creativity')"
+                                min="0"
+                                :max="criterion.maxScore"
                                 class="w-16 px-2 py-1 text-sm border border-indigo-100 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-center"
                                 placeholder="0"
                             />
-                            <span class="text-sm text-gray-500">/10</span>
+                            <span class="text-sm text-gray-500">/{{ criterion.maxScore }}</span>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div class="flex items-start gap-2">
-                            <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5"></div>
-                            <p class="text-sm text-gray-600">Technical skill and execution</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input
-                                v-model="technicalScore"
-                                type="number"
-                                min="1"
-                                max="10"
-                                @input="validateScoreInput(technicalScore, 'technical')"
-                                class="w-16 px-2 py-1 text-sm border border-indigo-100 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-center"
-                                placeholder="0"
-                            />
-                            <span class="text-sm text-gray-500">/10</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div class="flex items-start gap-2">
-                            <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5"></div>
-                            <p class="text-sm text-gray-600">Following assignment requirements</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input
-                                v-model="requirementsScore"
-                                type="number"
-                                min="1"
-                                max="10"
-                                @input="validateScoreInput(requirementsScore, 'requirements')"
-                                class="w-16 px-2 py-1 text-sm border border-indigo-100 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-center"
-                                placeholder="0"
-                            />
-                            <span class="text-sm text-gray-500">/10</span>
+                </div>
+                <div v-else class="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div class="flex items-start gap-3">
+                        <i class="pi pi-exclamation-triangle text-yellow-600 text-lg mt-0.5"></i>
+                        <div>
+                            <p class="text-sm font-medium text-yellow-900 mb-1">No scoring criteria defined for this activity.</p>
+                            <p class="text-xs text-yellow-700">This activity was created without scoring criteria. You can still score it manually, but it's recommended to create new activities with scoring criteria for better grading consistency.</p>
                         </div>
                     </div>
                 </div>
             </div>
             
             <!-- Total Score Display -->
-            <div class="p-3 bg-indigo-50 rounded-lg">
+            <div v-if="criteriaScores.length > 0" class="p-3 bg-indigo-50 rounded-lg">
                 <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-indigo-900">Total Score:</span>
                     <span class="text-lg font-bold text-indigo-700">
-                        {{ calculateTotalScore() }}/30
+                        {{ calculateDynamicTotalScore() }}/{{ calculateMaxTotalScore() }}
                     </span>
                 </div>
             </div>

@@ -19,6 +19,26 @@ class LessonPlanSerializer(serializers.ModelSerializer):
 
 
 class PortfolioActivitySerializer(serializers.ModelSerializer):
+    # Override scoring_criteria to handle JSON parsing for GET requests
+    scoring_criteria = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
+    def to_representation(self, instance):
+        """Convert model instance to JSON - parse scoring_criteria"""
+        data = super().to_representation(instance)
+        
+        # Parse scoring_criteria from JSON string to array
+        if data.get('scoring_criteria'):
+            try:
+                import json
+                criteria = json.loads(data['scoring_criteria'])
+                data['scoring_criteria'] = criteria if isinstance(criteria, list) else []
+            except (json.JSONDecodeError, TypeError, ValueError):
+                data['scoring_criteria'] = []
+        else:
+            data['scoring_criteria'] = []
+        
+        return data
+    
     class Meta:
         model = PortfolioActivity
         fields = '__all__'

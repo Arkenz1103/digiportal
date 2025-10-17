@@ -454,10 +454,12 @@ def portfolio_activities_api(request, folder_id):
                 'title': data.get('title'),
                 'description': data.get('description', ''),
                 'due_date': data.get('due_date') if data.get('due_date') else None,
-                'file_path': data.get('file_path', '')
+                'file_path': data.get('file_path', ''),
+                'scoring_criteria': data.get('scoring_criteria', '[]')  # Add scoring criteria
             }
             
             print(f"Activity data: {activity_data}")
+            print(f"Scoring criteria received: {data.get('scoring_criteria')}")
             
             serializer = PortfolioActivitySerializer(data=activity_data)
             if serializer.is_valid():

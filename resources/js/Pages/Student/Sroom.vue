@@ -161,6 +161,46 @@
                     </div>
                   </div>
 
+                  <!-- Scoring Criteria Section -->
+                  <div class="mb-6">
+                    <div v-if="selectedActivity.scoringCriteria && selectedActivity.scoringCriteria.length > 0" class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                      <h3 class="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <i class="pi pi-star text-indigo-600"></i>
+                        Scoring Criteria
+                      </h3>
+                      <div class="space-y-2">
+                        <div
+                          v-for="(criterion, index) in selectedActivity.scoringCriteria"
+                          :key="index"
+                          class="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100"
+                        >
+                          <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+                            <span class="text-sm font-medium text-gray-900">{{ criterion.name }}</span>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <span class="text-sm font-semibold text-indigo-600">{{ criterion.maxScore }}</span>
+                            <span class="text-xs text-gray-500">pts</span>
+                          </div>
+                        </div>
+                        <!-- Total Points -->
+                        <div class="flex items-center justify-between p-3 bg-indigo-100 rounded-lg border border-indigo-200 mt-2">
+                          <span class="text-sm font-semibold text-gray-900">Total Points</span>
+                          <div class="flex items-center gap-1">
+                            <span class="text-base font-bold text-indigo-700">{{ calculateTotalPoints(selectedActivity.scoringCriteria) }}</span>
+                            <span class="text-xs text-gray-600">pts</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div class="flex items-center gap-2 text-gray-600">
+                        <i class="pi pi-info-circle"></i>
+                        <span class="text-sm">No scoring criteria has been set for this activity yet.</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Student Submissions Section -->
                   <div class="mt-6 border-t border-indigo-100 pt-6" v-if="studentSubmissions.length > 0">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Your Submissions:</h3>
@@ -236,25 +276,45 @@
 
                     <!-- Activity Items -->
                     <div v-for="(activity, index) in folderActivities" :key="activity.id"
-                      class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
+                      class="group border-b border-indigo-100 hover:bg-indigo-50 transition-colors duration-200"
                       @click="openActivity(activity)">
-                    <div class="w-32">
-                      <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
+                      <!-- Main Activity Row -->
+                      <div class="flex items-center px-4 md:px-6 py-4 cursor-pointer">
+                        <div class="w-32">
+                          <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
+                        </div>
+                        <div class="w-32 md:w-48">
+                          <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
+                        </div>
+                        <div class="flex-1">
+                          <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
+                        </div>
+                        <div class="w-32 md:w-48 text-right flex items-center justify-end gap-2">
+                          <span class="text-sm text-indigo-600">{{ activity.date }}</span>
+                          <span v-if="activity.hasSubmitted" class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
+                            <i class="pi pi-check-circle"></i>
+                            Submitted
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <!-- Scoring Criteria Preview (if exists) -->
+                      <div v-if="activity.scoringCriteria && activity.scoringCriteria.length > 0" 
+                           class="px-4 md:px-6 pb-4 pt-2 bg-indigo-50/50">
+                        <div class="flex items-center gap-2 mb-2">
+                          <i class="pi pi-star text-indigo-600 text-xs"></i>
+                          <span class="text-xs font-semibold text-gray-700">Scoring Criteria:</span>
+                          <span class="text-xs text-gray-600">(Total: {{ calculateTotalPoints(activity.scoringCriteria) }} pts)</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                          <div v-for="(criterion, idx) in activity.scoringCriteria" :key="idx"
+                               class="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 text-xs">
+                            <span class="font-medium text-gray-700">{{ criterion.name }}</span>
+                            <span class="text-indigo-600 font-semibold">{{ criterion.maxScore }}pts</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div class="w-32 md:w-48">
-                      <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
-                    </div>
-                    <div class="flex-1">
-                      <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
-                    </div>
-                    <div class="w-32 md:w-48 text-right flex items-center justify-end gap-2">
-                      <span class="text-sm text-indigo-600">{{ activity.date }}</span>
-                      <span v-if="activity.hasSubmitted" class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
-                        <i class="pi pi-check-circle"></i>
-                        Submitted
-                      </span>
-                    </div>
-                  </div>
                   </template>
                 </div>
               </div>
@@ -668,6 +728,21 @@ const loadFolderActivities = async (folderId) => {
             console.error(`Error checking submission for activity ${activity.id}:`, error);
           }
 
+          // Parse scoring criteria if it exists
+          let scoringCriteria = [];
+          if (activity.scoring_criteria) {
+            try {
+              scoringCriteria = typeof activity.scoring_criteria === 'string' 
+                ? JSON.parse(activity.scoring_criteria) 
+                : activity.scoring_criteria;
+              console.log('Parsed scoring criteria for activity:', activity.title, scoringCriteria);
+            } catch (error) {
+              console.error('Error parsing scoring criteria:', error);
+            }
+          } else {
+            console.log('No scoring criteria found for activity:', activity.title);
+          }
+
           return {
             id: activity.id,
             type: activity.activity_type,
@@ -679,7 +754,8 @@ const loadFolderActivities = async (folderId) => {
               day: 'numeric'
             }) : '',
             due_date: activity.due_date,
-            hasSubmitted: hasSubmitted
+            hasSubmitted: hasSubmitted,
+            scoringCriteria: scoringCriteria
           };
         })
       );
@@ -734,6 +810,14 @@ const backToActivitiesList = () => {
   selectedActivity.value = null;
   studentSubmissions.value = [];
   hasSubmittedWork.value = false;
+};
+
+// Calculate total points from scoring criteria
+const calculateTotalPoints = (criteria) => {
+  if (!criteria || criteria.length === 0) return 0;
+  return criteria.reduce((total, criterion) => {
+    return total + (parseInt(criterion.maxScore) || 0);
+  }, 0);
 };
 
 // Function to open activity with all details

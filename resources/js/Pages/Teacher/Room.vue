@@ -1409,13 +1409,17 @@ const addNewActivity = async () => {
         }
 
         // Validate that at least one criterion has been created
-        const createdCriteria = savedCriteria.value.filter(c => c.isCreated);
+        const createdCriteria = savedCriteria.value.filter(c => c.isCreated).map(c => ({
+            name: c.name,
+            maxScore: c.maxScore
+        }));
+        
         if (createdCriteria.length === 0) {
             alert('Please create at least one scoring criterion before creating the activity');
             return;
         }
 
-        console.log('Creating activity:', {
+        console.log('Creating activity with criteria:', {
             folder_id: currentFolder.id,
             activity_type: newActivity.value.type?.value || newActivity.value.type,
             title: newActivity.value.title,
@@ -1692,22 +1696,47 @@ const loadActivities = async (folderId) => {
     isLoadingActivities.value = true;
     try {
         const response = await axios.get(`/api/portfolio/folders/${folderId}/activities/`);
+        console.log('🔥 API Response for activities:', response.data);
+        
         if (response.data) {
             // Format activities for display
-            activities.value = response.data.map(activity => ({
-                id: activity.id,
-                type: activity.activity_type,
-                title: activity.title,
-                description: activity.description,
-                date: activity.due_date ? new Date(activity.due_date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                }) : '',
-                due_date: activity.due_date,
-                archived: false
-            }));
-            console.log('Loaded activities:', activities.value);
+            activities.value = response.data.map(activity => {
+                console.log('🔍 Processing activity:', activity.title);
+                console.log('📊 Raw scoring_criteria from API:', activity.scoring_criteria);
+                console.log('📊 Type:', typeof activity.scoring_criteria);
+                console.log('📊 Is Array:', Array.isArray(activity.scoring_criteria));
+                
+                // Parse scoring criteria if it exists
+                let scoringCriteria = [];
+                if (activity.scoring_criteria) {
+                    try {
+                        scoringCriteria = typeof activity.scoring_criteria === 'string' 
+                            ? JSON.parse(activity.scoring_criteria) 
+                            : activity.scoring_criteria;
+                        console.log('✅ Parsed scoring criteria:', scoringCriteria);
+                    } catch (error) {
+                        console.error('❌ Error parsing scoring criteria:', error);
+                    }
+                } else {
+                    console.log('⚠️ No scoring criteria found for activity:', activity.title);
+                }
+                
+                return {
+                    id: activity.id,
+                    type: activity.activity_type,
+                    title: activity.title,
+                    description: activity.description,
+                    date: activity.due_date ? new Date(activity.due_date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    }) : '',
+                    due_date: activity.due_date,
+                    archived: false,
+                    scoring_criteria: scoringCriteria
+                };
+            });
+            console.log('✅ Final loaded activities:', activities.value);
         }
     } catch (error) {
         console.error('Error loading activities:', error);
