@@ -11,9 +11,29 @@ from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission
-from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification
+from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer
 import json
+
+
+# Helper function to create notifications
+def create_notification(recipient, notification_type, title, message, portfolio=None, activity=None, submission=None):
+    """Helper function to create a notification"""
+    try:
+        notification = Notification.objects.create(
+            recipient=recipient,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            portfolio=portfolio,
+            activity=activity,
+            submission=submission
+        )
+        print(f"Created notification: {title} for {recipient.username}")
+        return notification
+    except Exception as e:
+        print(f"Error creating notification: {str(e)}")
+        return None
 
 
 # Authentication Views
@@ -367,6 +387,23 @@ def portfolio_folders_api(request):
                 description=description
             )
             
+            # Notify all students about new portfolio
+            students = User.objects.filter(role='student')
+            print(f"📢 Notifying {students.count()} students about new portfolio")
+            
+            for student in students:
+                notification = create_notification(
+                    recipient=student,
+                    notification_type='portfolio_created',
+                    title='New Portfolio Created',
+                    message=f'Teacher {request.user.username} created a new portfolio: {name}',
+                    portfolio=folder
+                )
+                if notification:
+                    print(f"✅ Notification created for student: {student.username}")
+                else:
+                    print(f"❌ Failed to create notification for student: {student.username}")
+            
             serializer = PortfolioFolderSerializer(folder)
             print(f"Folder created successfully - ID: {folder.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -407,6 +444,18 @@ def portfolio_folder_detail_api(request, folder_id):
             folder.name = data.get('name', folder.name)
             folder.description = data.get('description', folder.description)
             folder.save()
+            
+            # Notify all students about portfolio update
+            students = User.objects.filter(role='student')
+            for student in students:
+                create_notification(
+                    recipient=student,
+                    notification_type='portfolio_updated',
+                    title='Portfolio Updated',
+                    message=f'Portfolio "{folder.name}" has been updated',
+                    portfolio=folder
+                )
+            
             serializer = PortfolioFolderSerializer(folder)
             return Response(serializer.data)
         except Exception as e:
@@ -415,6 +464,18 @@ def portfolio_folder_detail_api(request, folder_id):
     elif request.method == 'DELETE':
         if not request.user.is_authenticated or request.user.role != 'teacher':
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        folder_name = folder.name
+        
+        # Notify all students about portfolio deletion
+        students = User.objects.filter(role='student')
+        for student in students:
+            create_notification(
+                recipient=student,
+                notification_type='portfolio_deleted',
+                title='Portfolio Deleted',
+                message=f'Portfolio "{folder_name}" has been deleted'
+            )
         
         folder.delete()
         return Response({'message': 'Folder deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
@@ -463,7 +524,20 @@ def portfolio_activities_api(request, folder_id):
             
             serializer = PortfolioActivitySerializer(data=activity_data)
             if serializer.is_valid():
-                serializer.save()
+                activity = serializer.save()
+                
+                # Notify all students about new activity
+                students = User.objects.filter(role='student')
+                for student in students:
+                    create_notification(
+                        recipient=student,
+                        notification_type='activity_created',
+                        title='New Activity Created',
+                        message=f'New activity "{activity.title}" added to portfolio "{folder.name}"',
+                        activity=activity,
+                        portfolio=folder
+                    )
+                
                 print(f"Activity created successfully: {serializer.data}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
@@ -511,6 +585,17 @@ def activity_detail_api(request, activity_id):
             activity.scoring_criteria = data.get('scoring_criteria', activity.scoring_criteria)
             activity.save()
             
+            # Notify all students about activity update
+            students = User.objects.filter(role='student')
+            for student in students:
+                create_notification(
+                    recipient=student,
+                    notification_type='activity_updated',
+                    title='Activity Updated',
+                    message=f'Activity "{activity.title}" has been updated',
+                    activity=activity
+                )
+            
             print(f"✅ Activity {activity_id} updated successfully")
             serializer = PortfolioActivitySerializer(activity)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -528,6 +613,18 @@ def activity_detail_api(request, activity_id):
         
         try:
             print(f"Deleting activity {activity_id}")
+            activity_title = activity.title
+            
+            # Notify all students about activity deletion
+            students = User.objects.filter(role='student')
+            for student in students:
+                create_notification(
+                    recipient=student,
+                    notification_type='activity_deleted',
+                    title='Activity Deleted',
+                    message=f'Activity "{activity_title}" has been deleted'
+                )
+            
             activity.delete()
             print(f"✅ Activity {activity_id} deleted successfully")
             return Response({'message': 'Activity deleted successfully'}, status=status.HTTP_200_OK)
@@ -598,6 +695,28 @@ def activity_submissions_api(request, activity_id):
                     post_to_feed=post_to_feed,
                     approval_status='pending' if post_to_feed else 'approved'
                 )
+                
+                # Notify teacher about new submission
+                teacher = activity.folder.teacher
+                create_notification(
+                    recipient=teacher,
+                    notification_type='submission_received',
+                    title='New Submission Received',
+                    message=f'{request.user.username} submitted work for "{activity.title}"',
+                    submission=submission,
+                    activity=activity
+                )
+                
+                # If requesting approval, send additional notification
+                if post_to_feed:
+                    create_notification(
+                        recipient=teacher,
+                        notification_type='approval_requested',
+                        title='Approval Requested',
+                        message=f'{request.user.username} requested approval to post "{activity.title}" to newsfeed',
+                        submission=submission,
+                        activity=activity
+                    )
                 
                 serializer = StudentSubmissionSerializer(submission)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -675,6 +794,16 @@ def score_submission_api(request, submission_id):
         submission.scored_at = timezone.now()
         submission.save()
         
+        # Notify student about score
+        create_notification(
+            recipient=submission.student,
+            notification_type='score_added',
+            title='Your Work Has Been Scored',
+            message=f'Your submission for "{submission.activity.title}" received a score of {submission.score}',
+            submission=submission,
+            activity=submission.activity
+        )
+        
         serializer = StudentSubmissionSerializer(submission)
         return Response(serializer.data)
     except Exception as e:
@@ -720,22 +849,65 @@ def approve_submission_api(request, submission_id):
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
     
     try:
+        from .models import NewsfeedPost
+        
         data = request.data
         action = data.get('action')  # 'approve' or 'reject'
         
         if action == 'approve':
             submission.approval_status = 'approved'
+            submission.save()
+            
+            # Notify student about approval
+            create_notification(
+                recipient=submission.student,
+                notification_type='submission_approved',
+                title='Submission Approved',
+                message=f'Your submission for "{submission.activity.title}" has been approved and posted to the newsfeed',
+                submission=submission,
+                activity=submission.activity
+            )
+            
+            # Create a newsfeed post if this submission was marked to post to feed
+            if submission.post_to_feed:
+                # Check if newsfeed post already exists for this submission
+                existing_post = NewsfeedPost.objects.filter(original_submission=submission).first()
+                
+                if not existing_post:
+                    # Create new newsfeed post
+                    NewsfeedPost.objects.create(
+                        student=submission.student,
+                        student_name=submission.student.username,
+                        caption=submission.caption or '',
+                        file_path=submission.file_path,
+                        file_type=submission.file_type,
+                        activity_title=submission.activity.title if submission.activity else 'Sketch Pad',
+                        activity_type=submission.activity.activity_type if submission.activity else 'Sketch',
+                        original_submission=submission
+                    )
+                    print(f"Created newsfeed post for submission {submission_id}")
         elif action == 'reject':
             submission.approval_status = 'rejected'
+            submission.save()
+            
+            # Notify student about rejection
+            create_notification(
+                recipient=submission.student,
+                notification_type='submission_rejected',
+                title='Submission Not Approved',
+                message=f'Your submission for "{submission.activity.title}" was not approved for posting to the newsfeed',
+                submission=submission,
+                activity=submission.activity
+            )
         else:
             return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        submission.save()
         
         serializer = StudentSubmissionSerializer(submission)
         return Response(serializer.data)
     except Exception as e:
         print(f"Error approving submission: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -743,22 +915,15 @@ def approve_submission_api(request, submission_id):
 @api_view(['GET'])
 def newsfeed_api(request):
     """
-    GET: Get all approved submissions for the newsfeed
+    GET: Get all newsfeed posts
     """
-    # Temporarily allow unauthenticated access for development
-    # TODO: Re-enable authentication in production
-    # if not request.user.is_authenticated:
-    #     return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
     try:
-        # Get all approved submissions that are marked for posting to feed
-        submissions = StudentSubmission.objects.filter(
-            post_to_feed=True,
-            approval_status='approved'
-        ).select_related('student', 'activity').order_by('-submitted_at')
+        from .models import NewsfeedPost
+        from .serializer import NewsfeedPostSerializer
         
-        # Use full serializer for newsfeed (needs images to display)
-        serializer = StudentSubmissionSerializer(submissions, many=True)
+        # Get all newsfeed posts
+        posts = NewsfeedPost.objects.all().order_by('-posted_at')
+        serializer = NewsfeedPostSerializer(posts, many=True)
         return Response(serializer.data)
     except Exception as e:
         print(f"Error fetching newsfeed: {str(e)}")
@@ -779,6 +944,83 @@ def submission_detail_api(request, submission_id):
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"Error fetching submission: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT'])
+def notifications_api(request):
+    """
+    GET: Get all notifications for current user
+    PUT: Mark notification(s) as read
+    """
+    if not request.user.is_authenticated:
+        print(f"❌ Notifications API - User not authenticated")
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        try:
+            print(f"📬 Fetching notifications for user: {request.user.username} (role: {request.user.role})")
+            notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
+            print(f"📊 Found {notifications.count()} notifications")
+            
+            # Debug: Print first few notifications
+            for notif in notifications[:3]:
+                print(f"  - {notif.notification_type}: {notif.title}")
+            
+            serializer = NotificationSerializer(notifications, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"❌ Error fetching notifications: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.data
+            notification_id = data.get('notification_id')
+            mark_all = data.get('mark_all', False)
+            
+            if mark_all:
+                # Mark all notifications as read
+                Notification.objects.filter(recipient=request.user, is_read=False).update(
+                    is_read=True,
+                    read_at=timezone.now()
+                )
+                return Response({'message': 'All notifications marked as read'})
+            elif notification_id:
+                # Mark specific notification as read
+                try:
+                    notification = Notification.objects.get(id=notification_id, recipient=request.user)
+                    notification.is_read = True
+                    notification.read_at = timezone.now()
+                    notification.save()
+                    serializer = NotificationSerializer(notification)
+                    return Response(serializer.data)
+                except Notification.DoesNotExist:
+                    return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({'error': 'notification_id or mark_all required'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"Error updating notification: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def unread_notifications_count_api(request):
+    """
+    GET: Get count of unread notifications for current user
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+        return Response({'count': count})
+    except Exception as e:
+        print(f"Error counting notifications: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

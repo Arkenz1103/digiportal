@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, provide } from 'vue';
+import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
@@ -35,53 +35,76 @@ const newClassForm = ref({
 
 // Notifications state
 const showNotifications = ref(false);
-const notifications = ref([
-    {
-        id: 1,
-        type: 'output',
-        title: 'New Student Output',
-        message: 'Alice Smith has submitted "Math Exercise 3"',
-        date: new Date(),
-        isNew: true,
-        isUnread: true,
-    },
-    {
-        id: 2,
-        type: 'remark',
-        title: 'New Remark Added',
-        message: 'You added a behavioral remark for Bob Johnson',
-        date: new Date('2024-02-18 14:30'),
-        isNew: true,
-        isUnread: true,
-    },
-    {
-        id: 3,
-        type: 'schedule',
-        title: 'Schedule Change',
-        message: 'Class schedule for Grade 2 - Section A updated',
-        date: new Date('2024-02-18 09:15'),
-        isNew: true,
-        isUnread: false,
-    },
-]);
+const notifications = ref([]);
+const unreadCount = ref(0);
 
-// Helper functions
-const getNotificationIcon = (type) => {
-    switch (type) {
-        case 'output': return 'pi-file-edit';
-        case 'remark': return 'pi-comments';
-        case 'schedule': return 'pi-calendar';
-        default: return 'pi-bell';
+// Load notifications from backend
+const loadNotifications = async () => {
+    try {
+        const response = await fetch('/api/notifications/', {
+            credentials: 'include', // Include cookies for authentication
+            headers: {
+                'Accept': 'application/json',
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            notifications.value = data.map(notif => ({
+                id: notif.id,
+                type: notif.notification_type,
+                title: notif.title,
+                message: notif.message,
+                date: new Date(notif.created_at),
+                isNew: !notif.is_read,
+                isUnread: !notif.is_read,
+            }));
+            unreadCount.value = notifications.value.filter(n => n.isUnread).length;
+            console.log('✅ Loaded notifications:', notifications.value.length, 'notifications');
+            console.log('Unread count:', unreadCount.value);
+        } else {
+            const errorData = await response.json();
+            console.error('❌ Failed to load notifications:', response.status, errorData);
+        }
+    } catch (error) {
+        console.error('❌ Error loading notifications:', error);
     }
 };
 
+// Helper functions
+const getNotificationIcon = (type) => {
+    // Map notification types to icons
+    const iconMap = {
+        'portfolio_created': 'pi-folder-open',
+        'portfolio_updated': 'pi-folder',
+        'portfolio_deleted': 'pi-trash',
+        'activity_created': 'pi-plus-circle',
+        'activity_updated': 'pi-pencil',
+        'activity_deleted': 'pi-times-circle',
+        'submission_approved': 'pi-check-circle',
+        'submission_rejected': 'pi-times-circle',
+        'score_added': 'pi-star',
+        'submission_received': 'pi-file-edit',
+        'approval_requested': 'pi-question-circle',
+    };
+    return iconMap[type] || 'pi-bell';
+};
+
 const getNotificationColor = (type) => {
-    switch (type) {
-        case 'output': return 'text-indigo-600 bg-indigo-50';
-        case 'remark': return 'text-violet-600 bg-violet-50';
-        case 'schedule': return 'text-blue-600 bg-blue-50';
-        default: return 'text-indigo-600 bg-indigo-50';
-    }
+    const colorMap = {
+        'portfolio_created': 'text-green-600 bg-green-50',
+        'portfolio_updated': 'text-blue-600 bg-blue-50',
+        'portfolio_deleted': 'text-red-600 bg-red-50',
+        'activity_created': 'text-indigo-600 bg-indigo-50',
+        'activity_updated': 'text-blue-600 bg-blue-50',
+        'activity_deleted': 'text-red-600 bg-red-50',
+        'submission_approved': 'text-green-600 bg-green-50',
+        'submission_rejected': 'text-red-600 bg-red-50',
+        'score_added': 'text-yellow-600 bg-yellow-50',
+        'submission_received': 'text-indigo-600 bg-indigo-50',
+        'approval_requested': 'text-violet-600 bg-violet-50',
+    };
+    return colorMap[type] || 'text-indigo-600 bg-indigo-50';
 };
 
 const formatDate = (date) => {
@@ -91,11 +114,26 @@ const formatDate = (date) => {
     }).format(new Date(date));
 };
 
-const markAsRead = (id) => {
-    const notification = notifications.value.find(n => n.id === id);
-    if (notification) {
-        notification.isUnread = false;
-        notification.isNew = false;
+const markAsRead = async (id) => {
+    try {
+        const response = await fetch('/api/notifications/', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ notification_id: id })
+        });
+        
+        if (response.ok) {
+            const notification = notifications.value.find(n => n.id === id);
+            if (notification) {
+                notification.isUnread = false;
+                notification.isNew = false;
+            }
+            unreadCount.value = notifications.value.filter(n => n.isUnread).length;
+        }
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
     }
 };
 
@@ -125,6 +163,7 @@ const loadUserData = () => {
     const savedRole = localStorage.getItem('digiportal_user_role');
     const savedEmail = localStorage.getItem('digiportal_user_email');
     const savedName = localStorage.getItem('digiportal_user_name');
+    const savedPage = localStorage.getItem('digiportal_current_page');
     
     if (savedRole) {
         currentUser.value.role = savedRole;
@@ -140,6 +179,18 @@ const loadUserData = () => {
             currentUser.value.name = 'Teacher Name';
         } else {
             currentUser.value.name = 'Student Name';
+        }
+    }
+    
+    // Restore current page from localStorage
+    if (savedPage) {
+        currentRoute.value = savedPage;
+    } else {
+        // Set default page based on role
+        if (savedRole === 'teacher') {
+            currentRoute.value = 'TeacherHome';
+        } else {
+            currentRoute.value = 'StudentNewsfeed';
         }
     }
 };
@@ -258,6 +309,8 @@ const isRouteActive = (routePath) => {
 // Navigation function
 const navigateToPage = (page) => {
     currentRoute.value = page;
+    // Save current page to localStorage so it persists on refresh
+    localStorage.setItem('digiportal_current_page', page);
     emit('navigate', page);
 };
 
@@ -290,12 +343,42 @@ const closeDropdowns = () => {
     showNotifications.value = false;
 };
 
+// Listen for storage changes (when user logs in/out in another tab or page refreshes)
+const handleStorageChange = (e) => {
+    if (e.key === 'digiportal_user_role' || e.key === 'digiportal_user_email' || e.key === 'digiportal_user_name') {
+        loadUserData();
+        console.log('User data refreshed from storage change');
+    }
+};
+
+// Custom event listener for same-tab localStorage changes
+const handleUserDataChange = () => {
+    loadUserData();
+    console.log('User data refreshed from custom event');
+};
+
 onMounted(() => {
     document.addEventListener('click', closeDropdowns);
     loadUserData(); // Load user data when component mounts
+    loadNotifications(); // Load notifications
+    
+    // Listen for storage changes from other tabs
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for custom event for same-tab changes
+    window.addEventListener('userDataChanged', handleUserDataChange);
+    
+    // Refresh notifications every 30 seconds
+    setInterval(loadNotifications, 30000);
     
     // Debug: Log user data
     console.log('MainLayout mounted, user data:', currentUser.value);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', closeDropdowns);
+    window.removeEventListener('storage', handleStorageChange);
+    window.removeEventListener('userDataChanged', handleUserDataChange);
 });
 
 // Computed auth for template compatibility

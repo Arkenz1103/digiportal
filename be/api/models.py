@@ -159,3 +159,74 @@ class Sketch(models.Model):
     
     def __str__(self):
         return f"{self.student.username} - {self.title}"
+
+
+class NewsfeedPost(models.Model):
+    """Newsfeed post model - separate from submissions so posts persist even if submission is deleted"""
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='newsfeed_posts')
+    student_name = models.CharField(max_length=255)
+    caption = models.TextField(blank=True, null=True)
+    file_path = models.TextField(blank=True, null=True)  # Base64 encoded image/file
+    file_type = models.CharField(max_length=50, default='image')
+    activity_title = models.CharField(max_length=255, blank=True, null=True)
+    activity_type = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Optional reference to original submission (can be null if submission is deleted)
+    original_submission = models.ForeignKey(
+        'StudentSubmission', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='newsfeed_posts'
+    )
+    
+    posted_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'newsfeed_posts'
+        ordering = ['-posted_at']
+    
+    def __str__(self):
+        return f"{self.student_name} - {self.activity_title or 'Post'}"
+
+
+class Notification(models.Model):
+    """Notification model for user notifications"""
+    NOTIFICATION_TYPES = [
+        # Student notifications
+        ('portfolio_created', 'Portfolio Created'),
+        ('portfolio_updated', 'Portfolio Updated'),
+        ('portfolio_deleted', 'Portfolio Deleted'),
+        ('activity_created', 'Activity Created'),
+        ('activity_updated', 'Activity Updated'),
+        ('activity_deleted', 'Activity Deleted'),
+        ('submission_approved', 'Submission Approved'),
+        ('submission_rejected', 'Submission Rejected'),
+        ('score_added', 'Score Added'),
+        
+        # Teacher notifications
+        ('submission_received', 'Submission Received'),
+        ('approval_requested', 'Approval Requested'),
+    ]
+    
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    
+    # Optional references (SET_NULL so notifications persist after entity deletion)
+    portfolio = models.ForeignKey(PortfolioFolder, on_delete=models.SET_NULL, null=True, blank=True)
+    activity = models.ForeignKey(PortfolioActivity, on_delete=models.SET_NULL, null=True, blank=True)
+    submission = models.ForeignKey(StudentSubmission, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Metadata
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'notifications'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.recipient.username} - {self.title}"

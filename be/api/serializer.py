@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -104,3 +104,21 @@ class SketchSerializer(serializers.ModelSerializer):
         model = Sketch
         fields = '__all__'
         read_only_fields = ['id', 'student', 'created_at', 'updated_at']
+
+
+class NewsfeedPostSerializer(serializers.ModelSerializer):
+    """Serializer for newsfeed posts"""
+    
+    class Meta:
+        model = NewsfeedPost
+        fields = '__all__'
+        read_only_fields = ['id', 'posted_at']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer for notifications"""
+    
+    class Meta:
+        model = Notification
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'read_at']

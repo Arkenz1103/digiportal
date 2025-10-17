@@ -318,6 +318,9 @@ const submitLogin = async () => {
             const userName = userRole === 'teacher' ? 'Teacher User' : 'Student User';
             localStorage.setItem('digiportal_user_name', userName);
             
+            // Dispatch custom event to notify MainLayout of user data change
+            window.dispatchEvent(new Event('userDataChanged'));
+            
             // Navigate based on role
             if (userRole === 'teacher') {
                 emit('navigate', 'TeacherHome');
@@ -384,6 +387,9 @@ const submitRegister = async () => {
             localStorage.setItem('digiportal_user_role', registerForm.role);
             localStorage.setItem('digiportal_user_email', registerForm.email);
             localStorage.setItem('digiportal_user_name', registerForm.name);
+            
+            // Dispatch custom event to notify MainLayout of user data change
+            window.dispatchEvent(new Event('userDataChanged'));
             
             // Navigate based on role
             if (registerForm.role === 'teacher') {

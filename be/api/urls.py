@@ -57,4 +57,8 @@ urlpatterns = [
     # Sketch management routes
     path('api/sketches/', views.sketches_api, name='sketches_api'),
     path('api/sketches/<int:sketch_id>/', views.sketch_delete_api, name='sketch_delete_api'),
+    
+    # Notification routes
+    path('api/notifications/', views.notifications_api, name='notifications_api'),
+    path('api/notifications/unread-count/', views.unread_notifications_count_api, name='unread_notifications_count_api'),
 ]

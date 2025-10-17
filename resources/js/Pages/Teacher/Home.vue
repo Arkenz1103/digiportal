@@ -80,20 +80,22 @@ const loadNewsfeed = async () => {
   isLoading.value = true;
   try {
     const response = await axios.get('/api/newsfeed/');
-    if (response.data) {
-      posts.value = response.data.map(submission => ({
-        id: submission.id,
-        user: submission.student_name || submission.student.username,
-        content: submission.caption || 'No description provided',
-        image: submission.file_type === 'image' ? submission.file_path : null,
+    if (response.data && Array.isArray(response.data)) {
+      posts.value = response.data.map(post => ({
+        id: post.id,
+        user: post.student_name,
+        content: post.caption || 'No description provided',
+        image: post.file_type === 'image' ? post.file_path : null,
         likes: 0,
         isLiked: false,
-        timestamp: getTimeAgo(submission.submitted_at),
-        activityTitle: submission.activity_title,
-        activityType: submission.activity_type,
+        timestamp: getTimeAgo(post.posted_at),
+        activityTitle: post.activity_title,
+        activityType: post.activity_type,
         comments: []
       }));
       console.log('Loaded newsfeed for teacher:', posts.value);
+    } else {
+      posts.value = [];
     }
   } catch (error) {
     console.error('Error loading newsfeed:', error);
