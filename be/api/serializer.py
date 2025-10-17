@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -94,3 +94,13 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
         model = StudentSubmission
         exclude = ['file_path']  # Exclude the large base64 image data
         read_only_fields = ['id', 'submitted_at', 'scored_at']
+
+
+class SketchSerializer(serializers.ModelSerializer):
+    """Serializer for student sketches"""
+    student = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Sketch
+        fields = '__all__'
+        read_only_fields = ['id', 'student', 'created_at', 'updated_at']

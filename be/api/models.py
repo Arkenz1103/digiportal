@@ -143,3 +143,19 @@ class SubmissionScore(models.Model):
     
     def __str__(self):
         return f"Score for {self.submission} - {self.total_score}/{self.max_score}"
+
+
+class Sketch(models.Model):
+    """Student sketch model for saving drawings"""
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sketches')
+    title = models.CharField(max_length=255, default='Untitled Sketch')
+    image_data = models.TextField()  # Base64 encoded image
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'sketches'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.title}"

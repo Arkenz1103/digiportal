@@ -619,8 +619,8 @@ def unscored_submissions_api(request):
         return Response({'error': 'Only teachers can view unscored submissions'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all unscored submissions
-        submissions = StudentSubmission.objects.filter(status='unscored').order_by('-submitted_at')
+        # Get all unscored submissions (distinct to avoid duplicates)
+        submissions = StudentSubmission.objects.filter(status='unscored').distinct().order_by('-submitted_at')
         
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -641,8 +641,8 @@ def scored_submissions_api(request):
         return Response({'error': 'Only teachers can view scored submissions'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all scored submissions
-        submissions = StudentSubmission.objects.filter(status='scored').order_by('-scored_at')
+        # Get all scored submissions (distinct to avoid duplicates)
+        submissions = StudentSubmission.objects.filter(status='scored').distinct().order_by('-scored_at')
         
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -870,4 +870,70 @@ def sketch_submission_api(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as e:
         print(f"Error creating sketch submission: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET', 'POST'])
+def sketches_api(request):
+    """
+    GET: List all sketches for the authenticated student
+    POST: Save a new sketch
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        try:
+            from .models import Sketch
+            from .serializer import SketchSerializer
+            
+            # Get all sketches for the current student
+            sketches = Sketch.objects.filter(student=request.user).order_by('-created_at')
+            serializer = SketchSerializer(sketches, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error fetching sketches: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'POST':
+        try:
+            from .models import Sketch
+            from .serializer import SketchSerializer
+            
+            data = request.data
+            
+            # Create new sketch
+            sketch = Sketch.objects.create(
+                student=request.user,
+                title=data.get('title', 'Untitled Sketch'),
+                image_data=data.get('image_data', '')
+            )
+            
+            serializer = SketchSerializer(sketch)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"Error saving sketch: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['DELETE'])
+def sketch_delete_api(request, sketch_id):
+    """
+    DELETE: Delete a sketch
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import Sketch
+        
+        sketch = Sketch.objects.get(id=sketch_id, student=request.user)
+        sketch.delete()
+        return Response({'message': 'Sketch deleted successfully'}, status=status.HTTP_200_OK)
+    except Sketch.DoesNotExist:
+        return Response({'error': 'Sketch not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error deleting sketch: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -240,6 +240,7 @@ const loadSubmissionDetail = async (submissionId) => {
                 fileType: response.data.file_type,
                 score: response.data.score,
                 status: response.data.status === 'scored' ? 'Scored' : 'Submitted',
+                submitted_at: response.data.submitted_at,  // Raw datetime for formatting
                 date: new Date(response.data.submitted_at).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
@@ -462,6 +463,36 @@ const closeAddScoreDialog = () => {
 const closeDialog = () => {
     showSubmissionDialog.value = false;
     selectedSubmission.value = null;
+};
+
+// Format submission date
+const formatSubmissionDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+    } catch (error) {
+        return 'Invalid Date';
+    }
+};
+
+// Format submission time
+const formatSubmissionTime = (dateString) => {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true
+        });
+    } catch (error) {
+        return '';
+    }
 };
 
 // Medal animation states
@@ -1379,7 +1410,7 @@ const getMedalDetails = (rank) => {
                                                 <span class="text-gray-500">Status:</span>
                                                 <span :class="[
                                                     'px-3 py-1 rounded-full text-xs font-medium',
-                                                    selectedSubmission.status === 'Submitted' ? 'bg-green-100 text-green-800' :
+                                                    selectedSubmission.status === 'Submitted' || selectedSubmission.status === 'Scored' ? 'bg-green-100 text-green-800' :
                                                     selectedSubmission.status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
                                                     'bg-red-100 text-red-800'
                                                 ]">
@@ -1388,7 +1419,10 @@ const getMedalDetails = (rank) => {
                                             </div>
                                             <div class="flex justify-between text-sm">
                                                 <span class="text-gray-500">Submitted:</span>
-                                                <span class="font-medium">{{ selectedSubmission.date || 'N/A' }}</span>
+                                                <div class="text-right">
+                                                    <div class="font-medium">{{ formatSubmissionDate(selectedSubmission.submitted_at) }}</div>
+                                                    <div class="text-xs text-gray-400">{{ formatSubmissionTime(selectedSubmission.submitted_at) }}</div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

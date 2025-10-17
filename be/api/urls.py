@@ -53,4 +53,8 @@ urlpatterns = [
     
     # Sketch submission route
     path('api/sketch/submit/', views.sketch_submission_api, name='sketch_submission_api'),
+    
+    # Sketch management routes
+    path('api/sketches/', views.sketches_api, name='sketches_api'),
+    path('api/sketches/<int:sketch_id>/', views.sketch_delete_api, name='sketch_delete_api'),
 ]

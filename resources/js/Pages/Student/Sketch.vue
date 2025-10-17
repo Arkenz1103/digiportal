@@ -1,6 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, defineEmits, computed } from 'vue';
 import axios from 'axios';
+
+// Define emits to suppress Vue warnings
+defineEmits(['navigate']);
 
 const canvas = ref(null);
 const ctx = ref(null);
@@ -18,10 +21,25 @@ const currentSketch = ref(null);
 const showPostToFeedModal = ref(false);
 const selectedSketchForPost = ref(null);
 const postCaption = ref('');
+const attachedImage = ref(null);
+const imagePosition = ref({ x: 0, y: 0 });
+const imageSize = ref({ width: 0, height: 0 });
+const imageScale = ref(1);
+const isDraggingImage = ref(false);
+const isResizingImage = ref(false);
+const resizeCorner = ref(null);
+const dragStartPos = ref({ x: 0, y: 0 });
+const historyStack = ref([]);
+const historyStep = ref(-1);
+const isCropping = ref(false);
+const cropStart = ref({ x: 0, y: 0 });
+const cropEnd = ref({ x: 0, y: 0 });
+const canvasDrawings = ref(null); // Store drawings separately from image
 
 const tools = [
     { id: 'brush', name: 'Brush', icon: 'pi-pencil', description: 'Free drawing' },
     { id: 'eraser', name: 'Eraser', icon: 'pi-eraser', description: 'Erase parts of your drawing' },
+    { id: 'hand', name: 'Hand', icon: 'pi-arrows-h', description: 'Drag and resize photo' },
 ];
 
 const colors = [
@@ -47,7 +65,9 @@ const brushSizes = [
 onMounted(() => {
     initCanvas();
     window.addEventListener('resize', initCanvas);
+    window.addEventListener('keydown', handleKeyboard);
     loadSketches();
+    saveToHistory();
 });
 
 const initCanvas = () => {
@@ -62,14 +82,50 @@ const initCanvas = () => {
 };
 
 const startDrawing = (e) => {
-    isDrawing.value = true;
-    [lastX.value, lastY.value] = getCoordinates(e);
+    const [x, y] = getCoordinates(e);
+    
+    if (currentTool.value === 'hand' && attachedImage.value) {
+        // Check if clicking on resize corner
+        const corner = getResizeCorner(x, y);
+        if (corner) {
+            isResizingImage.value = true;
+            resizeCorner.value = corner;
+            dragStartPos.value = { 
+                x, 
+                y, 
+                width: imageSize.value.width * imageScale.value, 
+                height: imageSize.value.height * imageScale.value,
+                startX: imagePosition.value.x,
+                startY: imagePosition.value.y
+            };
+        } else {
+            isDraggingImage.value = true;
+            dragStartPos.value = { x: x - imagePosition.value.x, y: y - imagePosition.value.y };
+        }
+    } else {
+        isDrawing.value = true;
+        [lastX.value, lastY.value] = [x, y];
+    }
 };
 
 const draw = (e) => {
-    if (!isDrawing.value) return;
-    
     const [x, y] = getCoordinates(e);
+    
+    if (currentTool.value === 'hand' && attachedImage.value) {
+        if (isResizingImage.value) {
+            handleResize(x, y);
+            return;
+        } else if (isDraggingImage.value) {
+            imagePosition.value = {
+                x: x - dragStartPos.value.x,
+                y: y - dragStartPos.value.y
+            };
+            redrawCanvas();
+            return;
+        }
+    }
+    
+    if (!isDrawing.value) return;
     
     ctx.value.beginPath();
     ctx.value.moveTo(lastX.value, lastY.value);
@@ -93,7 +149,147 @@ const getCoordinates = (e) => {
 };
 
 const stopDrawing = () => {
+    if (isDrawing.value) {
+        // Save drawings layer after drawing
+        saveDrawingsLayer();
+        saveToHistory();
+    }
+    if (isResizingImage.value) {
+        saveToHistory();
+    }
+    if (isDraggingImage.value) {
+        saveToHistory();
+    }
     isDrawing.value = false;
+    isDraggingImage.value = false;
+    isResizingImage.value = false;
+    resizeCorner.value = null;
+};
+
+// Save the drawings layer (without the image)
+const saveDrawingsLayer = () => {
+    if (!attachedImage.value) return;
+    
+    // Create a new canvas for drawings
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.value.width;
+    tempCanvas.height = canvas.value.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Copy the current canvas
+    tempCtx.drawImage(canvas.value, 0, 0);
+    
+    // Remove the image area by clearing it
+    const scaledWidth = imageSize.value.width * imageScale.value;
+    const scaledHeight = imageSize.value.height * imageScale.value;
+    tempCtx.clearRect(
+        imagePosition.value.x - 1,
+        imagePosition.value.y - 1,
+        scaledWidth + 2,
+        scaledHeight + 2
+    );
+    
+    canvasDrawings.value = tempCanvas;
+};
+
+// Get resize corner if mouse is near corner
+const getResizeCorner = (x, y) => {
+    if (!attachedImage.value) return null;
+    
+    const scaledWidth = imageSize.value.width * imageScale.value;
+    const scaledHeight = imageSize.value.height * imageScale.value;
+    const cornerSize = 20;
+    
+    const corners = {
+        'top-left': { x: imagePosition.value.x, y: imagePosition.value.y },
+        'top-right': { x: imagePosition.value.x + scaledWidth, y: imagePosition.value.y },
+        'bottom-left': { x: imagePosition.value.x, y: imagePosition.value.y + scaledHeight },
+        'bottom-right': { x: imagePosition.value.x + scaledWidth, y: imagePosition.value.y + scaledHeight }
+    };
+    
+    for (const [corner, pos] of Object.entries(corners)) {
+        if (Math.abs(x - pos.x) < cornerSize && Math.abs(y - pos.y) < cornerSize) {
+            return corner;
+        }
+    }
+    
+    return null;
+};
+
+// Handle image resize
+const handleResize = (x, y) => {
+    const dx = x - dragStartPos.value.x;
+    const dy = y - dragStartPos.value.y;
+    
+    const aspectRatio = imageSize.value.width / imageSize.value.height;
+    let newWidth = dragStartPos.value.width;
+    let newHeight = dragStartPos.value.height;
+    let newX = dragStartPos.value.startX;
+    let newY = dragStartPos.value.startY;
+    
+    switch (resizeCorner.value) {
+        case 'bottom-right':
+            newWidth = dragStartPos.value.width + dx;
+            newHeight = newWidth / aspectRatio;
+            newX = dragStartPos.value.startX;
+            newY = dragStartPos.value.startY;
+            break;
+        case 'bottom-left':
+            newWidth = dragStartPos.value.width - dx;
+            newHeight = newWidth / aspectRatio;
+            newX = dragStartPos.value.startX + dx;
+            newY = dragStartPos.value.startY;
+            break;
+        case 'top-right':
+            newWidth = dragStartPos.value.width + dx;
+            newHeight = newWidth / aspectRatio;
+            newX = dragStartPos.value.startX;
+            newY = dragStartPos.value.startY + dragStartPos.value.height - newHeight;
+            break;
+        case 'top-left':
+            newWidth = dragStartPos.value.width - dx;
+            newHeight = newWidth / aspectRatio;
+            newX = dragStartPos.value.startX + dx;
+            newY = dragStartPos.value.startY + dragStartPos.value.height - newHeight;
+            break;
+    }
+    
+    // Minimum size constraint
+    if (newWidth < 50) {
+        newWidth = 50;
+        newHeight = newWidth / aspectRatio;
+    }
+    
+    imagePosition.value.x = newX;
+    imagePosition.value.y = newY;
+    imageScale.value = newWidth / imageSize.value.width;
+    redrawCanvas();
+};
+
+const redrawCanvas = () => {
+    if (!attachedImage.value) return;
+    
+    // Clear canvas
+    ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height);
+    ctx.value.fillStyle = '#ffffff';
+    ctx.value.fillRect(0, 0, canvas.value.width, canvas.value.height);
+    
+    // First, draw the saved drawings layer (if exists)
+    if (canvasDrawings.value) {
+        ctx.value.drawImage(canvasDrawings.value, 0, 0);
+    }
+    
+    // Then draw the attached image on top at the new position with scale
+    const scaledWidth = imageSize.value.width * imageScale.value;
+    const scaledHeight = imageSize.value.height * imageScale.value;
+    
+    ctx.value.drawImage(
+        attachedImage.value,
+        imagePosition.value.x,
+        imagePosition.value.y,
+        scaledWidth,
+        scaledHeight
+    );
 };
 
 const clearCanvas = () => {
@@ -113,28 +309,53 @@ const setTool = (toolId) => {
     }
 };
 
-const saveDrawing = () => {
+// Computed property for cursor style
+const canvasCursor = computed(() => {
+    if (currentTool.value === 'hand') {
+        return isDraggingImage.value ? 'cursor-grabbing' : 'cursor-grab';
+    } else if (currentTool.value === 'eraser') {
+        return 'cursor-pointer';
+    }
+    return 'cursor-crosshair';
+});
+
+const saveDrawing = async () => {
     const dataURL = canvas.value.toDataURL();
-    const sketch = {
-        id: Date.now(),
-        dataURL: dataURL,
-        date: new Date().toLocaleString()
-    };
     
-    mySketches.value.unshift(sketch);
-    saveSketchesToLocalStorage();
-    
-    alert('Sketch saved to My Sketches!');
+    try {
+        const response = await axios.post('/api/sketches/', {
+            title: 'Sketch ' + new Date().toLocaleString(),
+            image_data: dataURL
+        });
+        
+        if (response.data) {
+            // Add to local list
+            mySketches.value.unshift({
+                id: response.data.id,
+                dataURL: response.data.image_data,
+                date: new Date(response.data.created_at).toLocaleString()
+            });
+            
+            alert('Sketch saved to My Sketches!');
+        }
+    } catch (error) {
+        console.error('Error saving sketch:', error);
+        alert('Failed to save sketch. Please try again.');
+    }
 };
 
-const saveSketchesToLocalStorage = () => {
-    localStorage.setItem('mySketches', JSON.stringify(mySketches.value));
-};
-
-const loadSketches = () => {
-    const savedSketches = localStorage.getItem('mySketches');
-    if (savedSketches) {
-        mySketches.value = JSON.parse(savedSketches);
+const loadSketches = async () => {
+    try {
+        const response = await axios.get('/api/sketches/');
+        if (response.data) {
+            mySketches.value = response.data.map(sketch => ({
+                id: sketch.id,
+                dataURL: sketch.image_data,
+                date: new Date(sketch.created_at).toLocaleString()
+            }));
+        }
+    } catch (error) {
+        console.error('Error loading sketches:', error);
     }
 };
 
@@ -148,11 +369,16 @@ const loadSketchToCanvas = (dataURL) => {
     img.src = dataURL;
 };
 
-const deleteSketch = (id, e) => {
+const deleteSketch = async (id, e) => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this sketch?')) {
-        mySketches.value = mySketches.value.filter(sketch => sketch.id !== id);
-        saveSketchesToLocalStorage();
+        try {
+            await axios.delete(`/api/sketches/${id}/`);
+            mySketches.value = mySketches.value.filter(sketch => sketch.id !== id);
+        } catch (error) {
+            console.error('Error deleting sketch:', error);
+            alert('Failed to delete sketch. Please try again.');
+        }
     }
 };
 
@@ -234,25 +460,132 @@ const handleImageUpload = (e) => {
     reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-            ctx.value.fillStyle = '#ffffff';
-            ctx.value.fillRect(0, 0, canvas.value.width, canvas.value.height);
-            
             const hRatio = canvas.value.width / img.width;
             const vRatio = canvas.value.height / img.height;
             const ratio = Math.min(hRatio, vRatio);
             const centerShiftX = (canvas.value.width - img.width * ratio) / 2;
             const centerShiftY = (canvas.value.height - img.height * ratio) / 2;
             
+            // Save current drawings before adding image
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.value.width;
+            tempCanvas.height = canvas.value.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas.value, 0, 0);
+            canvasDrawings.value = tempCanvas;
+            
+            // Store the image and position for dragging
+            attachedImage.value = img;
+            imagePosition.value = { x: centerShiftX, y: centerShiftY };
+            imageSize.value = { width: img.width * ratio, height: img.height * ratio };
+            imageScale.value = 1;
+            
+            // Draw the image on top of existing drawings
             ctx.value.drawImage(
                 img, 
                 0, 0, img.width, img.height,
                 centerShiftX, centerShiftY, 
                 img.width * ratio, img.height * ratio
             );
+            
+            saveToHistory();
         };
         img.src = event.target.result;
     };
     reader.readAsDataURL(file);
+};
+
+// Undo/Redo functionality
+const saveToHistory = () => {
+    const dataURL = canvas.value.toDataURL();
+    historyStep.value++;
+    historyStack.value = historyStack.value.slice(0, historyStep.value);
+    historyStack.value.push(dataURL);
+    if (historyStack.value.length > 50) {
+        historyStack.value.shift();
+        historyStep.value--;
+    }
+};
+
+const undo = () => {
+    if (historyStep.value > 0) {
+        historyStep.value--;
+        restoreFromHistory();
+    }
+};
+
+const redo = () => {
+    if (historyStep.value < historyStack.value.length - 1) {
+        historyStep.value++;
+        restoreFromHistory();
+    }
+};
+
+const restoreFromHistory = () => {
+    const img = new Image();
+    img.onload = () => {
+        ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height);
+        ctx.value.drawImage(img, 0, 0);
+    };
+    img.src = historyStack.value[historyStep.value];
+};
+
+// Keyboard shortcuts
+const handleKeyboard = (e) => {
+    if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault();
+        undo();
+    } else if (e.ctrlKey && e.key === 'y') {
+        e.preventDefault();
+        redo();
+    }
+};
+
+// Image zoom in/out
+const zoomIn = () => {
+    if (!attachedImage.value) return;
+    imageScale.value = Math.min(imageScale.value + 0.1, 3);
+    redrawCanvas();
+    saveToHistory();
+};
+
+const zoomOut = () => {
+    if (!attachedImage.value) return;
+    imageScale.value = Math.max(imageScale.value - 0.1, 0.1);
+    redrawCanvas();
+    saveToHistory();
+};
+
+// Crop functionality
+const startCrop = () => {
+    if (!attachedImage.value) {
+        alert('Please attach an image first!');
+        return;
+    }
+    isCropping.value = true;
+    currentTool.value = 'crop';
+};
+
+const applyCrop = () => {
+    if (!isCropping.value) return;
+    
+    const x = Math.min(cropStart.value.x, cropEnd.value.x);
+    const y = Math.min(cropStart.value.y, cropEnd.value.y);
+    const width = Math.abs(cropEnd.value.x - cropStart.value.x);
+    const height = Math.abs(cropEnd.value.y - cropStart.value.y);
+    
+    if (width > 10 && height > 10) {
+        const imageData = ctx.value.getImageData(x, y, width, height);
+        canvas.value.width = width;
+        canvas.value.height = height;
+        ctx.value.putImageData(imageData, 0, 0);
+        
+        attachedImage.value = null;
+        saveToHistory();
+    }
+    
+    isCropping.value = false;
+    currentTool.value = 'brush';
 };
 </script>
 
@@ -264,7 +597,6 @@ const handleImageUpload = (e) => {
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                     <h1 class="text-2xl font-bold text-indigo-900">Sketch Pad</h1>
-                    <p class="text-indigo-700 text-sm mt-1">Express your creativity with our digital sketchbook</p>
                 </div>
                 <div class="flex items-center gap-3 w-full sm:w-auto">
                     <button @click="clearCanvas" 
@@ -381,28 +713,64 @@ const handleImageUpload = (e) => {
                     </div>
 
                     <!-- Color Palette with Attach Photo button -->
-                    <div class="mb-4 p-3 bg-[#F2FDFF] rounded-xl flex items-center justify-between flex-wrap border border-[#B6CFFF]">
+                    <div class="mb-4 p-3 bg-[#F2FDFF] rounded-xl flex items-center justify-between flex-wrap gap-3 border border-[#B6CFFF]">
                         <div class="flex items-center gap-2 flex-wrap">
+                            <!-- Custom Color Picker (First) -->
+                            <div class="flex flex-col items-center gap-1">
+                                <input type="color" 
+                                       v-model="currentColor"
+                                       class="w-7 h-7 cursor-pointer rounded-full border-2 border-[#B6CFFF]"
+                                       title="Custom Color">
+                                <span class="text-[8px] text-[#0E1836] font-medium">Default</span>
+                            </div>
+                            
+                            <!-- Divider -->
+                            <div class="w-px h-8 bg-[#B6CFFF]"></div>
+                            
+                            <!-- Preset Colors -->
                             <div v-for="color in colors" 
                                  :key="color.hex" 
                                  @click="currentColor = color.hex"
                                  :style="{ backgroundColor: color.hex }"
                                  :class="{ 
                                      'ring-2 ring-offset-2 ring-[#7BBBFE]': currentColor === color.hex,
-                                     'border border-[#B6CFFF]': color.hex === '#ffffff'
+                                     'border-2 border-[#B6CFFF]': color.hex === '#ffffff'
                                  }"
-                                 class="w-8 h-8 rounded-lg cursor-pointer shadow-sm transition-transform hover:scale-110"
+                                 class="w-7 h-7 rounded-full cursor-pointer shadow-sm transition-transform hover:scale-110"
                                  :title="color.name">
                             </div>
-                            <input type="color" 
-                                   v-model="currentColor"
-                                   class="w-8 h-8 cursor-pointer">
                         </div>
-                        <button @click="triggerFileInput" 
-                                class="px-3 py-1.5 text-[#0E1836] hover:bg-[#B8AAFF]/10 rounded-lg transition-colors flex items-center gap-1">
-                            <i class="pi pi-image"></i>
-                            <span>Attach Photo</span>
-                        </button>
+                        
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <!-- Undo Button -->
+                            <button @click="undo" 
+                                    :disabled="historyStep <= 0"
+                                    :class="{ 'opacity-50 cursor-not-allowed': historyStep <= 0 }"
+                                    class="p-2 text-[#0E1836] hover:bg-[#B8AAFF]/10 rounded-lg transition-colors"
+                                    title="Undo (Ctrl+Z)">
+                                <i class="pi pi-undo text-lg"></i>
+                            </button>
+                            
+                            <!-- Redo Button -->
+                            <button @click="redo" 
+                                    :disabled="historyStep >= historyStack.length - 1"
+                                    :class="{ 'opacity-50 cursor-not-allowed': historyStep >= historyStack.length - 1 }"
+                                    class="p-2 text-[#0E1836] hover:bg-[#B8AAFF]/10 rounded-lg transition-colors"
+                                    title="Redo (Ctrl+Y)">
+                                <i class="pi pi-refresh text-lg"></i>
+                            </button>
+                            
+                            <div class="w-px h-6 bg-[#B6CFFF]"></div>
+                            
+                            <!-- Attach Photo -->
+                            <button @click="triggerFileInput" 
+                                    class="px-3 py-1.5 text-[#0E1836] hover:bg-[#B8AAFF]/10 rounded-lg transition-colors flex items-center gap-1">
+                                <i class="pi pi-image"></i>
+                                <span>Attach Photo</span>
+                            </button>
+                        </div>
+                        
                         <input type="file" 
                                ref="fileInput" 
                                @change="handleImageUpload" 
@@ -420,7 +788,7 @@ const handleImageUpload = (e) => {
                                 @touchstart="startDrawing"
                                 @touchmove="draw"
                                 @touchend="stopDrawing"
-                                class="w-full h-[600px] bg-white cursor-crosshair rounded-lg shadow-inner">
+                                :class="['w-full h-[600px] bg-white rounded-lg shadow-inner', canvasCursor]">
                         </canvas>
                     </div>
                 </div>

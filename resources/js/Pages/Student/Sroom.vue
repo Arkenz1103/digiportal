@@ -293,7 +293,10 @@
                       <div class="flex-1">
                         <span class="text-sm font-semibold text-indigo-900">Description</span>
                       </div>
-                      <div class="w-32 md:w-48 text-right">
+                      <div class="w-32">
+                        <span class="text-sm font-semibold text-indigo-900">Status</span>
+                      </div>
+                      <div class="w-32 md:w-40 text-right">
                         <span class="text-sm font-semibold text-indigo-900">Due Date</span>
                       </div>
                     </div>
@@ -313,12 +316,25 @@
                         <div class="flex-1">
                           <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
                         </div>
-                        <div class="w-32 md:w-48 text-right flex items-center justify-end gap-2">
-                          <span class="text-sm text-indigo-600">{{ activity.date }}</span>
-                          <span v-if="activity.hasSubmitted" class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
-                            <i class="pi pi-check-circle"></i>
+                        <div class="w-32">
+                          <span v-if="getActivityStatus(activity) === 'submitted'" 
+                                class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1 w-fit">
+                            <i class="pi pi-check-circle text-xs"></i>
                             Submitted
                           </span>
+                          <span v-else-if="getActivityStatus(activity) === 'missing'" 
+                                class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1 w-fit">
+                            <i class="pi pi-times-circle text-xs"></i>
+                            Missing
+                          </span>
+                          <span v-else 
+                                class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 flex items-center gap-1 w-fit">
+                            <i class="pi pi-clock text-xs"></i>
+                            Pending
+                          </span>
+                        </div>
+                        <div class="w-32 md:w-40 text-right">
+                          <span class="text-sm text-indigo-600">{{ activity.date }}</span>
                         </div>
                       </div>
                     </div>
@@ -689,7 +705,7 @@
             </div>
             <div class="flex items-baseline gap-1 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-md">
               <span class="text-3xl font-bold text-white">
-                {{ submissionScore.score }}
+                {{ calculateTotalScore(submissionScore.criteria_scores) }}
               </span>
               <span class="text-xl text-white/80">/</span>
               <span class="text-xl font-semibold text-white/90">
@@ -941,6 +957,28 @@ const backToActivitiesList = () => {
   }
 };
 
+// Function to get activity status
+const getActivityStatus = (activity) => {
+  // If already submitted, return 'submitted'
+  if (activity.hasSubmitted) {
+    return 'submitted';
+  }
+  
+  // Check if past due date
+  if (activity.due_date) {
+    const dueDate = new Date(activity.due_date);
+    const now = new Date();
+    
+    // If past due date and not submitted, return 'missing'
+    if (now > dueDate) {
+      return 'missing';
+    }
+  }
+  
+  // Otherwise, return 'pending'
+  return 'pending';
+};
+
 // Calculate total points from scoring criteria
 const calculateTotalPoints = (criteria) => {
   if (!criteria || criteria.length === 0) return 0;
@@ -961,6 +999,22 @@ const calculateMaxScore = (criteriaScoresJson) => {
     }, 0);
   } catch (error) {
     console.error('Error calculating max score:', error);
+    return 0;
+  }
+};
+
+// Calculate total score from criteria_scores JSON (sum of actual scores)
+const calculateTotalScore = (criteriaScoresJson) => {
+  if (!criteriaScoresJson) return 0;
+  try {
+    const criteria = typeof criteriaScoresJson === 'string' 
+      ? JSON.parse(criteriaScoresJson) 
+      : criteriaScoresJson;
+    return criteria.reduce((total, criterion) => {
+      return total + (parseInt(criterion.score) || 0);
+    }, 0);
+  } catch (error) {
+    console.error('Error calculating total score:', error);
     return 0;
   }
 };
