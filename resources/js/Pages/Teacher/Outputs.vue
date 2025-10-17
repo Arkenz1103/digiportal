@@ -220,6 +220,7 @@ const creativityScore = ref('');
 const technicalScore = ref('');
 const requirementsScore = ref('');
 const criteriaScores = ref([]); // Dynamic scores based on activity criteria
+const scoreFeedback = ref(''); // Feedback for the student
 
 const viewSubmission = async (submission) => {
     // Load full submission details including image
@@ -266,6 +267,7 @@ const addScore = () => {
     creativityScore.value = '';
     technicalScore.value = '';
     requirementsScore.value = '';
+    scoreFeedback.value = '';
     
     // Initialize criteria scores from activity
     console.log('Full activity object:', activity.value);
@@ -287,6 +289,16 @@ const addScore = () => {
     
     // Show the add score dialog
     showAddScoreDialog.value = true;
+};
+
+// Validate criterion score doesn't exceed max
+const validateCriterionScore = (criterion) => {
+    if (criterion.score > criterion.maxScore) {
+        criterion.score = criterion.maxScore;
+    }
+    if (criterion.score < 0) {
+        criterion.score = 0;
+    }
 };
 
 const saveScore = async () => {
@@ -317,7 +329,7 @@ const saveScore = async () => {
         // Call the backend API to save the score
         const response = await axios.post(`/api/submissions/${selectedSubmission.value.id}/score/`, {
             score: totalScore,
-            feedback: '', // You can add a feedback field later
+            feedback: scoreFeedback.value.trim() || '',
             criteria_scores: JSON.stringify(criteriaScores.value.map(c => ({
                 name: c.name,
                 score: parseInt(c.score),
@@ -404,6 +416,7 @@ const closeAddScoreDialog = () => {
     technicalScore.value = '';
     requirementsScore.value = '';
     criteriaScores.value = [];
+    scoreFeedback.value = '';
 };
 
 const closeDialog = () => {
@@ -1121,19 +1134,14 @@ const getMedalDetails = (rank) => {
                                     {{ submission.id }}
                                 </div>
                                 <div class="w-1/4">
-                                    <span :class="[
-                                        'px-4 py-2 text-sm font-medium rounded-xl shadow-sm transition-all duration-300',
-                                        submission.status === 'Submitted' ? 'bg-green-100 text-green-800 group-hover:bg-green-200' :
-                                        submission.status === 'Late' ? 'bg-yellow-100 text-yellow-800 group-hover:bg-yellow-200' :
-                                        'bg-red-100 text-red-800 group-hover:bg-red-200'
-                                    ]">
-                                        {{ submission.status }}
+                                    <span class="px-4 py-2 text-sm font-medium rounded-xl shadow-sm transition-all duration-300 bg-green-100 text-green-800 group-hover:bg-green-200">
+                                        Scored
                                     </span>
                                 </div>
                                 <div class="w-1/5 text-gray-600 font-medium pl-4">{{ submission.date }}</div>
                                 <div class="w-1/6">
-                                    <span v-if="studentOutputs[submission.id]?.scores" class="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-800">
-                                        {{ studentOutputs[submission.id].scores.total }}/30
+                                    <span v-if="submission.score !== null && submission.score !== undefined" class="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-800">
+                                        {{ submission.score }}
                                     </span>
                                     <span v-else class="text-sm text-gray-400">-</span>
                                 </div>
@@ -1419,10 +1427,11 @@ const getMedalDetails = (rank) => {
                         </div>
                         <div class="flex items-center gap-2">
                             <input
-                                v-model="criterion.score"
+                                v-model.number="criterion.score"
                                 type="number"
                                 min="0"
                                 :max="criterion.maxScore"
+                                @input="validateCriterionScore(criterion)"
                                 class="w-16 px-2 py-1 text-sm border border-indigo-100 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 text-center"
                                 placeholder="0"
                             />
@@ -1450,6 +1459,21 @@ const getMedalDetails = (rank) => {
                     </span>
                 </div>
             </div>
+            
+            <!-- Feedback Section -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Feedback for Student: 
+                    <span class="text-xs text-gray-500 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                    v-model="scoreFeedback"
+                    rows="4"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    placeholder="Provide constructive feedback on the student's work... (Optional)"
+                ></textarea>
+                <p class="text-xs text-gray-500 mt-1">This feedback will be visible to the student if provided.</p>
+            </div>
         </div>
         
         <template #footer>
@@ -1462,8 +1486,8 @@ const getMedalDetails = (rank) => {
             <button
                 @click="saveScore"
                 class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                :disabled="!creativityScore || !technicalScore || !requirementsScore"
-                :class="{ 'opacity-50 cursor-not-allowed': !creativityScore || !technicalScore || !requirementsScore }"
+                :disabled="criteriaScores.length === 0 || !criteriaScores.every(c => c.score !== '' && c.score !== null)"
+                :class="{ 'opacity-50 cursor-not-allowed': criteriaScores.length === 0 || !criteriaScores.every(c => c.score !== '' && c.score !== null) }"
             >
                 Confirm
             </button>

@@ -138,13 +138,22 @@
                           <i class="pi pi-plus"></i>
                           <span>Turn in</span>
                         </button>
-                        <span
-                          v-else
-                          class="px-4 py-2 rounded-lg bg-green-100 text-green-800 flex items-center gap-2"
-                        >
-                          <i class="pi pi-check-circle"></i>
-                          <span>Submitted</span>
-                        </span>
+                        <template v-else>
+                          <button
+                            v-if="hasScore"
+                            @click="showScoreDialog = true"
+                            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                          >
+                            <i class="pi pi-star-fill"></i>
+                            <span>View Score</span>
+                          </button>
+                          <span
+                            class="px-4 py-2 rounded-lg bg-green-100 text-green-800 flex items-center gap-2"
+                          >
+                            <i class="pi pi-check-circle"></i>
+                            <span>Submitted</span>
+                          </span>
+                        </template>
                       </div>
                     </div>
 
@@ -209,14 +218,15 @@
                     <div class="flex flex-wrap justify-center gap-4">
                       <div v-for="(submission, index) in studentSubmissions" :key="index"
                            class="bg-white rounded-lg border border-indigo-100 overflow-hidden hover:shadow-md transition-all w-full max-w-2xl mx-auto">
-                        <div class="aspect-video relative bg-white overflow-hidden flex items-center justify-center p-4">
+                        <div class="aspect-video relative bg-gray-100 overflow-hidden flex items-center justify-center p-4">
                           <template v-if="submission.isImage">
                             <img
                               :src="submission.previewUrl"
                               :alt="submission.caption || 'Submitted work'"
-                              class="w-full h-full object-contain absolute inset-0 m-auto transition-opacity duration-200"
+                              class="max-w-full max-h-full object-contain"
                               @error="handleImageError(submission)"
                               v-show="!submission.loadError"
+                              style="display: block; margin: auto;"
                             />
                             <div v-if="submission.loadError" class="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400">
                               <i class="pi pi-image text-4xl mb-2"></i>
@@ -229,12 +239,26 @@
                           </div>
                         </div>
                         <div class="p-4">
-                          <p v-if="submission.caption" class="text-sm text-gray-600">{{ submission.caption }}</p>
+                          <p v-if="submission.caption" class="text-sm text-gray-600 mb-2">{{ submission.caption }}</p>
+                          
+                          <!-- Score Display -->
+                          <div v-if="submission.score !== null && submission.score !== undefined" class="mb-2 p-2 bg-indigo-50 rounded-lg">
+                            <div class="flex items-center justify-between">
+                              <span class="text-sm font-medium text-indigo-900">Score:</span>
+                              <span class="text-lg font-bold text-indigo-700">{{ submission.score }}</span>
+                            </div>
+                            <p v-if="submission.feedback" class="text-xs text-gray-600 mt-1 italic">
+                              "{{ submission.feedback }}"
+                            </p>
+                          </div>
+                          
                           <div class="flex justify-between items-center mt-2">
                             <span class="text-xs text-gray-500">{{ submission.date }}</span>
                             <span class="text-xs px-2 py-1 rounded"
-                                  :class="submission.status === 'submitted' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'">
-                              {{ submission.status }}
+                                  :class="submission.status === 'scored' ? 'bg-green-100 text-green-800' : 
+                                         submission.status === 'unscored' ? 'bg-yellow-100 text-yellow-800' : 
+                                         'bg-blue-100 text-blue-800'">
+                              {{ submission.status === 'scored' ? 'Scored' : submission.status === 'unscored' ? 'Unscored' : submission.status }}
                             </span>
                           </div>
                         </div>
@@ -295,23 +319,6 @@
                             <i class="pi pi-check-circle"></i>
                             Submitted
                           </span>
-                        </div>
-                      </div>
-                      
-                      <!-- Scoring Criteria Preview (if exists) -->
-                      <div v-if="activity.scoringCriteria && activity.scoringCriteria.length > 0" 
-                           class="px-4 md:px-6 pb-4 pt-2 bg-indigo-50/50">
-                        <div class="flex items-center gap-2 mb-2">
-                          <i class="pi pi-star text-indigo-600 text-xs"></i>
-                          <span class="text-xs font-semibold text-gray-700">Scoring Criteria:</span>
-                          <span class="text-xs text-gray-600">(Total: {{ calculateTotalPoints(activity.scoringCriteria) }} pts)</span>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                          <div v-for="(criterion, idx) in activity.scoringCriteria" :key="idx"
-                               class="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 text-xs">
-                            <span class="font-medium text-gray-700">{{ criterion.name }}</span>
-                            <span class="text-indigo-600 font-semibold">{{ criterion.maxScore }}pts</span>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -623,6 +630,68 @@
             </div>
         </div>
     </Dialog>
+
+    <!-- View Score Dialog -->
+    <Dialog 
+      v-model:visible="showScoreDialog" 
+      modal 
+      :closable="true"
+      :style="{ width: '500px' }"
+      class="p-dialog-mask p-overlay-mask p-overlay-mask-enter"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <i class="pi pi-star-fill text-indigo-600"></i>
+          <h3 class="text-lg font-semibold text-gray-900">Your Score</h3>
+        </div>
+      </template>
+
+      <div v-if="submissionScore" class="space-y-4">
+        <!-- Scoring Criteria Breakdown -->
+        <div v-if="submissionScore.criteria_scores" class="space-y-3">
+          <h4 class="text-sm font-medium text-gray-700">Score Breakdown:</h4>
+          <div v-for="(criterion, index) in JSON.parse(submissionScore.criteria_scores)" :key="index" 
+               class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-start gap-2">
+              <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5"></div>
+              <p class="text-sm text-gray-600">{{ criterion.name }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg font-bold text-indigo-700">{{ criterion.score }}</span>
+              <span class="text-sm text-gray-500">/{{ criterion.maxScore }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Score -->
+        <div class="p-4 bg-indigo-50 rounded-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-indigo-900">Total Score:</span>
+            <span class="text-2xl font-bold text-indigo-700">
+              {{ submissionScore.score }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Feedback -->
+        <div v-if="submissionScore.feedback" class="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h4 class="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <i class="pi pi-comment text-blue-600"></i>
+            Teacher's Feedback:
+          </h4>
+          <p class="text-sm text-gray-700 italic">"{{ submissionScore.feedback }}"</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <button
+          @click="showScoreDialog = false"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          Close
+        </button>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -693,14 +762,14 @@ const isSubmitting = ref(false);
 // Check if student has already submitted (reactive state)
 const hasSubmittedWork = ref(false);
 const existingSubmission = ref(null);
+const hasScore = ref(false);
+const showScoreDialog = ref(false);
+const submissionScore = ref(null);
 
 // Function to handle image loading errors
 const handleImageError = (submission) => {
+  console.error('❌ Image failed to load:', submission.caption);
   submission.loadError = true;
-  // Revoke the object URL to free memory
-  if (submission.previewUrl) {
-    URL.revokeObjectURL(submission.previewUrl);
-  }
 };
 
 // Function to open folder content
@@ -840,27 +909,79 @@ const openActivity = async (activity) => {
 const loadActivitySubmissions = async (activityId) => {
   try {
     const response = await axios.get(`/api/activities/${activityId}/submissions/`);
+    console.log('📥 API Response - Submissions:', response.data);
+    
     if (response.data && response.data.length > 0) {
       // Map API response to display format
-      studentSubmissions.value = response.data.map(submission => ({
-        activityId: activityId,
-        caption: submission.caption,
-        previewUrl: submission.file_path,
-        isImage: submission.file_type === 'image',
-        date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }),
-        status: submission.status,
-        loadError: false
-      }));
-      console.log('Loaded submissions:', studentSubmissions.value);
+      studentSubmissions.value = response.data.map(submission => {
+        let previewUrl = submission.file_path;
+        
+        console.log('🖼️ Processing submission:', {
+          caption: submission.caption,
+          file_type: submission.file_type,
+          has_file_path: !!submission.file_path,
+          file_path_length: submission.file_path?.length,
+          file_path_starts_with: submission.file_path?.substring(0, 20),
+          status: submission.status,
+          score: submission.score
+        });
+        
+        // Check if this submission has been scored
+        if (submission.status === 'scored' && submission.score !== null) {
+          hasScore.value = true;
+          submissionScore.value = {
+            score: submission.score,
+            feedback: submission.feedback,
+            criteria_scores: submission.criteria_scores
+          };
+          console.log('✅ Submission has been scored:', submissionScore.value);
+        }
+        
+        // Format base64 image data if needed
+        if (submission.file_type === 'image' && previewUrl) {
+          // Remove any whitespace or newlines
+          previewUrl = previewUrl.trim();
+          
+          // Check if it's already a data URL
+          if (!previewUrl.startsWith('data:')) {
+            // Detect image type from base64 header
+            let imageType = 'png'; // default
+            
+            if (previewUrl.startsWith('/9j/') || previewUrl.startsWith('iVBOR')) {
+              imageType = previewUrl.startsWith('/9j/') ? 'jpeg' : 'png';
+            }
+            
+            // Format as data URL
+            previewUrl = `data:image/${imageType};base64,${previewUrl}`;
+            console.log('✅ Formatted as data URL:', imageType, previewUrl.substring(0, 80));
+          } else {
+            console.log('✅ Already a data URL:', previewUrl.substring(0, 80));
+          }
+        }
+        
+        return {
+          activityId: activityId,
+          caption: submission.caption,
+          previewUrl: previewUrl,
+          isImage: submission.file_type === 'image',
+          date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          }),
+          status: submission.status,
+          score: submission.score,
+          feedback: submission.feedback,
+          loadError: false
+        };
+      });
+      console.log('✅ Total submissions loaded:', studentSubmissions.value.length);
     } else {
       studentSubmissions.value = [];
+      console.log('⚠️ No submissions found');
     }
   } catch (error) {
-    console.error('Error loading submissions:', error);
+    console.error('❌ Error loading submissions:', error);
     studentSubmissions.value = [];
   }
 };

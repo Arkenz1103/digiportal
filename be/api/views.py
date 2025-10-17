@@ -747,45 +747,29 @@ def score_submission_api(request, submission_id):
         submission = StudentSubmission.objects.get(id=submission_id)
         
         # Get scoring data from request
-        scores = request.data.get('scores', {})
+        score = request.data.get('score', 0)
         feedback = request.data.get('feedback', '')
-        total_score = request.data.get('total_score', 0)
-        max_score = request.data.get('max_score', 30)
+        criteria_scores = request.data.get('criteria_scores', '[]')
+        
+        print(f"Scoring submission {submission_id}:")
+        print(f"  Score: {score}")
+        print(f"  Feedback: {feedback}")
+        print(f"  Criteria scores: {criteria_scores}")
         
         # Update submission with score and feedback
-        submission.score = total_score
+        submission.score = score
         submission.feedback = feedback
         submission.status = 'scored'
         submission.scored_at = timezone.now()
         submission.save()
         
-        # Create or update detailed score
-        detailed_score, created = SubmissionScore.objects.update_or_create(
-            submission=submission,
-            defaults={
-                'creativity_score': scores.get('creativity', 0),
-                'creativity_max': scores.get('creativity_max', 10),
-                'technical_skill_score': scores.get('technical_skill', 0),
-                'technical_skill_max': scores.get('technical_skill_max', 10),
-                'requirements_score': scores.get('requirements', 0),
-                'requirements_max': scores.get('requirements_max', 10),
-                'total_score': total_score,
-                'max_score': max_score,
-                'scored_by': request.user if request.user.is_authenticated else None
-            }
-        )
+        print(f"✅ Submission {submission_id} marked as scored")
         
         serializer = StudentSubmissionSerializer(submission)
         return Response({
             'message': 'Submission scored successfully',
-            'submission': serializer.data,
-            'detailed_score': {
-                'creativity': f"{detailed_score.creativity_score}/{detailed_score.creativity_max}",
-                'technical_skill': f"{detailed_score.technical_skill_score}/{detailed_score.technical_skill_max}",
-                'requirements': f"{detailed_score.requirements_score}/{detailed_score.requirements_max}",
-                'total': f"{detailed_score.total_score}/{detailed_score.max_score}"
-            }
-        })
+            'submission': serializer.data
+        }, status=status.HTTP_200_OK)
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
