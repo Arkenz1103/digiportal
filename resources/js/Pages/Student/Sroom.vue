@@ -636,61 +636,80 @@
       v-model:visible="showScoreDialog" 
       modal 
       :closable="true"
-      :style="{ width: '500px' }"
-      class="p-dialog-mask p-overlay-mask p-overlay-mask-enter"
+      :style="{ width: '90%', maxWidth: '600px' }"
+      :contentStyle="{ padding: '0' }"
+      position="center"
+      class="score-dialog"
     >
       <template #header>
-        <div class="flex items-center gap-2">
-          <i class="pi pi-star-fill text-indigo-600"></i>
-          <h3 class="text-lg font-semibold text-gray-900">Your Score</h3>
+        <div class="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600">
+          <i class="pi pi-star-fill text-white text-lg"></i>
+          <h3 class="text-lg font-bold text-white">Your Score</h3>
         </div>
       </template>
 
-      <div v-if="submissionScore" class="space-y-4">
+      <div v-if="submissionScore" class="p-4 space-y-4">
         <!-- Scoring Criteria Breakdown -->
-        <div v-if="submissionScore.criteria_scores" class="space-y-3">
-          <h4 class="text-sm font-medium text-gray-700">Score Breakdown:</h4>
-          <div v-for="(criterion, index) in JSON.parse(submissionScore.criteria_scores)" :key="index" 
-               class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div class="flex items-start gap-2">
-              <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5"></div>
-              <p class="text-sm text-gray-600">{{ criterion.name }}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-lg font-bold text-indigo-700">{{ criterion.score }}</span>
-              <span class="text-sm text-gray-500">/{{ criterion.maxScore }}</span>
+        <div v-if="parsedCriteriaScores && parsedCriteriaScores.length > 0" class="space-y-3">
+          <h4 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <i class="pi pi-list text-indigo-600 text-sm"></i>
+            Score Breakdown
+          </h4>
+          <div class="space-y-2">
+            <div v-for="(criterion, index) in parsedCriteriaScores" :key="index" 
+                 class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 transition-all">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span class="text-xs font-bold text-indigo-600">{{ index + 1 }}</span>
+                </div>
+                <p class="text-sm font-semibold text-gray-800">{{ criterion.name }}</p>
+              </div>
+              <div class="flex items-baseline gap-1 bg-white px-3 py-1.5 rounded-md shadow-sm">
+                <span class="text-lg font-bold text-indigo-700">{{ criterion.score }}</span>
+                <span class="text-sm text-gray-400">/</span>
+                <span class="text-sm font-medium text-gray-600">{{ criterion.maxScore }}</span>
+                <span class="text-xs text-gray-500">pts</span>
+              </div>
             </div>
           </div>
         </div>
+        
+        <!-- Show message if no criteria breakdown available -->
+        <div v-else class="p-3 bg-amber-50 rounded-lg border border-amber-200 text-center">
+          <i class="pi pi-info-circle text-amber-600 text-sm"></i>
+          <p class="text-xs text-amber-700 font-medium mt-1">No detailed score breakdown available</p>
+        </div>
 
         <!-- Total Score -->
-        <div class="p-4 bg-indigo-50 rounded-lg">
+        <div class="p-4 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg shadow-md">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-indigo-900">Total Score:</span>
-            <span class="text-2xl font-bold text-indigo-700">
-              {{ submissionScore.score }}
-            </span>
+            <div class="flex items-center gap-2">
+              <i class="pi pi-trophy text-yellow-300 text-lg"></i>
+              <span class="text-base font-bold text-white">Total Score</span>
+            </div>
+            <div class="flex items-baseline gap-1 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-md">
+              <span class="text-3xl font-bold text-white">
+                {{ submissionScore.score }}
+              </span>
+              <span class="text-xl text-white/80">/</span>
+              <span class="text-xl font-semibold text-white/90">
+                {{ calculateMaxScore(submissionScore.criteria_scores) }}
+              </span>
+            </div>
           </div>
         </div>
 
         <!-- Feedback -->
-        <div v-if="submissionScore.feedback" class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h4 class="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-            <i class="pi pi-comment text-blue-600"></i>
-            Teacher's Feedback:
+        <div v-if="submissionScore.feedback" class="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+          <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+            <i class="pi pi-comment text-blue-600 text-sm"></i>
+            Teacher's Feedback
           </h4>
-          <p class="text-sm text-gray-700 italic">"{{ submissionScore.feedback }}"</p>
+          <div class="bg-white p-3 rounded-md">
+            <p class="text-sm text-gray-700 italic">"{{ submissionScore.feedback }}"</p>
+          </div>
         </div>
       </div>
-
-      <template #footer>
-        <button
-          @click="showScoreDialog = false"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          Close
-        </button>
-      </template>
     </Dialog>
   </div>
 </template>
@@ -766,6 +785,26 @@ const hasScore = ref(false);
 const showScoreDialog = ref(false);
 const submissionScore = ref(null);
 
+// Computed property to safely parse criteria scores
+const parsedCriteriaScores = computed(() => {
+  if (!submissionScore.value || !submissionScore.value.criteria_scores) {
+    console.log('⚠️ No criteria_scores found');
+    return [];
+  }
+  
+  try {
+    const criteria = typeof submissionScore.value.criteria_scores === 'string'
+      ? JSON.parse(submissionScore.value.criteria_scores)
+      : submissionScore.value.criteria_scores;
+    
+    console.log('✅ Parsed criteria scores:', criteria);
+    return criteria;
+  } catch (error) {
+    console.error('❌ Error parsing criteria scores:', error);
+    return [];
+  }
+});
+
 // Function to handle image loading errors
 const handleImageError = (submission) => {
   console.error('❌ Image failed to load:', submission.caption);
@@ -775,6 +814,14 @@ const handleImageError = (submission) => {
 // Function to open folder content
 const openFolderContent = async (folder) => {
   selectedFolder.value = folder;
+  
+  // Save folder view state
+  localStorage.setItem('student_current_view', JSON.stringify({
+    selectedFolder: folder,
+    selectedActivity: null
+  }));
+  console.log('💾 Saved view state: Folder', folder.title);
+  
   // Load activities for this folder
   await loadFolderActivities(folder.id);
 };
@@ -872,6 +919,10 @@ const backToFolders = () => {
   selectedFolder.value = null;
   selectedActivity.value = null;
   studentSubmissions.value = [];
+  
+  // Clear saved view state
+  localStorage.removeItem('student_current_view');
+  console.log('🗑️ Cleared view state');
 };
 
 // Function to go back to activities list
@@ -879,6 +930,15 @@ const backToActivitiesList = () => {
   selectedActivity.value = null;
   studentSubmissions.value = [];
   hasSubmittedWork.value = false;
+  
+  // Update view state to folder only
+  if (selectedFolder.value) {
+    localStorage.setItem('student_current_view', JSON.stringify({
+      selectedFolder: selectedFolder.value,
+      selectedActivity: null
+    }));
+    console.log('💾 Updated view state: Back to folder', selectedFolder.value.title);
+  }
 };
 
 // Calculate total points from scoring criteria
@@ -889,9 +949,39 @@ const calculateTotalPoints = (criteria) => {
   }, 0);
 };
 
+// Calculate max score from criteria_scores JSON
+const calculateMaxScore = (criteriaScoresJson) => {
+  if (!criteriaScoresJson) return 0;
+  try {
+    const criteria = typeof criteriaScoresJson === 'string' 
+      ? JSON.parse(criteriaScoresJson) 
+      : criteriaScoresJson;
+    return criteria.reduce((total, criterion) => {
+      return total + (parseInt(criterion.maxScore) || 0);
+    }, 0);
+  } catch (error) {
+    console.error('Error calculating max score:', error);
+    return 0;
+  }
+};
+
 // Function to open activity with all details
 const openActivity = async (activity) => {
   selectedActivity.value = activity;
+  
+  // Reset score state when opening new activity
+  hasScore.value = false;
+  submissionScore.value = null;
+  
+  // Save current view state to localStorage
+  localStorage.setItem('student_current_view', JSON.stringify({
+    selectedFolder: selectedFolder.value,
+    selectedActivity: {
+      id: activity.id,
+      title: activity.title
+    }
+  }));
+  console.log('💾 Saved view state: Activity', activity.title);
   
   // Use the hasSubmitted status from the activity object if available
   if (activity.hasSubmitted !== undefined) {
@@ -938,24 +1028,31 @@ const loadActivitySubmissions = async (activityId) => {
         }
         
         // Format base64 image data if needed
-        if (submission.file_type === 'image' && previewUrl) {
-          // Remove any whitespace or newlines
-          previewUrl = previewUrl.trim();
-          
-          // Check if it's already a data URL
-          if (!previewUrl.startsWith('data:')) {
-            // Detect image type from base64 header
-            let imageType = 'png'; // default
-            
-            if (previewUrl.startsWith('/9j/') || previewUrl.startsWith('iVBOR')) {
-              imageType = previewUrl.startsWith('/9j/') ? 'jpeg' : 'png';
-            }
-            
-            // Format as data URL
-            previewUrl = `data:image/${imageType};base64,${previewUrl}`;
-            console.log('✅ Formatted as data URL:', imageType, previewUrl.substring(0, 80));
+        if (submission.file_type === 'image') {
+          if (!previewUrl || previewUrl.trim() === '') {
+            console.error('❌ Empty file_path for image submission:', submission.caption);
+            previewUrl = null; // Will show error state
           } else {
-            console.log('✅ Already a data URL:', previewUrl.substring(0, 80));
+            // Remove any whitespace or newlines
+            previewUrl = previewUrl.trim();
+            
+            // Check if it's already a data URL
+            if (!previewUrl.startsWith('data:')) {
+              // Detect image type from base64 header
+              let imageType = 'png'; // default
+              
+              if (previewUrl.startsWith('/9j/')) {
+                imageType = 'jpeg';
+              } else if (previewUrl.startsWith('iVBOR')) {
+                imageType = 'png';
+              }
+              
+              // Format as data URL
+              previewUrl = `data:image/${imageType};base64,${previewUrl}`;
+              console.log('✅ Formatted as data URL:', imageType, 'Length:', previewUrl.length);
+            } else {
+              console.log('✅ Already a data URL, Length:', previewUrl.length);
+            }
           }
         }
         
@@ -1061,6 +1158,33 @@ onMounted(async () => {
   const authenticated = await authenticateWithBackend();
   if (authenticated) {
     loadPortfolioFolders();
+    
+    // Restore previous view state after refresh
+    const savedView = localStorage.getItem('student_current_view');
+    if (savedView) {
+      try {
+        const viewState = JSON.parse(savedView);
+        console.log('🔄 Restoring view state:', viewState);
+        
+        if (viewState.selectedFolder) {
+          selectedFolder.value = viewState.selectedFolder;
+          // Load activities for this folder
+          await loadFolderActivities(viewState.selectedFolder.id);
+          
+          if (viewState.selectedActivity) {
+            // Find the activity in the loaded activities
+            const activity = folderActivities.value.find(a => a.id === viewState.selectedActivity.id);
+            if (activity) {
+              await openActivity(activity);
+              console.log('✅ Restored activity view:', activity.title);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error restoring view state:', error);
+        localStorage.removeItem('student_current_view');
+      }
+    }
   } else {
     console.error('Failed to authenticate with backend');
   }

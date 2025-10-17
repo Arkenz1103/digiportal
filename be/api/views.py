@@ -552,12 +552,14 @@ def activity_submissions_api(request, activity_id):
         # Teachers see all submissions, students see only their own
         if request.user.role == 'teacher':
             submissions = StudentSubmission.objects.filter(activity=activity).order_by('-submitted_at')
+            # Use lightweight serializer for teachers (excludes large file_path)
+            from .serializer import StudentSubmissionListSerializer
+            serializer = StudentSubmissionListSerializer(submissions, many=True)
         else:
             submissions = StudentSubmission.objects.filter(activity=activity, student=request.user)
+            # Use full serializer for students (includes file_path for their own submissions)
+            serializer = StudentSubmissionSerializer(submissions, many=True)
         
-        # Use lightweight serializer for list views (excludes large file_path)
-        from .serializer import StudentSubmissionListSerializer
-        serializer = StudentSubmissionListSerializer(submissions, many=True)
         return Response(serializer.data)
     
     elif request.method == 'POST':
@@ -815,9 +817,10 @@ def score_submission_api(request, submission_id):
         print(f"  Feedback: {feedback}")
         print(f"  Criteria scores: {criteria_scores}")
         
-        # Update submission with score and feedback
+        # Update submission with score, feedback, and criteria scores
         submission.score = score
         submission.feedback = feedback
+        submission.criteria_scores = criteria_scores  # Save the criteria scores JSON
         submission.status = 'scored'
         submission.scored_at = timezone.now()
         submission.save()

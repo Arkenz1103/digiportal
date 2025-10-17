@@ -1073,6 +1073,9 @@ const emit = defineEmits(['navigate']);
 
 // Navigate to activity outputs
 const navigateToActivityOutputs = (activity, index) => {
+    console.log('🚀 Navigating to outputs with activity:', activity);
+    console.log('📊 Scoring criteria:', activity.scoringCriteria);
+    
     // Store the selected activity for the outputs page
     localStorage.setItem('selected_activity', JSON.stringify({
         id: activity.id, // Use the actual database ID
@@ -1083,7 +1086,7 @@ const navigateToActivityOutputs = (activity, index) => {
         dueDate: activity.due_date,
         class: className.value,
         subject: selectedSubject.value || 'General',
-        scoringCriteria: activity.scoring_criteria
+        scoringCriteria: activity.scoringCriteria // Use camelCase
     }));
     
     // Navigate to outputs page

@@ -109,6 +109,7 @@ class StudentSubmission(models.Model):
     file_type = models.CharField(max_length=50, null=True, blank=True)
     score = models.IntegerField(null=True, blank=True)
     feedback = models.TextField(null=True, blank=True)
+    criteria_scores = models.TextField(null=True, blank=True)  # JSON string of criteria scores
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='unscored')
     post_to_feed = models.BooleanField(default=False)
     approval_status = models.CharField(max_length=50, choices=APPROVAL_CHOICES, default='pending')

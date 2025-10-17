@@ -11,8 +11,44 @@ const activity = ref({
     id: null
 });
 
+// Load activity data from API
+const loadActivityFromAPI = async (activityId) => {
+    try {
+        console.log('🔄 Reloading activity from API:', activityId);
+        const response = await axios.get(`/api/activities/${activityId}/`);
+        console.log('📥 API Response:', response.data);
+        
+        // Parse scoring criteria if it's a string
+        let scoringCriteria = [];
+        if (response.data.scoring_criteria) {
+            try {
+                scoringCriteria = typeof response.data.scoring_criteria === 'string'
+                    ? JSON.parse(response.data.scoring_criteria)
+                    : response.data.scoring_criteria;
+                console.log('✅ Parsed scoring criteria:', scoringCriteria);
+            } catch (error) {
+                console.error('❌ Error parsing scoring criteria:', error);
+            }
+        }
+        
+        // Update activity with fresh data from API
+        activity.value = {
+            ...activity.value,
+            title: response.data.title,
+            description: response.data.description,
+            type: response.data.activity_type,
+            dueDate: response.data.due_date,
+            scoringCriteria: scoringCriteria
+        };
+        
+        console.log('✅ Activity updated from API:', activity.value);
+    } catch (error) {
+        console.error('❌ Error loading activity from API:', error);
+    }
+};
+
 // Load selected activity on component mount
-onMounted(() => {
+onMounted(async () => {
     const savedActivity = localStorage.getItem('selected_activity');
     if (savedActivity) {
         const parsedActivity = JSON.parse(savedActivity);
@@ -31,7 +67,12 @@ onMounted(() => {
             scoringCriteria: parsedActivity.scoringCriteria,
             subject: parsedActivity.subject  // Add subject field
         };
-        console.log('✅ Loaded activity:', activity.value);
+        console.log('✅ Loaded activity from localStorage:', activity.value);
+        
+        // Reload fresh data from API to get any updates
+        if (parsedActivity.id) {
+            await loadActivityFromAPI(parsedActivity.id);
+        }
     }
     
     // Load submissions for this specific activity
@@ -337,28 +378,27 @@ const saveScore = async () => {
             })))
         });
         
-        console.log('Score saved successfully:', response.data);
+        console.log('✅ Score saved successfully:', response.data);
         
-        // Update local state
-        if (!studentOutputs.value[selectedSubmission.value.id]) {
-            studentOutputs.value[selectedSubmission.value.id] = {};
-        }
+        // Small delay to ensure database is updated
+        await new Promise(resolve => setTimeout(resolve, 300));
         
-        studentOutputs.value[selectedSubmission.value.id].scores = {
-            criteria: criteriaScores.value,
-            total: totalScore,
-            maxTotal: maxScore
-        };
-        
-        // Close the dialog
-        closeAddScoreDialog();
-        
-        // Refresh both lists
-        await loadUnscoredSubmissions();
-        await loadScoredSubmissions();
+        // Refresh both lists to move submission from unscored to scored
+        console.log('🔄 Reloading submissions...');
+        await Promise.all([
+            loadUnscoredSubmissions(),
+            loadScoredSubmissions()
+        ]);
+        console.log('✅ Submissions reloaded');
+        console.log('📊 Unscored count:', submissions.value.length);
+        console.log('📊 Scored count:', scoredSubmissionsData.value.length);
         
         // Show success message
         alert('Score saved successfully!');
+        
+        // Close both dialogs AFTER everything is done
+        closeAddScoreDialog();
+        closeDialog();
     } catch (error) {
         console.error('Error saving score:', error);
         alert('Failed to save score: ' + (error.response?.data?.error || error.message));
