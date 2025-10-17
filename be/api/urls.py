@@ -38,7 +38,9 @@ urlpatterns = [
     
     # Submission API routes
     path('api/activities/<int:activity_id>/submissions/', views.activity_submissions_api, name='activity_submissions_api'),
+    path('api/submissions/<int:submission_id>/', views.submission_detail_api, name='submission_detail_api'),
     path('api/submissions/unscored/', views.unscored_submissions_api, name='unscored_submissions_api'),
+    path('api/submissions/scored/', views.scored_submissions_api, name='scored_submissions_api'),
     path('api/submissions/<int:submission_id>/score/', views.score_submission_api, name='score_submission_api'),
     
     # Feed approval routes

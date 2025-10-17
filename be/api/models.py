@@ -78,6 +78,7 @@ class PortfolioActivity(models.Model):
     description = models.TextField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     file_path = models.CharField(max_length=500, null=True, blank=True)
+    scoring_criteria = models.TextField(null=True, blank=True)  # JSON string of criteria
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -120,3 +121,24 @@ class StudentSubmission(models.Model):
     def __str__(self):
         activity_title = self.activity.title if self.activity else 'Sketch Pad'
         return f"{self.student.username} - {activity_title} ({self.status})"
+
+
+class SubmissionScore(models.Model):
+    """Detailed scoring criteria for student submissions"""
+    submission = models.OneToOneField(StudentSubmission, on_delete=models.CASCADE, related_name='detailed_score')
+    creativity_score = models.IntegerField(default=0)
+    creativity_max = models.IntegerField(default=10)
+    technical_skill_score = models.IntegerField(default=0)
+    technical_skill_max = models.IntegerField(default=10)
+    requirements_score = models.IntegerField(default=0)
+    requirements_max = models.IntegerField(default=10)
+    total_score = models.IntegerField(default=0)
+    max_score = models.IntegerField(default=30)
+    scored_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='scored_submissions')
+    scored_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'submission_scores'
+    
+    def __str__(self):
+        return f"Score for {self.submission} - {self.total_score}/{self.max_score}"
