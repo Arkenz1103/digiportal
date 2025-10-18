@@ -19,12 +19,25 @@ export default defineConfig({
         cors: true,
         hmr: {
             host: 'localhost',
+            protocol: 'ws',
+            overlay: true,
+        },
+        proxy: {
+            '/api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
         },
         watch: {
+            usePolling: true,
+            interval: 100,
             ignored: [
-                '**/.be/**',           // Ignore Django backend folder
+                '**/be/**',           // Ignore Django backend folder
                 '**/node_modules/**',
                 '**/.git/**',
+                '**/__pycache__/**',
+                '**/*.pyc',
             ]
         },
     },
@@ -39,5 +52,9 @@ export default defineConfig({
         alias: {
             '@': '/resources/js',
         },
+    },
+    optimizeDeps: {
+        include: ['vue', 'axios'],
+        exclude: [],
     },
 });

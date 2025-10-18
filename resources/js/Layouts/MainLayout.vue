@@ -36,11 +36,17 @@ const newClassForm = ref({
 // Notifications state
 const showNotifications = ref(false);
 const notifications = ref([]);
+const allNotifications = ref([]);
 const unreadCount = ref(0);
+const displayLimit = ref(5);
+const isLoadingMore = ref(false);
+const lastOpenedCount = ref(parseInt(localStorage.getItem('notifications_last_opened') || '0'));
+const newNotificationsCount = ref(0);
 
 // Load notifications from backend
 const loadNotifications = async () => {
     try {
+        console.log('🔄 Loading notifications from /api/notifications/...');
         const response = await fetch('/api/notifications/', {
             credentials: 'include', // Include cookies for authentication
             headers: {
@@ -48,28 +54,96 @@ const loadNotifications = async () => {
             }
         });
         
+        console.log('📡 Response status:', response.status);
+        
         if (response.ok) {
             const data = await response.json();
-            notifications.value = data.map(notif => ({
-                id: notif.id,
-                type: notif.notification_type,
-                title: notif.title,
-                message: notif.message,
-                date: new Date(notif.created_at),
-                isNew: !notif.is_read,
-                isUnread: !notif.is_read,
-            }));
-            unreadCount.value = notifications.value.filter(n => n.isUnread).length;
-            console.log('✅ Loaded notifications:', notifications.value.length, 'notifications');
-            console.log('Unread count:', unreadCount.value);
+            console.log('📦 Raw data received:', data);
+            
+            // Get the last time user opened dropdown
+            const lastOpenedTime = parseInt(localStorage.getItem('notifications_last_opened_time') || '0');
+            
+            allNotifications.value = data.map(notif => {
+                const createdTime = new Date(notif.created_at).getTime();
+                // Mark as NEW if created after last time dropdown was opened
+                const isNew = createdTime > lastOpenedTime;
+                
+                return {
+                    id: notif.id,
+                    type: notif.notification_type,
+                    title: notif.title,
+                    message: notif.message,
+                    date: new Date(notif.created_at),
+                    isNew: isNew,
+                    isUnread: !notif.is_read,
+                };
+            });
+            
+            // Show only first 5 initially
+            notifications.value = allNotifications.value.slice(0, displayLimit.value);
+            unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
+            
+            // Calculate badge count: show only notifications that arrived AFTER last dropdown close
+            const lastSeenTotal = parseInt(localStorage.getItem('notifications_last_opened') || '0');
+            const currentTotal = allNotifications.value.length;
+            const newCount = Math.max(0, currentTotal - lastSeenTotal);
+            
+            // Update badge count (will be 0 if dropdown is open due to watch)
+            newNotificationsCount.value = newCount;
+            
+            console.log('✅ Loaded notifications:', allNotifications.value.length, 'total');
+            console.log('📊 Displaying:', notifications.value.length, 'notifications');
+            console.log('🔔 Unread count:', unreadCount.value);
+            console.log('👁️ Last seen total:', lastSeenTotal);
+            console.log('📈 Current total:', currentTotal);
+            console.log('🆕 New notifications:', newCount);
+            console.log('🎯 Badge count:', newNotificationsCount.value);
         } else {
-            const errorData = await response.json();
-            console.error('❌ Failed to load notifications:', response.status, errorData);
+            try {
+                const errorData = await response.json();
+                console.error('❌ Failed to load notifications:', response.status, errorData);
+            } catch (e) {
+                console.error('❌ Failed to load notifications:', response.status, response.statusText);
+            }
         }
     } catch (error) {
         console.error('❌ Error loading notifications:', error);
+        console.error('Error details:', error.message);
     }
 };
+
+// Load more notifications
+const loadMoreNotifications = () => {
+    isLoadingMore.value = true;
+    displayLimit.value += 5;
+    notifications.value = allNotifications.value.slice(0, displayLimit.value);
+    
+    setTimeout(() => {
+        isLoadingMore.value = false;
+    }, 300);
+};
+
+// Watch for dropdown open/close
+watch(showNotifications, (isOpen) => {
+    if (isOpen) {
+        // When dropdown opens, hide badge immediately
+        newNotificationsCount.value = 0;
+        
+        // Save current total count
+        lastOpenedCount.value = allNotifications.value.length;
+        localStorage.setItem('notifications_last_opened', lastOpenedCount.value.toString());
+        
+        const currentTime = Date.now();
+        localStorage.setItem('notifications_last_opened_time', currentTime.toString());
+        
+        console.log('📂 Dropdown opened, saved count:', lastOpenedCount.value);
+        console.log('⏰ Saved timestamp:', currentTime);
+        console.log('🔕 Badge hidden (user viewed notifications)');
+        
+        // Note: We keep isNew flags as they are, so NEW badges remain visible in dropdown
+        // They will be recalculated on next load based on the new timestamp
+    }
+});
 
 // Helper functions
 const getNotificationIcon = (type) => {
@@ -130,10 +204,40 @@ const markAsRead = async (id) => {
                 notification.isUnread = false;
                 notification.isNew = false;
             }
-            unreadCount.value = notifications.value.filter(n => n.isUnread).length;
+            unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
         }
     } catch (error) {
         console.error('Error marking notification as read:', error);
+    }
+};
+
+// Delete all notifications
+const deleteAllNotifications = async () => {
+    if (!confirm('Are you sure you want to delete all notifications?')) {
+        return;
+    }
+    
+    try {
+        // Delete all notifications via API
+        const deletePromises = allNotifications.value.map(notif => 
+            fetch(`/api/notifications/${notif.id}/`, {
+                method: 'DELETE',
+                credentials: 'include',
+            })
+        );
+        
+        await Promise.all(deletePromises);
+        
+        // Clear local state
+        allNotifications.value = [];
+        notifications.value = [];
+        unreadCount.value = 0;
+        newNotificationsCount.value = 0;
+        
+        console.log('✅ All notifications deleted');
+    } catch (error) {
+        console.error('❌ Error deleting notifications:', error);
+        alert('Failed to delete notifications. Please try again.');
     }
 };
 
@@ -368,8 +472,8 @@ onMounted(() => {
     // Listen for custom event for same-tab changes
     window.addEventListener('userDataChanged', handleUserDataChange);
     
-    // Refresh notifications every 30 seconds
-    setInterval(loadNotifications, 30000);
+    // Refresh notifications every 5 seconds for real-time updates
+    setInterval(loadNotifications, 5000);
     
     // Debug: Log user data
     console.log('MainLayout mounted, user data:', currentUser.value);
@@ -519,24 +623,24 @@ const auth = computed(() => ({
                                 <div class="relative">
                                     <button
                                         @click.stop="showNotifications = !showNotifications"
-                                        class="relative p-2.5 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 rounded-xl transition-all duration-300 focus:outline-none group"
-                                        :class="{ 'bg-gradient-to-br from-indigo-50 to-purple-50': showNotifications }"
+                                        class="relative w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-full transition-all duration-300 focus:outline-none group"
+                                        :class="{ 'bg-gray-100': showNotifications }"
                                     >
-                                        <i class="pi pi-bell text-gray-700 text-xl transition-transform duration-300 group-hover:scale-110" 
-                                           :class="{ 'animate-bounce text-indigo-600': unreadCount > 0 }"></i>
+                                        <i class="pi pi-bell text-gray-700 text-2xl transition-transform duration-300 group-hover:scale-110" 
+                                           :class="{ 'animate-bounce text-indigo-600': newNotificationsCount > 0 && !showNotifications }"></i>
                                         <!-- Notification Badge -->
                                         <div
-                                            v-if="unreadCount > 0"
-                                            class="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs w-6 h-6 flex items-center justify-center rounded-full font-bold shadow-lg animate-pulse"
+                                            v-if="newNotificationsCount > 0 && !showNotifications"
+                                            class="absolute top-0 right-0 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow-lg animate-pulse"
                                         >
-                                            {{ unreadCount > 9 ? '9+' : unreadCount }}
+                                            {{ newNotificationsCount > 9 ? '9+' : newNotificationsCount }}
                                         </div>
                                     </button>
 
                                     <!-- Notifications Dropdown -->
                                     <div
                                         v-show="showNotifications"
-                                        class="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border-2 border-indigo-100 overflow-hidden z-50 transform transition-all duration-300"
+                                        class="absolute right-0 top-full mt-2 w-96 max-h-[600px] bg-white rounded-2xl shadow-2xl border-2 border-indigo-100 overflow-hidden z-50 transform transition-all duration-300"
                                         :class="showNotifications ? 'scale-100 opacity-100' : 'scale-95 opacity-0'"
                                         @click.stop
                                     >
@@ -562,16 +666,14 @@ const auth = computed(() => ({
                                         </div>
 
                                         <!-- Notifications List -->
-                                        <div class="max-h-[450px] overflow-y-auto">
+                                        <div class="max-h-[400px] overflow-y-auto">
                                             <div
-                                                v-for="notification in notifications.slice(0, 5)"
+                                                v-for="notification in notifications"
                                                 :key="notification.id"
                                                 @click="markAsRead(notification.id)"
-                                                class="group px-5 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 cursor-pointer border-b border-gray-100 last:border-0 relative"
+                                                class="group px-5 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 cursor-pointer border-b border-gray-100 last:border-0"
                                                 :class="{ 'bg-gradient-to-r from-indigo-50/50 to-purple-50/50': notification.isUnread }"
                                             >
-                                                <!-- Unread Indicator -->
-                                                <div v-if="notification.isUnread" class="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
                                                 
                                                 <div class="flex items-start gap-3">
                                                     <!-- Icon -->
@@ -625,6 +727,30 @@ const auth = computed(() => ({
                                                 <p class="text-gray-700 font-semibold mb-1">All Caught Up!</p>
                                                 <p class="text-gray-500 text-sm">No new notifications at the moment</p>
                                             </div>
+                                        </div>
+
+                                        <!-- Load More Notifications Button -->
+                                        <div v-if="notifications.length < allNotifications.length" class="border-t border-gray-100 p-3 bg-gray-50">
+                                            <button
+                                                @click="loadMoreNotifications"
+                                                :disabled="isLoadingMore"
+                                                class="w-full py-3 px-4 bg-gradient-to-r from-gray-100 to-gray-200 hover:from-indigo-50 hover:to-purple-50 text-gray-700 hover:text-indigo-700 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <i v-if="!isLoadingMore" class="pi pi-history text-sm group-hover:scale-110 transition-transform"></i>
+                                                <i v-else class="pi pi-spin pi-spinner text-sm"></i>
+                                                <span>{{ isLoadingMore ? 'Loading...' : 'See previous notifications' }}</span>
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- View All Button (when all loaded) -->
+                                        <div v-else-if="allNotifications.length > 5" class="border-t border-gray-100 p-3 bg-gray-50">
+                                            <button
+                                                @click="navigateToNotifications"
+                                                class="w-full py-3 px-4 bg-gradient-to-r from-indigo-100 to-purple-100 hover:from-indigo-200 hover:to-purple-200 text-indigo-700 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group"
+                                            >
+                                                <i class="pi pi-external-link text-sm group-hover:scale-110 transition-transform"></i>
+                                                <span>View all in notifications page</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

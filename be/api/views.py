@@ -948,11 +948,12 @@ def submission_detail_api(request, submission_id):
 
 
 @csrf_exempt
-@api_view(['GET', 'PUT'])
+@api_view(['GET', 'PUT', 'DELETE'])
 def notifications_api(request):
     """
     GET: Get all notifications for current user
     PUT: Mark notification(s) as read
+    DELETE: Delete notification(s)
     """
     if not request.user.is_authenticated:
         print(f"❌ Notifications API - User not authenticated")
@@ -1004,6 +1005,35 @@ def notifications_api(request):
                 return Response({'error': 'notification_id or mark_all required'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(f"Error updating notification: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        try:
+            data = request.data
+            notification_id = data.get('notification_id')
+            delete_all = data.get('delete_all', False)
+            
+            if delete_all:
+                # Delete all notifications for current user
+                count = Notification.objects.filter(recipient=request.user).count()
+                Notification.objects.filter(recipient=request.user).delete()
+                print(f"🗑️ Deleted {count} notifications for user: {request.user.username}")
+                return Response({'message': f'Deleted {count} notifications', 'count': count})
+            elif notification_id:
+                # Delete specific notification
+                try:
+                    notification = Notification.objects.get(id=notification_id, recipient=request.user)
+                    notification.delete()
+                    print(f"🗑️ Deleted notification {notification_id} for user: {request.user.username}")
+                    return Response({'message': 'Notification deleted'})
+                except Notification.DoesNotExist:
+                    return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({'error': 'notification_id or delete_all required'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"❌ Error deleting notification: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
