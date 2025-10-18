@@ -65,7 +65,8 @@ const loadNotifications = async () => {
             
             allNotifications.value = data.map(notif => {
                 const createdTime = new Date(notif.created_at).getTime();
-                // Mark as NEW if created after last time dropdown was opened
+                
+                // Mark as NEW if created after the last time dropdown was opened
                 const isNew = createdTime > lastOpenedTime;
                 
                 return {
@@ -83,20 +84,16 @@ const loadNotifications = async () => {
             notifications.value = allNotifications.value.slice(0, displayLimit.value);
             unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
             
-            // Calculate badge count: show only notifications that arrived AFTER last dropdown close
-            const lastSeenTotal = parseInt(localStorage.getItem('notifications_last_opened') || '0');
-            const currentTotal = allNotifications.value.length;
-            const newCount = Math.max(0, currentTotal - lastSeenTotal);
+            // Calculate badge count: count notifications with isNew = true (created within last 1 minute)
+            const newCount = allNotifications.value.filter(n => n.isNew).length;
             
-            // Update badge count (will be 0 if dropdown is open due to watch)
+            // Update badge count
             newNotificationsCount.value = newCount;
             
             console.log('✅ Loaded notifications:', allNotifications.value.length, 'total');
             console.log('📊 Displaying:', notifications.value.length, 'notifications');
             console.log('🔔 Unread count:', unreadCount.value);
-            console.log('👁️ Last seen total:', lastSeenTotal);
-            console.log('📈 Current total:', currentTotal);
-            console.log('🆕 New notifications:', newCount);
+            console.log('🆕 New notifications (< 1 min):', newCount);
             console.log('🎯 Badge count:', newNotificationsCount.value);
         } else {
             try {
@@ -126,22 +123,16 @@ const loadMoreNotifications = () => {
 // Watch for dropdown open/close
 watch(showNotifications, (isOpen) => {
     if (isOpen) {
-        // When dropdown opens, hide badge immediately
-        newNotificationsCount.value = 0;
-        
-        // Save current total count
-        lastOpenedCount.value = allNotifications.value.length;
-        localStorage.setItem('notifications_last_opened', lastOpenedCount.value.toString());
-        
+        // When dropdown opens, save the current timestamp
         const currentTime = Date.now();
         localStorage.setItem('notifications_last_opened_time', currentTime.toString());
         
-        console.log('📂 Dropdown opened, saved count:', lastOpenedCount.value);
-        console.log('⏰ Saved timestamp:', currentTime);
-        console.log('🔕 Badge hidden (user viewed notifications)');
+        // Hide badge immediately
+        newNotificationsCount.value = 0;
         
-        // Note: We keep isNew flags as they are, so NEW badges remain visible in dropdown
-        // They will be recalculated on next load based on the new timestamp
+        console.log('📂 Dropdown opened');
+        console.log('⏰ Saved timestamp:', new Date(currentTime).toLocaleString());
+        console.log('🔕 Badge hidden');
     }
 });
 
@@ -471,9 +462,6 @@ onMounted(() => {
     
     // Listen for custom event for same-tab changes
     window.addEventListener('userDataChanged', handleUserDataChange);
-    
-    // Refresh notifications every 5 seconds for real-time updates
-    setInterval(loadNotifications, 5000);
     
     // Debug: Log user data
     console.log('MainLayout mounted, user data:', currentUser.value);

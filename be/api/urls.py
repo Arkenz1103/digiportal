@@ -61,4 +61,8 @@ urlpatterns = [
     # Notification routes
     path('api/notifications/', views.notifications_api, name='notifications_api'),
     path('api/notifications/unread-count/', views.unread_notifications_count_api, name='unread_notifications_count_api'),
+    
+    # Student progress routes
+    path('api/students/progress/', views.student_progress_list_api, name='student_progress_list_api'),
+    path('api/students/<int:student_id>/progress/', views.student_progress_detail_api, name='student_progress_detail_api'),
 ]

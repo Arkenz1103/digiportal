@@ -162,7 +162,70 @@ def teacher_progress(request):
 @teacher_required
 def teacher_sprogress(request):
     """Teacher student progress page"""
-    return inertia_render(request, 'Teacher/Sprogress')
+    from django.db.models import Count, Q
+    
+    # Get class name from query parameter (from Sroom)
+    class_name = request.GET.get('class', None)
+    
+    # Get all students (optionally filtered by class), exclude admin users
+    students = User.objects.filter(role='student').exclude(username='admin').order_by('username')
+    
+    # Get teacher's portfolio folders
+    teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
+    
+    # If class is specified, filter students by submissions in that class's portfolios
+    if class_name:
+        # Get folders for this class
+        class_folders = teacher_folders.filter(class_name=class_name)
+        # Get students who have submissions in these folders
+        student_ids = StudentSubmission.objects.filter(
+            activity__folder__in=class_folders
+        ).values_list('student_id', flat=True).distinct()
+        students = students.filter(id__in=student_ids)
+    
+    student_data = []
+    for student in students:
+        # Count total outputs (submissions) for this student
+        total_outputs = StudentSubmission.objects.filter(student=student).count()
+        
+        # Get student's submissions with portfolio and activity info
+        submissions = StudentSubmission.objects.filter(
+            student=student,
+            activity__isnull=False
+        ).select_related('activity__folder').order_by('-submitted_at')
+        
+        student_data.append({
+            'id': student.id,
+            'student_id': f'STD{str(student.id).zfill(3)}',
+            'name': student.get_full_name() or student.username,
+            'username': student.username,
+            'email': student.email,
+            'total_outputs': total_outputs,
+            'submissions': [
+                {
+                    'id': sub.id,
+                    'activity_title': sub.activity.title if sub.activity else 'Sketch Pad',
+                    'portfolio_name': sub.activity.folder.name if sub.activity and sub.activity.folder else 'N/A',
+                    'score': sub.score,
+                    'status': sub.status,
+                    'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
+                }
+                for sub in submissions[:10]  # Limit to 10 recent submissions
+            ]
+        })
+    
+    return inertia_render(request, 'Teacher/Sprogress', {
+        'students': student_data,
+        'class_name': class_name,
+        'portfolio_folders': [
+            {
+                'id': folder.id,
+                'name': folder.name,
+                'class_name': folder.class_name,
+            }
+            for folder in teacher_folders
+        ]
+    })
 
 
 @login_required
@@ -387,8 +450,8 @@ def portfolio_folders_api(request):
                 description=description
             )
             
-            # Notify all students about new portfolio
-            students = User.objects.filter(role='student')
+            # Notify all students about new portfolio (exclude admin)
+            students = User.objects.filter(role='student').exclude(username='admin')
             print(f"📢 Notifying {students.count()} students about new portfolio")
             
             for student in students:
@@ -445,8 +508,8 @@ def portfolio_folder_detail_api(request, folder_id):
             folder.description = data.get('description', folder.description)
             folder.save()
             
-            # Notify all students about portfolio update
-            students = User.objects.filter(role='student')
+            # Notify all students about portfolio update (exclude admin)
+            students = User.objects.filter(role='student').exclude(username='admin')
             for student in students:
                 create_notification(
                     recipient=student,
@@ -467,8 +530,8 @@ def portfolio_folder_detail_api(request, folder_id):
         
         folder_name = folder.name
         
-        # Notify all students about portfolio deletion
-        students = User.objects.filter(role='student')
+        # Notify all students about portfolio deletion (exclude admin)
+        students = User.objects.filter(role='student').exclude(username='admin')
         for student in students:
             create_notification(
                 recipient=student,
@@ -526,8 +589,8 @@ def portfolio_activities_api(request, folder_id):
             if serializer.is_valid():
                 activity = serializer.save()
                 
-                # Notify all students about new activity
-                students = User.objects.filter(role='student')
+                # Notify all students about new activity (exclude admin)
+                students = User.objects.filter(role='student').exclude(username='admin')
                 for student in students:
                     create_notification(
                         recipient=student,
@@ -585,8 +648,8 @@ def activity_detail_api(request, activity_id):
             activity.scoring_criteria = data.get('scoring_criteria', activity.scoring_criteria)
             activity.save()
             
-            # Notify all students about activity update
-            students = User.objects.filter(role='student')
+            # Notify all students about activity update (exclude admin)
+            students = User.objects.filter(role='student').exclude(username='admin')
             for student in students:
                 create_notification(
                     recipient=student,
@@ -615,8 +678,8 @@ def activity_detail_api(request, activity_id):
             print(f"Deleting activity {activity_id}")
             activity_title = activity.title
             
-            # Notify all students about activity deletion
-            students = User.objects.filter(role='student')
+            # Notify all students about activity deletion (exclude admin)
+            students = User.objects.filter(role='student').exclude(username='admin')
             for student in students:
                 create_notification(
                     recipient=student,
@@ -1209,3 +1272,148 @@ def sketch_delete_api(request, sketch_id):
     except Exception as e:
         print(f"Error deleting sketch: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def student_progress_list_api(request):
+    """Get list of all students with their progress summary"""
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from django.db.models import Count, Avg, Q
+        
+        # Get class name from query parameter
+        class_name = request.GET.get('class', None)
+        
+        # Get all students, exclude admin users
+        students = User.objects.filter(role='student').exclude(username='admin').order_by('username')
+        
+        # Filter by class if specified
+        if class_name:
+            # Get teacher's folders for this class
+            teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
+            class_folders = teacher_folders.filter(class_name=class_name)
+            # Get students who have submissions in these folders
+            student_ids = StudentSubmission.objects.filter(
+                activity__folder__in=class_folders
+            ).values_list('student_id', flat=True).distinct()
+            students = students.filter(id__in=student_ids)
+        
+        student_list = []
+        for student in students:
+            # Get submissions count
+            total_submissions = StudentSubmission.objects.filter(student=student).count()
+            scored_submissions = StudentSubmission.objects.filter(student=student, status='scored').count()
+            
+            # Get average score
+            avg_score = StudentSubmission.objects.filter(
+                student=student, 
+                status='scored',
+                score__isnull=False
+            ).aggregate(Avg('score'))['score__avg'] or 0
+            
+            student_list.append({
+                'id': student.id,
+                'student_id': f'STD{str(student.id).zfill(3)}',
+                'name': student.get_full_name() or student.username,
+                'username': student.username,
+                'email': student.email,
+                'total_outputs': total_submissions,
+                'scored_outputs': scored_submissions,
+                'average_score': round(avg_score, 2) if avg_score else 0,
+            })
+        
+        return Response(student_list, status=status.HTTP_200_OK)
+    except Exception as e:
+        print(f"Error fetching student progress list: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def student_progress_detail_api(request, student_id):
+    """Get detailed progress for a specific student"""
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Get student
+        student = User.objects.get(id=student_id, role='student')
+        
+        # Get all submissions for this student
+        submissions = StudentSubmission.objects.filter(
+            student=student
+        ).select_related('activity__folder').order_by('-submitted_at')
+        
+        # Group submissions by portfolio
+        portfolio_data = {}
+        for sub in submissions:
+            if sub.activity and sub.activity.folder:
+                folder_id = sub.activity.folder.id
+                folder_name = sub.activity.folder.name
+                
+                if folder_id not in portfolio_data:
+                    portfolio_data[folder_id] = {
+                        'portfolio_id': folder_id,
+                        'portfolio_name': folder_name,
+                        'class_name': sub.activity.folder.class_name,
+                        'activities': []
+                    }
+                
+                portfolio_data[folder_id]['activities'].append({
+                    'id': sub.id,
+                    'activity_id': sub.activity.id,
+                    'activity_title': sub.activity.title,
+                    'activity_type': sub.activity.activity_type,
+                    'score': sub.score,
+                    'status': sub.status,
+                    'feedback': sub.feedback,
+                    'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
+                    'scored_at': sub.scored_at.isoformat() if sub.scored_at else None,
+                })
+        
+        # Get sketch submissions (no activity)
+        sketch_submissions = StudentSubmission.objects.filter(
+            student=student,
+            activity__isnull=True
+        ).order_by('-submitted_at')
+        
+        response_data = {
+            'student': {
+                'id': student.id,
+                'student_id': f'STD{str(student.id).zfill(3)}',
+                'name': student.get_full_name() or student.username,
+                'username': student.username,
+                'email': student.email,
+            },
+            'portfolios': list(portfolio_data.values()),
+            'sketches': [
+                {
+                    'id': sub.id,
+                    'caption': sub.caption,
+                    'score': sub.score,
+                    'status': sub.status,
+                    'feedback': sub.feedback,
+                    'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
+                }
+                for sub in sketch_submissions
+            ],
+            'summary': {
+                'total_outputs': submissions.count(),
+                'scored_outputs': submissions.filter(status='scored').count(),
+                'unscored_outputs': submissions.filter(status='unscored').count(),
+                'average_score': round(
+                    submissions.filter(status='scored', score__isnull=False).aggregate(Avg('score'))['score__avg'] or 0,
+                    2
+                ),
+            }
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error fetching student progress detail: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

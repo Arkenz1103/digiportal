@@ -5,20 +5,12 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="space-y-3">
                     <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
-                        Grade 1 - A
+                        {{ currentClassName }}
                     </h1>
                     <p class="text-white/90 ml-2 flex items-center gap-2">
                         <i class="pi pi-user"></i>
                         Teacher: {{ auth.user.name }}
                     </p>
-                </div>
-                <div>
-                    <button 
-                        @click="goBackToRoom"
-                        class="flex items-center gap-2 px-4 py-2 bg-white/20 text-white hover:bg-white/30 rounded-lg transition-all">
-                        <i class="pi pi-arrow-left"></i>
-                        <span>Back to Folder</span>
-                    </button>
                 </div>
             </div>
             
@@ -30,16 +22,44 @@
 
         <!-- Main Content -->
         <div class="p-6">
-            <!-- Search Section -->
-            <div class="mb-8">
-                <div class="relative max-w-md">
-                    <input type="text" placeholder="Search students..." 
-                        class="w-full pl-10 pr-4 py-2 rounded-lg border border-indigo-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-all duration-200 bg-white"
+            <!-- Search Section with Back Button -->
+            <div class="mb-8 flex items-center justify-between">
+                <div class="relative" style="width: 350px;">
+                    <input 
+                        type="text" 
+                        v-model="searchQuery"
+                        placeholder="Search by student name or ID..." 
+                        class="w-full pl-10 pr-10 py-2 rounded-lg border-2 border-indigo-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm text-gray-700 placeholder-gray-400 text-sm"
                     />
                     <div class="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500">
-                        <i class="pi pi-search"></i>
+                        <i class="pi pi-search text-sm"></i>
+                    </div>
+                    <div v-if="searchQuery" class="absolute right-3 top-1/2 -translate-y-1/2">
+                        <button 
+                            @click="searchQuery = ''"
+                            class="text-gray-400 hover:text-gray-600 transition-colors">
+                            <i class="pi pi-times text-xs"></i>
+                        </button>
                     </div>
                 </div>
+                
+                <!-- Back Button on the right -->
+                <button 
+                    @click="goBackToRoom"
+                    class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all shadow-sm">
+                    <i class="pi pi-arrow-left text-sm"></i>
+                    <span class="text-sm font-medium">Back to Activities</span>
+                </button>
+            </div>
+            
+            <!-- Search Results Info -->
+            <div v-if="searchQuery" class="mb-4">
+                <p v-if="filteredStudents.length === 0" class="text-sm text-gray-500 ml-2">
+                    No students found matching "{{ searchQuery }}"
+                </p>
+                <p v-else class="text-sm text-indigo-600 ml-2">
+                    Found {{ filteredStudents.length }} student(s)
+                </p>
             </div>
 
             <!-- Student List Section -->
@@ -49,13 +69,13 @@
                     <div class="w-16 text-sm font-bold text-white">#</div>
                     <div class="w-64 text-sm font-bold text-white">Student Name</div>
                     <div class="w-40 text-sm font-bold text-white">Student ID</div>
-                    <div class="w-32 text-sm font-bold text-white text-center">Outputs</div>
-                    <div class="flex-1 text-sm font-bold text-white text-center">Actions</div>
+                    <div class="flex-1 text-sm font-bold text-white text-center">Outputs</div>
+                    <div class="w-48 text-sm font-bold text-white text-center">Actions</div>
                 </div>
 
                 <!-- Student Items -->
-                <div v-for="(student, index) in students" :key="student.id" 
-                    class="group flex items-center px-6 py-6 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 border-b border-indigo-100 transition-all duration-300 hover:shadow-md">
+                <div v-for="(student, index) in filteredStudents" :key="student.id" 
+                    class="group flex items-center px-6 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 border-b border-indigo-100 transition-all duration-300 hover:shadow-md">
                     <div class="w-16">
                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center border-2 border-indigo-200">
                             <span class="text-indigo-700 font-bold">{{ index + 1 }}</span>
@@ -76,12 +96,7 @@
                             <span class="text-indigo-700 font-medium text-sm">{{ student.id }}</span>
                         </div>
                     </div>
-                    <div class="w-32 text-center">
-                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 shadow-sm">
-                            <span class="text-3xl font-bold text-green-600">{{ student.totalActivities }}</span>
-                        </div>
-                    </div>
-                    <div class="flex-1 flex items-center justify-center gap-3">
+                    <div class="flex-1 flex justify-center">
                         <button 
                             class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                             @click="viewOutputs(student)">
@@ -90,6 +105,8 @@
                                 View Outputs
                             </span>
                         </button>
+                    </div>
+                    <div class="w-48 flex items-center justify-center">
                         <button 
                             class="px-5 py-2.5 rounded-lg bg-white text-indigo-700 font-medium hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg border-2 border-indigo-200 transform hover:-translate-y-0.5"
                             @click="viewDetails(student)">
@@ -263,8 +280,35 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import axios from 'axios';
 
+// Define props
+const props = defineProps({
+    className: {
+        type: String,
+        default: null
+    }
+});
+
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
+
+// Get class name from localStorage (set by Room.vue)
+const currentClassName = ref('All Classes');
+
+// Load class name from localStorage on mount
+const loadClassName = () => {
+    const classContext = localStorage.getItem('progress_class_context');
+    if (classContext) {
+        try {
+            const context = JSON.parse(classContext);
+            if (context.className) {
+                currentClassName.value = context.className;
+                console.log('Loaded class name:', context.className);
+            }
+        } catch (e) {
+            console.error('Error parsing class context:', e);
+        }
+    }
+};
 
 // Mock user data
 const currentUser = ref({
@@ -277,33 +321,26 @@ const auth = computed(() => ({
     user: currentUser.value
 }));
 
-// Sample student data
-const students = ref([
-    {
-        id: 'STD001',
-        name: 'John Smith',
-        initial: 'JS',
-        progress: 85,
-        completedActivities: 8,
-        totalActivities: 15
-    },
-    {
-        id: 'STD002',
-        name: 'Maria Garcia',
-        initial: 'EW',
-        progress: 92,
-        completedActivities: 12,
-        totalActivities: 15
-    },
-    {
-        id: 'STD003',
-        name: 'James Wilson',
-        initial: 'MB',
-        progress: 78,
-        completedActivities: 7,
-        totalActivities: 15
-    },
-]);
+// Student data (loaded from API)
+const students = ref([]);
+
+// Search query
+const searchQuery = ref('');
+
+// Filtered students based on search
+const filteredStudents = computed(() => {
+    if (!searchQuery.value) {
+        return students.value;
+    }
+    
+    const query = searchQuery.value.toLowerCase();
+    return students.value.filter(student => {
+        const nameMatch = student.name.toLowerCase().includes(query);
+        const idMatch = student.id.toLowerCase().includes(query);
+        const usernameMatch = student.username?.toLowerCase().includes(query);
+        return nameMatch || idMatch || usernameMatch;
+    });
+});
 
 // Dialog state
 const showOutputsDialog = ref(false);
@@ -706,8 +743,52 @@ const viewOutputs = async (student) => {
     await loadStudentSubmissions(student.id);
 };
 
+// Load students from API
+const loadStudents = async () => {
+    try {
+        // Get class context from localStorage (set by Room.vue)
+        const classContext = localStorage.getItem('progress_class_context');
+        let classParam = '';
+        
+        if (classContext) {
+            try {
+                const context = JSON.parse(classContext);
+                if (context.className) {
+                    classParam = `?class=${encodeURIComponent(context.className)}`;
+                    console.log('Loading students for class:', context.className);
+                }
+            } catch (e) {
+                console.error('Error parsing class context:', e);
+            }
+        }
+        
+        const response = await axios.get(`/api/students/progress/${classParam}`);
+        if (response.data) {
+            students.value = response.data.map(student => ({
+                id: student.student_id,
+                dbId: student.id, // Store database ID for API calls
+                name: student.name,
+                initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+                username: student.username,
+                email: student.email,
+                totalActivities: student.total_outputs,
+                completedActivities: student.scored_outputs,
+                progress: student.total_outputs > 0 
+                    ? Math.round((student.scored_outputs / student.total_outputs) * 100) 
+                    : 0,
+                averageScore: student.average_score
+            }));
+            console.log('Loaded students:', students.value);
+        }
+    } catch (error) {
+        console.error('Error loading students:', error);
+    }
+};
+
 // Load folders on mount
 onMounted(() => {
+    loadClassName();
+    loadStudents();
     loadPortfolioFolders();
 });
 
@@ -722,8 +803,29 @@ const closeOutputsDialog = () => {
     showOutputsDialog.value = false;
 };
 
-// Navigate back to Room page
+// Navigate back to Room page (same as Outputs.vue)
 const goBackToRoom = () => {
+    // Get class context from localStorage
+    const classContext = localStorage.getItem('progress_class_context');
+    console.log('Going back with class context:', classContext);
+    
+    if (classContext) {
+        try {
+            const context = JSON.parse(classContext);
+            if (context.className) {
+                // Store return context (same format as Outputs.vue)
+                const returnData = {
+                    subject: context.className,
+                    showActivities: true
+                };
+                console.log('Storing return context:', returnData);
+                localStorage.setItem('return_to_activities', JSON.stringify(returnData));
+            }
+        } catch (e) {
+            console.error('Error:', e);
+        }
+    }
+    
     emit('navigate', 'TeacherRoom');
 };
 </script>

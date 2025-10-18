@@ -1698,18 +1698,32 @@ onMounted(async () => {
                 
                 if (context.showActivities && context.subject) {
                     // Find the folder for this subject
-                    const folder = subjectFolders.value.find(f => f.name === context.subject);
-                    console.log('Found folder:', folder);
+                    // First try exact match by folder name (for Outputs.vue)
+                    let folder = subjectFolders.value.find(f => f.name === context.subject);
+                    
+                    // If not found, try matching by class_name (for Sprogress.vue)
+                    if (!folder) {
+                        folder = subjectFolders.value.find(f => f.class_name === context.subject);
+                    }
+                    
+                    // If still not found, just use the first folder for this class
+                    if (!folder && subjectFolders.value.length > 0) {
+                        console.log('⚠️ No exact match, using first folder');
+                        folder = subjectFolders.value[0];
+                    }
+                    
+                    console.log('✅ Found folder:', folder);
                     
                     if (folder) {
-                        console.log('Showing activities for:', context.subject, folder.id);
-                        await showSubjectActivities(context.subject, folder.id);
+                        console.log('🎯 Showing activities for folder:', folder.name, 'ID:', folder.id);
+                        // Use folder.name (not context.subject) as the first parameter
+                        await showSubjectActivities(folder.name, folder.id);
                     } else {
-                        console.error('Folder not found for subject:', context.subject);
+                        console.error('❌ Folder not found for subject:', context.subject);
+                        console.log('🔎 Tried matching:', context.subject);
+                        console.log('📋 Against folders:', subjectFolders.value.map(f => ({ name: f.name, class_name: f.class_name })));
                     }
                 }
-                // Clear the flag after using it
-                localStorage.removeItem('return_to_activities');
             } catch (error) {
                 console.error('Error restoring activities view:', error);
                 localStorage.removeItem('return_to_activities');

@@ -288,8 +288,11 @@ const loadNotifications = async () => {
       
       notifications.value = response.data.map(notif => {
         const createdTime = new Date(notif.created_at).getTime();
-        // Mark as NEW if created after last time notifications were viewed
-        const isNew = createdTime > lastOpenedTime;
+        const currentTime = Date.now();
+        const oneMinute = 60 * 1000; // 1 minute in milliseconds
+        
+        // Mark as NEW if created within the last 1 minute
+        const isNew = (currentTime - createdTime) < oneMinute;
         
         return {
           id: notif.id,
@@ -314,19 +317,8 @@ const loadNotifications = async () => {
 
 // Load notifications on mount
 onMounted(() => {
-  // Load notifications first to show current NEW badges
+  // Load notifications
   loadNotifications();
-  
-  // After a short delay, mark current time as last opened
-  // This allows user to see which notifications are NEW when they first open the page
-  setTimeout(() => {
-    const currentTime = Date.now();
-    localStorage.setItem('notifications_last_opened_time', currentTime.toString());
-    console.log('📍 Marked notifications as viewed at:', new Date(currentTime).toLocaleString());
-  }, 2000); // 2 second delay so user can see NEW badges
-  
-  // Refresh every 5 seconds for real-time updates
-  setInterval(loadNotifications, 5000);
 });
 
 // Toggle select mode

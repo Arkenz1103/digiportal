@@ -8,7 +8,7 @@ defineEmits(['navigate']);
 const canvas = ref(null);
 const ctx = ref(null);
 const isDrawing = ref(false);
-const currentColor = ref('#000000');
+const currentColor = ref('#0000ff'); // Default to blue
 const brushSize = ref(5);
 const lastX = ref(0);
 const lastY = ref(0);
@@ -72,6 +72,11 @@ onMounted(() => {
 
 const initCanvas = () => {
     const canvasElement = canvas.value;
+    if (!canvasElement) {
+        console.warn('Canvas element not found');
+        return;
+    }
+    
     ctx.value = canvasElement.getContext('2d');
     
     canvasElement.width = canvasElement.offsetWidth;
@@ -713,19 +718,22 @@ const applyCrop = () => {
                     </div>
 
                     <!-- Color Palette with Attach Photo button -->
-                    <div class="mb-4 p-3 bg-[#F2FDFF] rounded-xl flex items-center justify-between flex-wrap gap-3 border border-[#B6CFFF]">
-                        <div class="flex items-center gap-2 flex-wrap">
+                    <div class="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl flex items-center justify-between gap-3 border-2 border-indigo-200 shadow-sm">
+                        <div class="flex items-center gap-2">
                             <!-- Custom Color Picker (First) -->
-                            <div class="flex flex-col items-center gap-1">
-                                <input type="color" 
-                                       v-model="currentColor"
-                                       class="w-7 h-7 cursor-pointer rounded-full border-2 border-[#B6CFFF]"
-                                       title="Custom Color">
-                                <span class="text-[8px] text-[#0E1836] font-medium">Default</span>
+                            <div class="flex flex-col items-center gap-1 group">
+                                <div class="relative">
+                                    <input type="color" 
+                                           v-model="currentColor"
+                                           class="w-8 h-8 cursor-pointer rounded-lg border-2 border-indigo-300 shadow-md hover:shadow-lg transition-all hover:scale-105"
+                                           title="Custom Color">
+                                    <div class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-indigo-600 rounded-full border border-white"></div>
+                                </div>
+                                <span class="text-[8px] text-indigo-700 font-semibold uppercase tracking-wide">Custom</span>
                             </div>
                             
                             <!-- Divider -->
-                            <div class="w-px h-8 bg-[#B6CFFF]"></div>
+                            <div class="w-px h-10 bg-gradient-to-b from-transparent via-indigo-300 to-transparent mx-1"></div>
                             
                             <!-- Preset Colors -->
                             <div v-for="color in colors" 
@@ -733,11 +741,18 @@ const applyCrop = () => {
                                  @click="currentColor = color.hex"
                                  :style="{ backgroundColor: color.hex }"
                                  :class="{ 
-                                     'ring-2 ring-offset-2 ring-[#7BBBFE]': currentColor === color.hex,
-                                     'border-2 border-[#B6CFFF]': color.hex === '#ffffff'
+                                     'ring-2 ring-indigo-400 scale-105 shadow-lg': currentColor === color.hex,
+                                     'border border-gray-300 shadow-inner': color.hex === '#ffffff',
+                                     'border border-gray-700': color.hex === '#000000'
                                  }"
-                                 class="w-7 h-7 rounded-full cursor-pointer shadow-sm transition-transform hover:scale-110"
+                                 class="w-7 h-7 rounded-lg cursor-pointer shadow-sm transition-all hover:scale-110 hover:shadow-md relative"
                                  :title="color.name">
+                                <!-- Checkmark for selected color -->
+                                <div v-if="currentColor === color.hex" 
+                                     class="absolute inset-0 flex items-center justify-center">
+                                    <i class="pi pi-check text-white text-[10px] drop-shadow-lg" 
+                                       :class="{ 'text-gray-800': color.hex === '#ffffff' || color.hex === '#ffff00' }"></i>
+                                </div>
                             </div>
                         </div>
                         
