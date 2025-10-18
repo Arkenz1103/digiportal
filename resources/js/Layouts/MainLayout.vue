@@ -92,19 +92,19 @@ const getNotificationIcon = (type) => {
 
 const getNotificationColor = (type) => {
     const colorMap = {
-        'portfolio_created': 'text-green-600 bg-green-50',
-        'portfolio_updated': 'text-blue-600 bg-blue-50',
-        'portfolio_deleted': 'text-red-600 bg-red-50',
-        'activity_created': 'text-indigo-600 bg-indigo-50',
-        'activity_updated': 'text-blue-600 bg-blue-50',
-        'activity_deleted': 'text-red-600 bg-red-50',
-        'submission_approved': 'text-green-600 bg-green-50',
-        'submission_rejected': 'text-red-600 bg-red-50',
-        'score_added': 'text-yellow-600 bg-yellow-50',
-        'submission_received': 'text-indigo-600 bg-indigo-50',
-        'approval_requested': 'text-violet-600 bg-violet-50',
+        'portfolio_created': 'bg-gradient-to-br from-green-400 to-emerald-500',
+        'portfolio_updated': 'bg-gradient-to-br from-blue-400 to-blue-500',
+        'portfolio_deleted': 'bg-gradient-to-br from-red-400 to-rose-500',
+        'activity_created': 'bg-gradient-to-br from-indigo-400 to-indigo-500',
+        'activity_updated': 'bg-gradient-to-br from-blue-400 to-cyan-500',
+        'activity_deleted': 'bg-gradient-to-br from-red-400 to-pink-500',
+        'submission_approved': 'bg-gradient-to-br from-green-400 to-teal-500',
+        'submission_rejected': 'bg-gradient-to-br from-red-500 to-orange-500',
+        'score_added': 'bg-gradient-to-br from-yellow-400 to-amber-500',
+        'submission_received': 'bg-gradient-to-br from-indigo-400 to-purple-500',
+        'approval_requested': 'bg-gradient-to-br from-violet-400 to-purple-500',
     };
-    return colorMap[type] || 'text-indigo-600 bg-indigo-50';
+    return colorMap[type] || 'bg-gradient-to-br from-indigo-400 to-purple-500';
 };
 
 const formatDate = (date) => {
@@ -519,31 +519,42 @@ const auth = computed(() => ({
                                 <div class="relative">
                                     <button
                                         @click.stop="showNotifications = !showNotifications"
-                                        class="relative p-2 hover:bg-gray-100 rounded-full transition-all duration-200 focus:outline-none"
+                                        class="relative p-2.5 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 rounded-xl transition-all duration-300 focus:outline-none group"
+                                        :class="{ 'bg-gradient-to-br from-indigo-50 to-purple-50': showNotifications }"
                                     >
-                                        <i class="pi pi-bell text-gray-600 text-xl"></i>
+                                        <i class="pi pi-bell text-gray-700 text-xl transition-transform duration-300 group-hover:scale-110" 
+                                           :class="{ 'animate-bounce text-indigo-600': unreadCount > 0 }"></i>
                                         <!-- Notification Badge -->
                                         <div
-                                            v-if="notifications.filter(n => n.isUnread).length > 0"
-                                            class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full"
+                                            v-if="unreadCount > 0"
+                                            class="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs w-6 h-6 flex items-center justify-center rounded-full font-bold shadow-lg animate-pulse"
                                         >
-                                            {{ notifications.filter(n => n.isUnread).length }}
+                                            {{ unreadCount > 9 ? '9+' : unreadCount }}
                                         </div>
                                     </button>
 
                                     <!-- Notifications Dropdown -->
                                     <div
                                         v-show="showNotifications"
-                                        class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                                        class="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border-2 border-indigo-100 overflow-hidden z-50 transform transition-all duration-300"
+                                        :class="showNotifications ? 'scale-100 opacity-100' : 'scale-95 opacity-0'"
                                         @click.stop
                                     >
                                         <!-- Header -->
-                                        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                                        <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
                                             <div class="flex items-center justify-between">
-                                                <h3 class="font-semibold text-gray-900">Notifications</h3>
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                                                        <i class="pi pi-bell text-white text-sm"></i>
+                                                    </div>
+                                                    <h3 class="font-bold text-gray-900">Notifications</h3>
+                                                    <span v-if="unreadCount > 0" class="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
+                                                        {{ unreadCount }}
+                                                    </span>
+                                                </div>
                                                 <button
                                                     @click="navigateToNotifications"
-                                                    class="text-sm text-indigo-600 hover:text-indigo-900 font-medium"
+                                                    class="text-sm text-indigo-600 hover:text-indigo-900 font-semibold hover:underline transition-all"
                                                 >
                                                     View All
                                                 </button>
@@ -551,32 +562,38 @@ const auth = computed(() => ({
                                         </div>
 
                                         <!-- Notifications List -->
-                                        <div class="max-h-[400px] overflow-y-auto">
+                                        <div class="max-h-[450px] overflow-y-auto">
                                             <div
                                                 v-for="notification in notifications.slice(0, 5)"
                                                 :key="notification.id"
                                                 @click="markAsRead(notification.id)"
-                                                class="group px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0"
-                                                :class="{ 'bg-indigo-50': notification.isUnread }"
+                                                class="group px-5 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 cursor-pointer border-b border-gray-100 last:border-0 relative"
+                                                :class="{ 'bg-gradient-to-r from-indigo-50/50 to-purple-50/50': notification.isUnread }"
                                             >
+                                                <!-- Unread Indicator -->
+                                                <div v-if="notification.isUnread" class="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
+                                                
                                                 <div class="flex items-start gap-3">
                                                     <!-- Icon -->
-                                                    <div
-                                                        class="p-2 rounded-full shrink-0"
-                                                        :class="getNotificationColor(notification.type)"
-                                                    >
-                                                        <i :class="['pi', getNotificationIcon(notification.type)]"></i>
+                                                    <div class="relative">
+                                                        <div
+                                                            class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md transition-transform duration-200 group-hover:scale-110"
+                                                            :class="getNotificationColor(notification.type)"
+                                                        >
+                                                            <i :class="['pi text-white', getNotificationIcon(notification.type)]"></i>
+                                                        </div>
+                                                        <div v-if="notification.isNew" class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
                                                     </div>
 
                                                     <!-- Content -->
                                                     <div class="flex-1 min-w-0">
-                                                        <div class="flex items-center gap-2 mb-1">
-                                                            <p class="font-medium text-sm text-gray-900 truncate">
+                                                        <div class="flex items-start justify-between gap-2 mb-1">
+                                                            <p class="font-semibold text-sm text-gray-900 line-clamp-1">
                                                                 {{ notification.title }}
                                                             </p>
                                                             <span
                                                                 v-if="notification.isNew"
-                                                                class="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium"
+                                                                class="px-2 py-0.5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold shrink-0"
                                                             >
                                                                 New
                                                             </span>
@@ -589,23 +606,24 @@ const auth = computed(() => ({
                                                         </p>
                                                     </div>
 
-                                                    <!-- Unread Indicator -->
-                                                    <div v-if="notification.isUnread"
-                                                        class="w-2 h-2 rounded-full bg-indigo-600 shrink-0 mt-2">
-                                                    </div>
                                                 </div>
                                             </div>
 
                                             <!-- Empty State -->
                                             <div
                                                 v-if="notifications.length === 0"
-                                                class="px-4 py-8 text-center"
+                                                class="px-6 py-12 text-center"
                                             >
-                                                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
-                                                    <i class="pi pi-bell text-gray-500 text-xl"></i>
+                                                <div class="relative inline-block mb-4">
+                                                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                                                        <i class="pi pi-bell text-indigo-400 text-3xl"></i>
+                                                    </div>
+                                                    <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                                                        <i class="pi pi-check text-white text-xs"></i>
+                                                    </div>
                                                 </div>
-                                                <p class="text-gray-500 font-medium">No notifications yet</p>
-                                                <p class="text-gray-400 text-sm">We'll notify you when something arrives</p>
+                                                <p class="text-gray-700 font-semibold mb-1">All Caught Up!</p>
+                                                <p class="text-gray-500 text-sm">No new notifications at the moment</p>
                                             </div>
                                         </div>
                                     </div>

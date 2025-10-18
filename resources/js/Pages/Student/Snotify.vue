@@ -1,95 +1,156 @@
 <template>
-  <div class="p-6 max-w-7xl mx-auto">
-    <div class="bg-white rounded-lg shadow-lg">
-      <!-- Header -->
-      <div class="bg-[#B8AAFF] p-6">
-        <h1 class="text-2xl font-bold text-white">Notifications</h1>
-      </div>
+  <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
+    <div class="max-w-5xl mx-auto">
+      <!-- Header Card -->
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-8">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                <i class="pi pi-bell"></i>
+                Notifications
+              </h1>
+              <p class="text-indigo-100">Stay updated with your latest activities</p>
+            </div>
+            <div class="bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
+              <div class="text-3xl font-bold text-white">{{ notifications.filter(n => n.isUnread).length }}</div>
+              <div class="text-sm text-indigo-100">Unread</div>
+            </div>
+          </div>
+        </div>
 
-      <!-- Tabs -->
-      <div class="p-6">
-        <div class="flex space-x-4 mb-6">
-          <button
-            v-for="tab in ['all', 'new', 'unread']"
-            :key="tab"
-            @click="activeTab = tab"
-            class="px-6 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2"
-            :class="[
-              activeTab === tab 
-                ? 'bg-[#B6CFFF]/30 text-[#0E1836] font-semibold shadow-sm' 
-                : 'text-[#0E1836] hover:bg-[#B8AAFF]/10'
-            ]"
-          >
-            <i :class="[
-              'pi',
-              {
-                'pi-bell': tab === 'all',
-                'pi-star': tab === 'new',
-                'pi-envelope': tab === 'unread'
-              }
-            ]"></i>
-            <span class="capitalize">{{ tab }}</span>
-            <span v-if="tab !== 'all'" 
-                  class="ml-1 px-2 py-0.5 text-xs rounded-full"
-                  :class="[
-                    tab === 'new' ? 'bg-[#7BBBFE] text-white' : 'bg-[#B6CFFF] text-[#0E1836]'
-                  ]">
-              {{ tab === 'new' ? notifications.filter(n => n.isNew).length : notifications.filter(n => n.isUnread).length }}
-            </span>
-          </button>
+        <!-- Tabs -->
+        <div class="p-6 bg-white border-b border-gray-100">
+          <div class="flex flex-wrap gap-3">
+            <button
+              v-for="tab in ['all', 'new', 'unread']"
+              :key="tab"
+              @click="activeTab = tab"
+              class="group relative px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2.5 font-medium"
+              :class="[
+                activeTab === tab 
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-200 scale-105' 
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105'
+              ]"
+            >
+              <i :class="[
+                'pi text-lg transition-transform duration-300',
+                {
+                  'pi-bell': tab === 'all',
+                  'pi-star': tab === 'new',
+                  'pi-envelope': tab === 'unread'
+                },
+                activeTab === tab ? 'scale-110' : 'group-hover:scale-110'
+              ]"></i>
+              <span class="capitalize">{{ tab }}</span>
+              <span v-if="tab !== 'all' && (tab === 'new' ? notifications.filter(n => n.isNew).length : notifications.filter(n => n.isUnread).length) > 0" 
+                    class="ml-1 px-2.5 py-0.5 text-xs font-bold rounded-full animate-pulse"
+                    :class="[
+                      activeTab === tab 
+                        ? 'bg-white/30 text-white' 
+                        : tab === 'new' ? 'bg-indigo-100 text-indigo-600' : 'bg-purple-100 text-purple-600'
+                    ]">
+                {{ tab === 'new' ? notifications.filter(n => n.isNew).length : notifications.filter(n => n.isUnread).length }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="isLoading" class="p-12">
+          <div class="flex flex-col items-center justify-center">
+            <div class="relative">
+              <div class="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200"></div>
+              <div class="animate-spin rounded-full h-16 w-16 border-4 border-t-indigo-600 absolute top-0 left-0"></div>
+            </div>
+            <p class="text-gray-600 mt-6 font-medium">Loading notifications...</p>
+          </div>
         </div>
 
         <!-- Notification List -->
-        <div class="space-y-4">
-          <TransitionGroup name="list">
+        <div v-else class="p-6">
+          <TransitionGroup name="list" tag="div" class="space-y-4">
             <div
               v-for="notification in filteredNotifications"
               :key="notification.id"
-              class="bg-white rounded-xl border transition-all duration-200 hover:shadow-md"
+              class="group relative bg-white rounded-2xl border-2 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] cursor-pointer overflow-hidden"
               :class="[
-                notification.isUnread ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
+                notification.isUnread 
+                  ? 'border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50' 
+                  : 'border-gray-200 hover:border-indigo-200'
               ]"
+              @click="markAsRead(notification.id)"
             >
-              <div class="p-4 flex items-start gap-4 cursor-pointer hover:bg-[#F2FDFF] transition-colors" @click="markAsRead(notification.id)">
+              <!-- Unread Indicator -->
+              <div v-if="notification.isUnread" class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-600 to-purple-600"></div>
+              
+              <div class="p-5 flex items-start gap-5">
                 <!-- Icon -->
-                <div
-                  class="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-full shadow-sm"
-                  :class="[
-                    `bg-gradient-to-br ${getNotificationColor(notification.type)}`
-                  ]"
-                >
-                  <i class="pi text-xl text-white"
-                    :class="getNotificationIcon(notification.type)"
-                  ></i>
+                <div class="relative">
+                  <div
+                    class="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
+                    :class="[
+                      `bg-gradient-to-br ${getNotificationColor(notification.type)}`
+                    ]"
+                  >
+                    <i class="pi text-2xl text-white"
+                      :class="getNotificationIcon(notification.type)"
+                    ></i>
+                  </div>
+                  <div v-if="notification.isNew" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
                 </div>
                 
                 <!-- Content -->
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <h3 class="font-semibold text-gray-900">{{ notification.title }}</h3>
-                    <span v-if="notification.isNew" 
-                          class="px-2 py-0.5 bg-[#7BBBFE] text-white text-xs rounded-full">
-                      New
-                    </span>
+                  <div class="flex items-start justify-between gap-3 mb-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <h3 class="font-bold text-gray-900 text-lg">{{ notification.title }}</h3>
+                      <span v-if="notification.isNew" 
+                            class="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-md animate-pulse">
+                        NEW
+                      </span>
+                    </div>
+                    <button 
+                      @click.stop="dismissNotification(notification.id)"
+                      class="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-50 rounded-lg"
+                    >
+                      <i class="pi pi-times text-gray-400 hover:text-red-500"></i>
+                    </button>
                   </div>
-                  <p class="text-gray-600 mt-1">{{ notification.message }}</p>
-                  <div class="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                    <i class="pi pi-clock"></i>
-                    <span>{{ formatDate(notification.date) }}</span>
+                  
+                  <p class="text-gray-700 leading-relaxed mb-3">{{ notification.message }}</p>
+                  
+                  <div class="flex items-center gap-4 text-sm">
+                    <div class="flex items-center gap-2 text-gray-500">
+                      <i class="pi pi-clock"></i>
+                      <span class="font-medium">{{ formatDate(notification.date) }}</span>
+                    </div>
+                    <div v-if="notification.isUnread" class="flex items-center gap-2 text-indigo-600">
+                      <div class="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+                      <span class="font-semibold">Unread</span>
+                    </div>
                   </div>
                 </div>
               </div>
+              
+              <!-- Hover Effect Border -->
+              <div class="absolute inset-0 border-2 border-transparent group-hover:border-indigo-400 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
             </div>
           </TransitionGroup>
 
           <!-- Empty State -->
           <div v-if="filteredNotifications.length === 0" 
-               class="text-center py-12 bg-[#F2FDFF] rounded-xl border-2 border-dashed border-[#B6CFFF]">
-            <div class="w-16 h-16 mx-auto mb-4 bg-[#B6CFFF] rounded-full flex items-center justify-center">
-              <i class="pi pi-bell text-white text-2xl"></i>
+               class="text-center py-16 bg-gradient-to-br from-gray-50 to-indigo-50 rounded-2xl border-2 border-dashed border-indigo-200">
+            <div class="relative inline-block mb-6">
+              <div class="w-24 h-24 mx-auto bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center shadow-xl">
+                <i class="pi pi-bell text-white text-4xl"></i>
+              </div>
+              <div class="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
+                <i class="pi pi-check text-white text-sm"></i>
+              </div>
             </div>
-            <h3 class="text-[#0E1836] font-medium">No notifications</h3>
-            <p class="text-[#0E1836]/80 text-sm mt-1">You're all caught up!</p>
+            <h3 class="text-gray-900 font-bold text-xl mb-2">All Caught Up!</h3>
+            <p class="text-gray-600 max-w-md mx-auto">You have no {{ activeTab === 'all' ? '' : activeTab }} notifications. Great job staying on top of things!</p>
           </div>
         </div>
       </div>
@@ -98,7 +159,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import axios from 'axios';
 
 // Mock user data for notifications
 const currentUser = ref({
@@ -111,98 +173,75 @@ const auth = computed(() => ({
     user: currentUser.value
 }));
 const activeTab = ref('all');
+const isLoading = ref(false);
 
-// Sample notifications data - in a real app, this would come from your backend
-const notifications = ref([
-  {
-    id: 1,
-    type: 'output',
-    title: 'Output Approved',
-    message: 'Your "Math Exercise 3" has been approved by your teacher',
-    date: new Date(),
-    isNew: true,
-    isUnread: true,
-  },
-  {
-    id: 2,
-    type: 'remark',
-    title: 'New Remark Added',
-    message: 'Your teacher added a positive remark on your performance',
-    date: new Date('2024-02-18 14:30'),
-    isNew: true,
-    isUnread: true,
-  },
-  {
-    id: 3,
-    type: 'output',
-    title: 'Output Graded',
-    message: 'Your "English Essay" has been graded as Excellent',
-    date: new Date('2024-02-18 09:15'),
-    isNew: false,
-    isUnread: false,
-  },
-  {
-    id: 4,
-    type: 'schedule',
-    title: 'New Assignment Posted',
-    message: 'A new assignment "Science Project" has been posted',
-    date: new Date('2024-02-17 16:45'),
-    isNew: false,
-    isUnread: true,
-  },
-  {
-    id: 5,
-    type: 'output',
-    title: 'Grade Updated',
-    message: 'Your grade for "Math Quiz 2" has been updated',
-    date: new Date('2024-02-17 11:20'),
-    isNew: false,
-    isUnread: true,
-  },
-  {
-    id: 6,
-    type: 'remark',
-    title: 'Teacher Feedback',
-    message: 'Your teacher provided feedback on your recent submission',
-    date: new Date('2024-02-16 15:30'),
-    isNew: false,
-    isUnread: false,
-  },
-  {
-    id: 7,
-    type: 'schedule',
-    title: 'Class Reminder',
-    message: 'Your next class starts in 30 minutes',
-    date: new Date('2024-02-16 10:45'),
-    isNew: false,
-    isUnread: false,
-  }
-]);
+// Notifications data from backend
+const notifications = ref([]);
 
-const getNotificationIcon = (type) => {
-  switch (type) {
-    case 'output':
-      return 'pi-file-edit';
-    case 'remark':
-      return 'pi-comments';
-    case 'schedule':
-      return 'pi-calendar';
-    default:
-      return 'pi-bell';
+// Load notifications from backend
+const loadNotifications = async () => {
+  isLoading.value = true;
+  try {
+    const response = await axios.get('/api/notifications/');
+    if (response.data) {
+      notifications.value = response.data.map(notif => ({
+        id: notif.id,
+        type: notif.notification_type,
+        title: notif.title,
+        message: notif.message,
+        date: new Date(notif.created_at),
+        isNew: !notif.is_read,
+        isUnread: !notif.is_read,
+      }));
+      console.log('✅ Loaded notifications:', notifications.value.length);
+    }
+  } catch (error) {
+    console.error('❌ Error loading notifications:', error);
+  } finally {
+    isLoading.value = false;
   }
 };
 
+// Load notifications on mount
+onMounted(() => {
+  loadNotifications();
+  
+  // Refresh every 30 seconds
+  setInterval(loadNotifications, 30000);
+});
+
+const getNotificationIcon = (type) => {
+  const iconMap = {
+    'portfolio_created': 'pi-folder-open',
+    'portfolio_updated': 'pi-folder',
+    'portfolio_deleted': 'pi-trash',
+    'activity_created': 'pi-plus-circle',
+    'activity_updated': 'pi-pencil',
+    'activity_deleted': 'pi-times-circle',
+    'submission_approved': 'pi-check-circle',
+    'submission_rejected': 'pi-times-circle',
+    'score_added': 'pi-star',
+    'submission_received': 'pi-file-edit',
+    'approval_requested': 'pi-question-circle',
+  };
+  return iconMap[type] || 'pi-bell';
+};
+
 const getNotificationColor = (type) => {
-  switch (type) {
-    case 'output':
-      return 'from-[#7BBBFE] to-[#7BBBFE]';
-    case 'remark':
-      return 'from-[#B8AAFF] to-[#B8AAFF]';
-    case 'schedule':
-      return 'from-[#7BBBFE] to-[#7BBBFE]';
-    default:
-      return 'from-[#B6CFFF] to-[#B6CFFF]';
-  }
+  const colorMap = {
+    'portfolio_created': 'from-green-400 to-green-500',
+    'portfolio_updated': 'from-blue-400 to-blue-500',
+    'portfolio_deleted': 'from-red-400 to-red-500',
+    'activity_created': 'from-[#7BBBFE] to-[#7BBBFE]',
+    'activity_updated': 'from-blue-400 to-blue-500',
+    'activity_deleted': 'from-red-400 to-red-500',
+    'submission_approved': 'from-green-400 to-green-500',
+    'submission_rejected': 'from-red-400 to-red-500',
+    'score_added': 'from-yellow-400 to-yellow-500',
+    'submission_received': 'from-[#7BBBFE] to-[#7BBBFE]',
+    'approval_requested': 'from-[#B8AAFF] to-[#B8AAFF]',
+  };
+  return colorMap[type] || 'from-[#B6CFFF] to-[#B6CFFF]';
 };
 
 const filteredNotifications = computed(() => {
@@ -225,31 +264,50 @@ const dismissNotification = (id) => {
   notifications.value = notifications.value.filter((n) => n.id !== id);
 };
 
-const markAsRead = (id) => {
-  const notification = notifications.value.find((n) => n.id === id);
-  if (notification) {
-    notification.isUnread = false;
-    notification.isNew = false;
+const markAsRead = async (id) => {
+  try {
+    const response = await axios.put('/api/notifications/', {
+      notification_id: id
+    });
+    
+    if (response.status === 200) {
+      const notification = notifications.value.find((n) => n.id === id);
+      if (notification) {
+        notification.isUnread = false;
+        notification.isNew = false;
+      }
+    }
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
   }
 };
 </script>
 
 <style scoped>
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.3s ease;
+/* Enhanced List Animations */
+.list-enter-active {
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.list-enter-from,
+.list-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateX(50px) scale(0.9);
+}
+
 .list-leave-to {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(-50px) scale(0.9);
 }
 
 .list-move {
-  transition: transform 0.3s ease;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Gradient Animation */
 @keyframes gradient {
   0% {
     background-position: 0% 50%;
@@ -260,5 +318,55 @@ const markAsRead = (id) => {
   100% {
     background-position: 0% 50%;
   }
+}
+
+/* Pulse Animation for Badges */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+  }
+}
+
+/* Shimmer Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/* Smooth Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #6366f1, #8b5cf6);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #4f46e5, #7c3aed);
 }
 </style>
