@@ -60,12 +60,38 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.username', read_only=True)
     activity_title = serializers.SerializerMethodField()
     activity_type = serializers.SerializerMethodField()
+    total_score = serializers.SerializerMethodField()
+    max_score = serializers.SerializerMethodField()
     
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
     
     def get_activity_type(self, obj):
         return obj.activity.activity_type if obj.activity else 'Sketch'
+    
+    def get_total_score(self, obj):
+        # First try to calculate from criteria_scores JSON
+        if obj.criteria_scores:
+            try:
+                import json
+                criteria = json.loads(obj.criteria_scores) if isinstance(obj.criteria_scores, str) else obj.criteria_scores
+                total = sum(int(c.get('score', 0)) for c in criteria)
+                return total
+            except:
+                pass
+        return obj.score  # Fallback to simple score
+    
+    def get_max_score(self, obj):
+        # First try to calculate from criteria_scores JSON
+        if obj.criteria_scores:
+            try:
+                import json
+                criteria = json.loads(obj.criteria_scores) if isinstance(obj.criteria_scores, str) else obj.criteria_scores
+                max_total = sum(int(c.get('maxScore', 0)) for c in criteria)
+                return max_total
+            except:
+                pass
+        return 10  # Default max score
     
     class Meta:
         model = StudentSubmission
@@ -79,7 +105,8 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.username', read_only=True)
     activity_title = serializers.SerializerMethodField()
     activity_type = serializers.SerializerMethodField()
-    has_file = serializers.SerializerMethodField()
+    total_score = serializers.SerializerMethodField()
+    max_score = serializers.SerializerMethodField()
     
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
@@ -87,8 +114,47 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     def get_activity_type(self, obj):
         return obj.activity.activity_type if obj.activity else 'Sketch'
     
-    def get_has_file(self, obj):
-        return bool(obj.file_path)
+    def get_total_score(self, obj):
+        # First try to calculate from criteria_scores JSON
+        if obj.criteria_scores:
+            try:
+                import json
+                criteria = json.loads(obj.criteria_scores) if isinstance(obj.criteria_scores, str) else obj.criteria_scores
+                total = sum(int(c.get('score', 0)) for c in criteria)
+                return total
+            except:
+                pass
+        
+        # Fallback to detailed_score if available
+        if hasattr(obj, 'detailed_score') and obj.detailed_score:
+            detailed = obj.detailed_score
+            total = (detailed.creativity_score + 
+                    detailed.technical_skill_score + 
+                    detailed.requirements_score)
+            return total
+        
+        return obj.score  # Final fallback to simple score
+    
+    def get_max_score(self, obj):
+        # First try to calculate from criteria_scores JSON
+        if obj.criteria_scores:
+            try:
+                import json
+                criteria = json.loads(obj.criteria_scores) if isinstance(obj.criteria_scores, str) else obj.criteria_scores
+                max_total = sum(int(c.get('maxScore', 0)) for c in criteria)
+                return max_total
+            except:
+                pass
+        
+        # Fallback to detailed_score if available
+        if hasattr(obj, 'detailed_score') and obj.detailed_score:
+            detailed = obj.detailed_score
+            max_total = (detailed.creativity_max + 
+                        detailed.technical_skill_max + 
+                        detailed.requirements_max)
+            return max_total
+        
+        return 10  # Default max score
     
     class Meta:
         model = StudentSubmission

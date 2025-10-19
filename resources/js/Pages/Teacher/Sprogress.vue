@@ -154,15 +154,15 @@
                             <div v-else class="flex flex-col items-center">
                                 <!-- Subject Tabs -->
                                 <div class="w-full max-w-3xl mb-6">
-                                    <div class="flex space-x-2 bg-gradient-to-r from-indigo-50 to-violet-50 p-2 rounded-xl shadow-sm border border-indigo-200">
+                                    <div class="flex space-x-1.5 bg-gradient-to-r from-indigo-50 to-violet-50 p-1.5 rounded-lg shadow-sm border border-indigo-200">
                                         <button 
                                             v-for="subject in subjects" 
                                             :key="subject.id"
                                             @click="selectedSubject = subject.id"
-                                            class="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 transform"
+                                            class="flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 transform"
                                             :class="selectedSubject === subject.id 
-                                                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg scale-105' 
-                                                : 'text-indigo-700 hover:text-indigo-900 hover:bg-white/60 hover:shadow-md hover:scale-102'">
+                                                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md scale-105' 
+                                                : 'text-indigo-700 hover:text-indigo-900 hover:bg-white/60 hover:shadow-sm hover:scale-102'">
                                             {{ subject.name }}
                                         </button>
                                     </div>
@@ -253,35 +253,67 @@
                                 
                                 <!-- Image Details (only show in expanded view) -->
                                 <div v-if="!isMinimizedView" class="mt-6 w-full">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <h4 class="font-semibold text-lg text-indigo-900">Output Details</h4>
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h4 class="font-bold text-xl text-indigo-900 flex items-center gap-2">
+                                            <i class="pi pi-info-circle text-indigo-600"></i>
+                                            Output Details
+                                        </h4>
                                     </div>
-                                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                                        <div class="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p class="text-sm text-gray-500">Activity</p>
-                                                <p class="font-medium">{{ getCurrentAssignment().title }}</p>
+                                    <div class="bg-gradient-to-br from-indigo-50 to-violet-50 p-6 rounded-xl border-2 border-indigo-200 shadow-md">
+                                        <div class="grid grid-cols-2 gap-6">
+                                            <!-- Activity -->
+                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
+                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                                    <i class="pi pi-bookmark text-xs"></i>
+                                                    Activity
+                                                </p>
+                                                <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().title }}</p>
                                             </div>
-                                            <div>
-                                                <p class="text-sm text-gray-500">Type</p>
-                                                <p class="font-medium">{{ getCurrentAssignment().type }}</p>
+                                            
+                                            <!-- Type -->
+                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
+                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                                    <i class="pi pi-tag text-xs"></i>
+                                                    Type
+                                                </p>
+                                                <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().type }}</p>
                                             </div>
-                                            <div>
-                                                <p class="text-sm text-gray-500">Submitted</p>
-                                                <p class="font-medium">{{ getCurrentAssignment().date }}</p>
+                                            
+                                            <!-- Submitted Date & Time -->
+                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
+                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                                    <i class="pi pi-calendar text-xs"></i>
+                                                    Submitted
+                                                </p>
+                                                <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().date }}</p>
+                                                <p class="text-sm text-gray-600 mt-1 flex items-center gap-1">
+                                                    <i class="pi pi-clock text-xs"></i>
+                                                    {{ getCurrentAssignment().time }}
+                                                </p>
                                             </div>
-                                            <div>
-                                                <p class="text-sm text-gray-500">Score</p>
-                                                <p class="font-medium">{{ getCurrentAssignment().score }}</p>
+                                            
+                                            <!-- Score -->
+                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
+                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                                    <i class="pi pi-star text-xs"></i>
+                                                    Score
+                                                </p>
+                                                <p class="font-bold text-2xl text-indigo-700">{{ getCurrentAssignment().score }}</p>
                                             </div>
-                                            <div>
-                                                <p class="text-sm text-gray-500">Status</p>
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
+                                            
+                                            <!-- Status -->
+                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100 col-span-2">
+                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                                    <i class="pi pi-check-circle text-xs"></i>
+                                                    Status
+                                                </p>
+                                                <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm" 
                                                       :class="{
-                                                          'bg-green-100 text-green-800': getCurrentAssignment().status === 'Scored',
-                                                          'bg-blue-100 text-blue-800': getCurrentAssignment().status === 'Submitted',
-                                                          'bg-yellow-100 text-yellow-800': getCurrentAssignment().status !== 'Scored' && getCurrentAssignment().status !== 'Submitted'
+                                                          'bg-green-100 text-green-800 border-2 border-green-300': getCurrentAssignment().status === 'Scored',
+                                                          'bg-blue-100 text-blue-800 border-2 border-blue-300': getCurrentAssignment().status === 'Submitted',
+                                                          'bg-yellow-100 text-yellow-800 border-2 border-yellow-300': getCurrentAssignment().status !== 'Scored' && getCurrentAssignment().status !== 'Submitted'
                                                       }">
+                                                    <i class="pi pi-circle-fill text-xs mr-2"></i>
                                                     {{ getCurrentAssignment().status }}
                                                 </span>
                                             </div>
@@ -547,15 +579,63 @@ const getCurrentAssignment = () => {
     }
     
     // Format the data from the actual submission
+    console.log('📊 getCurrentAssignment - currentOutput:', currentOutput);
+    
+    // Use total_score and max_score if available, otherwise calculate from criteria_scores
+    let scoreDisplay = 'Not scored';
+    let totalScore = currentOutput.total_score;
+    let maxScore = currentOutput.max_score;
+    
+    // If max_score is missing or is default 10, try to calculate from criteria_scores
+    if (currentOutput.criteria_scores && (!maxScore || maxScore === 10)) {
+        try {
+            const criteria = typeof currentOutput.criteria_scores === 'string' 
+                ? JSON.parse(currentOutput.criteria_scores) 
+                : currentOutput.criteria_scores;
+            
+            if (Array.isArray(criteria) && criteria.length > 0) {
+                totalScore = criteria.reduce((sum, c) => sum + (parseInt(c.score) || 0), 0);
+                maxScore = criteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0);
+                console.log('📊 Calculated from criteria_scores:', { totalScore, maxScore, criteria });
+            }
+        } catch (error) {
+            console.error('Error parsing criteria_scores:', error);
+        }
+    }
+    
+    // Display the score
+    if (totalScore !== null && totalScore !== undefined && 
+        maxScore !== null && maxScore !== undefined) {
+        const total = parseInt(totalScore);
+        const max = parseInt(maxScore);
+        if (!isNaN(total) && !isNaN(max) && max > 0) {
+            scoreDisplay = `${total}/${max}`;
+        }
+    } else if (currentOutput.score !== null && currentOutput.score !== undefined) {
+        // Final fallback to simple score
+        const scoreValue = parseInt(currentOutput.score);
+        if (!isNaN(scoreValue)) {
+            scoreDisplay = `${scoreValue}/10`;
+        }
+    }
+    
+    const submittedDate = currentOutput.date ? new Date(currentOutput.date) : null;
+    
     return {
         title: currentOutput.title || 'Activity',
         type: currentOutput.activity_type || 'N/A',
-        date: currentOutput.date ? new Date(currentOutput.date).toLocaleDateString('en-US', { 
+        date: submittedDate ? submittedDate.toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric' 
         }) : 'N/A',
-        score: currentOutput.score !== null && currentOutput.score !== undefined ? `${currentOutput.score}/10` : 'Not scored',
+        time: submittedDate ? submittedDate.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }) : 'N/A',
+        score: scoreDisplay,
         status: currentOutput.status === 'scored' ? 'Scored' : 'Submitted',
         description: currentOutput.caption || 'No description available'
     };
@@ -571,6 +651,7 @@ const getCurrentSubjectOutputs = () => {
 
 // Function to expand image to full view
 const expandImage = (index) => {
+    currentImageIndex.value = index;
     expandedImageIndex.value = index;
     isMinimizedView.value = false;
 };
@@ -797,14 +878,24 @@ const loadStudentSubmissions = async (studentId) => {
                                 folderOutputs.push({
                                     url: submission.file_path,
                                     date: new Date(submission.submitted_at),
-                                    title: activity.title,
-                                    activityType: activity.activity_type,
+                                    title: submission.activity_title || activity.title,
+                                    activity_type: submission.activity_type || activity.activity_type,
                                     caption: submission.caption,
                                     score: submission.score,
+                                    total_score: submission.total_score,
+                                    max_score: submission.max_score,
+                                    criteria_scores: submission.criteria_scores,
                                     status: submission.status,
                                     studentName: submission.student_name || submission.student?.username
                                 });
-                                console.log('   ✅ Added to outputs');
+                                console.log('   ✅ Added to outputs:', {
+                                    title: submission.activity_title,
+                                    type: submission.activity_type,
+                                    score: submission.score,
+                                    total_score: submission.total_score,
+                                    max_score: submission.max_score,
+                                    criteria_scores: submission.criteria_scores
+                                });
                             } else {
                                 console.log('   ⚠️ Skipped (not image or no path)');
                             }
