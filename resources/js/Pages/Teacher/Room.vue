@@ -1688,12 +1688,22 @@ onMounted(async () => {
     if (authenticated) {
         await loadPortfolioFolders();
         
-        // Check if returning from Outputs page to show activities list
+        // Check if returning from Outputs/Sprogress page to show activities list
         const returnContext = localStorage.getItem('return_to_activities');
         if (returnContext) {
             try {
                 const context = JSON.parse(returnContext);
                 console.log('Return context:', context);
+                
+                // Check if timestamp exists and is within 5 seconds (to prevent showing on refresh)
+                const isRecent = context.timestamp && (Date.now() - context.timestamp < 5000);
+                
+                if (!isRecent) {
+                    console.log('⏰ Return context expired, clearing...');
+                    localStorage.removeItem('return_to_activities');
+                    return;
+                }
+                
                 console.log('Available folders:', subjectFolders.value);
                 
                 if (context.showActivities && context.subject) {
@@ -1724,6 +1734,7 @@ onMounted(async () => {
                         console.log('📋 Against folders:', subjectFolders.value.map(f => ({ name: f.name, class_name: f.class_name })));
                     }
                 }
+                localStorage.removeItem('return_to_activities');
             } catch (error) {
                 console.error('Error restoring activities view:', error);
                 localStorage.removeItem('return_to_activities');

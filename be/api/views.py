@@ -1316,7 +1316,7 @@ def student_progress_list_api(request):
             
             student_list.append({
                 'id': student.id,
-                'student_id': f'STD{str(student.id).zfill(3)}',
+                'student_id': str(student.id),  # Display database ID as student_id (e.g., "28")
                 'name': student.get_full_name() or student.username,
                 'username': student.username,
                 'email': student.email,

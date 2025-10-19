@@ -74,7 +74,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
 
 
 class StudentSubmissionListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for list views - excludes large file_path data"""
+    """Serializer for list views - includes file_path for teachers to view outputs"""
     student = UserSerializer(read_only=True)
     student_name = serializers.CharField(source='student.username', read_only=True)
     activity_title = serializers.SerializerMethodField()
@@ -92,7 +92,7 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = StudentSubmission
-        exclude = ['file_path']  # Exclude the large base64 image data
+        fields = '__all__'  # Include all fields including file_path
         read_only_fields = ['id', 'submitted_at', 'scored_at']
 
 

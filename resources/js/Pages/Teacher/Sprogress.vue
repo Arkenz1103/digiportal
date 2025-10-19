@@ -68,7 +68,7 @@
                 <div class="flex items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 border-b border-indigo-200">
                     <div class="w-16 text-sm font-bold text-white">#</div>
                     <div class="w-64 text-sm font-bold text-white">Student Name</div>
-                    <div class="w-40 text-sm font-bold text-white">Student ID</div>
+                    <div class="w-40 text-sm font-bold text-white pl-4">Student ID</div>
                     <div class="flex-1 text-sm font-bold text-white text-center">Outputs</div>
                     <div class="w-48 text-sm font-bold text-white text-center">Actions</div>
                 </div>
@@ -90,7 +90,7 @@
                             <span class="text-xs text-indigo-600">Student</span>
                         </div>
                     </div>
-                    <div class="w-40">
+                    <div class="w-40 flex justify-start pl-4">
                         <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200">
                             <i class="pi pi-id-card text-indigo-600 text-sm"></i>
                             <span class="text-indigo-700 font-medium text-sm">{{ student.id }}</span>
@@ -108,7 +108,7 @@
                     </div>
                     <div class="w-48 flex items-center justify-center">
                         <button 
-                            class="px-5 py-2.5 rounded-lg bg-white text-indigo-700 font-medium hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg border-2 border-indigo-200 transform hover:-translate-y-0.5"
+                            class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                             @click="viewDetails(student)">
                             <span class="flex items-center gap-2">
                                 <i class="pi pi-chart-line"></i>
@@ -123,49 +123,71 @@
         <!-- Outputs Dialog -->
         <Teleport to="body">
             <Transition name="fade">
-                <div v-if="showOutputsDialog" class="absolute inset-0 bg-black/50 flex items-center justify-center z-50" @click="closeOutputsDialog">
-                    <div class="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-indigo-100" @click.stop>
+                <div v-if="showOutputsDialog" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="closeOutputsDialog">
+                    <div class="relative bg-white rounded-2xl shadow-2xl w-[900px] h-[600px] overflow-hidden border border-indigo-200 flex flex-col" @click.stop>
                         <!-- Dialog Header -->
-                        <div class="flex items-center justify-between p-4 border-b border-indigo-100 bg-indigo-50">
-                            <h3 class="text-xl font-bold text-indigo-900">{{ selectedStudent?.name }}'s Outputs</h3>
-                            <button @click="closeOutputsDialog" class="p-2 rounded-full hover:bg-indigo-100 text-indigo-600 transition-colors">
-                                <i class="pi pi-times"></i>
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 flex-shrink-0">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold shadow-lg">
+                                    {{ selectedStudent?.initial || 'S' }}
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-indigo-900">{{ selectedStudent?.name }}'s Outputs</h3>
+                                    <p class="text-sm text-indigo-600">Student ID: {{ selectedStudent?.id }}</p>
+                                </div>
+                            </div>
+                            <button 
+                                @click="closeOutputsDialog" 
+                                class="p-2 rounded-full hover:bg-indigo-100 text-indigo-600 transition-all duration-200 hover:rotate-90 transform">
+                                <i class="pi pi-times text-xl"></i>
                             </button>
                         </div>
                         
                         <!-- Dialog Content -->
-                        <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                        <div class="flex-1 p-6 overflow-y-auto bg-gradient-to-br from-gray-50 to-indigo-50/30">
                             <!-- Loading State -->
-                            <div v-if="isLoadingOutputs" class="flex justify-center items-center py-12">
-                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                            <div v-if="isLoadingOutputs" class="flex flex-col justify-center items-center py-20">
+                                <div class="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+                                <p class="text-indigo-600 font-medium">Loading outputs...</p>
                             </div>
                             
                             <div v-else class="flex flex-col items-center">
                                 <!-- Subject Tabs -->
-                                <div class="w-full max-w-2xl mb-6">
-                                    <div class="flex space-x-1 bg-indigo-100 p-1 rounded-lg">
+                                <div class="w-full max-w-3xl mb-6">
+                                    <div class="flex space-x-2 bg-gradient-to-r from-indigo-50 to-violet-50 p-2 rounded-xl shadow-sm border border-indigo-200">
                                         <button 
                                             v-for="subject in subjects" 
                                             :key="subject.id"
                                             @click="selectedSubject = subject.id"
-                                            class="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                                            class="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 transform"
                                             :class="selectedSubject === subject.id 
-                                                ? 'bg-white text-indigo-700 shadow-sm' 
-                                                : 'text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50'">
+                                                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg scale-105' 
+                                                : 'text-indigo-700 hover:text-indigo-900 hover:bg-white/60 hover:shadow-md hover:scale-102'">
                                             {{ subject.name }}
                                         </button>
                                     </div>
                                 </div>
                                 
                                 <!-- Image Gallery with Navigation -->
-                                <div class="relative w-full max-w-2xl">
+                                <div class="relative w-full max-w-3xl">
+                                    <!-- Empty State -->
+                                    <div v-if="getCurrentSubjectOutputs().length === 0" class="flex flex-col items-center justify-center py-16 px-4">
+                                        <div class="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
+                                            <i class="pi pi-images text-4xl text-indigo-400"></i>
+                                        </div>
+                                        <h4 class="text-lg font-semibold text-gray-700 mb-2">No Outputs Yet</h4>
+                                        <p class="text-gray-500 text-center max-w-md">
+                                            This student hasn't submitted any outputs for {{ selectedSubject === 'all' ? 'any subject' : 'this subject' }} yet.
+                                        </p>
+                                    </div>
+                                    
                                     <!-- Minimized View (Grid of thumbnails) -->
-                                    <div v-if="isMinimizedView" class="grid grid-cols-3 gap-4">
+                                    <div v-else-if="isMinimizedView" class="grid grid-cols-4 gap-4">
                                         <div 
                                             v-for="(output, index) in getCurrentSubjectOutputs()" 
                                             :key="index"
                                             @click="expandImage(index)"
-                                            class="relative group cursor-pointer bg-gray-100 rounded-lg overflow-hidden aspect-square hover:shadow-lg transition-all duration-200">
+                                            class="relative group cursor-pointer bg-white rounded-xl overflow-hidden aspect-square hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-indigo-300">
                                             <img 
                                                 :src="output.url || output" 
                                                 :alt="output.title || `Output ${index + 1}`"
@@ -186,15 +208,15 @@
                                     </div>
                                     
                                     <!-- Expanded View (Single full-size image) -->
-                                    <div v-else class="flex items-center justify-center bg-gray-100 rounded-lg p-4 min-h-[400px]">
+                                    <div v-else class="flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl p-4 min-h-[350px] shadow-inner">
                                         <div class="relative">
                                             <img 
                                                 :src="currentImage.url || currentImage" 
                                                 :alt="currentImage.title || 'Student output'" 
-                                                class="max-w-full h-auto max-h-[70vh] rounded shadow-md"
+                                                class="max-w-full h-auto max-h-[380px] rounded-xl shadow-2xl border-4 border-white"
                                             >
-                                            <div class="absolute top-2 right-2 bg-white/80 px-2 py-1 rounded text-sm font-medium">
-                                                {{ currentImageIndex + 1 }}/{{ getCurrentSubjectOutputs().length }}
+                                            <div class="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                                                {{ currentImageIndex + 1 }} / {{ getCurrentSubjectOutputs().length }}
                                             </div>
                                         </div>
                                     </div>
@@ -232,13 +254,17 @@
                                 <!-- Image Details (only show in expanded view) -->
                                 <div v-if="!isMinimizedView" class="mt-6 w-full">
                                     <div class="flex justify-between items-center mb-2">
-                                        <h4 class="font-semibold text-lg text-indigo-900">Assignment Details</h4>
+                                        <h4 class="font-semibold text-lg text-indigo-900">Output Details</h4>
                                     </div>
                                     <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
-                                                <p class="text-sm text-gray-500">Assignment</p>
+                                                <p class="text-sm text-gray-500">Activity</p>
                                                 <p class="font-medium">{{ getCurrentAssignment().title }}</p>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm text-gray-500">Type</p>
+                                                <p class="font-medium">{{ getCurrentAssignment().type }}</p>
                                             </div>
                                             <div>
                                                 <p class="text-sm text-gray-500">Submitted</p>
@@ -251,7 +277,11 @@
                                             <div>
                                                 <p class="text-sm text-gray-500">Status</p>
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
-                                                      :class="getCurrentAssignment().status === 'Graded' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">
+                                                      :class="{
+                                                          'bg-green-100 text-green-800': getCurrentAssignment().status === 'Scored',
+                                                          'bg-blue-100 text-blue-800': getCurrentAssignment().status === 'Submitted',
+                                                          'bg-yellow-100 text-yellow-800': getCurrentAssignment().status !== 'Scored' && getCurrentAssignment().status !== 'Submitted'
+                                                      }">
                                                     {{ getCurrentAssignment().status }}
                                                 </span>
                                             </div>
@@ -259,15 +289,6 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Dialog Footer -->
-                        <div class="p-4 border-t border-indigo-100 flex justify-end">
-                            <button 
-                                @click="closeOutputsDialog"
-                                class="px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 font-medium hover:bg-indigo-200 transition-colors duration-200">
-                                Close
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -512,13 +533,32 @@ const currentImage = computed(() => {
 
 // Get current assignment details based on selected subject and image index
 const getCurrentAssignment = () => {
-    if (selectedSubject.value === 'all') {
-        return allAssignments.value[currentImageIndex.value] || 
-               { title: 'Assignment', date: 'N/A', score: 'N/A', status: 'N/A', description: 'No description available' };
+    const outputs = getCurrentSubjectOutputs();
+    const currentOutput = outputs[currentImageIndex.value];
+    
+    if (!currentOutput) {
+        return { 
+            title: 'Assignment', 
+            date: 'N/A', 
+            score: 'N/A', 
+            status: 'N/A', 
+            description: 'No description available' 
+        };
     }
-    const subjectAssignments = assignments.value[selectedSubject.value] || [];
-    return subjectAssignments[currentImageIndex.value] || 
-           { title: 'Assignment', date: 'N/A', score: 'N/A', status: 'N/A', description: 'No description available' };
+    
+    // Format the data from the actual submission
+    return {
+        title: currentOutput.title || 'Activity',
+        type: currentOutput.activity_type || 'N/A',
+        date: currentOutput.date ? new Date(currentOutput.date).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        }) : 'N/A',
+        score: currentOutput.score !== null && currentOutput.score !== undefined ? `${currentOutput.score}/10` : 'Not scored',
+        status: currentOutput.status === 'scored' ? 'Scored' : 'Submitted',
+        description: currentOutput.caption || 'No description available'
+    };
 };
 
 // Get current subject outputs for navigation
@@ -674,6 +714,9 @@ const loadPortfolioFolders = async () => {
 // Load student submissions for a specific student
 const loadStudentSubmissions = async (studentId) => {
     isLoadingOutputs.value = true;
+    console.log('🔍 Loading submissions for student DATABASE ID:', studentId);
+    console.log('   (This should be a number like 2 or 3, NOT "STD003")');
+    
     try {
         // Clear previous outputs
         studentOutputs.value = {};
@@ -692,8 +735,64 @@ const loadStudentSubmissions = async (studentId) => {
                         const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                         const submissions = submissionsResponse.data || [];
                         
-                        // Add all submissions to outputs (showing all student work)
-                        submissions.forEach(submission => {
+                        console.log(`📝 Activity ${activity.id} - ${activity.title}:`);
+                        console.log(`   Total submissions: ${submissions.length}`);
+                        console.log(`   Looking for student ID: ${studentId}`);
+                        
+                        // Debug: Show all submission student IDs
+                        if (submissions.length > 0) {
+                            console.log('   Submission student IDs:', submissions.map(s => ({
+                                student_obj: s.student,
+                                username: s.student?.username,
+                                id: s.student?.id,
+                                student_id: s.student_id
+                            })));
+                        }
+                        
+                        // Filter submissions for THIS specific student only
+                        const studentSubmissions = submissions.filter(submission => {
+                            // Get the student identifier from the submission
+                            let submissionStudentId = null;
+                            
+                            if (submission.student) {
+                                if (typeof submission.student === 'object') {
+                                    // Student is an object, use database ID for matching
+                                    submissionStudentId = submission.student.id;
+                                } else {
+                                    // Student is a direct value (database ID)
+                                    submissionStudentId = submission.student;
+                                }
+                            } else if (submission.student_id) {
+                                submissionStudentId = submission.student_id;
+                            }
+                            
+                            // Compare with the target student database ID
+                            const match = submissionStudentId === studentId || 
+                                         Number(submissionStudentId) === Number(studentId);
+                            
+                            console.log('   🔍 Checking submission:', {
+                                submission_student_obj: submission.student,
+                                extracted_id: submissionStudentId,
+                                looking_for: studentId,
+                                match: match
+                            });
+                            
+                            if (match) {
+                                console.log('   ✅ Match found!');
+                            }
+                            return match;
+                        });
+                        
+                        console.log(`   ✅ Filtered: ${studentSubmissions.length} submissions for student ${studentId}`);
+                        
+                        // Add only this student's submissions to outputs
+                        studentSubmissions.forEach(submission => {
+                            console.log('   📄 Processing submission:', {
+                                file_type: submission.file_type,
+                                file_path: submission.file_path,
+                                has_path: !!submission.file_path
+                            });
+                            
                             if (submission.file_type === 'image' && submission.file_path) {
                                 folderOutputs.push({
                                     url: submission.file_path,
@@ -705,10 +804,11 @@ const loadStudentSubmissions = async (studentId) => {
                                     status: submission.status,
                                     studentName: submission.student_name || submission.student?.username
                                 });
+                                console.log('   ✅ Added to outputs');
+                            } else {
+                                console.log('   ⚠️ Skipped (not image or no path)');
                             }
                         });
-                        
-                        console.log(`Activity ${activity.id} - ${activity.title}: ${submissions.length} submissions`);
                     } catch (error) {
                         console.error(`Error loading submissions for activity ${activity.id}:`, error);
                     }
@@ -717,21 +817,27 @@ const loadStudentSubmissions = async (studentId) => {
                 // Store outputs by folder id
                 if (folderOutputs.length > 0) {
                     studentOutputs.value[folder.id.toString()] = folderOutputs;
+                    console.log(`✅ Folder ${folder.name}: ${folderOutputs.length} outputs`);
                 }
             } catch (error) {
                 console.error(`Error loading activities for folder ${folder.id}:`, error);
             }
         }
         
-        console.log('Loaded student outputs:', studentOutputs.value);
+        console.log('📦 Total loaded student outputs:', studentOutputs.value);
     } catch (error) {
-        console.error('Error loading student submissions:', error);
+        console.error('❌ Error loading student submissions:', error);
     } finally {
         isLoadingOutputs.value = false;
     }
 };
 
 const viewOutputs = async (student) => {
+    console.log('👤 View Outputs clicked for student:', student);
+    console.log('Student ID (display):', student.id);
+    console.log('Student DB ID:', student.dbId);
+    console.log('Student object:', JSON.stringify(student, null, 2));
+    
     selectedStudent.value = student;
     currentImageIndex.value = 0; // Reset to first image
     selectedSubject.value = 'all'; // Reset to 'All' subject
@@ -739,8 +845,8 @@ const viewOutputs = async (student) => {
     expandedImageIndex.value = null; // Reset expanded image
     showOutputsDialog.value = true;
     
-    // Load student submissions
-    await loadStudentSubmissions(student.id);
+    // Load student submissions using database ID, not display ID
+    await loadStudentSubmissions(student.dbId || student.id);
 };
 
 // Load students from API
@@ -812,11 +918,13 @@ const goBackToRoom = () => {
     if (classContext) {
         try {
             const context = JSON.parse(classContext);
-            if (context.className) {
+            // Use the subject (folder name) that was saved, NOT the className
+            if (context.subject) {
                 // Store return context (same format as Outputs.vue)
                 const returnData = {
-                    subject: context.className,
-                    showActivities: true
+                    subject: context.subject,  // This is the folder name like "aaa"
+                    showActivities: true,
+                    timestamp: Date.now()  // Add timestamp to expire after 5 seconds
                 };
                 console.log('Storing return context:', returnData);
                 localStorage.setItem('return_to_activities', JSON.stringify(returnData));

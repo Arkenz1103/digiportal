@@ -89,7 +89,8 @@ const goBack = () => {
     if (activity.value.subject) {
         const returnData = {
             subject: activity.value.subject,
-            showActivities: true
+            showActivities: true,
+            timestamp: Date.now()  // Add timestamp to expire after 5 seconds
         };
         console.log('Storing return context:', returnData);
         localStorage.setItem('return_to_activities', JSON.stringify(returnData));
