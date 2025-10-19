@@ -11,8 +11,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification
-from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus
+from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer, RemarkSerializer
 import json
 
 
@@ -1417,3 +1417,156 @@ def student_progress_detail_api(request, student_id):
     except Exception as e:
         print(f"Error fetching student progress detail: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Remark API Endpoints
+@api_view(['GET', 'POST'])
+def remark_list(request):
+    """
+    GET: List all remarks (filtered by teacher or student)
+    POST: Create a new remark (teacher only)
+    """
+    if request.method == 'GET':
+        # Get query parameters
+        student_id = request.query_params.get('student_id')
+        teacher_id = request.query_params.get('teacher_id')
+        
+        # Filter remarks
+        remarks = Remark.objects.all()
+        
+        if student_id:
+            remarks = remarks.filter(student_id=student_id)
+        
+        if teacher_id:
+            remarks = remarks.filter(teacher_id=teacher_id)
+        
+        # For students, only show their own remarks
+        if request.user.role == 'student':
+            remarks = remarks.filter(student=request.user)
+        
+        serializer = RemarkSerializer(remarks, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'POST':
+        # Only teachers can create remarks
+        if request.user.role != 'teacher':
+            return Response({'error': 'Only teachers can create remarks'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Add teacher to the data
+        data = request.data.copy()
+        data['teacher'] = request.user.id
+        
+        serializer = RemarkSerializer(data=data)
+        if serializer.is_valid():
+            remark = serializer.save()
+            
+            # Create notification for the student
+            try:
+                student = User.objects.get(id=data['student'])
+                create_notification(
+                    recipient=student,
+                    notification_type='remark_added',
+                    title='New Remark Added',
+                    message=f'{request.user.get_full_name() or request.user.username} added a new remark for you.'
+                )
+                print(f"Notification sent to student {student.username} for new remark")
+            except Exception as e:
+                print(f"Error creating notification: {e}")
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def remark_detail(request, pk):
+    """
+    GET: Retrieve a specific remark
+    PUT: Update a remark (teacher only)
+    DELETE: Delete a remark (teacher only)
+    """
+    try:
+        remark = Remark.objects.get(pk=pk)
+    except Remark.DoesNotExist:
+        return Response({'error': 'Remark not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check permissions
+    if request.user.role == 'student' and remark.student != request.user:
+        return Response({'error': 'You do not have permission to view this remark'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        serializer = RemarkSerializer(remark)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PUT':
+        # Only the teacher who created the remark can edit it
+        if request.user.role != 'teacher' or remark.teacher != request.user:
+            return Response({'error': 'You do not have permission to edit this remark'}, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = RemarkSerializer(remark, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Create notification for the student
+            try:
+                create_notification(
+                    recipient=remark.student,
+                    notification_type='remark_updated',
+                    title='Remark Updated',
+                    message=f'{request.user.get_full_name() or request.user.username} updated a remark for you.'
+                )
+                print(f"Notification sent to student {remark.student.username} for updated remark")
+            except Exception as e:
+                print(f"Error creating notification: {e}")
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        # Only the teacher who created the remark can delete it
+        if request.user.role != 'teacher' or remark.teacher != request.user:
+            return Response({'error': 'You do not have permission to delete this remark'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Store student info before deleting
+        student = remark.student
+        teacher_name = request.user.get_full_name() or request.user.username
+        
+        remark.delete()
+        
+        # Create notification for the student
+        try:
+            create_notification(
+                recipient=student,
+                notification_type='remark_deleted',
+                title='Remark Deleted',
+                message=f'{teacher_name} deleted a remark.'
+            )
+            print(f"Notification sent to student {student.username} for deleted remark")
+        except Exception as e:
+            print(f"Error creating notification: {e}")
+        
+        return Response({'message': 'Remark deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def mark_remark_read(request, pk):
+    """
+    Mark a remark as read for the current user (both students and teachers can mark remarks as read for themselves)
+    """
+    try:
+        remark = Remark.objects.get(pk=pk)
+    except Remark.DoesNotExist:
+        return Response({'error': 'Remark not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Create or get the read status for this user
+    read_status, created = RemarkReadStatus.objects.get_or_create(
+        remark=remark,
+        user=request.user
+    )
+    
+    if created:
+        print(f"User {request.user.username} marked remark {pk} as read")
+    else:
+        print(f"User {request.user.username} already marked remark {pk} as read")
+    
+    serializer = RemarkSerializer(remark, context={'request': request})
+    return Response(serializer.data, status=status.HTTP_200_OK)

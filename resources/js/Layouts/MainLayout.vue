@@ -305,6 +305,7 @@ const sideBarItems = computed(() => {
         student: [
             { label: 'Home', icon: 'pi pi-home', route: 'StudentNewsfeed' },
             { label: 'Sketch', icon: 'pi pi-pencil', route: 'StudentSketch' },
+            { label: 'Remarked', icon: 'pi pi-comments', route: 'StudentRemarked' },
             { label: 'Archived', icon: 'pi pi-folder', route: 'StudentArchived' },
         ],
     };

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -188,3 +188,25 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'read_at']
+
+
+class RemarkSerializer(serializers.ModelSerializer):
+    """Serializer for remarks"""
+    teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True)
+    teacher_username = serializers.CharField(source='teacher.username', read_only=True)
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    student_username = serializers.CharField(source='student.username', read_only=True)
+    student_id = serializers.CharField(source='student.username', read_only=True)
+    is_read = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Remark
+        fields = ['id', 'teacher', 'teacher_name', 'teacher_username', 'student', 'student_name', 'student_username', 'student_id', 'text', 'is_read', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_is_read(self, obj):
+        """Check if the current user has read this remark"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            return obj.is_read_by(request.user)
+        return False

@@ -65,4 +65,9 @@ urlpatterns = [
     # Student progress routes
     path('api/students/progress/', views.student_progress_list_api, name='student_progress_list_api'),
     path('api/students/<int:student_id>/progress/', views.student_progress_detail_api, name='student_progress_detail_api'),
+    
+    # Remark routes
+    path('api/remarks/', views.remark_list, name='remark_list'),
+    path('api/remarks/<int:pk>/', views.remark_detail, name='remark_detail'),
+    path('api/remarks/<int:pk>/mark-read/', views.mark_remark_read, name='mark_remark_read'),
 ]

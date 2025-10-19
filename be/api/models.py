@@ -190,6 +190,42 @@ class NewsfeedPost(models.Model):
         return f"{self.student_name} - {self.activity_title or 'Post'}"
 
 
+class Remark(models.Model):
+    """Remark model for teacher remarks to students"""
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='remarks_given')
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='remarks_received')
+    text = models.TextField()
+    is_read = models.BooleanField(default=False)  # Kept for backward compatibility
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'remarks'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Remark from {self.teacher.username} to {self.student.username}"
+    
+    def is_read_by(self, user):
+        """Check if this remark has been read by a specific user"""
+        return RemarkReadStatus.objects.filter(remark=self, user=user).exists()
+
+
+class RemarkReadStatus(models.Model):
+    """Track which users have read which remarks"""
+    remark = models.ForeignKey(Remark, on_delete=models.CASCADE, related_name='read_by')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='remarks_read')
+    read_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'remark_read_status'
+        unique_together = ['remark', 'user']  # Each user can only mark a remark as read once
+        ordering = ['-read_at']
+    
+    def __str__(self):
+        return f"{self.user.username} read remark {self.remark.id}"
+
+
 class Notification(models.Model):
     """Notification model for user notifications"""
     NOTIFICATION_TYPES = [
@@ -203,6 +239,9 @@ class Notification(models.Model):
         ('submission_approved', 'Submission Approved'),
         ('submission_rejected', 'Submission Rejected'),
         ('score_added', 'Score Added'),
+        ('remark_added', 'Remark Added'),
+        ('remark_updated', 'Remark Updated'),
+        ('remark_deleted', 'Remark Deleted'),
         
         # Teacher notifications
         ('submission_received', 'Submission Received'),

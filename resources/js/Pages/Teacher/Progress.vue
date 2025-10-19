@@ -1,26 +1,8 @@
+<!-- eslint-disable vue/no-unknown-at-rule -->
 <template>
-  <div class="p-6 max-w-7xl mx-auto min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
+  <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-6">
     <!-- Header Section with Student Info -->
     <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden mb-6 border border-indigo-100">
-      <!-- Class Header -->
-      <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-4 shadow-lg rounded-b-2xl">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div class="space-y-2">
-            <h1 class="text-lg md:text-xl font-bold text-white px-3 py-1.5 rounded-lg inline-block bg-white/20">
-              {{ currentClassName }}
-            </h1>
-            <p class="text-sm text-white/90 ml-2 flex items-center gap-2">
-              <i class="pi pi-user text-xs"></i>
-              Teacher: {{ auth.user.name }}
-            </p>
-          </div>
-        </div>
-        
-        <!-- Page Title -->
-        <div class="mt-3">
-          <h2 class="text-xl md:text-2xl font-bold text-white">Student Progress Tracking</h2>
-        </div>
-      </div>
       <div class="bg-gradient-to-r from-indigo-600 to-violet-600 p-4">
         <!-- Student Info Section -->
         <div class="flex flex-col">
@@ -60,19 +42,22 @@
                   <i class="pi pi-comments text-white text-sm"></i>
                 </div>
                 <div>
-                  <h3 class="text-base font-bold text-white">Teacher's Remarks</h3>
-                  <span class="text-xs text-white/80">{{ remarksDate }}</span>
+                  <h3 class="text-base font-bold text-white">Recent Remarks</h3>
+                  <span class="text-xs text-white/80">{{ remarksDate }} • {{ remarksTime }}</span>
                 </div>
               </div>
-              <button @click="openRemarksDialog" class="text-sm text-white hover:text-white/80 font-medium transition-colors flex items-center gap-2 px-3 py-1.5 bg-white/20 rounded-lg hover:bg-white/30">
-                View All
-                <i class="pi pi-angle-right text-xs"></i>
+              <button 
+                @click="openRemarksDialog" 
+                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-200 shadow-sm hover:shadow-md">
+                
+                <span>View All</span>
               </button>
             </div>
-            <p class="text-white/90 leading-relaxed">
-              "{{ studentInfo.name }}" has shown consistent improvement in completing assignments on time. 
-              Actively participates in class discussions and demonstrates a strong understanding of course material. 
-              Shows particular strength in creative problem-solving.
+            <p v-if="latestRemark" class="text-white/90 leading-relaxed">
+              {{ latestRemark.text }}
+            </p>
+            <p v-else class="text-white/60 italic text-sm">
+              No remarks yet for this student.
             </p>
           </div>
         </div>
@@ -309,29 +294,88 @@
   </Dialog>
 
   <!-- Remarks History Dialog -->
-  <Dialog v-model:visible="showRemarksDialog" modal header="Remarks History" :style="{width: '50vw'}" class="p-fluid">
-    <div class="space-y-4">
-      <!-- Current Remarks -->
-      <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-        <div class="flex items-center justify-between mb-3">
-          <span class="font-semibold text-indigo-900">Current Remarks</span>
-          <span class="text-sm text-white bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-1 rounded-full">{{ remarksDate }}</span>
-        </div>
-        <p class="text-indigo-900/80 leading-relaxed">
-          "{{ studentInfo.name }}" has shown consistent improvement in completing assignments on time. 
-          Actively participates in class discussions and demonstrates a strong understanding of course material. 
-          Shows particular strength in creative problem-solving.
-        </p>
+  <Dialog v-model:visible="showRemarksDialog" modal header="Remarks History" :style="{width: '700px', maxWidth: '90vw', height: '600px'}" class="p-fluid">
+    <div class="space-y-4 h-full flex flex-col">
+      <!-- Tabs -->
+      <div class="flex gap-2 border-b border-indigo-200">
+        <button 
+          @click="remarksTab = 'all'"
+          class="px-4 py-2 font-medium transition-colors duration-200"
+          :class="remarksTab === 'all' 
+            ? 'text-indigo-600 border-b-2 border-indigo-600' 
+            : 'text-gray-500 hover:text-indigo-600'">
+          All
+        </button>
+        <button 
+          @click="remarksTab = 'unread'"
+          class="px-4 py-2 font-medium transition-colors duration-200 flex items-center gap-2"
+          :class="remarksTab === 'unread' 
+            ? 'text-indigo-600 border-b-2 border-indigo-600' 
+            : 'text-gray-500 hover:text-indigo-600'">
+          Unread
+          <span v-if="unreadRemarksCount > 0" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+            {{ unreadRemarksCount }}
+          </span>
+        </button>
       </div>
 
-      <!-- Previous Remarks -->
-      <div v-for="(remark, index) in remarksHistory" :key="index" 
-           class="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
-        <div class="flex items-center justify-between mb-2">
-          <span class="font-semibold text-indigo-900">Previous Remarks</span>
-          <span class="text-sm text-indigo-600">{{ remark.date }}</span>
+      <!-- Remarks List -->
+      <div v-if="filteredRemarks.length > 0" class="space-y-3 overflow-y-auto flex-1 pr-2">
+        <div v-for="remark in filteredRemarks" :key="remark.id" 
+             @click="openRemarkDetail(remark)"
+             class="bg-white p-4 rounded-lg border-2 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+             :class="remark.is_read ? 'border-indigo-100' : 'border-indigo-300 bg-indigo-50/30'">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-indigo-900">Remarked</span>
+              <span v-if="!remark.is_read" class="text-xs text-blue-600 font-semibold">Unread</span>
+            </div>
+            <div class="flex flex-col items-end">
+              <span class="text-sm text-indigo-600">{{ new Date(remark.created_at).toLocaleDateString() }}</span>
+              <span class="text-xs text-indigo-500">{{ new Date(remark.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+            </div>
+          </div>
+          <p class="text-indigo-900/80 leading-relaxed line-clamp-2">{{ remark.text }}</p>
         </div>
-        <p class="text-indigo-900/80 leading-relaxed">{{ remark.content }}</p>
+      </div>
+      <div v-else class="text-center py-8">
+        <i class="pi pi-comments text-4xl text-indigo-200 mb-2"></i>
+        <p class="text-indigo-400">
+          {{ remarksTab === 'unread' ? 'No unread remarks' : 'No remarks history available' }}
+        </p>
+      </div>
+    </div>
+  </Dialog>
+
+  <!-- Remark Detail Dialog -->
+  <Dialog v-model:visible="showRemarkDetailDialog" modal header="Remark Details" :style="{width: '600px', maxWidth: '90vw'}" class="p-fluid">
+    <div v-if="selectedRemark" class="space-y-4">
+      <!-- Remark Header -->
+      <div class="bg-gradient-to-r from-indigo-50 to-violet-50 p-4 rounded-lg border border-indigo-200">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <i class="pi pi-comments text-indigo-600 text-xl"></i>
+            <span class="font-bold text-indigo-900 text-lg">Remarked</span>
+          </div>
+          <div class="flex flex-col items-end">
+            <span class="text-sm font-medium text-indigo-700">{{ new Date(selectedRemark.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }}</span>
+            <span class="text-xs text-indigo-600">{{ new Date(selectedRemark.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remark Content -->
+      <div class="bg-white p-5 rounded-lg border-2 border-indigo-100 shadow-sm">
+        <p class="text-indigo-900 leading-relaxed whitespace-pre-wrap text-base">{{ selectedRemark.text }}</p>
+      </div>
+
+      <!-- Student Info -->
+      <div class="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg">
+        <i class="pi pi-user text-indigo-600"></i>
+        <div>
+          <p class="text-sm text-indigo-600 font-medium">Student</p>
+          <p class="text-indigo-900 font-semibold">{{ studentInfo.name }}</p>
+        </div>
       </div>
     </div>
   </Dialog>
@@ -347,12 +391,27 @@ import Dialog from 'primevue/dialog';
 
 const emit = defineEmits(['navigate']);
 
+// Mock user data
+const currentUser = ref({
+    name: 'Teacher Name',
+    email: 'teacher@example.com',
+    role: 'teacher'
+});
+
+const auth = computed(() => ({
+    user: currentUser.value
+}));
+
+const currentClassName = ref('All Classes');
+
 const searchQuery = ref("");
 const records = ref([]);
 const isLoading = ref(false);
 const portfolioFolders = ref([]);
 const displayLimit = ref(10);
 const activeFilter = ref('all');
+const studentRemarks = ref([]);
+const latestRemark = ref(null);
 
 // Load student submissions
 const loadStudentWork = async (studentId) => {
@@ -604,6 +663,7 @@ onMounted(() => {
             if (studentIdToUse) {
                 console.log('Loading student work for database ID:', studentIdToUse);
                 loadStudentWork(studentIdToUse);
+                loadStudentRemarks(studentIdToUse);
             } else {
                 console.error('No valid student ID found');
             }
@@ -626,24 +686,91 @@ const remarksDate = ref(new Date().toLocaleDateString('en-US', {
     day: 'numeric'
 }));
 
+const remarksTime = ref(new Date().toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+}));
+
 const showRemarksDialog = ref(false);
-const remarksHistory = ref([
-    {
-        date: '2025-05-10',
-        content: 'Student shows good progress in recent assignments. Participation in group activities has improved significantly.'
-    },
-    {
-        date: '2025-05-03',
-        content: 'Completed all assignments for the week. Needs to work on time management for future projects.'
-    },
-    {
-        date: '2025-04-26',
-        content: 'Excellent performance in recent project presentation. Shows strong leadership qualities in team activities.'
+const remarksTab = ref('all');
+const showRemarkDetailDialog = ref(false);
+const selectedRemark = ref(null);
+
+// Load student remarks from API
+const loadStudentRemarks = async (studentId) => {
+    try {
+        const response = await axios.get(`/api/remarks/?student_id=${studentId}`);
+        if (response.data) {
+            // Use is_read from backend
+            studentRemarks.value = response.data;
+            // Set latest remark
+            if (response.data.length > 0) {
+                latestRemark.value = response.data[0];
+            }
+            console.log('Loaded student remarks:', response.data.length);
+        }
+    } catch (error) {
+        console.error('Error loading student remarks:', error);
     }
-]);
+};
 
 const openRemarksDialog = () => {
     showRemarksDialog.value = true;
+};
+
+// Filtered remarks based on tab
+const filteredRemarks = computed(() => {
+    if (remarksTab.value === 'unread') {
+        return studentRemarks.value.filter(remark => !remark.is_read);
+    }
+    return studentRemarks.value;
+});
+
+// Count unread remarks
+const unreadRemarksCount = computed(() => {
+    return studentRemarks.value.filter(remark => !remark.is_read).length;
+});
+
+// Get CSRF token from cookie
+const getCsrfToken = () => {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+};
+
+// Open remark detail dialog and mark as read for current user
+const openRemarkDetail = async (remark) => {
+    selectedRemark.value = remark;
+    showRemarkDetailDialog.value = true;
+    
+    // Mark as read for the current user (teacher)
+    if (!remark.is_read) {
+        try {
+            console.log('Marking remark as read for current user:', remark.id);
+            const csrfToken = getCsrfToken();
+            const response = await axios.post(`/api/remarks/${remark.id}/mark-read/`, {}, {
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            console.log('Mark as read response:', response.data);
+            remark.is_read = true;
+            console.log('Remark marked as read successfully for current user');
+        } catch (error) {
+            console.error('Error marking remark as read:', error);
+            console.error('Error response:', error.response?.data);
+        }
+    }
 };
 
 const completedCount = computed(() => {
@@ -677,6 +804,8 @@ export default {
 </script>
 
 <style scoped>
+/* stylelint-disable at-rule-no-unknown */
+/* Tailwind @apply directives - linter warnings can be ignored */
 input:focus {
     outline: none;
     @apply ring-2 ring-indigo-200 border-indigo-400;

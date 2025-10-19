@@ -12,32 +12,49 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Pupil List -->
           <div class="lg:col-span-1">
-            <div class="bg-white/90 rounded-xl border border-indigo-100 overflow-hidden shadow-sm">
-              <div class="bg-indigo-50 p-4 border-b border-indigo-100">
-                <h3 class="text-lg font-semibold text-indigo-900 flex items-center gap-2">
+            <div class="bg-white/95 rounded-xl border-2 border-indigo-100 overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
+              <div class="bg-gradient-to-r from-indigo-50 to-violet-50 p-4 border-b-2 border-indigo-100">
+                <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
                   <i class="pi pi-users text-indigo-600"></i>
                   Pupils List
                 </h3>
               </div>
-              <div class="p-4">
-                <ul class="space-y-2">
-                  <li v-for="student in students" 
+              <!-- Search Bar -->
+              <div class="p-4 border-b border-indigo-100">
+                <div class="relative">
+                  <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-indigo-400"></i>
+                  <input 
+                    v-model="searchQuery"
+                    type="text"
+                    placeholder="Search students..."
+                    class="w-full pl-10 pr-4 py-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-300 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+              <div class="p-4 max-h-[600px] overflow-y-auto">
+                <div v-if="isLoadingStudents" class="flex justify-center items-center py-8">
+                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                </div>
+                <ul v-else class="space-y-2">
+                  <li v-for="student in filteredStudents" 
                       :key="student.id" 
                       @click="selectStudent(student)"
-                      class="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all"
+                      class="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 border-2"
                       :class="[
                         selectedStudent?.id === student.id 
-                          ? 'bg-indigo-100 border-indigo-300' 
-                          : 'hover:bg-indigo-50 border-transparent',
-                        'border transition-colors duration-200'
+                          ? 'bg-gradient-to-r from-indigo-100 to-violet-100 border-indigo-400 shadow-md scale-105' 
+                          : 'hover:bg-indigo-50 border-transparent hover:border-indigo-200 hover:shadow-sm',
                       ]">
                     <div class="flex items-center gap-3">
-                      <div class="bg-indigo-600 text-white font-bold w-8 h-8 flex items-center justify-center rounded-full shadow-sm">
-                        {{ student.name.charAt(0) }}
+                      <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md ring-2 ring-indigo-200">
+                        {{ student.initial }}
                       </div>
-                      <span class="font-medium text-indigo-900">{{ student.name }}</span>
+                      <div>
+                        <span class="font-semibold text-indigo-900 block">{{ student.name }}</span>
+                        <span class="text-xs text-indigo-600">ID #: {{ student.id }}</span>
+                      </div>
                     </div>
-                    <span class="text-sm text-indigo-700/80">{{ student.remarks.length }} remarks</span>
+                    <span class="text-sm font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">{{ student.remarks?.length || 0 }} remarks</span>
                   </li>
                 </ul>
               </div>
@@ -45,19 +62,20 @@
           </div>
           
           <!-- Remarks Section -->
-          <div class="lg:col-span-2 bg-white/90 rounded-xl border border-indigo-100 overflow-hidden shadow-sm">
-            <div class="bg-indigo-50 p-4 border-b border-indigo-100">
+          <div class="lg:col-span-2 bg-white/95 rounded-xl border-2 border-indigo-100 overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-gradient-to-r from-indigo-50 to-violet-50 p-4 border-b-2 border-indigo-100">
               <div class="flex items-center justify-between">
-                <h3 v-if="selectedStudent" class="text-lg font-semibold text-indigo-900 flex items-center gap-2">
+                <h3 v-if="selectedStudent" class="text-lg font-bold text-indigo-900 flex items-center gap-2">
                   <i class="pi pi-comments text-indigo-600"></i>
                   Remarks for {{ selectedStudent.name }}
                 </h3>
-                <h3 v-else class="text-lg font-semibold text-center text-indigo-900 w-full">
+                <h3 v-else class="text-lg font-bold text-center text-indigo-600 w-full flex items-center justify-center gap-2">
+                  <i class="pi pi-hand-pointer"></i>
                   Select a student to view remarks
                 </h3>
                 <div v-if="selectedStudent" class="flex gap-2">
                   <button 
-                    @click="addRemark" 
+                    @click="showAddRemarkDialog = true" 
                     class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200
                            bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-700 hover:to-blue-700
                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -71,28 +89,31 @@
             <div class="p-4">
               <div v-if="selectedStudent" class="space-y-4">
                 <!-- Add Remark Section -->
-                <div class="bg-white p-4 rounded-lg border border-indigo-100">
+                <div class="bg-gradient-to-br from-indigo-50 to-violet-50 p-4 rounded-xl border-2 border-indigo-200 shadow-sm">
                   <Textarea 
                     v-model="newRemark" 
                     rows="3" 
                     placeholder="Enter new remark..." 
-                    class="w-full border-indigo-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"/>
+                    class="w-full border-2 border-indigo-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-300 rounded-lg shadow-sm"/>
                 </div>
 
                 <!-- Remarks List -->
                 <div class="space-y-3">
                   <div v-for="remark in selectedStudent.remarks" 
                        :key="remark.id" 
-                       class="bg-white p-4 rounded-lg border border-indigo-100 hover:shadow-sm transition-all hover:border-indigo-200 relative group">
+                       class="bg-white p-4 rounded-xl border-2 border-indigo-100 hover:shadow-md transition-all duration-200 hover:border-indigo-300 relative group hover:scale-[1.02]">
                     <div class="flex items-center justify-between mb-2">
-                      <span class="text-sm text-indigo-700/80">{{ remark.date }}</span>
+                      <div class="flex flex-col">
+                        <span class="text-sm text-indigo-700/80">{{ remark.date }}</span>
+                        <span v-if="remark.time" class="text-xs text-indigo-600/60">{{ remark.time }}</span>
+                      </div>
                       <Button 
                         icon="pi pi-ellipsis-v" 
                         class="p-button-text p-button-rounded p-button-plain h-8 w-8 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-colors duration-200"
                         @click="toggleRemarkMenu(remark.id)"
                         v-tooltip.top="'More options'"
                       />
-                      <div v-if="activeMenu === remark.id" class="absolute right-2 top-10 bg-white shadow-lg rounded-md border border-gray-200 z-10 w-40 py-1">
+                      <div v-if="activeMenu === remark.id" class="absolute right-2 bottom-10 bg-white shadow-lg rounded-md border border-gray-200 z-10 w-40 py-1">
                         <button @click="editRemark(remark)" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50">
                           Edit
                         </button>
@@ -134,7 +155,33 @@
     </div>
   </div>
 
-    <!-- Delete Confirmation Dialog -->
+  <!-- Add Remark Confirmation Dialog -->
+  <Dialog 
+    v-model:visible="showAddRemarkDialog" 
+    :style="{ width: '450px' }" 
+    header="Confirm Add Remark"
+    :modal="true"
+  >
+    <div class="flex items-center gap-4">
+      <i class="pi pi-question-circle text-indigo-500" style="font-size: 2rem" />
+      <span>Are you sure you want to add this remark for {{ selectedStudent?.name }}?</span>
+    </div>
+    <template #footer>
+      <Button 
+        label="Cancel" 
+        @click="showAddRemarkDialog = false" 
+        class="p-button-secondary"
+      />
+      <Button 
+        label="Add Remark" 
+        @click="confirmAddRemark" 
+        style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none;"
+        :disabled="!newRemark.trim()"
+      />
+    </template>
+  </Dialog>
+
+  <!-- Delete Confirmation Dialog -->
   <Dialog 
     v-model:visible="showDeleteDialog" 
     :style="{ width: '450px' }" 
@@ -158,33 +205,77 @@
         class="p-button-danger"
       />
     </template>
-    </Dialog>
+  </Dialog>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import axios from 'axios';
 import Button from "primevue/button";
 import Textarea from "primevue/textarea";
 import Dialog from 'primevue/dialog';
 
-const students = ref([
-  { id: 1, name: "Alice Smith", remarks: [
-      { id: 1, date: "2024-01-15", text: "Struggling with math concepts" },
-      { id: 2, date: "2024-01-14", text: "Seems withdrawn in class" }
-  ]},
-  { id: 2, name: "Bob Johnson", remarks: [
-      { id: 3, date: "2024-01-16", text: "Needs help with reading comprehension" }
-  ]},
-  { id: 3, name: "Carrol Williams", remarks: [
-      { id: 4, date: "2024-01-17", text: "Talks excessively in class" }
-  ]},
-  { id: 4, name: "David Brown", remarks: [
-      { id: 5, date: "2024-01-18", text: "Excellent performance in science" }
-  ]},
-  { id: 5, name: "Emma Davies", remarks: [
-      { id: 6, date: "2024-01-19", text: "Appears anxious before tests" }
-  ]}
-]);
+const students = ref([]);
+const isLoadingStudents = ref(false);
+const searchQuery = ref('');
+const showAddRemarkDialog = ref(false);
+
+// Filtered students based on search query
+const filteredStudents = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return students.value;
+  }
+  const query = searchQuery.value.toLowerCase();
+  return students.value.filter(student => 
+    student.name.toLowerCase().includes(query) ||
+    student.id.toString().includes(query) ||
+    student.student_id?.toLowerCase().includes(query)
+  );
+});
+
+// Load students from API
+const loadStudents = async () => {
+  isLoadingStudents.value = true;
+  try {
+    const response = await axios.get('/api/students/progress/');
+    if (response.data) {
+      // Map students and load their remark counts
+      const studentPromises = response.data.map(async (student) => {
+        try {
+          // Load remarks count for each student
+          const remarksResponse = await axios.get(`/api/remarks/?student_id=${student.id}`);
+          return {
+            id: student.id,
+            student_id: student.student_id,
+            name: student.name,
+            initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+            username: student.username,
+            email: student.email,
+            remarks: remarksResponse.data || []
+          };
+        } catch (error) {
+          console.error(`Error loading remarks for student ${student.id}:`, error);
+          return {
+            id: student.id,
+            student_id: student.student_id,
+            name: student.name,
+            initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+            username: student.username,
+            email: student.email,
+            remarks: []
+          };
+        }
+      });
+      
+      students.value = await Promise.all(studentPromises);
+      console.log('Loaded students with remarks:', students.value);
+    }
+  } catch (error) {
+    console.error('Error loading students:', error);
+  } finally {
+    isLoadingStudents.value = false;
+  }
+};
 
 const selectedStudent = ref(null);
 const newRemark = ref("");
@@ -203,15 +294,37 @@ const closeMenu = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', closeMenu);
+  loadStudents();
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', closeMenu);
 });
 
-function selectStudent(student) {
+async function selectStudent(student) {
   selectedStudent.value = student;
+  // Load remarks for this student
+  await loadStudentRemarks(student.id);
 }
+
+const loadStudentRemarks = async (studentId) => {
+  try {
+    const response = await axios.get(`/api/remarks/?student_id=${studentId}`);
+    if (response.data) {
+      selectedStudent.value.remarks = response.data.map(remark => {
+        const remarkDate = new Date(remark.created_at);
+        return {
+          id: remark.id,
+          date: remarkDate.toLocaleDateString(),
+          time: remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: remark.text
+        };
+      });
+    }
+  } catch (error) {
+    console.error('Error loading student remarks:', error);
+  }
+};
 
 function toggleRemarkMenu(remarkId) {
   activeMenu.value = activeMenu.value === remarkId ? null : remarkId;
@@ -223,13 +336,41 @@ function editRemark(remark) {
   activeMenu.value = null;
 }
 
-function saveEdit(remark) {
-  const remarkToUpdate = selectedStudent.value.remarks.find(r => r.id === remark.id);
-  if (remarkToUpdate) {
-    remarkToUpdate.text = editText.value.trim();
-    remarkToUpdate.date = new Date().toISOString().split("T")[0];
+async function saveEdit(remark) {
+  if (!editText.value.trim()) return;
+  
+  try {
+    const response = await axios.put(`/api/remarks/${remark.id}/`, {
+      text: editText.value.trim()
+    });
+    
+    if (response.data) {
+      const remarkDate = new Date(response.data.updated_at);
+      const remarkToUpdate = selectedStudent.value.remarks.find(r => r.id === remark.id);
+      if (remarkToUpdate) {
+        remarkToUpdate.text = response.data.text;
+        remarkToUpdate.date = remarkDate.toLocaleDateString();
+        remarkToUpdate.time = remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      
+      // Also update in students list
+      const studentInList = students.value.find(s => s.id === selectedStudent.value.id);
+      if (studentInList && studentInList.remarks) {
+        const remarkInList = studentInList.remarks.find(r => r.id === remark.id);
+        if (remarkInList) {
+          remarkInList.text = response.data.text;
+          remarkInList.date = remarkDate.toLocaleDateString();
+          remarkInList.time = remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+      }
+      
+      cancelEdit();
+      console.log('Remark updated successfully');
+    }
+  } catch (error) {
+    console.error('Error updating remark:', error);
+    alert('Failed to update remark. Please try again.');
   }
-  cancelEdit();
 }
 
 function cancelEdit() {
@@ -243,24 +384,64 @@ function confirmDelete(remark) {
   activeMenu.value = null;
 }
 
-function deleteRemark() {
+async function deleteRemark() {
   if (remarkToDelete.value) {
-    selectedStudent.value.remarks = selectedStudent.value.remarks.filter(
-      r => r.id !== remarkToDelete.value.id
-    );
-    showDeleteDialog.value = false;
-    remarkToDelete.value = null;
+    try {
+      await axios.delete(`/api/remarks/${remarkToDelete.value.id}/`);
+      
+      // Remove from selected student's remarks
+      selectedStudent.value.remarks = selectedStudent.value.remarks.filter(
+        r => r.id !== remarkToDelete.value.id
+      );
+      
+      // Update the student in the students list to reflect the new count
+      const studentInList = students.value.find(s => s.id === selectedStudent.value.id);
+      if (studentInList && studentInList.remarks) {
+        studentInList.remarks = studentInList.remarks.filter(
+          r => r.id !== remarkToDelete.value.id
+        );
+      }
+      
+      showDeleteDialog.value = false;
+      remarkToDelete.value = null;
+      console.log('Remark deleted successfully');
+    } catch (error) {
+      console.error('Error deleting remark:', error);
+      alert('Failed to delete remark. Please try again.');
+      showDeleteDialog.value = false;
+    }
   }
 }
 
-function addRemark() {
-  if (selectedStudent.value && newRemark.value) {
-    selectedStudent.value.remarks.unshift({
-      id: Date.now(),
-      date: new Date().toISOString().split("T")[0],
-      text: newRemark.value
-    });
-    newRemark.value = "";
+async function confirmAddRemark() {
+  if (selectedStudent.value && newRemark.value.trim()) {
+    try {
+      const response = await axios.post('/api/remarks/', {
+        student: selectedStudent.value.id,
+        text: newRemark.value.trim()
+      });
+      
+      if (response.data) {
+        const remarkDate = new Date(response.data.created_at);
+        const newRemarkData = {
+          id: response.data.id,
+          date: remarkDate.toLocaleDateString(),
+          time: remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: response.data.text
+        };
+        
+        // Reload remarks for the selected student to get fresh data from server
+        await loadStudentRemarks(selectedStudent.value.id);
+        
+        newRemark.value = "";
+        showAddRemarkDialog.value = false;
+        console.log('Remark added successfully');
+      }
+    } catch (error) {
+      console.error('Error adding remark:', error);
+      alert('Failed to add remark. Please try again.');
+      showAddRemarkDialog.value = false;
+    }
   }
 }
 </script>

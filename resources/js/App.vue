@@ -28,6 +28,7 @@
       <StudentNewsfeed v-if="currentPage === 'StudentNewsfeed'" @navigate="handleNavigation" />
       <StudentRoom v-if="currentPage === 'StudentRoom'" @navigate="handleNavigation" />
       <StudentSketch v-if="currentPage === 'StudentSketch'" @navigate="handleNavigation" />
+      <StudentRemarked v-if="currentPage === 'StudentRemarked'" @navigate="handleNavigation" />
       <StudentNotify v-if="currentPage === 'StudentNotify'" @navigate="handleNavigation" />
       <StudentArchived v-if="currentPage === 'StudentArchived'" @navigate="handleNavigation" />
     </MainLayout>
@@ -55,6 +56,7 @@ import TeacherArchived from './Pages/Teacher/Archived.vue'
 import StudentNewsfeed from './Pages/Student/Newsfeed.vue'
 import StudentRoom from './Pages/Student/Sroom.vue'
 import StudentSketch from './Pages/Student/Sketch.vue'
+import StudentRemarked from './Pages/Student/Sremarked.vue'
 import StudentNotify from './Pages/Student/Snotify.vue'
 import StudentArchived from './Pages/Student/Sarchived.vue'
 
@@ -102,6 +104,7 @@ const handleNavigation = (page) => {
     'StudentNewsfeed': 'Student Home - DigiPortal',
     'StudentRoom': 'Class Room - DigiPortal',
     'StudentSketch': 'Sketch - DigiPortal',
+    'StudentRemarked': 'My Remarks - DigiPortal',
     'StudentNotify': 'Notifications - DigiPortal',
     'StudentArchived': 'Archived - DigiPortal'
   }
@@ -124,6 +127,7 @@ const handleNavigation = (page) => {
     'StudentNewsfeed': '/student/newsfeed',
     'StudentRoom': '/student/room',
     'StudentSketch': '/student/sketch',
+    'StudentRemarked': '/student/remarked',
     'StudentNotify': '/student/notify',
     'StudentArchived': '/student/archived'
   }
