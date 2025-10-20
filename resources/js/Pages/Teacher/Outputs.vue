@@ -107,34 +107,8 @@ const toggleView = (mode) => {
     viewMode.value = mode;
 };
 
-// Sample student submissions data with their self-portrait artworks
-// Updated to match the data structure in notice.vue
-const studentOutputs = ref({
-    '2021-0001': {
-        title: 'Self-Portrait: Reflections of Me',
-        description: 'A mixed media self-portrait combining acrylic paint, collage elements, and charcoal. The artwork explores my dual heritage with symbolic elements representing both cultures.',
-        date: 'Mar 18, 2025',
-        status: 'Completed',
-        image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-        rank: 1,
-    },
-    '2021-0002': {
-        title: 'Self-Portrait: Through My Eyes',
-        description: 'Watercolor and ink self-portrait focusing on expressive eyes and subtle facial expressions. The background incorporates abstract patterns representing my thoughts.',
-        date: 'Mar 26, 2025',
-        status: 'In Progress',
-        image: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-        rank: 2,
-    },
-    '2021-0003': {
-        title: 'Self-Portrait: Digital Me',
-        description: 'Digital painting created using Procreate, showcasing a stylized version of myself with vibrant colors and geometric elements in the background.',
-        date: 'Mar 15, 2025',
-        status: 'Pending Review',
-        image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-        rank: 3,
-    }
-});
+// Student outputs data - scores and remarks stored here
+const studentOutputs = ref({});
 
 const submissions = ref([]);
 const scoredSubmissionsData = ref([]);
@@ -157,21 +131,43 @@ const loadUnscoredSubmissions = async () => {
                 return submissionActivityId === activity.value.id;
             });
             
-            submissions.value = filteredSubmissions.map(submission => ({
-                id: submission.id,
-                studentId: submission.student.id,
-                name: submission.student.username,
-                activityTitle: submission.activity_title,
-                activityType: submission.activity_type,
-                caption: submission.caption,
-                score: submission.score,
-                status: 'Submitted',
-                date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
+            submissions.value = filteredSubmissions.map(submission => {
+                const submittedDate = new Date(submission.submitted_at);
+                const dateStr = submittedDate.toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric'
-                })
-            }));
+                });
+                const timeStr = submittedDate.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                
+                console.log('📊 Submission data:', {
+                    id: submission.id,
+                    has_file_path: !!submission.file_path,
+                    file_path_length: submission.file_path?.length,
+                    file_type: submission.file_type,
+                    file_path_preview: submission.file_path?.substring(0, 100)
+                });
+                
+                return {
+                    id: submission.id,
+                    studentId: submission.student.id,
+                    name: submission.student.username,
+                    activityTitle: submission.activity_title,
+                    activityType: submission.activity_type,
+                    caption: submission.caption,
+                    score: submission.score,
+                    status: 'Submitted',
+                    date: dateStr,
+                    time: timeStr,
+                    file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
+                    file_type: submission.file_type,
+                    submitted_at: submission.submitted_at
+                };
+            });
             console.log('Loaded unscored submissions for activity:', activity.value.id, submissions.value);
         }
     } catch (error) {
@@ -196,21 +192,35 @@ const loadScoredSubmissions = async () => {
                 return submissionActivityId === activity.value.id;
             });
             
-            scoredSubmissionsData.value = filteredSubmissions.map(submission => ({
-                id: submission.id,
-                studentId: submission.student.id,
-                name: submission.student.username,
-                activityTitle: submission.activity_title,
-                activityType: submission.activity_type,
-                caption: submission.caption,
-                score: submission.score,
-                status: 'Scored',
-                date: new Date(submission.scored_at || submission.submitted_at).toLocaleDateString('en-US', {
+            scoredSubmissionsData.value = filteredSubmissions.map(submission => {
+                const submittedDate = new Date(submission.scored_at || submission.submitted_at);
+                const dateStr = submittedDate.toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric'
-                })
-            }));
+                });
+                const timeStr = submittedDate.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                
+                return {
+                    id: submission.id,
+                    studentId: submission.student.id,
+                    name: submission.student.username,
+                    activityTitle: submission.activity_title,
+                    activityType: submission.activity_type,
+                    caption: submission.caption,
+                    score: submission.score,
+                    status: 'Scored',
+                    date: dateStr,
+                    time: timeStr,
+                    file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
+                    file_type: submission.file_type,
+                    submitted_at: submission.submitted_at
+                };
+            });
             console.log('Loaded scored submissions for activity:', activity.value.id, scoredSubmissionsData.value);
         }
     } catch (error) {
@@ -265,43 +275,109 @@ const requirementsScore = ref('');
 const criteriaScores = ref([]); // Dynamic scores based on activity criteria
 const scoreFeedback = ref(''); // Feedback for the student
 
+// Remarks section state
+const showRemarksSection = ref(true); // Show by default
+const isEditingRemarks = ref(false);
+
 const viewSubmission = async (submission) => {
-    // Load full submission details including image
-    const fullSubmission = await loadSubmissionDetail(submission.id);
+    console.log('🔍 Opening submission:', {
+        id: submission.id,
+        file_type: submission.file_type,
+        has_file_path: !!submission.file_path,
+        file_path_length: submission.file_path?.length
+    });
     
-    if (fullSubmission) {
-        selectedSubmission.value = {
-            ...fullSubmission,
-            content: {
-                title: fullSubmission.activityTitle || 'Submission',
-                description: fullSubmission.caption || 'No description provided',
-                image: fullSubmission.filePath,
-                date: fullSubmission.date,
-                status: fullSubmission.status
-            },
-            newRemark: '',
-            rank: null
-        };
-        showSubmissionDialog.value = true;
-    } else {
-        alert('Failed to load submission details');
+    // Use the submission data directly (it already has file_path and file_type)
+    selectedSubmission.value = {
+        ...submission,
+        newRemark: '',
+        rank: null
+    };
+    
+    showSubmissionDialog.value = true;
+};
+
+const editRemarks = () => {
+    isEditingRemarks.value = true;
+    // Pre-fill the textarea with existing remarks
+    selectedSubmission.value.newRemark = studentOutputs.value[selectedSubmission.value.id]?.remarks || '';
+};
+
+const deleteRemarks = async () => {
+    if (confirm('Are you sure you want to delete these remarks?')) {
+        try {
+            const submissionId = selectedSubmission.value.id;
+            const remarkId = studentOutputs.value[submissionId]?.remarkId;
+            
+            if (remarkId) {
+                await axios.delete(`/api/submissions/${submissionId}/remarks/${remarkId}/`);
+                console.log('Remark deleted successfully');
+            }
+            
+            // Update local state
+            if (studentOutputs.value[submissionId]) {
+                studentOutputs.value[submissionId].remarks = '';
+                studentOutputs.value[submissionId].remarkId = null;
+            }
+            selectedSubmission.value.newRemark = '';
+            isEditingRemarks.value = false;
+            
+            alert('Remark deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting remark:', error);
+            alert('Failed to delete remark: ' + (error.response?.data?.error || error.message));
+        }
     }
 };
 
-const saveRemarks = () => {
-    if (selectedSubmission.value) {
-        // Ensure the student output exists
-        if (!studentOutputs.value[selectedSubmission.value.id]) {
-            studentOutputs.value[selectedSubmission.value.id] = {};
+const cancelEditRemarks = () => {
+    isEditingRemarks.value = false;
+    selectedSubmission.value.newRemark = '';
+};
+
+const saveRemarks = async () => {
+    if (selectedSubmission.value && selectedSubmission.value.newRemark.trim()) {
+        try {
+            const submissionId = selectedSubmission.value.id;
+            const remarkText = selectedSubmission.value.newRemark.trim();
+            
+            if (isEditingRemarks.value && studentOutputs.value[submissionId]?.remarkId) {
+                // Update existing remark
+                const response = await axios.put(
+                    `/api/submissions/${submissionId}/remarks/${studentOutputs.value[submissionId].remarkId}/`,
+                    { text: remarkText }
+                );
+                console.log('Remark updated successfully:', response.data);
+            } else {
+                // Create new remark
+                const response = await axios.post(
+                    `/api/submissions/${submissionId}/remarks/`,
+                    { text: remarkText }
+                );
+                console.log('Remark created successfully:', response.data);
+                
+                // Store the remark ID for future updates
+                if (!studentOutputs.value[submissionId]) {
+                    studentOutputs.value[submissionId] = {};
+                }
+                studentOutputs.value[submissionId].remarkId = response.data.id;
+            }
+            
+            // Update local state
+            if (!studentOutputs.value[submissionId]) {
+                studentOutputs.value[submissionId] = {};
+            }
+            studentOutputs.value[submissionId].remarks = remarkText;
+            
+            // Reset editing state
+            isEditingRemarks.value = false;
+            selectedSubmission.value.newRemark = '';
+            
+            alert('Remark saved successfully!');
+        } catch (error) {
+            console.error('Error saving remark:', error);
+            alert('Failed to save remark: ' + (error.response?.data?.error || error.message));
         }
-        // Save the remarks
-        studentOutputs.value[selectedSubmission.value.id].remarks = selectedSubmission.value.newRemark || '';
-
-        // Show success message (you can replace this with a toast notification if available)
-        console.log('Remarks saved successfully');
-
-        // Optional: Close the dialog after saving
-        // closeDialog();
     }
 };
 
@@ -1008,13 +1084,12 @@ const getMedalDetails = (rank) => {
                         </div>
                         <div class="w-1/5 flex items-center gap-2 pl-4">
                             <i class="pi pi-calendar text-indigo-700 flex-shrink-0"></i>
-                            <span class="whitespace-nowrap">Date Submitted</span>
+                            <span class="whitespace-nowrap">Date & Time</span>
                         </div>
                         <div class="w-1/6 flex items-center gap-2">
                             <i class="pi pi-star text-indigo-700"></i>
                             <span class="whitespace-nowrap">Score</span>
                         </div>
-                        <div class="w-8"></div>
                     </div>
 
                     <!-- Table Content -->
@@ -1035,7 +1110,7 @@ const getMedalDetails = (rank) => {
                                 </div>
                             </div>
                             <div class="w-1/4 text-gray-600 font-medium">
-                                {{ submission.id }}
+                                {{ submission.studentId }}
                             </div>
                             <div class="w-1/4">
                                 <span :class="[
@@ -1047,17 +1122,15 @@ const getMedalDetails = (rank) => {
                                     {{ submission.status }}
                                 </span>
                             </div>
-                            <div class="w-1/5 text-gray-600 font-medium pl-4">{{ submission.date }}</div>
+                            <div class="w-1/5 text-gray-600 font-medium pl-4">
+                                <div>{{ submission.date }}</div>
+                                <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
+                            </div>
                             <div class="w-1/6">
                                 <span v-if="studentOutputs[submission.id]?.scores" class="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-800">
                                     {{ studentOutputs[submission.id].scores.total }}/30
                                 </span>
                                 <span v-else class="text-sm text-gray-400">-</span>
-                            </div>
-                            <div class="w-8">
-                                <button class="p-2 rounded-lg text-gray-400 hover:text-indigo-700 hover:bg-indigo-50 transition-all duration-300">
-                                    <i class="pi pi-ellipsis-v"></i>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -1076,16 +1149,29 @@ const getMedalDetails = (rank) => {
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent z-10"></div>
                                 <div class="w-full h-full flex items-center justify-center bg-white border-b-2 border-indigo-100 p-4">
                                     <div class="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
-                                        <img
-                                            v-if="studentOutputs[submission.id]?.image"
-                                            :src="studentOutputs[submission.id].image"
-                                            :alt="studentOutputs[submission.id].title"
+                                        <!-- Image Display -->
+                                        <img v-if="submission.file_type === 'image' && submission.file_path && submission.file_path.length > 0"
+                                            :src="submission.file_path.startsWith('http') || submission.file_path.startsWith('/media') || submission.file_path.startsWith('data:') ? submission.file_path : `data:image/png;base64,${submission.file_path}`"
+                                            :alt="submission.caption || 'Student submission'"
                                             class="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
                                             style="max-height: 100%; max-width: 100%; object-fit: contain;"
                                         />
-                                        <div v-else class="w-full h-full flex items-center justify-center"
-                                             style="background: linear-gradient(to bottom right, #f9fafb, #e0e7ff);">
-                                            <i class="pi pi-file text-4xl" style="color: #6366f1;"></i>
+                                        <!-- PDF Display -->
+                                        <div v-else-if="submission.file_type === 'pdf' && submission.file_path" class="flex flex-col items-center justify-center text-red-600">
+                                            <i class="pi pi-file-pdf text-6xl mb-3"></i>
+                                            <span class="text-sm font-medium">PDF Document</span>
+                                            <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
+                                        </div>
+                                        <!-- Word Document Display -->
+                                        <div v-else-if="submission.file_type === 'document' && submission.file_path" class="flex flex-col items-center justify-center text-blue-600">
+                                            <i class="pi pi-file-word text-6xl mb-3"></i>
+                                            <span class="text-sm font-medium">Word Document</span>
+                                            <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
+                                        </div>
+                                        <!-- No file data - minimal message -->
+                                        <div v-else class="flex flex-col items-center justify-center text-gray-400 px-4 text-center">
+                                            <p class="text-sm">{{ submission.caption || 'No file data available' }}</p>
+                                            <p class="text-xs mt-2 text-gray-300">Student needs to resubmit</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1113,7 +1199,7 @@ const getMedalDetails = (rank) => {
                                     </div>
                                     <div class="min-w-0">
                                         <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
-                                        <p class="text-xs text-gray-500 truncate">ID: {{ submission.id }}</p>
+                                        <p class="text-xs text-gray-500 truncate">ID: {{ submission.studentId }}</p>
                                     </div>
                                 </div>
 
@@ -1130,7 +1216,10 @@ const getMedalDetails = (rank) => {
                                      style="border-color: #e0e7ff;">
                                     <div class="flex items-center text-gray-500">
                                         <i class="pi pi-calendar mr-2" style="color: #6366f1;"></i>
-                                        <span>{{ submission.date }}</span>
+                                        <div>
+                                            <div>{{ submission.date }}</div>
+                                            <div class="text-xs text-gray-400 mt-0.5">{{ submission.time }}</div>
+                                        </div>
                                     </div>
                                     <button class="transition-colors hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-indigo-50">
                                         <i class="pi pi-eye"></i>
@@ -1176,13 +1265,12 @@ const getMedalDetails = (rank) => {
                             </div>
                             <div class="w-1/5 flex items-center gap-2 pl-4">
                                 <i class="pi pi-calendar text-indigo-700 flex-shrink-0"></i>
-                                <span class="whitespace-nowrap">Date Submitted</span>
+                                <span class="whitespace-nowrap">Date & Time</span>
                             </div>
                             <div class="w-1/6 flex items-center gap-2">
                                 <i class="pi pi-star text-indigo-700"></i>
                                 <span class="whitespace-nowrap">Score</span>
                             </div>
-                            <div class="w-8"></div>
                         </div>
 
                         <!-- Table Content -->
@@ -1203,24 +1291,22 @@ const getMedalDetails = (rank) => {
                                     </div>
                                 </div>
                                 <div class="w-1/4 text-gray-600 font-medium">
-                                    {{ submission.id }}
+                                    {{ submission.studentId }}
                                 </div>
                                 <div class="w-1/4">
                                     <span class="px-4 py-2 text-sm font-medium rounded-xl shadow-sm transition-all duration-300 bg-green-100 text-green-800 group-hover:bg-green-200">
                                         Scored
                                     </span>
                                 </div>
-                                <div class="w-1/5 text-gray-600 font-medium pl-4">{{ submission.date }}</div>
+                                <div class="w-1/5 text-gray-600 font-medium pl-4">
+                                    <div>{{ submission.date }}</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
+                                </div>
                                 <div class="w-1/6">
                                     <span v-if="submission.score !== null && submission.score !== undefined" class="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-800">
                                         {{ submission.score }}
                                     </span>
                                     <span v-else class="text-sm text-gray-400">-</span>
-                                </div>
-                                <div class="w-8">
-                                    <button class="p-2 rounded-lg text-gray-400 hover:text-indigo-700 hover:bg-indigo-50 transition-all duration-300">
-                                        <i class="pi pi-ellipsis-v"></i>
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1239,16 +1325,29 @@ const getMedalDetails = (rank) => {
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent z-10"></div>
                                     <div class="w-full h-full flex items-center justify-center bg-white border-b-2 border-indigo-100 p-4">
                                         <div class="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
-                                            <img
-                                                v-if="studentOutputs[submission.id]?.image"
-                                                :src="studentOutputs[submission.id].image"
-                                                :alt="studentOutputs[submission.id].title"
+                                            <!-- Image Display -->
+                                            <img v-if="submission.file_type === 'image' && submission.file_path && submission.file_path.length > 0"
+                                                :src="submission.file_path.startsWith('http') || submission.file_path.startsWith('/media') || submission.file_path.startsWith('data:') ? submission.file_path : `data:image/png;base64,${submission.file_path}`"
+                                                :alt="submission.caption || 'Student submission'"
                                                 class="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
                                                 style="max-height: 100%; max-width: 100%; object-fit: contain;"
                                             />
-                                            <div v-else class="w-full h-full flex items-center justify-center"
-                                                 style="background: linear-gradient(to bottom right, #f9fafb, #e0e7ff);">
-                                                <i class="pi pi-file text-4xl" style="color: #6366f1;"></i>
+                                            <!-- PDF Display -->
+                                            <div v-else-if="submission.file_type === 'pdf' && submission.file_path" class="flex flex-col items-center justify-center text-red-600">
+                                                <i class="pi pi-file-pdf text-6xl mb-3"></i>
+                                                <span class="text-sm font-medium">PDF Document</span>
+                                                <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
+                                            </div>
+                                            <!-- Word Document Display -->
+                                            <div v-else-if="submission.file_type === 'document' && submission.file_path" class="flex flex-col items-center justify-center text-blue-600">
+                                                <i class="pi pi-file-word text-6xl mb-3"></i>
+                                                <span class="text-sm font-medium">Word Document</span>
+                                                <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
+                                            </div>
+                                            <!-- No file data - minimal message -->
+                                            <div v-else class="flex flex-col items-center justify-center text-gray-400 px-4 text-center">
+                                                <p class="text-sm">{{ submission.caption || 'No file data available' }}</p>
+                                                <p class="text-xs mt-2 text-gray-300">Student needs to resubmit</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1293,7 +1392,10 @@ const getMedalDetails = (rank) => {
                                          style="border-color: #e0e7ff;">
                                         <div class="flex items-center text-gray-500">
                                             <i class="pi pi-calendar mr-2" style="color: #6366f1;"></i>
-                                            <span>{{ submission.date }}</span>
+                                            <div>
+                                                <div>{{ submission.date }}</div>
+                                                <div class="text-xs text-gray-400 mt-0.5">{{ submission.time }}</div>
+                                            </div>
                                         </div>
                                         <button class="transition-colors hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-indigo-50">
                                             <i class="pi pi-eye"></i>
@@ -1325,7 +1427,7 @@ const getMedalDetails = (rank) => {
                 <div class="p-6">
                     <div class="flex justify-between items-center mb-6 relative">
                         <h3 class="text-2xl font-semibold text-gray-900 px-2">
-                            {{ selectedSubmission.content?.title || 'Submission Details' }}
+                            {{ selectedSubmission.caption || selectedSubmission.activityTitle || 'Submission Details' }}
                         </h3>
 
                         <!-- Add Score Button -->
@@ -1343,13 +1445,30 @@ const getMedalDetails = (rank) => {
                             <div class="lg:col-span-2">
                                 <div class="bg-white rounded-xl overflow-hidden border-2 border-indigo-100" style="height: 400px;">
                                     <div class="w-full h-full flex items-center justify-center p-4 bg-white relative">
-                                        <!-- Image -->
-                                        <img v-if="selectedSubmission.content?.image"
-                                            :src="selectedSubmission.content.image"
-                                            :alt="selectedSubmission.content.title"
+                                        <!-- Image Display -->
+                                        <img v-if="selectedSubmission.file_type === 'image' && selectedSubmission.file_path && selectedSubmission.file_path.length > 0"
+                                            :src="selectedSubmission.file_path.startsWith('http') || selectedSubmission.file_path.startsWith('/media') || selectedSubmission.file_path.startsWith('data:') ? selectedSubmission.file_path : `data:image/png;base64,${selectedSubmission.file_path}`"
+                                            :alt="selectedSubmission.caption || 'Student submission'"
                                             class="max-h-full max-w-full object-contain"
                                             style="max-height: 100%; max-width: 100%; object-fit: contain;"
                                         />
+                                        <!-- PDF Display -->
+                                        <div v-else-if="selectedSubmission.file_type === 'pdf' && selectedSubmission.file_path" class="flex flex-col items-center justify-center text-red-600">
+                                            <i class="pi pi-file-pdf text-8xl mb-4"></i>
+                                            <span class="text-lg font-medium">PDF Document</span>
+                                            <span class="text-sm text-gray-500 mt-2">{{ selectedSubmission.caption || 'Untitled' }}</span>
+                                        </div>
+                                        <!-- Word Document Display -->
+                                        <div v-else-if="selectedSubmission.file_type === 'document' && selectedSubmission.file_path" class="flex flex-col items-center justify-center text-blue-600">
+                                            <i class="pi pi-file-word text-8xl mb-4"></i>
+                                            <span class="text-lg font-medium">Word Document</span>
+                                            <span class="text-sm text-gray-500 mt-2">{{ selectedSubmission.caption || 'Untitled' }}</span>
+                                        </div>
+                                        <!-- No file data - minimal text only -->
+                                        <div v-else class="flex flex-col items-center justify-center text-gray-400 px-6 text-center">
+                                            <p class="text-base text-gray-600 mb-2">{{ selectedSubmission.caption || 'No file data available' }}</p>
+                                            <p class="text-sm text-gray-400">Student needs to resubmit their work</p>
+                                        </div>
                                         <!-- Medal Badge - Floating over image -->
                                         <div v-if="selectedSubmission.rank" class="absolute top-0 right-0 z-20 transform -translate-x-1/4 translate-y-1/4">
                                             <div :class="[
@@ -1380,10 +1499,6 @@ const getMedalDetails = (rank) => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div v-else class="w-full h-full flex items-center justify-center"
-                                            style="background: linear-gradient(to bottom right, #f9fafb, #e0e7ff);">
-                                            <i class="pi pi-image text-5xl" style="color: #6366f1;"></i>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1403,7 +1518,7 @@ const getMedalDetails = (rank) => {
                                             </div>
                                             <div>
                                                 <p class="font-medium text-gray-900">{{ selectedSubmission.name || 'Unknown Student' }}</p>
-                                                <p class="text-sm text-gray-500">ID: {{ selectedSubmission.id || 'N/A' }}</p>
+                                                <p class="text-sm text-gray-500">ID: {{ selectedSubmission.studentId || 'N/A' }}</p>
                                             </div>
                                         </div>
                                         <div class="pt-3 mt-3 border-t border-indigo-100 space-y-2">
@@ -1436,42 +1551,64 @@ const getMedalDetails = (rank) => {
                                         Description
                                     </h4>
                                     <p class="text-gray-600 text-sm">
-                                        {{ selectedSubmission.content?.description || 'No description provided.' }}
+                                        {{ selectedSubmission.caption || 'No description provided.' }}
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Teacher's Remarks -->
+                        <!-- Teacher's Remarks (Optional/Collapsible) -->
                         <div class="bg-white p-5 rounded-xl border-2 border-indigo-100">
-                            <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                <i class="pi pi-comment" style="color: #6366f1;"></i>
-                                Output Remarks
-                            </h4>
-                            <div class="space-y-3">
-                                <!-- Display existing remarks if any -->
-                                <div v-if="studentOutputs[selectedSubmission.id]?.remarks" class="mb-4 p-3 bg-gray-50 rounded-lg">
-                                    <p class="text-sm text-gray-600">{{ studentOutputs[selectedSubmission.id].remarks }}</p>
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-md font-semibold text-gray-900 flex items-center gap-2">
+                                    <i class="pi pi-comment" style="color: #6366f1;"></i>
+                                    Output Remarks
+                                    <span class="text-xs text-gray-400 font-normal">(Optional)</span>
+                                </h4>
+                                <button @click="showRemarksSection = !showRemarksSection" 
+                                        class="text-indigo-600 hover:text-indigo-700">
+                                    <i :class="showRemarksSection ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
+                                </button>
+                            </div>
+                            
+                            <div v-show="showRemarksSection" class="space-y-3">
+                                <!-- Display existing remarks with Edit/Delete buttons -->
+                                <div v-if="studentOutputs[selectedSubmission.id]?.remarks && !isEditingRemarks" class="mb-4 p-3 bg-gray-50 rounded-lg">
+                                    <p class="text-sm text-gray-600 mb-3">{{ studentOutputs[selectedSubmission.id].remarks }}</p>
+                                    <div class="flex gap-2">
+                                        <button @click="editRemarks" 
+                                                class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
+                                            <i class="pi pi-pencil text-xs"></i>
+                                            Edit
+                                        </button>
+                                        <button @click="deleteRemarks" 
+                                                class="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                                            <i class="pi pi-trash text-xs"></i>
+                                            Delete
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <!-- Textarea for new/updated remarks -->
-                                <Textarea v-model="selectedSubmission.newRemark"
-                                        rows="4"
-                                        class="w-full"
-                                        placeholder="Add your remarks here..."
-                                        :pt="{
-                                            root: 'w-full rounded-xl border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500',
-                                        }"
-                                />
-                                <div class="flex justify-end gap-2">
-                                    <button @click="closeDialog"
-                                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                                        Cancel
-                                    </button>
-                                    <button @click="saveRemarks"
-                                            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
-                                        {{ studentOutputs[selectedSubmission.id]?.remarks ? 'Update Remarks' : 'Save Remarks' }}
-                                    </button>
+                                <div v-if="!studentOutputs[selectedSubmission.id]?.remarks || isEditingRemarks">
+                                    <Textarea v-model="selectedSubmission.newRemark"
+                                            rows="4"
+                                            class="w-full"
+                                            placeholder="Add your remarks here..."
+                                            :pt="{
+                                                root: 'w-full rounded-xl border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500',
+                                            }"
+                                    />
+                                    <div class="flex justify-end gap-2 mt-3">
+                                        <button @click="cancelEditRemarks"
+                                                class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                                            Cancel
+                                        </button>
+                                        <button @click="saveRemarks"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                                            {{ isEditingRemarks ? 'Update Remarks' : 'Save Remarks' }}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

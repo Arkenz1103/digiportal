@@ -77,6 +77,7 @@ class PortfolioActivity(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
+    due_time = models.TimeField(null=True, blank=True)
     file_path = models.CharField(max_length=500, null=True, blank=True)
     scoring_criteria = models.TextField(null=True, blank=True)  # JSON string of criteria
     created_at = models.DateTimeField(auto_now_add=True)
@@ -105,7 +106,8 @@ class StudentSubmission(models.Model):
     activity = models.ForeignKey(PortfolioActivity, on_delete=models.CASCADE, related_name='submissions', null=True, blank=True)
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions')
     caption = models.TextField(null=True, blank=True)
-    file_path = models.CharField(max_length=500, null=True, blank=True)
+    file = models.FileField(upload_to='submissions/%Y/%m/%d/', null=True, blank=True)  # Actual file storage
+    file_path = models.TextField(null=True, blank=True)  # Keep for base64 compatibility
     file_type = models.CharField(max_length=50, null=True, blank=True)
     score = models.IntegerField(null=True, blank=True)
     feedback = models.TextField(null=True, blank=True)
@@ -194,6 +196,7 @@ class Remark(models.Model):
     """Remark model for teacher remarks to students"""
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='remarks_given')
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='remarks_received')
+    submission = models.ForeignKey('StudentSubmission', on_delete=models.CASCADE, related_name='remarks', null=True, blank=True)
     text = models.TextField()
     is_read = models.BooleanField(default=False)  # Kept for backward compatibility
     created_at = models.DateTimeField(auto_now_add=True)
@@ -257,6 +260,7 @@ class Notification(models.Model):
     portfolio = models.ForeignKey(PortfolioFolder, on_delete=models.SET_NULL, null=True, blank=True)
     activity = models.ForeignKey(PortfolioActivity, on_delete=models.SET_NULL, null=True, blank=True)
     submission = models.ForeignKey(StudentSubmission, on_delete=models.SET_NULL, null=True, blank=True)
+    remark = models.ForeignKey(Remark, on_delete=models.SET_NULL, null=True, blank=True)
     
     # Metadata
     is_read = models.BooleanField(default=False)

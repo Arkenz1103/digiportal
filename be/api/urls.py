@@ -70,4 +70,9 @@ urlpatterns = [
     path('api/remarks/', views.remark_list, name='remark_list'),
     path('api/remarks/<int:pk>/', views.remark_detail, name='remark_detail'),
     path('api/remarks/<int:pk>/mark-read/', views.mark_remark_read, name='mark_remark_read'),
+    
+    # Submission Remark routes
+    path('api/submissions/<int:submission_id>/remarks/', views.submission_remarks_api, name='submission_remarks_api'),
+    path('api/submissions/<int:submission_id>/remarks/<int:remark_id>/', views.submission_remark_detail_api, name='submission_remark_detail_api'),
+    path('api/student/submission-remarks/', views.student_submission_remarks_api, name='student_submission_remarks_api'),
 ]

@@ -500,18 +500,24 @@ const auth = computed(() => ({
                             v-for="(item, index) in sideBarItems"
                             :key="index"
                             @click="navigateToPage(item.route)"
-                            :class="[
-                                'relative flex items-center rounded-lg transition-colors duration-200 w-full text-left',
-                                isCollapsed ? 'justify-center p-3' : 'p-2',
-                                isRouteActive(item.route)
-                                    ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-50'
-                                    : 'text-gray-600 hover:bg-gray-100'
-                            ]"
+                            class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left"
+                            :class="{
+                                'bg-indigo-50 text-indigo-600 shadow-sm': isRouteActive(item.route),
+                                'hover:bg-indigo-50 hover:text-indigo-600': !isRouteActive(item.route),
+                                'active:bg-indigo-100 active:scale-[0.98]': true
+                            }"
+                            :style="isRouteActive(item.route) ? 'background-color: rgba(99, 102, 241, 0.1);' : ''"
                             :title="isCollapsed ? item.label : ''"
                         >
-                            <i :class="[item.icon, isCollapsed ? 'text-lg' : 'text-lg mr-3', isRouteActive(item.route) ? 'text-indigo-600' : '']"></i>
-                            <span :class="[isCollapsed ? 'hidden' : '', isRouteActive(item.route) ? 'font-medium' : '']">{{ item.label }}</span>
-                            <div v-if="isRouteActive(item.route)" class="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-r"></div>
+                            <div v-if="isRouteActive(item.route)" class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600"></div>
+                            <div class="flex items-center gap-3 w-full">
+                                <i :class="[item.icon, 'text-lg', isRouteActive(item.route) ? 'text-indigo-600' : 'text-gray-600']"></i>
+                                <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', isRouteActive(item.route) ? 'text-indigo-600' : 'text-gray-600']">{{ item.label }}</span>
+                                <div
+                                    v-if="isRouteActive(item.route) && !isCollapsed"
+                                    class="ml-auto w-1.5 h-5 rounded-sm bg-indigo-600 transition-all duration-200"
+                                ></div>
+                            </div>
                             <span v-if="isCollapsed && item.badge" class="absolute top-1 right-1 flex items-center justify-center h-4 w-4 text-xs font-medium text-white bg-red-500 rounded-full">{{ item.badge }}</span>
                         </button>
                     </div>
@@ -525,16 +531,6 @@ const auth = computed(() => ({
                     <div v-if="auth?.user?.role === 'teacher' || auth?.user?.role === 'student'" class="mb-4">
                         <div class="flex items-center justify-between px-4 mb-2">
                             <div v-if="!isCollapsed" class="text-xs uppercase font-semibold text-gray-500 tracking-wider">My Classes</div>
-                            <div :class="['flex', isCollapsed ? 'justify-center' : '']">
-                                <button
-                                    v-if="auth?.user?.role === 'teacher'"
-                                    @click="showAddClassModal = true"
-                                    class="text-indigo-600 hover:bg-indigo-50 rounded-lg p-1.5 transition-all duration-200"
-                                    :title="isCollapsed ? 'Add Class' : ''"
-                                >
-                                    <i class="pi pi-plus" :class="{'text-lg': isCollapsed}"></i>
-                                </button>
-                            </div>
                         </div>
 
                         <!-- Classes List -->
@@ -571,20 +567,6 @@ const auth = computed(() => ({
                                         class="ml-auto w-1.5 h-5 rounded-sm bg-indigo-600 transition-all duration-200"
                                     ></div>
                                 </div>
-                            </button>
-                        </div>
-
-                        <!-- Join Class Button -->
-                        <div class="mt-4 px-3" v-if="auth?.user?.role === 'student'">
-                            <button
-                                @click="showJoinClassModal = true"
-                                :class="[
-                                    'flex items-center justify-center gap-2 p-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-200 w-full',
-                                    isCollapsed ? 'w-10 h-10 mx-auto' : 'w-full'
-                                ]"
-                            >
-                                <i class="pi pi-plus text-sm"></i>
-                                <span v-if="!isCollapsed" class="text-sm font-medium">Join Class</span>
                             </button>
                         </div>
                     </div>

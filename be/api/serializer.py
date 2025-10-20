@@ -107,6 +107,16 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     activity_type = serializers.SerializerMethodField()
     total_score = serializers.SerializerMethodField()
     max_score = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+    
+    def get_file_url(self, obj):
+        """Return file URL if file exists, otherwise return file_path (base64)"""
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return obj.file_path  # Fallback to base64
     
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'

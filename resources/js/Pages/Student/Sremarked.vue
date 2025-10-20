@@ -104,9 +104,34 @@
               </h3>
               <p class="text-xs text-indigo-600 mt-1">Feedback on your submitted work</p>
             </div>
+            
+            <!-- Tabs for Output Remarks -->
+            <div class="flex gap-6 px-4 pt-3 border-b border-indigo-100">
+              <button 
+                @click="outputRemarksTab = 'all'"
+                :class="['pb-2 px-1 text-sm font-semibold transition-all duration-200 border-b-2', 
+                         outputRemarksTab === 'all' 
+                           ? 'text-indigo-700 border-indigo-600' 
+                           : 'text-gray-500 border-transparent hover:text-indigo-600']">
+                All
+              </button>
+              <button 
+                @click="outputRemarksTab = 'unread'"
+                :class="['pb-2 px-1 text-sm font-semibold transition-all duration-200 border-b-2 flex items-center gap-2', 
+                         outputRemarksTab === 'unread' 
+                           ? 'text-indigo-700 border-indigo-600' 
+                           : 'text-gray-500 border-transparent hover:text-indigo-600']">
+                Unread
+                <span v-if="unreadOutputRemarksCount > 0" 
+                      class="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {{ unreadOutputRemarksCount }}
+                </span>
+              </button>
+            </div>
+            
             <div class="p-4 max-h-[700px] overflow-y-auto">
-              <div v-if="outputRemarks.length > 0" class="space-y-3">
-                <div v-for="remark in outputRemarks" 
+              <div v-if="filteredOutputRemarks.length > 0" class="space-y-3">
+                <div v-for="remark in filteredOutputRemarks" 
                      :key="remark.id" 
                      class="bg-white p-4 rounded-xl border-2 border-indigo-100 hover:shadow-md transition-all duration-200 hover:border-indigo-300 hover:scale-[1.02]">
                   <div class="flex items-start justify-between mb-3">
@@ -197,6 +222,7 @@ const remarks = ref([]);
 const outputRemarks = ref([]);
 const isLoading = ref(false);
 const remarksTab = ref('all');
+const outputRemarksTab = ref('all');
 const showRemarkDetailDialog = ref(false);
 const selectedRemark = ref(null);
 
@@ -225,26 +251,30 @@ const loadRemarks = async () => {
       console.log('Unread remarks:', remarks.value.filter(r => !r.is_read).length);
     }
     
-    // Load output-specific remarks (from submissions with feedback)
-    const submissionsResponse = await axios.get('/api/submissions/scored/');
-    if (submissionsResponse.data) {
-      outputRemarks.value = submissionsResponse.data
-        .filter(sub => sub.feedback && sub.feedback.trim())
-        .map(sub => {
-          const feedbackDate = new Date(sub.scored_at || sub.submitted_at);
+    // Load output-specific remarks (from student's own submissions)
+    try {
+      const remarksResponse = await axios.get('/api/student/submission-remarks/');
+      if (remarksResponse.data) {
+        outputRemarks.value = remarksResponse.data.map(remark => {
+          const remarkDate = new Date(remark.created_at);
           return {
-            id: sub.id,
-            activityName: sub.activity_title || 'Activity',
-            teacherName: 'Teacher',
-            teacherInitial: 'T',
-            subject: sub.activity_type || 'General',
-            date: feedbackDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-            time: feedbackDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            score: `${sub.total_score || sub.score || 0}/${sub.max_score || 10}`,
-            feedback: sub.feedback
+            id: remark.id,
+            submissionId: remark.submission_id,
+            activityName: remark.activity_title || 'Activity',
+            teacherName: remark.teacher_name || remark.teacher_username,
+            teacherInitial: (remark.teacher_name || remark.teacher_username || 'T').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+            subject: remark.activity_type || 'General',
+            date: remarkDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            time: remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            score: remark.submission_score ? `${remark.submission_score}/10` : 'Not scored yet',
+            feedback: remark.text
           };
         });
-      console.log('Loaded output remarks:', outputRemarks.value.length);
+        console.log('Loaded output remarks:', outputRemarks.value.length);
+      }
+    } catch (error) {
+      console.error('Error loading output remarks:', error);
+      outputRemarks.value = [];
     }
   } catch (error) {
     console.error('Error loading remarks:', error);
@@ -264,6 +294,19 @@ const filteredRemarks = computed(() => {
 // Count unread remarks
 const unreadRemarksCount = computed(() => {
   return remarks.value.filter(remark => !remark.is_read).length;
+});
+
+// Filtered output remarks based on tab
+const filteredOutputRemarks = computed(() => {
+  if (outputRemarksTab.value === 'unread') {
+    return outputRemarks.value.filter(remark => !remark.is_read);
+  }
+  return outputRemarks.value;
+});
+
+// Count unread output remarks
+const unreadOutputRemarksCount = computed(() => {
+  return outputRemarks.value.filter(remark => !remark.is_read).length;
 });
 
 // Get CSRF token from cookie

@@ -242,16 +242,19 @@
                                         <div class="w-32">
                                             <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
                                         </div>
-                                        <div class="w-32 md:w-48">
-                                            <span class="text-sm font-semibold text-indigo-900">Activity Tittle</span>
+                                        <div class="w-40 md:w-48">
+                                            <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
                                         </div>
                                         <div class="flex-1">
                                             <span class="text-sm font-semibold text-indigo-900">Description</span>
                                         </div>
-                                        <div class="w-24 md:w-48 text-right">
+                                        <div class="w-28 text-center">
+                                            <span class="text-sm font-semibold text-indigo-900">Due Time</span>
+                                        </div>
+                                        <div class="w-36 text-right">
                                             <span class="text-sm font-semibold text-indigo-900">Due Date</span>
                                         </div>
-                                        <div class="w-8"></div>
+                                        <div class="w-12"></div>
                                     </div>
 
                                     <!-- Activity Items -->
@@ -264,13 +267,17 @@
                                             <i class="pi pi-archive text-xs"></i>
                                         </span>
                                     </div>
-                                    <div class="w-32 md:w-48">
+                                    <div class="w-40 md:w-48">
                                         <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
                                     </div>
                                     <div class="flex-1">
                                         <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
                                     </div>
-                                    <div class="w-24 md:w-48 text-right">
+                                    <div class="w-28 text-center">
+                                        <span v-if="activity.formattedTime" class="text-sm text-indigo-600 font-medium">{{ activity.formattedTime }}</span>
+                                        <span v-else class="text-xs text-gray-400 italic">No time</span>
+                                    </div>
+                                    <div class="w-36 text-right">
                                         <span class="text-sm text-indigo-600">{{ activity.date }}</span>
                                     </div>
                                     <div class="w-12 flex justify-end opacity-100 relative" style="z-index: 50;">
@@ -669,6 +676,15 @@
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                         </div>
+                        <div>
+                            <label for="activityTime" class="block text-xs font-medium text-gray-700 mb-0.5">Due Time</label>
+                            <input
+                                id="activityTime"
+                                v-model="newActivity.dueTime"
+                                type="time"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                        </div>
                     </div>
                     
                     <!-- Right Column: Scoring Criteria -->
@@ -890,6 +906,15 @@
                                 id="editActivityDate"
                                 v-model="editActivityData.dueDate"
                                 type="date"
+                                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                        </div>
+                        <div>
+                            <label for="editActivityTime" class="block text-xs font-medium text-gray-700 mb-0.5">Due Time</label>
+                            <input
+                                id="editActivityTime"
+                                v-model="editActivityData.dueTime"
+                                type="time"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                         </div>
@@ -1141,6 +1166,7 @@ const newActivity = ref({
     type: '',
     description: '',
     dueDate: '',
+    dueTime: '',
     scoringCriteria: [
         { name: '', maxScore: 10 }
     ]
@@ -1156,7 +1182,8 @@ const editActivityData = ref({
     title: '',
     type: '',
     description: '',
-    dueDate: ''
+    dueDate: '',
+    dueTime: ''
 });
 
 const editScoringCriteria = ref([]);
@@ -1487,6 +1514,7 @@ const addNewActivity = async () => {
             title: newActivity.value.title,
             description: newActivity.value.description,
             due_date: formattedDueDate,
+            due_time: newActivity.value.dueTime || null,
             scoring_criteria: createdCriteria
         });
 
@@ -1496,6 +1524,7 @@ const addNewActivity = async () => {
             title: newActivity.value.title,
             description: newActivity.value.description,
             due_date: formattedDueDate,
+            due_time: newActivity.value.dueTime || null,
             scoring_criteria: JSON.stringify(createdCriteria)
         });
 
@@ -1802,6 +1831,16 @@ const loadActivities = async (folderId) => {
                     console.log('⚠️ No scoring criteria found for activity:', activity.title);
                 }
                 
+                // Format due time if available
+                let formattedTime = '';
+                if (activity.due_time) {
+                    const [hours, minutes] = activity.due_time.split(':');
+                    const hour = parseInt(hours);
+                    const ampm = hour >= 12 ? 'PM' : 'AM';
+                    const displayHour = hour % 12 || 12;
+                    formattedTime = `${displayHour}:${minutes} ${ampm}`;
+                }
+                
                 return {
                     id: activity.id,
                     type: activity.activity_type,
@@ -1813,6 +1852,8 @@ const loadActivities = async (folderId) => {
                         day: 'numeric'
                     }) : '',
                     due_date: activity.due_date,
+                    due_time: activity.due_time,
+                    formattedTime: formattedTime,
                     archived: false,
                     scoringCriteria: scoringCriteria  // Use camelCase for consistency
                 };
@@ -1838,11 +1879,12 @@ const editActivity = (activity, index) => {
     const activityType = activityTypes.value.find(type => type.value === activity.type) || null;
     
     editActivityData.value = {
-        id: activity.id, // Use actual activity ID from database
+        id: activity.id,
         title: activity.title,
         type: activityType,
         description: activity.description,
-        dueDate: activity.date
+        dueDate: activity.due_date,
+        dueTime: activity.due_time || ''
     };
     
     // Load scoring criteria if exists
@@ -1927,11 +1969,12 @@ const updateActivity = async () => {
             }));
         
         // Make API call to update the activity
-        const response = await axios.put(`/api/activities/${activityId}/`, {
+        const response = await axios.put(`/api/activities/${editActivityData.value.id}/`, {
             title: editActivityData.value.title,
             activity_type: editActivityData.value.type.value,
             description: editActivityData.value.description,
             due_date: editActivityData.value.dueDate,
+            due_time: editActivityData.value.dueTime || null,
             scoring_criteria: JSON.stringify(scoringCriteria)
         });
         

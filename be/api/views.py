@@ -5,6 +5,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -17,7 +18,7 @@ import json
 
 
 # Helper function to create notifications
-def create_notification(recipient, notification_type, title, message, portfolio=None, activity=None, submission=None):
+def create_notification(recipient, notification_type, title, message, portfolio=None, activity=None, submission=None, remark=None):
     """Helper function to create a notification"""
     try:
         notification = Notification.objects.create(
@@ -27,7 +28,8 @@ def create_notification(recipient, notification_type, title, message, portfolio=
             message=message,
             portfolio=portfolio,
             activity=activity,
-            submission=submission
+            submission=submission,
+            remark=remark
         )
         print(f"Created notification: {title} for {recipient.username}")
         return notification
@@ -578,6 +580,7 @@ def portfolio_activities_api(request, folder_id):
                 'title': data.get('title'),
                 'description': data.get('description', ''),
                 'due_date': data.get('due_date') if data.get('due_date') else None,
+                'due_time': data.get('due_time') if data.get('due_time') else None,
                 'file_path': data.get('file_path', ''),
                 'scoring_criteria': data.get('scoring_criteria', '[]')  # Add scoring criteria
             }
@@ -591,12 +594,43 @@ def portfolio_activities_api(request, folder_id):
                 
                 # Notify all students about new activity (exclude admin)
                 students = User.objects.filter(role='student').exclude(username='admin')
+                
+                # Build detailed message with due date/time info
+                due_info = ""
+                if activity.due_date:
+                    from datetime import datetime, time as time_type
+                    try:
+                        due_date_str = activity.due_date.strftime('%B %d, %Y')
+                        if activity.due_time:
+                            # Convert time object to datetime for formatting
+                            if isinstance(activity.due_time, time_type):
+                                temp_datetime = datetime.combine(datetime.today(), activity.due_time)
+                                due_time_str = temp_datetime.strftime('%I:%M %p')
+                            else:
+                                # If it's a string, try to parse it
+                                due_time_str = str(activity.due_time)
+                                if ':' in due_time_str and len(due_time_str) <= 8:
+                                    parts = due_time_str.split(':')
+                                    hour = int(parts[0])
+                                    minute = int(parts[1])
+                                    ampm = 'AM' if hour < 12 else 'PM'
+                                    display_hour = hour if hour <= 12 else hour - 12
+                                    if display_hour == 0:
+                                        display_hour = 12
+                                    due_time_str = f'{display_hour:02d}:{minute:02d} {ampm}'
+                            due_info = f" Due: {due_date_str} at {due_time_str}"
+                        else:
+                            due_info = f" Due: {due_date_str}"
+                    except Exception as e:
+                        print(f"Error formatting due date/time: {e}")
+                        due_info = f" Due: {activity.due_date}"
+                
                 for student in students:
                     create_notification(
                         recipient=student,
                         notification_type='activity_created',
                         title='New Activity Created',
-                        message=f'New activity "{activity.title}" added to portfolio "{folder.name}"',
+                        message=f'New activity "{activity.title}" added to portfolio "{folder.name}".{due_info}',
                         activity=activity,
                         portfolio=folder
                     )
@@ -640,13 +674,90 @@ def activity_detail_api(request, activity_id):
             data = request.data
             print(f"Updating activity {activity_id} with data: {data}")
             
+            # Track what changed
+            changes = []
+            old_due_date = activity.due_date
+            old_due_time = activity.due_time
+            
             # Update activity fields
+            if data.get('title') and data.get('title') != activity.title:
+                changes.append('title')
             activity.title = data.get('title', activity.title)
+            
+            if data.get('activity_type') and data.get('activity_type') != activity.activity_type:
+                changes.append('type')
             activity.activity_type = data.get('activity_type', activity.activity_type)
+            
+            if data.get('description') and data.get('description') != activity.description:
+                changes.append('description')
             activity.description = data.get('description', activity.description)
-            activity.due_date = data.get('due_date', activity.due_date)
+            
+            # Check due date changes
+            new_due_date = data.get('due_date')
+            if new_due_date and str(new_due_date) != str(old_due_date):
+                changes.append('due date')
+            activity.due_date = new_due_date if new_due_date else activity.due_date
+            
+            # Check due time changes
+            new_due_time = data.get('due_time')
+            # Convert string time to proper format if needed
+            if new_due_time and isinstance(new_due_time, str) and new_due_time.lower() != 'none':
+                # Keep as string, Django will handle conversion
+                pass
+            elif new_due_time and new_due_time.lower() == 'none':
+                new_due_time = None
+            
+            if str(new_due_time) != str(old_due_time):
+                if new_due_time and not old_due_time:
+                    changes.append('due time added')
+                elif not new_due_time and old_due_time:
+                    changes.append('due time removed')
+                elif new_due_time and old_due_time:
+                    changes.append('due time')
+            activity.due_time = new_due_time if new_due_time else None
+            
+            if data.get('scoring_criteria') and data.get('scoring_criteria') != activity.scoring_criteria:
+                changes.append('scoring criteria')
             activity.scoring_criteria = data.get('scoring_criteria', activity.scoring_criteria)
+            
             activity.save()
+            
+            # Build notification message based on changes
+            if changes:
+                changes_text = ', '.join(changes)
+                update_message = f'Activity "{activity.title}" has been updated. Changes: {changes_text}.'
+            else:
+                update_message = f'Activity "{activity.title}" has been updated.'
+            
+            # Add current due date/time info
+            if activity.due_date:
+                from datetime import datetime, time as time_type
+                try:
+                    due_date_str = activity.due_date.strftime('%B %d, %Y')
+                    if activity.due_time:
+                        # Convert time object to datetime for formatting
+                        if isinstance(activity.due_time, time_type):
+                            temp_datetime = datetime.combine(datetime.today(), activity.due_time)
+                            due_time_str = temp_datetime.strftime('%I:%M %p')
+                        else:
+                            # If it's a string, try to parse it
+                            due_time_str = str(activity.due_time)
+                            if ':' in due_time_str and len(due_time_str) <= 8:
+                                # Format like "18:28:00" or "18:28"
+                                parts = due_time_str.split(':')
+                                hour = int(parts[0])
+                                minute = int(parts[1])
+                                ampm = 'AM' if hour < 12 else 'PM'
+                                display_hour = hour if hour <= 12 else hour - 12
+                                if display_hour == 0:
+                                    display_hour = 12
+                                due_time_str = f'{display_hour:02d}:{minute:02d} {ampm}'
+                        update_message += f' Due: {due_date_str} at {due_time_str}'
+                    else:
+                        update_message += f' Due: {due_date_str}'
+                except Exception as e:
+                    print(f"Error formatting due date/time: {e}")
+                    update_message += f' Due: {activity.due_date}'
             
             # Notify all students about activity update (exclude admin)
             students = User.objects.filter(role='student').exclude(username='admin')
@@ -655,7 +766,7 @@ def activity_detail_api(request, activity_id):
                     recipient=student,
                     notification_type='activity_updated',
                     title='Activity Updated',
-                    message=f'Activity "{activity.title}" has been updated',
+                    message=update_message,
                     activity=activity
                 )
             
@@ -677,6 +788,40 @@ def activity_detail_api(request, activity_id):
         try:
             print(f"Deleting activity {activity_id}")
             activity_title = activity.title
+            activity_type = activity.activity_type
+            
+            # Build detailed deletion message
+            delete_message = f'Activity "{activity_title}" ({activity_type}) has been deleted'
+            
+            if activity.due_date:
+                from datetime import datetime, time as time_type
+                try:
+                    due_date_str = activity.due_date.strftime('%B %d, %Y')
+                    if activity.due_time:
+                        # Convert time object to datetime for formatting
+                        if isinstance(activity.due_time, time_type):
+                            temp_datetime = datetime.combine(datetime.today(), activity.due_time)
+                            due_time_str = temp_datetime.strftime('%I:%M %p')
+                        else:
+                            # If it's a string, try to parse it
+                            due_time_str = str(activity.due_time)
+                            if ':' in due_time_str and len(due_time_str) <= 8:
+                                parts = due_time_str.split(':')
+                                hour = int(parts[0])
+                                minute = int(parts[1])
+                                ampm = 'AM' if hour < 12 else 'PM'
+                                display_hour = hour if hour <= 12 else hour - 12
+                                if display_hour == 0:
+                                    display_hour = 12
+                                due_time_str = f'{display_hour:02d}:{minute:02d} {ampm}'
+                        delete_message += f'. It was due on {due_date_str} at {due_time_str}.'
+                    else:
+                        delete_message += f'. It was due on {due_date_str}.'
+                except Exception as e:
+                    print(f"Error formatting due date/time: {e}")
+                    delete_message += f'. It was due on {activity.due_date}.'
+            else:
+                delete_message += '.'
             
             # Notify all students about activity deletion (exclude admin)
             students = User.objects.filter(role='student').exclude(username='admin')
@@ -685,7 +830,7 @@ def activity_detail_api(request, activity_id):
                     recipient=student,
                     notification_type='activity_deleted',
                     title='Activity Deleted',
-                    message=f'Activity "{activity_title}" has been deleted'
+                    message=delete_message
                 )
             
             activity.delete()
@@ -748,11 +893,17 @@ def activity_submissions_api(request, activity_id):
             else:
                 # Create new submission directly
                 post_to_feed = data.get('post_to_feed', False)
+                
+                # Handle file upload - support both base64 and actual file
+                file_path = data.get('file_path', '')
+                file_obj = request.FILES.get('file')  # Check if actual file was uploaded
+                
                 submission = StudentSubmission.objects.create(
                     activity=activity,
                     student=request.user,
                     caption=data.get('caption', ''),
-                    file_path=data.get('file_path', ''),
+                    file=file_obj if file_obj else None,  # Store actual file if provided
+                    file_path=file_path,  # Store base64 as fallback
                     file_type=data.get('file_type', ''),
                     status='unscored',
                     post_to_feed=post_to_feed,
@@ -806,7 +957,7 @@ def unscored_submissions_api(request):
         
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
-        serializer = StudentSubmissionListSerializer(submissions, many=True)
+        serializer = StudentSubmissionListSerializer(submissions, many=True, context={'request': request})
         return Response(serializer.data)
     except Exception as e:
         print(f"Error fetching unscored submissions: {str(e)}")
@@ -828,7 +979,7 @@ def scored_submissions_api(request):
         
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
-        serializer = StudentSubmissionListSerializer(submissions, many=True)
+        serializer = StudentSubmissionListSerializer(submissions, many=True, context={'request': request})
         return Response(serializer.data)
     except Exception as e:
         print(f"Error fetching scored submissions: {str(e)}")
@@ -953,12 +1104,36 @@ def approve_submission_api(request, submission_id):
             submission.approval_status = 'rejected'
             submission.save()
             
+            # Get rejection reason and details from request
+            rejection_reason = data.get('rejectionReason', '')
+            rejection_details = data.get('rejectionDetails', '')
+            
+            # Create detailed rejection message
+            activity_title = submission.activity.title if submission.activity else 'your submission'
+            
+            # Map rejection reason IDs to readable text
+            reason_map = {
+                'invalid': 'Invalid submission',
+                'unrelated': 'Unrelated content',
+                'disturbing': 'Inappropriate content',
+                'lack_of_content': 'Insufficient content',
+                'others': 'Other reasons'
+            }
+            
+            reason_text = reason_map.get(rejection_reason, 'Not specified')
+            
+            # Build notification message
+            if rejection_details:
+                notification_message = f'Your submission for "{activity_title}" was not approved for the newsfeed. Reason: {reason_text}. Details: {rejection_details}'
+            else:
+                notification_message = f'Your submission for "{activity_title}" was not approved for the newsfeed. Reason: {reason_text}'
+            
             # Notify student about rejection
             create_notification(
                 recipient=submission.student,
                 notification_type='submission_rejected',
                 title='Submission Not Approved',
-                message=f'Your submission for "{submission.activity.title}" was not approved for posting to the newsfeed',
+                message=notification_message,
                 submission=submission,
                 activity=submission.activity
             )
@@ -1161,6 +1336,34 @@ def score_submission_api(request, submission_id):
         submission.save()
         
         print(f"✅ Submission {submission_id} marked as scored")
+        
+        # Check if there are any remarks and feedback for this submission
+        has_remarks = Remark.objects.filter(submission=submission).exists()
+        has_feedback = feedback and feedback.strip()
+        
+        # Send notification to student
+        activity_title = submission.activity.title if submission.activity else 'your submission'
+        
+        # Create specific notification message based on what was added
+        notification_parts = []
+        
+        if has_feedback and has_remarks:
+            notification_message = f'Your submission for "{activity_title}" has been scored and includes feedback and output remarks. Check your outputs to view your score and feedback.'
+        elif has_feedback:
+            notification_message = f'Your submission for "{activity_title}" has been scored and includes feedback. Check your outputs to view your score and feedback.'
+        elif has_remarks:
+            notification_message = f'Your submission for "{activity_title}" has been scored and includes output remarks. Check your outputs to view your score and remarks.'
+        else:
+            notification_message = f'Your submission for "{activity_title}" has been scored. Check your outputs to view your score.'
+        
+        create_notification(
+            recipient=submission.student,
+            notification_type='score_added',
+            title='Submission Scored',
+            message=notification_message,
+            submission=submission,
+            activity=submission.activity
+        )
         
         serializer = StudentSubmissionSerializer(submission)
         return Response({
@@ -1431,8 +1634,8 @@ def remark_list(request):
         student_id = request.query_params.get('student_id')
         teacher_id = request.query_params.get('teacher_id')
         
-        # Filter remarks
-        remarks = Remark.objects.all()
+        # Filter remarks - exclude submission-linked remarks for both teachers and students
+        remarks = Remark.objects.filter(submission__isnull=True)
         
         if student_id:
             remarks = remarks.filter(student_id=student_id)
@@ -1443,6 +1646,10 @@ def remark_list(request):
         # For students, only show their own remarks
         if request.user.role == 'student':
             remarks = remarks.filter(student=request.user)
+        
+        # For teachers, show remarks they created or received
+        elif request.user.role == 'teacher':
+            remarks = remarks.filter(Q(teacher=request.user) | Q(student=request.user))
         
         serializer = RemarkSerializer(remarks, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1570,3 +1777,152 @@ def mark_remark_read(request, pk):
     
     serializer = RemarkSerializer(remark, context={'request': request})
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# Submission Remark API Endpoints
+@csrf_exempt
+@api_view(['GET', 'POST'])
+def submission_remarks_api(request, submission_id):
+    """
+    GET: Get remarks for a specific submission
+    POST: Add a remark to a submission (teacher only)
+    """
+    try:
+        submission = StudentSubmission.objects.get(pk=submission_id)
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        # Get all remarks for this submission
+        remarks = Remark.objects.filter(submission=submission).order_by('-created_at')
+        serializer = RemarkSerializer(remarks, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        # Only teachers can add remarks
+        if request.user.role != 'teacher':
+            return Response({'error': 'Only teachers can add remarks'}, status=status.HTTP_403_FORBIDDEN)
+        
+        data = request.data
+        text = data.get('text', '').strip()
+        
+        if not text:
+            return Response({'error': 'Remark text is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create the remark
+        remark = Remark.objects.create(
+            teacher=request.user,
+            student=submission.student,
+            submission=submission,
+            text=text
+        )
+        
+        # Send notification to student
+        activity_title = submission.activity.title if submission.activity else 'your submission'
+        create_notification(
+            recipient=submission.student,
+            notification_type='remark_added',
+            title='New Output Remark',
+            message=f'{request.user.username} added a remark on {activity_title}',
+            remark=remark,
+            submission=submission
+        )
+        
+        serializer = RemarkSerializer(remark, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@csrf_exempt
+@api_view(['PUT', 'DELETE'])
+def submission_remark_detail_api(request, submission_id, remark_id):
+    """
+    PUT: Update a remark (teacher only)
+    DELETE: Delete a remark (teacher only)
+    """
+    try:
+        submission = StudentSubmission.objects.get(pk=submission_id)
+        remark = Remark.objects.get(pk=remark_id, submission=submission)
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Remark.DoesNotExist:
+        return Response({'error': 'Remark not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Only the teacher who created the remark can modify it
+    if request.user != remark.teacher:
+        return Response({'error': 'You can only modify your own remarks'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'PUT':
+        data = request.data
+        text = data.get('text', '').strip()
+        
+        if not text:
+            return Response({'error': 'Remark text is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        remark.text = text
+        remark.save()
+        
+        # Send notification to student about update
+        activity_title = submission.activity.title if submission.activity else 'your submission'
+        create_notification(
+            recipient=submission.student,
+            notification_type='remark_updated',
+            title='Output Remark Updated',
+            message=f'{request.user.username} updated a remark on {activity_title}',
+            remark=remark,
+            submission=submission
+        )
+        
+        serializer = RemarkSerializer(remark, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'DELETE':
+        # Store info before deletion for notification
+        student = submission.student
+        activity_title = submission.activity.title if submission.activity else 'your submission'
+        teacher_name = request.user.username
+        
+        remark.delete()
+        
+        # Send notification to student about deletion
+        create_notification(
+            recipient=student,
+            notification_type='remark_deleted',
+            title='Output Remark Deleted',
+            message=f'{teacher_name} deleted a remark on {activity_title}',
+            submission=submission
+        )
+        
+        return Response({'message': 'Remark deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def student_submission_remarks_api(request):
+    """
+    GET: Get all remarks for the current student's submissions
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    try:
+        # Get all submissions for this student
+        submissions = StudentSubmission.objects.filter(student=request.user)
+        
+        # Get all remarks for these submissions
+        all_remarks = []
+        for submission in submissions:
+            remarks = Remark.objects.filter(submission=submission).order_by('-created_at')
+            for remark in remarks:
+                serializer = RemarkSerializer(remark, context={'request': request})
+                remark_data = serializer.data
+                # Add submission info
+                remark_data['submission_id'] = submission.id
+                remark_data['activity_title'] = submission.activity.title if submission.activity else 'Activity'
+                remark_data['activity_type'] = submission.activity.activity_type if submission.activity else 'General'
+                remark_data['submission_score'] = submission.score
+                all_remarks.append(remark_data)
+        
+        return Response(all_remarks)
+    except Exception as e:
+        print(f"Error fetching student submission remarks: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

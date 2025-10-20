@@ -95,9 +95,11 @@ const feedbackForm = ref({
 });
 
 const rejectionReasons = [
+    { id: 'invalid', label: 'Invalid' },
+    { id: 'unrelated', label: 'Unrelated' },
+    { id: 'disturbing', label: 'Disturbing' },
     { id: 'lack_of_content', label: 'Lack of content' },
-    { id: 'irrelevant_outputs', label: 'Irrelevant outputs' },
-    { id: 'others', label: 'others' }
+    { id: 'others', label: 'Others' }
 ];
 
 const previewOutput = (output) => {
@@ -110,9 +112,17 @@ const submitFeedback = async (isApproved) => {
     
     try {
         const action = isApproved ? 'approve' : 'reject';
-        const response = await axios.put(`/api/submissions/${selectedOutput.value.id}/approve/`, {
+        const payload = {
             action: action
-        });
+        };
+        
+        // Include rejection reason and details if rejecting
+        if (!isApproved) {
+            payload.rejectionReason = feedbackForm.value.rejectionReason;
+            payload.rejectionDetails = feedbackForm.value.rejectionDetails;
+        }
+        
+        const response = await axios.put(`/api/submissions/${selectedOutput.value.id}/approve/`, payload);
         
         if (response.data) {
             console.log(`Submission ${action}d:`, response.data);
@@ -155,7 +165,8 @@ const cancelApproval = () => {
 };
 
 const showRejectionReasonsDialog = () => {
-    showRejectionDialog.value = true;
+    showPreviewDialog.value = false; // Close the review dialog
+    showRejectionDialog.value = true; // Open the rejection dialog
 };
 
 const confirmRejection = async () => {
@@ -251,10 +262,10 @@ const cancelRejection = () => {
         <Dialog 
             v-model:visible="showPreviewDialog"
             modal
+            :closable="true"
             header="Review Student Output"
             :style="{ width: '70vw', maxWidth: '800px' }"
             :dismissableMask="true"
-            headerClass="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 text-white"
         >
             <div v-if="selectedOutput" class="space-y-6">
                 <!-- Student Info -->
@@ -352,76 +363,83 @@ const cancelRejection = () => {
             </template>
         </Dialog>
 
-        <!-- Rejection Reasons Dialog -->
-        <Dialog 
-            v-model:visible="showRejectionDialog"
-            modal
-            header="Rejection Reasons"
-            :style="{ width: '50vw', maxWidth: '600px' }"
-            :dismissableMask="true"
-            headerClass="bg-gradient-to-r from-red-700 to-red-600 text-white"
-        >
-            <div v-if="selectedOutput" class="space-y-4">
-                <!-- Student Info Summary -->
-                <div class="bg-red-50 p-4 rounded-lg border border-red-100">
-                    <h3 class="font-semibold text-red-900 mb-2">Student Output</h3>
-                    <p class="text-red-800"><strong>{{ selectedOutput.studentName }}</strong> - {{ selectedOutput.title }}</p>
-                </div>
+        <!-- Rejection Reasons Dialog - Custom Modal -->
+        <div v-if="showRejectionDialog" class="fixed inset-0 z-50 overflow-y-auto" @click.self="cancelRejection">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <!-- Backdrop -->
+                <div class="fixed inset-0 bg-black opacity-50"></div>
+                
+                <!-- Modal -->
+                <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 z-10">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-gray-900">Rejection Reasons</h2>
+                        <button @click="cancelRejection" class="text-gray-400 hover:text-gray-600">
+                            <i class="pi pi-times text-xl"></i>
+                        </button>
+                    </div>
 
-                <!-- Rejection Reason Selection -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Select Reason for Rejection <span class="text-red-500">*</span>
-                    </label>
-                    <div class="space-y-2">
-                        <div v-for="reason in rejectionReasons" :key="reason.id" class="flex items-center">
-                            <input
-                                type="radio"
-                                :id="reason.id"
-                                :value="reason.id"
-                                v-model="feedbackForm.value.rejectionReason"
-                                class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
-                            />
-                            <label :for="reason.id" class="ml-3 block text-sm text-gray-700">
-                                {{ reason.label }}
+                    <div v-if="selectedOutput" class="space-y-4">
+                        <!-- Student Info Summary -->
+                        <div class="bg-red-50 p-4 rounded-lg border border-red-100">
+                            <h3 class="font-semibold text-red-900 mb-2">Student Output</h3>
+                            <p class="text-red-800"><strong>{{ selectedOutput.studentName }}</strong> - {{ selectedOutput.title }}</p>
+                        </div>
+
+                        <!-- Rejection Reason Selection -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Reason for Rejection <span class="text-red-500">*</span>
                             </label>
+                            <div class="space-y-2">
+                                <div v-for="reason in rejectionReasons" :key="reason.id" class="flex items-center">
+                                    <input
+                                        type="radio"
+                                        :id="reason.id"
+                                        :value="reason.id"
+                                        v-model="feedbackForm.rejectionReason"
+                                        class="w-4 h-4 text-red-600 focus:ring-red-500"
+                                    />
+                                    <label :for="reason.id" class="ml-2 text-sm text-gray-700">
+                                        {{ reason.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Details -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Additional Details (Optional)
+                            </label>
+                            <textarea
+                                v-model="feedbackForm.rejectionDetails"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                placeholder="Provide additional context for the rejection..."
+                            ></textarea>
                         </div>
                     </div>
-                </div>
 
-                <!-- Additional Details -->
-                <div>
-                    <label for="rejectionDetails" class="block text-sm font-medium text-gray-700 mb-2">
-                        Additional Details (Optional)
-                    </label>
-                    <textarea
-                        id="rejectionDetails"
-                        v-model="feedbackForm.value.rejectionDetails"
-                        rows="4"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-                        placeholder="Please provide any additional comments or specific feedback for the student..."
-                    ></textarea>
+                    <!-- Footer -->
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button 
+                            @click="cancelRejection"
+                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            @click="confirmRejection"
+                            :disabled="!feedbackForm.rejectionReason"
+                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Confirm Rejection
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            <template #footer>
-                <div class="mt-6 flex justify-end space-x-3">
-                    <Button 
-                        label="Cancel"
-                        class="p-button-secondary"
-                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937; margin-right: 0.5rem;" 
-                        @click="cancelRejection"
-                    />
-                    <Button 
-                        label="Confirm Rejection"
-                        class="p-button-danger"
-                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;" 
-                        @click="confirmRejection"
-                        :disabled="!feedbackForm.rejectionReason"
-                    />
-                </div>
-            </template>
-        </Dialog>
+        </div>
 
         <!-- Approval Confirmation Dialog -->
         <Dialog 

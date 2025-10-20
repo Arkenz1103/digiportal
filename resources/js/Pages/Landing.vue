@@ -7,23 +7,14 @@ const logoUrl = '/logo.jpg';
 const animateElements = ref({
   header: false,
   title: false,
-  subtitle: false,
-  description: false,
-  cta: false,
-  features: false
+  cta: false
 });
-
-const isLoaded = ref(false);
 
 onMounted(() => {
   // Stagger animations for smooth entrance
   setTimeout(() => { animateElements.value.header = true; }, 100);
   setTimeout(() => { animateElements.value.title = true; }, 400);
-  setTimeout(() => { animateElements.value.subtitle = true; }, 700);
-  setTimeout(() => { animateElements.value.description = true; }, 1000);
-  setTimeout(() => { animateElements.value.cta = true; }, 1300);
-  setTimeout(() => { animateElements.value.features = true; }, 1600);
-  setTimeout(() => { isLoaded.value = true; }, 2000);
+  setTimeout(() => { animateElements.value.cta = true; }, 800);
 });
 
 // Define emits
@@ -40,17 +31,18 @@ const navigateToContact = () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-        <!-- Animated Background Elements -->
-        <div class="absolute inset-0 overflow-hidden">
-            <div class="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-            <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-            <div class="absolute top-40 left-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+    <div class="min-h-screen relative overflow-hidden">
+        <!-- Animated Background -->
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
+            <!-- Animated Circles -->
+            <div class="absolute top-0 left-0 w-96 h-96 bg-cyan-400 opacity-10 rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
+            <div class="absolute top-0 right-0 w-96 h-96 bg-blue-300 opacity-10 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
+            <div class="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-400 opacity-10 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000"></div>
         </div>
 
         <!-- Header -->
         <header 
-            class="relative z-10 bg-gradient-to-r from-[#6366F1] to-[#7C3AED] text-white py-6 shadow-2xl"
+            class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-[#6366F1] to-[#7C3AED] text-white py-6 shadow-2xl backdrop-blur-md bg-opacity-90"
             :class="animateElements.header ? 'animate-slideInDown' : 'opacity-0 -translate-y-full'"
         >
             <div class="container mx-auto px-4 flex justify-between items-center">
@@ -61,11 +53,9 @@ const navigateToContact = () => {
                             class="h-12 w-12 rounded-full border-3 border-white shadow-lg transform hover:scale-110 transition-transform duration-300"
                             alt="Naawan Central School Logo"
                         />
-                        <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
                     </div>
                     <div>
                         <div class="text-2xl font-bold tracking-wide">Naawan Central School</div>
-                        <div class="text-sm opacity-90">Creative Learning Platform</div>
                     </div>
                 </div>
                 <nav class="flex gap-3">
@@ -86,122 +76,67 @@ const navigateToContact = () => {
         </header>
 
         <!-- Main Content -->
-        <main class="relative z-10 container mx-auto px-4 py-16 md:py-24">
-            <div class="max-w-6xl mx-auto text-center">
-                <!-- Main Title -->
-                <div class="mb-16">
-                    <h1
-                        class="text-6xl md:text-7xl lg:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] via-[#7C3AED] to-[#EC4899] mb-6 leading-tight tracking-tight"
-                        :class="animateElements.title ? 'animate-bounceInDown' : 'opacity-0 translate-y-10'"
+        <main class="relative z-10 flex items-center justify-center min-h-screen pt-24">
+            <div class="container mx-auto px-4">
+                <div class="max-w-4xl mx-auto text-center">
+                    <!-- Hero Title -->
+                    <div 
+                        class="mb-12"
+                        :class="animateElements.title ? 'animate-fadeInUp' : 'opacity-0 translate-y-10'"
                     >
-                        CREATIVE LEARNING
-                    </h1>
-
-                    <!-- Subtitle -->
-                    <h2
-                        class="text-4xl md:text-5xl font-bold text-gray-800 mb-8 relative"
-                        :class="animateElements.subtitle ? 'animate-fadeInUp' : 'opacity-0 translate-y-10'"
-                    >
-                        For Young Artists & Explorers!
-                        <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full"></div>
-                    </h2>
-
-                    <!-- Description -->
-                    <p
-                        class="text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed"
-                        :class="animateElements.description ? 'animate-fadeIn' : 'opacity-0'"
-                    >
-                        🎨 Creative kids having fun while learning! 🌟
-                        <br>
-                        <span class="text-lg text-gray-500 mt-2 block">Unleash your imagination and discover the joy of creative expression</span>
-                    </p>
+                        <h1 class="text-6xl md:text-8xl font-black text-white mb-6 leading-tight drop-shadow-2xl">
+                            Digital Portfolio
+                        </h1>
+                        <div class="h-2 w-32 bg-white/80 mx-auto rounded-full"></div>
+                    </div>
 
                     <!-- CTA Button -->
                     <div 
-                        class="mb-20"
+                        class="mt-12"
                         :class="animateElements.cta ? 'animate-bounceIn' : 'opacity-0 scale-95'"
                     >
                         <button
                             @click="navigateToLogin"
-                            class="group relative inline-flex items-center justify-center px-12 py-6 text-2xl font-bold text-white bg-gradient-to-r from-[#10B981] via-[#059669] to-[#047857] rounded-2xl shadow-2xl hover:shadow-3xl transform hover:-translate-y-2 transition-all duration-300 border-4 border-white"
+                            class="w-full max-w-md h-16 font-bold bg-white text-indigo-600 rounded-xl hover:bg-white/90 transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 text-xl"
                         >
-                            <span class="relative z-10 flex items-center gap-3">
+                            <span class="flex items-center justify-center gap-3">
                                 ✨ Let's Create - Let's Learn! 🚀
                             </span>
-                            <div class="absolute inset-0 bg-gradient-to-r from-[#059669] to-[#047857] rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         </button>
-                    </div>
-                </div>
-
-                <!-- Features Grid -->
-                <div
-                    class="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12"
-                    :class="animateElements.features ? 'animate-fadeInUp' : 'opacity-0 translate-y-10'"
-                >
-                    <!-- Feature 1 -->
-                    <div class="group relative bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-4 border border-purple-100">
-                        <div class="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="relative z-10">
-                            <div class="text-7xl mb-6 transform group-hover:scale-110 transition-transform duration-300">🎨</div>
-                            <h3 class="text-2xl font-bold mb-4 text-gray-800 group-hover:text-purple-600 transition-colors">Colorful Boards</h3>
-                            <p class="text-gray-600 leading-relaxed">Paint your ideas in vibrant colors and bring your imagination to life with our interactive canvas</p>
-                            <div class="mt-4 w-full h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-                        </div>
-                    </div>
-
-                    <!-- Feature 2 -->
-                    <div class="group relative bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-4 border border-blue-100">
-                        <div class="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="relative z-10">
-                            <div class="text-7xl mb-6 transform group-hover:scale-110 transition-transform duration-300">✏️</div>
-                            <h3 class="text-2xl font-bold mb-4 text-gray-800 group-hover:text-blue-600 transition-colors">Draw & Doodle</h3>
-                            <p class="text-gray-600 leading-relaxed">Express yourself freely with our intuitive drawing tools and unleash your creative potential</p>
-                            <div class="mt-4 w-full h-1 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-                        </div>
-                    </div>
-
-                    <!-- Feature 3 -->
-                    <div class="group relative bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-4 border border-yellow-100">
-                        <div class="absolute inset-0 bg-gradient-to-br from-yellow-400/20 to-orange-400/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="relative z-10">
-                            <div class="text-7xl mb-6 transform group-hover:scale-110 transition-transform duration-300">🌟</div>
-                            <h3 class="text-2xl font-bold mb-4 text-gray-800 group-hover:text-yellow-600 transition-colors">Share & Shine</h3>
-                            <p class="text-gray-600 leading-relaxed">Show your masterpieces to friends and celebrate your creative achievements together</p>
-                            <div class="mt-4 w-full h-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-                        </div>
                     </div>
                 </div>
             </div>
         </main>
-
-        <!-- Footer -->
-        <footer class="relative z-10 bg-gradient-to-r from-[#6366F1] via-[#7C3AED] to-[#EC4899] text-white py-12 mt-24">
-            <div class="container mx-auto px-4">
-                <div class="text-center">
-                    <div class="flex justify-center items-center gap-2 mb-4">
-                        <span class="text-2xl">🎨</span>
-                        <p class="text-xl font-semibold">Made with ❤️ for creative kids</p>
-                        <span class="text-2xl">✨</span>
-                    </div>
-                    <p class="text-lg opacity-90">Naawan Central School - Creative Learning Platform</p>
-                    <div class="mt-6 flex justify-center gap-6">
-                        <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                        <div class="w-2 h-2 bg-white rounded-full animate-pulse" style="animation-delay: 0.2s;"></div>
-                        <div class="w-2 h-2 bg-white rounded-full animate-pulse" style="animation-delay: 0.4s;"></div>
-                    </div>
-                </div>
-            </div>
-        </footer>
     </div>
 </template>
 
 <style scoped>
-/* Modern CSS Animations */
+/* Animated Blob Background */
 @keyframes blob {
-    0% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
-    100% { transform: translate(0px, 0px) scale(1); }
+    0% {
+        transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+        transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+        transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+        transform: translate(0px, 0px) scale(1);
+    }
+}
+
+.animate-blob {
+    animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+    animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+    animation-delay: 4s;
 }
 
 @keyframes slideInDown {
@@ -366,5 +301,16 @@ const navigateToContact = () => {
 
 .group:hover .group-hover\:text-yellow-600 {
     color: rgb(202 138 4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .w-96 {
+        width: 16rem;
+        height: 16rem;
+    }
+    
+    .text-6xl { font-size: 3rem; }
+    .text-8xl { font-size: 4rem; }
 }
 </style>

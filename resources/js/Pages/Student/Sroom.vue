@@ -125,20 +125,32 @@
                       <div class="flex items-center gap-4">
                         <h2 class="text-lg font-bold text-gray-900">{{ selectedActivity.title }}</h2>
                         <span class="px-3 py-1 rounded-full text-sm font-medium text-gray-900 inline-block w-fit">
-                          Due: {{ selectedActivity.date }}
+                          Due: {{ selectedActivity.date }}<span v-if="selectedActivity.formattedTime"> at {{ selectedActivity.formattedTime }}</span>
                           <span class="text-xs block mt-1 text-gray-900/70">You cannot submit after the due date</span>
                         </span>
                       </div>
                       <div class="flex items-center gap-4 w-full sm:w-auto justify-center sm:justify-end mt-4 sm:mt-0">
+                        <!-- Turn In Button - Show when not submitted and not past due -->
                         <button
-                          v-if="!hasSubmittedWork"
+                          v-if="!hasSubmittedWork && !isPastDue"
                           @click="addSampleProduct"
                           class="group flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                         >
                           <i class="pi pi-plus"></i>
                           <span>Turn in</span>
                         </button>
-                        <template v-else>
+                        
+                        <!-- Missing Badge - Show when not submitted and past due -->
+                        <span
+                          v-if="!hasSubmittedWork && isPastDue"
+                          class="px-4 py-2 rounded-lg bg-red-100 text-red-800 flex items-center gap-2 font-medium"
+                        >
+                          <i class="pi pi-times-circle"></i>
+                          <span>Missing - Past Due</span>
+                        </span>
+                        
+                        <!-- Submitted Section - Show when work has been submitted -->
+                        <template v-if="hasSubmittedWork">
                           <button
                             v-if="hasScore"
                             @click="showScoreDialog = true"
@@ -218,24 +230,20 @@
                     <div class="flex flex-wrap justify-center gap-4">
                       <div v-for="(submission, index) in studentSubmissions" :key="index"
                            class="bg-white rounded-lg border border-indigo-100 overflow-hidden hover:shadow-md transition-all w-full max-w-2xl mx-auto">
-                        <div class="aspect-video relative bg-gray-100 overflow-hidden flex items-center justify-center p-4">
-                          <template v-if="submission.isImage">
-                            <img
-                              :src="submission.previewUrl"
-                              :alt="submission.caption || 'Submitted work'"
-                              class="max-w-full max-h-full object-contain"
-                              @error="handleImageError(submission)"
-                              v-show="!submission.loadError"
-                              style="display: block; margin: auto;"
-                            />
-                            <div v-if="submission.loadError" class="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400">
-                              <i class="pi pi-image text-4xl mb-2"></i>
-                              <span class="text-sm">Image preview not available</span>
-                            </div>
-                          </template>
-                          <div v-else class="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-indigo-700">
-                            <i class="pi pi-file text-4xl mb-2"></i>
-                            <span class="text-sm">{{ submission.file?.name || 'File submission' }}</span>
+                        <div class="aspect-video relative bg-gray-50 overflow-hidden flex items-center justify-center p-2">
+                          <!-- Image Display -->
+                          <img v-if="submission.isImage && submission.previewUrl"
+                            :src="submission.previewUrl"
+                            :alt="submission.caption || 'Submitted work'"
+                            class="w-full h-full object-cover rounded-lg"
+                            @error="handleImageError(submission)"
+                            v-show="!submission.loadError"
+                          />
+                          <!-- PDF Display -->
+                          <div v-else-if="!submission.isImage && submission.previewUrl" class="flex flex-col items-center justify-center text-red-600">
+                            <i class="pi pi-file-pdf text-6xl mb-3"></i>
+                            <span class="text-sm font-medium">Document</span>
+                            <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
                           </div>
                         </div>
                         <div class="p-4">
@@ -287,16 +295,19 @@
                       <div class="w-32">
                         <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
                       </div>
-                      <div class="w-32 md:w-48">
+                      <div class="w-40 md:w-48">
                         <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
                       </div>
                       <div class="flex-1">
                         <span class="text-sm font-semibold text-indigo-900">Description</span>
                       </div>
-                      <div class="w-32">
+                      <div class="w-28">
                         <span class="text-sm font-semibold text-indigo-900">Status</span>
                       </div>
-                      <div class="w-32 md:w-40 text-right">
+                      <div class="w-28 text-center">
+                        <span class="text-sm font-semibold text-indigo-900">Due Time</span>
+                      </div>
+                      <div class="w-36 text-right">
                         <span class="text-sm font-semibold text-indigo-900">Due Date</span>
                       </div>
                     </div>
@@ -310,13 +321,13 @@
                         <div class="w-32">
                           <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
                         </div>
-                        <div class="w-32 md:w-48">
+                        <div class="w-40 md:w-48">
                           <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
                         </div>
                         <div class="flex-1">
                           <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
                         </div>
-                        <div class="w-32">
+                        <div class="w-28">
                           <span v-if="getActivityStatus(activity) === 'submitted'" 
                                 class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1 w-fit">
                             <i class="pi pi-check-circle text-xs"></i>
@@ -333,7 +344,11 @@
                             Pending
                           </span>
                         </div>
-                        <div class="w-32 md:w-40 text-right">
+                        <div class="w-28 text-center">
+                          <span v-if="activity.formattedTime" class="text-sm text-indigo-600 font-medium">{{ activity.formattedTime }}</span>
+                          <span v-else class="text-xs text-gray-400 italic">No time</span>
+                        </div>
+                        <div class="w-36 text-right">
                           <span class="text-sm text-indigo-600">{{ activity.date }}</span>
                         </div>
                       </div>
@@ -801,6 +816,27 @@ const hasScore = ref(false);
 const showScoreDialog = ref(false);
 const submissionScore = ref(null);
 
+// Check if activity is past due date/time
+const isPastDue = computed(() => {
+  if (!selectedActivity.value || !selectedActivity.value.due_date) {
+    return false;
+  }
+  
+  const now = new Date();
+  let dueDateTime;
+  
+  if (selectedActivity.value.due_time) {
+    // Combine date and time
+    dueDateTime = new Date(`${selectedActivity.value.due_date}T${selectedActivity.value.due_time}`);
+  } else {
+    // If no time specified, use end of day (23:59:59)
+    dueDateTime = new Date(selectedActivity.value.due_date);
+    dueDateTime.setHours(23, 59, 59, 999);
+  }
+  
+  return now > dueDateTime;
+});
+
 // Computed property to safely parse criteria scores
 const parsedCriteriaScores = computed(() => {
   if (!submissionScore.value || !submissionScore.value.criteria_scores) {
@@ -875,6 +911,16 @@ const loadFolderActivities = async (folderId) => {
             console.log('No scoring criteria found for activity:', activity.title);
           }
 
+          // Format due time if available
+          let formattedTime = '';
+          if (activity.due_time) {
+            const [hours, minutes] = activity.due_time.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour % 12 || 12;
+            formattedTime = `${displayHour}:${minutes} ${ampm}`;
+          }
+
           return {
             id: activity.id,
             type: activity.activity_type,
@@ -886,6 +932,8 @@ const loadFolderActivities = async (folderId) => {
               day: 'numeric'
             }) : '',
             due_date: activity.due_date,
+            due_time: activity.due_time,
+            formattedTime: formattedTime,
             hasSubmitted: hasSubmitted,
             scoringCriteria: scoringCriteria
           };
@@ -964,13 +1012,23 @@ const getActivityStatus = (activity) => {
     return 'submitted';
   }
   
-  // Check if past due date
+  // Check if past due date and time
   if (activity.due_date) {
-    const dueDate = new Date(activity.due_date);
     const now = new Date();
     
-    // If past due date and not submitted, return 'missing'
-    if (now > dueDate) {
+    // Create due date/time
+    let dueDateTime;
+    if (activity.due_time) {
+      // Combine date and time
+      dueDateTime = new Date(`${activity.due_date}T${activity.due_time}`);
+    } else {
+      // If no time specified, use end of day (23:59:59)
+      dueDateTime = new Date(activity.due_date);
+      dueDateTime.setHours(23, 59, 59, 999);
+    }
+    
+    // If past due date/time and not submitted, return 'missing'
+    if (now > dueDateTime) {
       return 'missing';
     }
   }
@@ -1061,11 +1119,13 @@ const loadActivitySubmissions = async (activityId) => {
         let previewUrl = submission.file_path;
         
         console.log('🖼️ Processing submission:', {
+          id: submission.id,
           caption: submission.caption,
           file_type: submission.file_type,
           has_file_path: !!submission.file_path,
           file_path_length: submission.file_path?.length,
-          file_path_starts_with: submission.file_path?.substring(0, 20),
+          file_path_starts_with: submission.file_path?.substring(0, 50),
+          file_path_value: submission.file_path,
           status: submission.status,
           score: submission.score
         });
@@ -1369,11 +1429,24 @@ const submitNewProduct = async () => {
     const fileType = selectedFile.value.type.startsWith('image/') ? 'image' : 
                      selectedFile.value.type.includes('pdf') ? 'pdf' : 'document';
 
-    // For now, we'll store the file as a data URL (base64)
-    // In production, you should upload to a file server
-    const filePath = previewUrl.value || URL.createObjectURL(selectedFile.value);
+    // Convert file to base64 for storage
+    let filePath = '';
+    if (fileType === 'image' && previewUrl.value) {
+      // Use existing preview URL (already base64)
+      filePath = previewUrl.value;
+    } else {
+      // Convert file to base64
+      const reader = new FileReader();
+      filePath = await new Promise((resolve, reject) => {
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile.value);
+      });
+    }
 
     console.log('Submitting work for activity:', selectedActivity.value);
+    console.log('File path length:', filePath?.length);
+    console.log('File type:', fileType);
 
     // Submit to API
     const response = await axios.post(`/api/activities/${selectedActivity.value.id}/submissions/`, {
