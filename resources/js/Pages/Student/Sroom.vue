@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col">
     <!-- Class Header -->
-    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-t-xl">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div class="space-y-3">
-          <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
+    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-4 md:p-3 shadow-lg rounded-t-xl">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div class="space-y-2">
+          <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block bg-white/20">
             {{ props.className }}
           </h1>
-          <p class="text-white/90 ml-2 flex items-center gap-2">
+          <p class="text-white/90 ml-2 flex items-center gap-2 text-sm">
             <i class="pi pi-user"></i>
             Student: {{ currentUser.name }}
           </p>
@@ -50,12 +50,12 @@
       </div>
 
       <!-- Navigation Tabs -->
-      <div class="flex flex-wrap gap-2 md:gap-4 mt-4 md:mt-6">
+      <div class="flex flex-wrap gap-2 md:gap-4 mt-3 md:mt-4">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="activeTab = tab.id"
-          class="flex items-center gap-2 text-white/90 px-4 py-2 md:px-6 md:py-3 rounded-lg transition-all duration-300 relative overflow-hidden group"
+          class="flex items-center gap-2 text-white/90 px-4 py-2 md:px-5 md:py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group"
           :class="[
             activeTab === tab.id
               ? 'font-semibold text-white'

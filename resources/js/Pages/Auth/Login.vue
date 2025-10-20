@@ -9,6 +9,67 @@
             <div class="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-400 opacity-10 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000"></div>
         </div>
 
+        <!-- Floating Elements Background -->
+        <div class="absolute inset-0 z-5 overflow-hidden pointer-events-none">
+            <!-- Envelope Icons -->
+            <div class="floating-element absolute top-20 left-10 text-white/40 text-7xl animate-float-slow">
+                <i class="pi pi-envelope"></i>
+            </div>
+            <div class="floating-element absolute top-40 right-20 text-white/35 text-6xl animate-float-medium" style="animation-delay: 2s;">
+                <i class="pi pi-envelope"></i>
+            </div>
+            
+            <!-- Book Icons -->
+            <div class="floating-element absolute top-60 left-1/4 text-white/45 text-8xl animate-float-slow" style="animation-delay: 1s;">
+                <i class="pi pi-book"></i>
+            </div>
+            <div class="floating-element absolute bottom-40 right-1/4 text-white/40 text-7xl animate-float-medium" style="animation-delay: 3s;">
+                <i class="pi pi-book"></i>
+            </div>
+            
+            <!-- Pencil/Edit Icons -->
+            <div class="floating-element absolute top-1/3 right-10 text-white/40 text-6xl animate-float-fast">
+                <i class="pi pi-pencil"></i>
+            </div>
+            <div class="floating-element absolute bottom-1/3 left-20 text-white/35 text-7xl animate-float-slow" style="animation-delay: 2.5s;">
+                <i class="pi pi-pencil"></i>
+            </div>
+            
+            <!-- Image/Photo Icons -->
+            <div class="floating-element absolute top-1/2 left-1/3 text-white/40 text-6xl animate-float-medium" style="animation-delay: 1.5s;">
+                <i class="pi pi-image"></i>
+            </div>
+            <div class="floating-element absolute bottom-20 right-1/3 text-white/35 text-8xl animate-float-slow" style="animation-delay: 4s;">
+                <i class="pi pi-image"></i>
+            </div>
+            
+            <!-- Star Icons -->
+            <div class="floating-element absolute top-1/4 right-1/3 text-white/45 text-5xl animate-float-fast" style="animation-delay: 0.5s;">
+                <i class="pi pi-star-fill"></i>
+            </div>
+            <div class="floating-element absolute bottom-1/4 left-1/3 text-white/40 text-6xl animate-float-medium" style="animation-delay: 3.5s;">
+                <i class="pi pi-star-fill"></i>
+            </div>
+            
+            <!-- File/Document Icons -->
+            <div class="floating-element absolute top-3/4 left-10 text-white/40 text-7xl animate-float-slow" style="animation-delay: 2s;">
+                <i class="pi pi-file"></i>
+            </div>
+            <div class="floating-element absolute top-1/4 right-1/4 text-white/35 text-6xl animate-float-fast" style="animation-delay: 1s;">
+                <i class="pi pi-file"></i>
+            </div>
+            
+            <!-- Heart Icons -->
+            <div class="floating-element absolute bottom-1/2 right-20 text-white/45 text-5xl animate-float-medium" style="animation-delay: 2.5s;">
+                <i class="pi pi-heart-fill"></i>
+            </div>
+            
+            <!-- Palette/Art Icon -->
+            <div class="floating-element absolute top-1/2 right-1/3 text-white/40 text-7xl animate-float-slow" style="animation-delay: 3s;">
+                <i class="pi pi-palette"></i>
+            </div>
+        </div>
+
         <!-- Back Button -->
         <button 
             @click="goToLanding"
@@ -21,8 +82,8 @@
         <div class="w-full max-w-md relative z-10">
             <div class="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/20">
                 <!-- Header Section -->
-                <div class="p-6 text-center">
-                    <div class="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full mx-auto mb-3 flex items-center justify-center border-2 border-white/30 shadow-lg">
+                <div class="p-5 text-center">
+                    <div class="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full mx-auto mb-2 flex items-center justify-center border-2 border-white/30 shadow-lg">
                         <i class="pi pi-user text-3xl text-white"></i>
                     </div>
                     
@@ -30,67 +91,64 @@
                 </div>
 
                 <!-- Form Section -->
-                <div class="p-8 pt-0">
-                    <form @submit.prevent="submitLogin" class="space-y-5">
+                <div class="px-8 pb-6 pt-1">
+                    <form @submit.prevent="submitLogin" class="space-y-4">
 
                         <!-- Role Selection -->
                         <div>
-                            <label class="block text-white mb-2 font-semibold text-sm">Select Role</label>
+                            <label class="block text-white mb-2 font-bold text-base">Select Role</label>
                             <div class="relative">
                                 <select
                                     v-model="loginForm.role"
-                                    class="w-full h-14 px-4 border-2 border-white/30 rounded-xl focus:ring-2 focus:ring-white/50 focus:border-white/50 appearance-none bg-white/10 backdrop-blur-md text-white font-medium cursor-pointer placeholder-white/50"
+                                    class="w-full h-12 px-5 border-2 border-white/40 rounded-2xl focus:ring-0 focus:border-white/60 appearance-none bg-white/20 backdrop-blur-md text-white font-medium cursor-pointer placeholder-white/60 transition-all"
                                     :class="{'border-red-400': loginForm.errors.role}"
                                 >
-                                    <option value="" disabled class="bg-indigo-600 text-white">Choose your role</option>
-                                    <option value="teacher" class="bg-indigo-600 text-white">Teacher</option>
-                                    <option value="student" class="bg-indigo-600 text-white">Student</option>
+                                    <option value="" disabled class="bg-white text-gray-800">Choose your role</option>
+                                    <option value="teacher" class="bg-white text-gray-800">Teacher</option>
+                                    <option value="student" class="bg-white text-gray-800">Student</option>
                                 </select>
-                                <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                                    <i class="pi pi-chevron-down text-white/70 text-sm"></i>
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none">
+                                    <i class="pi pi-chevron-down text-white text-base"></i>
                                 </div>
                             </div>
-                            <small class="text-red-200 text-sm" v-if="loginForm.errors.role">{{ loginForm.errors.role }}</small>
+                            <small class="text-red-200 text-sm mt-1 block" v-if="loginForm.errors.role">{{ loginForm.errors.role }}</small>
                         </div>
 
                         <!-- Email -->
                         <div>
-                            <label class="block text-white mb-2 font-semibold text-sm">Email</label>
-                            <div class="relative">
-                                <i class="pi pi-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-white/70 text-lg"></i>
-                                <InputText
-                                    type="email"
-                                    v-model="loginForm.email"
-                                    placeholder="Enter your email"  
-                                    class="w-full h-14 pl-12 pr-4 border-2 border-white/30 rounded-xl focus:ring-2 focus:ring-white/50 focus:border-white/50 bg-white/10 backdrop-blur-md text-white placeholder-white/50 font-medium"
-                                    :class="{'border-red-400': loginForm.errors.email}"
-                                />
-                            </div>
-                            <small class="text-red-200 text-sm" v-if="loginForm.errors.email">{{ loginForm.errors.email }}</small>
+                            <label class="block text-white mb-2 font-bold text-base">Email</label>
+                            <InputText
+                                type="email"
+                                v-model="loginForm.email"
+                                placeholder=""  
+                                class="w-full h-12 px-5 border-2 border-white/40 rounded-2xl focus:ring-0 focus:border-white/60 bg-white text-gray-800 placeholder-gray-400 font-medium transition-all"
+                                :class="{'border-red-400': loginForm.errors.email}"
+                            />
+                            <small class="text-red-200 text-sm mt-1 block" v-if="loginForm.errors.email">{{ loginForm.errors.email }}</small>
                         </div>
 
                         <!-- Password -->
                         <div>
-                            <label class="block text-white mb-2 font-semibold text-sm">Password</label>
+                            <label class="block text-white mb-2 font-bold text-base">Password</label>
                             <div class="relative">
-                                <i class="pi pi-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-white/70 text-lg z-20"></i>
+                                <i class="pi pi-lock absolute left-5 top-1/2 transform -translate-y-1/2 text-white/70 text-lg z-20"></i>
                                 <Password
                                     v-model="loginForm.password"
                                     placeholder="Enter your password"
                                     :feedback="false"
                                     :toggleMask="true"
-                                    class="w-full custom-password"
-                                    inputClass="w-full h-14 pl-12 pr-12 border-2 border-white/30 rounded-xl focus:ring-2 focus:ring-white/50 focus:border-white/50 bg-white/10 backdrop-blur-md text-white placeholder-white/50 font-medium"
+                                    class="w-full custom-password-clean"
+                                    inputClass="w-full h-12 pl-14 pr-14 border-2 border-white/40 rounded-2xl focus:ring-0 focus:border-white/60 bg-white/20 backdrop-blur-md text-white placeholder-white/60 font-medium"
                                     :class="{'border-red-400': loginForm.errors.password}"
                                 />
                             </div>
-                            <small class="text-red-200 text-sm" v-if="loginForm.errors.password">{{ loginForm.errors.password }}</small>
+                            <small class="text-red-200 text-sm mt-1 block" v-if="loginForm.errors.password">{{ loginForm.errors.password }}</small>
                         </div>
 
                         <!-- Remember Me -->
-                        <div class="flex items-center">
+                        <div class="flex items-center pt-1">
                             <Checkbox v-model="loginForm.remember" :binary="true" inputId="remember" class="mr-3" />
-                            <label for="remember" class="text-white select-none cursor-pointer hover:text-white/80 transition-colors duration-200 font-medium">
+                            <label for="remember" class="text-white select-none cursor-pointer hover:text-white/90 transition-colors duration-200 font-medium text-base">
                                 Remember me
                             </label>
                         </div>
@@ -99,7 +157,7 @@
                         <button
                             type="submit"
                             :disabled="loginForm.processing"
-                            class="w-full h-14 font-bold bg-white text-indigo-600 rounded-xl hover:bg-white/90 transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+                            class="w-full h-12 font-bold bg-white text-indigo-600 rounded-2xl hover:bg-white/95 transition-all duration-300 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed text-lg mt-2"
                         >
                             <span class="flex items-center justify-center gap-2">
                                 <i v-if="!loginForm.processing" class="pi pi-sign-in text-xl"></i>
@@ -218,47 +276,124 @@ const submitLogin = async () => {
     animation-delay: 4s;
 }
 
+/* Floating Elements Animations */
+@keyframes float-slow {
+    0%, 100% {
+        transform: translateY(0px) translateX(0px) rotate(0deg);
+        opacity: 0.4;
+    }
+    25% {
+        transform: translateY(-30px) translateX(20px) rotate(5deg);
+        opacity: 0.5;
+    }
+    50% {
+        transform: translateY(-50px) translateX(-15px) rotate(-5deg);
+        opacity: 0.45;
+    }
+    75% {
+        transform: translateY(-20px) translateX(25px) rotate(3deg);
+        opacity: 0.42;
+    }
+}
+
+@keyframes float-medium {
+    0%, 100% {
+        transform: translateY(0px) translateX(0px) rotate(0deg) scale(1);
+        opacity: 0.35;
+    }
+    33% {
+        transform: translateY(-40px) translateX(-25px) rotate(-8deg) scale(1.1);
+        opacity: 0.45;
+    }
+    66% {
+        transform: translateY(-25px) translateX(30px) rotate(8deg) scale(0.95);
+        opacity: 0.4;
+    }
+}
+
+@keyframes float-fast {
+    0%, 100% {
+        transform: translateY(0px) translateX(0px) rotate(0deg) scale(1);
+        opacity: 0.4;
+    }
+    20% {
+        transform: translateY(-20px) translateX(15px) rotate(10deg) scale(1.05);
+        opacity: 0.5;
+    }
+    40% {
+        transform: translateY(-35px) translateX(-20px) rotate(-10deg) scale(0.95);
+        opacity: 0.45;
+    }
+    60% {
+        transform: translateY(-15px) translateX(25px) rotate(5deg) scale(1.1);
+        opacity: 0.42;
+    }
+    80% {
+        transform: translateY(-30px) translateX(-10px) rotate(-5deg) scale(1);
+        opacity: 0.48;
+    }
+}
+
+.animate-float-slow {
+    animation: float-slow 15s ease-in-out infinite;
+}
+
+.animate-float-medium {
+    animation: float-medium 12s ease-in-out infinite;
+}
+
+.animate-float-fast {
+    animation: float-fast 8s ease-in-out infinite;
+}
+
+.floating-element {
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+    transition: all 0.3s ease;
+}
+
 /* Custom Password Input Styling */
-:deep(.custom-password .p-password-input) {
+:deep(.custom-password-clean .p-password-input) {
     width: 100%;
-    height: 3.5rem;
-    padding-left: 3rem;
-    padding-right: 3rem;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
+    height: 3rem;
+    padding-left: 3.5rem;
+    padding-right: 3.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
     color: white;
     font-weight: 500;
+    transition: all 0.3s ease;
 }
 
-:deep(.custom-password .p-password-input::placeholder) {
-    color: rgba(255, 255, 255, 0.5);
+:deep(.custom-password-clean .p-password-input::placeholder) {
+    color: rgba(255, 255, 255, 0.6);
 }
 
-:deep(.custom-password .p-password-input:focus) {
-    border-color: rgba(255, 255, 255, 0.5);
+:deep(.custom-password-clean .p-password-input:focus) {
+    border-color: rgba(255, 255, 255, 0.6);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+    box-shadow: none;
 }
 
-:deep(.custom-password .p-icon) {
-    color: rgba(255, 255, 255, 0.7);
+:deep(.custom-password-clean .p-icon) {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 /* Checkbox Styling */
 :deep(.p-checkbox) {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
 }
 
 :deep(.p-checkbox .p-checkbox-box) {
-    width: 20px;
-    height: 20px;
-    background: rgba(255, 255, 255, 0.1);
+    width: 22px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 0.375rem;
+    transition: all 0.3s ease;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {
@@ -271,7 +406,7 @@ const submitLogin = async () => {
 }
 
 :deep(.p-checkbox-icon) {
-    font-size: 12px;
+    font-size: 13px;
 }
 
 /* Input Text Styling */
@@ -280,13 +415,17 @@ const submitLogin = async () => {
 }
 
 :deep(.p-inputtext::placeholder) {
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(156, 163, 175, 0.8);
+}
+
+:deep(.p-inputtext:focus) {
+    box-shadow: none;
 }
 
 /* Select Dropdown Styling */
 select option {
-    background: #6366F1;
-    color: white;
+    background: white;
+    color: #1f2937;
     padding: 10px;
 }
 

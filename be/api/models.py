@@ -69,7 +69,7 @@ class PortfolioActivity(models.Model):
         ('Project', 'Project'),
         ('Exam', 'Exam'),
         ('Presentation', 'Presentation'),
-        ('Other', 'Other'),
+        ('Contest', 'Contest'),
     ]
     
     folder = models.ForeignKey(PortfolioFolder, on_delete=models.CASCADE, related_name='activities')

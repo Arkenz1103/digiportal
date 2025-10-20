@@ -78,7 +78,7 @@ class Migration(migrations.Migration):
             name='PortfolioActivity',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('activity_type', models.CharField(choices=[('Quiz', 'Quiz'), ('Assignment', 'Assignment'), ('Project', 'Project'), ('Exam', 'Exam'), ('Presentation', 'Presentation'), ('Other', 'Other')], default='Quiz', max_length=100)),
+                ('activity_type', models.CharField(choices=[('Quiz', 'Quiz'), ('Assignment', 'Assignment'), ('Project', 'Project'), ('Exam', 'Exam'), ('Presentation', 'Presentation'), ('Contest', 'Contest')], default='Quiz', max_length=100)),
                 ('title', models.CharField(max_length=255)),
                 ('description', models.TextField(blank=True, null=True)),
                 ('due_date', models.DateField(blank=True, null=True)),
