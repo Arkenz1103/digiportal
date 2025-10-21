@@ -382,7 +382,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import axios from 'axios';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -645,6 +645,17 @@ const studentInfo = computed(() => ({
     initial: ((studentData.value?.name || props.selectedStudent?.name || '?').charAt(0))
 }));
 
+// Function to handle class change event
+const handleClassChange = (event) => {
+    console.log('🔄 Class changed in Progress, clearing view state and navigating...', event.detail);
+    
+    // Clear the teacher view state so Room shows folders view
+    localStorage.removeItem('teacher_current_view');
+    
+    // Navigate directly to TeacherRoom to show folders view
+    emit('navigate', 'TeacherRoom');
+};
+
 onMounted(() => {
     console.log('Progress.vue mounted');
     
@@ -673,6 +684,14 @@ onMounted(() => {
     } else {
         console.warn('No student data in localStorage');
     }
+    
+    // Listen for class change events
+    window.addEventListener('classChanged', handleClassChange);
+});
+
+onUnmounted(() => {
+    // Clean up event listener
+    window.removeEventListener('classChanged', handleClassChange);
 });
 
 const goBack = () => {

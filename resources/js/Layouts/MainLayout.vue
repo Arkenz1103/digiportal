@@ -415,11 +415,19 @@ const navigateToClass = (class_) => {
     // Store selected class information
     localStorage.setItem('digiportal_selected_class', JSON.stringify(class_));
     
-    // Navigate to room based on user role
-    if (currentUser.value.role === 'teacher') {
-        navigateToPage('TeacherRoom');
-    } else if (currentUser.value.role === 'student') {
-        navigateToPage('StudentRoom');
+    // Determine target route based on user role
+    const targetRoute = currentUser.value.role === 'teacher' ? 'TeacherRoom' : 'StudentRoom';
+    
+    // Always dispatch the classChanged event so Room component can reload
+    console.log('🔄 Class selected, dispatching classChanged event...', class_.name);
+    window.dispatchEvent(new CustomEvent('classChanged', { detail: class_ }));
+    
+    // If not already on the room page, navigate to it
+    if (currentRoute.value !== targetRoute) {
+        console.log('📍 Navigating to room page...');
+        navigateToPage(targetRoute);
+    } else {
+        console.log('✅ Already on room page, event will trigger reload');
     }
 };
 

@@ -330,7 +330,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 
 // Define props
@@ -982,11 +982,30 @@ const loadStudents = async () => {
     }
 };
 
+// Function to handle class change event
+const handleClassChange = (event) => {
+    console.log('🔄 Class changed in Sprogress, clearing view state and navigating...', event.detail);
+    
+    // Clear the teacher view state so Room shows folders view
+    localStorage.removeItem('teacher_current_view');
+    
+    // Navigate back to TeacherRoom when class is changed
+    emit('navigate', 'TeacherRoom');
+};
+
 // Load folders on mount
 onMounted(() => {
     loadClassName();
     loadStudents();
     loadPortfolioFolders();
+    
+    // Listen for class change events
+    window.addEventListener('classChanged', handleClassChange);
+});
+
+onUnmounted(() => {
+    // Clean up event listener
+    window.removeEventListener('classChanged', handleClassChange);
 });
 
 // Watch for subject changes and reset view state

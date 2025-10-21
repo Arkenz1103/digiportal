@@ -1,14 +1,18 @@
 <template>
-  
-  <div class="p-4 md:p-6">
-    <div class="rounded-2xl shadow-lg bg-white/90 backdrop-blur-sm border border-indigo-100 overflow-hidden">
-      <!-- Header -->
-      <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6">
-        <h1 class="text-2xl font-bold text-white">Pupil Remarks Management</h1>
-      </div>
+  <div class="flex flex-col">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 shadow-lg rounded-t-xl h-40 md:h-36 flex items-center px-6 md:px-8">
+      <h1 class="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
+        <i class="pi pi-comments"></i>
+        Pupil's Management Remarks
+      </h1>
+    </div>
 
-      <!-- Content -->
-      <div class="p-6">
+    <!-- Main Content Area -->
+    <div class="w-full bg-white/80 flex-1">
+      <!-- Content Area -->
+      <div class="w-full px-4 sm:px-6 pt-4 pb-6 transition-all duration-300"
+           :style="{ 'padding-left': '1.5rem', 'padding-right': '1.5rem' }">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Pupil List -->
           <div class="lg:col-span-1">

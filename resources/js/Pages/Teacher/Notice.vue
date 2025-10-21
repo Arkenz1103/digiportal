@@ -185,12 +185,18 @@ const cancelRejection = () => {
 </script>
 
 <template>
-    <div class="p-4 md:p-6">
-        <div class="rounded-2xl shadow-lg bg-white/90 backdrop-blur-sm border border-indigo-100 overflow-hidden">
-            <!-- Header -->
-            <div class="p-6 bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700">
-                <h1 class="text-2xl font-semibold text-white">Student Output Approval</h1>
-            </div>
+    <div class="flex flex-col">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 shadow-lg rounded-t-xl h-40 md:h-36 flex items-center px-6 md:px-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
+                <i class="pi pi-check-circle"></i>
+                Student Output Approval
+            </h1>
+        </div>
+
+        <div class="w-full bg-white/80 flex-1">
+            <div class="p-4 md:p-6">
+                <div class="rounded-2xl shadow-lg bg-white/90 backdrop-blur-sm border border-indigo-100 overflow-hidden">
 
             <!-- Pending Count -->
             <div class="px-6 py-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
@@ -255,8 +261,7 @@ const cancelRejection = () => {
                         />
                     </div>
                 </div>
-            </div>
-        </div>
+                </div>
 
         <!-- Preview Dialog -->
         <Dialog 
@@ -495,6 +500,9 @@ const cancelRejection = () => {
                 </div>
             </template>
         </Dialog>
+            </div>
+        </div>
+        </div>
     </div>
 </template>
 

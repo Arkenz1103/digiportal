@@ -1266,13 +1266,26 @@ const authenticateWithBackend = async () => {
   }
 };
 
+// Function to handle class change event
+const handleClassChange = async (event) => {
+  console.log('🔄 Class changed, reloading data...', event.detail);
+  
+  // Clear current view state
+  selectedFolder.value = null;
+  selectedActivity.value = null;
+  studentSubmissions.value = [];
+  hasSubmittedWork.value = false;
+  localStorage.removeItem('student_current_view');
+  
+  // Reload folders
+  await loadPortfolioFolders();
+};
+
 // Load portfolio folders when component mounts
 onMounted(async () => {
   // Authenticate with backend first, then load folders
   const authenticated = await authenticateWithBackend();
   if (authenticated) {
-    loadPortfolioFolders();
-    
     // Restore previous view state after refresh
     const savedView = localStorage.getItem('student_current_view');
     if (savedView) {
@@ -1281,7 +1294,12 @@ onMounted(async () => {
         console.log('🔄 Restoring view state:', viewState);
         
         if (viewState.selectedFolder) {
+          // First load all folders to ensure we have the latest data
+          await loadPortfolioFolders();
+          
+          // Restore folder selection
           selectedFolder.value = viewState.selectedFolder;
+          
           // Load activities for this folder
           await loadFolderActivities(viewState.selectedFolder.id);
           
@@ -1289,19 +1307,45 @@ onMounted(async () => {
             // Find the activity in the loaded activities
             const activity = folderActivities.value.find(a => a.id === viewState.selectedActivity.id);
             if (activity) {
-              await openActivity(activity);
+              // Restore activity selection and load submissions
+              selectedActivity.value = activity;
+              
+              // Reset score state
+              hasScore.value = false;
+              submissionScore.value = null;
+              
+              // Check submission status
+              await checkSubmissionStatus(activity.id);
+              
+              // Load submissions for this activity
+              await loadActivitySubmissions(activity.id);
+              
               console.log('✅ Restored activity view:', activity.title);
+              console.log('✅ Submissions loaded:', studentSubmissions.value.length);
+            } else {
+              console.warn('⚠️ Activity not found in loaded activities');
             }
           }
+        } else {
+          // No saved view, just load folders normally
+          await loadPortfolioFolders();
         }
       } catch (error) {
         console.error('❌ Error restoring view state:', error);
         localStorage.removeItem('student_current_view');
+        // Fallback to loading folders normally
+        await loadPortfolioFolders();
       }
+    } else {
+      // No saved view, just load folders normally
+      await loadPortfolioFolders();
     }
   } else {
     console.error('Failed to authenticate with backend');
   }
+  
+  // Listen for class change events
+  window.addEventListener('classChanged', handleClassChange);
 });
 
 // Submit work function
@@ -1351,6 +1395,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick, true);
   document.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('classChanged', handleClassChange);
 });
 
 // Add these for the calendar functionality

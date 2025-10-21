@@ -213,7 +213,7 @@
 
                                     <!-- Back button -->
                                     <button
-                                        @click="showingActivities = false"
+                                        @click="backToFolders"
                                         class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                                     >
                                         <i class="pi pi-arrow-left"></i>
@@ -1568,6 +1568,35 @@ const currentUser = ref({
     role: 'teacher'
 });
 
+// Function to handle class change event
+const handleClassChange = async (event) => {
+    console.log('🔄 Class changed in Room, reloading data...', event.detail);
+    
+    // Update selected class in localStorage (already done by MainLayout, but ensure it's set)
+    localStorage.setItem('digiportal_selected_class', JSON.stringify(event.detail));
+    
+    // Update local state
+    selectedClass.value = event.detail;
+    className.value = event.detail.name;
+    
+    // Clear current view state - go back to folders view
+    showingActivities.value = false;
+    selectedSubject.value = '';
+    selectedFolderId.value = null;
+    activities.value = [];
+    selectedActivity.value = null;
+    
+    // Clear saved view state - this ensures clicking a class always shows folders
+    localStorage.removeItem('teacher_current_view');
+    
+    console.log('📂 Clearing activities view, returning to folders');
+    
+    // Reload folders for the new class
+    await loadPortfolioFolders();
+    
+    console.log('✅ Folders reloaded for class:', event.detail.name);
+};
+
 // Load selected class on mount
 onMounted(() => {
     const savedClass = localStorage.getItem('digiportal_selected_class');
@@ -1575,6 +1604,9 @@ onMounted(() => {
         selectedClass.value = JSON.parse(savedClass);
         className.value = selectedClass.value.name;
     }
+    
+    // Listen for class change events
+    window.addEventListener('classChanged', handleClassChange);
 });
 
 const props = defineProps({
@@ -1730,43 +1762,74 @@ onMounted(async () => {
                 if (!isRecent) {
                     console.log('⏰ Return context expired, clearing...');
                     localStorage.removeItem('return_to_activities');
-                    return;
+                } else {
+                    console.log('Available folders:', subjectFolders.value);
+                    
+                    if (context.showActivities && context.subject) {
+                        // Find the folder for this subject
+                        // First try exact match by folder name (for Outputs.vue)
+                        let folder = subjectFolders.value.find(f => f.name === context.subject);
+                        
+                        // If not found, try matching by class_name (for Sprogress.vue)
+                        if (!folder) {
+                            folder = subjectFolders.value.find(f => f.class_name === context.subject);
+                        }
+                        
+                        // If still not found, just use the first folder for this class
+                        if (!folder && subjectFolders.value.length > 0) {
+                            console.log('⚠️ No exact match, using first folder');
+                            folder = subjectFolders.value[0];
+                        }
+                        
+                        console.log('✅ Found folder:', folder);
+                        
+                        if (folder) {
+                            console.log('🎯 Showing activities for folder:', folder.name, 'ID:', folder.id);
+                            // Use folder.name (not context.subject) as the first parameter
+                            await showSubjectActivities(folder.name, folder.id);
+                        } else {
+                            console.error('❌ Folder not found for subject:', context.subject);
+                            console.log('🔎 Tried matching:', context.subject);
+                            console.log('📋 Against folders:', subjectFolders.value.map(f => ({ name: f.name, class_name: f.class_name })));
+                        }
+                    }
+                    localStorage.removeItem('return_to_activities');
                 }
-                
-                console.log('Available folders:', subjectFolders.value);
-                
-                if (context.showActivities && context.subject) {
-                    // Find the folder for this subject
-                    // First try exact match by folder name (for Outputs.vue)
-                    let folder = subjectFolders.value.find(f => f.name === context.subject);
-                    
-                    // If not found, try matching by class_name (for Sprogress.vue)
-                    if (!folder) {
-                        folder = subjectFolders.value.find(f => f.class_name === context.subject);
-                    }
-                    
-                    // If still not found, just use the first folder for this class
-                    if (!folder && subjectFolders.value.length > 0) {
-                        console.log('⚠️ No exact match, using first folder');
-                        folder = subjectFolders.value[0];
-                    }
-                    
-                    console.log('✅ Found folder:', folder);
-                    
-                    if (folder) {
-                        console.log('🎯 Showing activities for folder:', folder.name, 'ID:', folder.id);
-                        // Use folder.name (not context.subject) as the first parameter
-                        await showSubjectActivities(folder.name, folder.id);
-                    } else {
-                        console.error('❌ Folder not found for subject:', context.subject);
-                        console.log('🔎 Tried matching:', context.subject);
-                        console.log('📋 Against folders:', subjectFolders.value.map(f => ({ name: f.name, class_name: f.class_name })));
-                    }
-                }
-                localStorage.removeItem('return_to_activities');
             } catch (error) {
                 console.error('Error restoring activities view:', error);
                 localStorage.removeItem('return_to_activities');
+            }
+        }
+        
+        // Check for regular view state restoration (for page refresh)
+        const savedView = localStorage.getItem('teacher_current_view');
+        if (savedView && !returnContext) {
+            try {
+                const viewState = JSON.parse(savedView);
+                console.log('🔄 Restoring teacher view state:', viewState);
+                
+                if (viewState.showingActivities && viewState.selectedFolderId) {
+                    // Find the folder by ID
+                    const folder = subjectFolders.value.find(f => f.id === viewState.selectedFolderId);
+                    
+                    if (folder) {
+                        console.log('✅ Restoring activities view for folder:', folder.name);
+                        // Restore the activities view
+                        selectedSubject.value = viewState.selectedSubject;
+                        selectedFolderId.value = viewState.selectedFolderId;
+                        showingActivities.value = true;
+                        
+                        // Load activities
+                        await loadActivities(viewState.selectedFolderId);
+                        console.log('✅ Activities view restored');
+                    } else {
+                        console.warn('⚠️ Folder not found, clearing view state');
+                        localStorage.removeItem('teacher_current_view');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error restoring teacher view state:', error);
+                localStorage.removeItem('teacher_current_view');
             }
         }
     } else {
@@ -1782,6 +1845,7 @@ onUnmounted(() => {
 
 onUnmounted(() => {
     document.removeEventListener('click', handleDocumentClick, true);
+    window.removeEventListener('classChanged', handleClassChange);
 });
 
 // Subject activities state
@@ -1791,11 +1855,31 @@ const selectedFolderId = ref(null);
 const activities = ref([]);
 const isLoadingActivities = ref(false);
 
+// Function to go back to folders view
+const backToFolders = () => {
+    showingActivities.value = false;
+    selectedSubject.value = '';
+    selectedFolderId.value = null;
+    activities.value = [];
+    
+    // Clear saved view state
+    localStorage.removeItem('teacher_current_view');
+    console.log('🗑️ Cleared teacher view state');
+};
+
 // Function to show activities for a subject
 const showSubjectActivities = async (subject, folderId) => {
     selectedSubject.value = subject;
     selectedFolderId.value = folderId;
     showingActivities.value = true;
+    
+    // Save view state to localStorage
+    localStorage.setItem('teacher_current_view', JSON.stringify({
+        showingActivities: true,
+        selectedSubject: subject,
+        selectedFolderId: folderId
+    }));
+    console.log('💾 Saved teacher view state: Activities for', subject);
     
     // Load activities from database
     await loadActivities(folderId);

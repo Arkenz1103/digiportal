@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
@@ -47,6 +47,17 @@ const loadActivityFromAPI = async (activityId) => {
     }
 };
 
+// Function to handle class change event
+const handleClassChange = (event) => {
+    console.log('🔄 Class changed in Outputs, clearing view state and navigating...', event.detail);
+    
+    // Clear the teacher view state so Room shows folders view
+    localStorage.removeItem('teacher_current_view');
+    
+    // Navigate back to TeacherRoom when class is changed
+    emit('navigate', 'TeacherRoom');
+};
+
 // Load selected activity on component mount
 onMounted(async () => {
     const savedActivity = localStorage.getItem('selected_activity');
@@ -78,6 +89,14 @@ onMounted(async () => {
     // Load submissions for this specific activity
     loadUnscoredSubmissions();
     loadScoredSubmissions();
+    
+    // Listen for class change events
+    window.addEventListener('classChanged', handleClassChange);
+});
+
+onUnmounted(() => {
+    // Clean up event listener
+    window.removeEventListener('classChanged', handleClassChange);
 });
 
 // Define emits for navigation
