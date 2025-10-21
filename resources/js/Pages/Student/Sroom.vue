@@ -93,7 +93,7 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                   <!-- List of Activities Header -->
                   <div class="rounded-lg py-2 px-4">
-                    <span class="text-2xl font-bold text-indigo-900">List of Activities - Portfolio {{ selectedFolder.title }}</span>
+                    <span class="text-2xl font-bold text-indigo-900">List of Activities - {{ selectedFolder.title }}</span>
                   </div>
 
                   <div class="flex flex-wrap gap-2">
@@ -361,7 +361,7 @@
               <div v-if="!selectedFolder" class="space-y-6">
                 <!-- Header with title -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                  <h2 class="text-xl md:text-2xl font-bold text-gray-900">My Portfolio</h2>
+                  <h2 class="text-xl md:text-2xl font-bold text-gray-900">My Activities</h2>
                 </div>
                 <!-- Loading State -->
                 <div v-if="isLoadingFolders" class="flex justify-center items-center py-12">
@@ -374,8 +374,8 @@
                   <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
                     <i class="pi pi-folder text-gray-400 text-xl"></i>
                   </div>
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">No Portfolio Folders</h3>
-                  <p class="text-gray-500">Your teacher hasn't created any portfolio folders yet.</p>
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">No Activity Folders</h3>
+                  <p class="text-gray-500">Your teacher hasn't created any activity folders yet.</p>
                 </div>
                 
                 <!-- Folders Grid -->
@@ -416,6 +416,68 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Portfolio Compilation Tab Content -->
+        <template v-if="activeTab === 'compilation'">
+          <div class="p-4 md:p-6">
+            <!-- Show message only if teacher requested compilation -->
+            <div v-if="portfolioCompilationRequested" class="flex items-center justify-center min-h-[60vh]">
+              <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 md:p-12 text-center">
+                <!-- Icon -->
+                <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-indigo-100 mb-6">
+                  <i class="pi pi-book text-indigo-600 text-4xl"></i>
+                </div>
+                
+                <!-- Title -->
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                  Portfolio Compilation Ready
+                </h2>
+                
+                <!-- Message -->
+                <p class="text-gray-600 text-lg mb-8">
+                  Your teacher has requested you to start compiling your portfolio. 
+                  Click the button below to begin organizing your work and achievements.
+                </p>
+                
+                <!-- Start Button -->
+                <button
+                  class="px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 inline-flex items-center gap-3"
+                >
+                  <i class="pi pi-play-circle text-xl"></i>
+                  Start Portfolio Compilation
+                </button>
+                
+                <!-- Additional Info -->
+                <p class="text-sm text-gray-500 mt-6">
+                  Make sure to review all your activities before compiling your portfolio.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Show waiting state if teacher hasn't requested compilation yet -->
+            <div v-else class="flex items-center justify-center min-h-[60vh]">
+              <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 md:p-12 text-center">
+                <!-- Icon -->
+                <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gray-100 mb-6">
+                  <i class="pi pi-clock text-gray-400 text-4xl"></i>
+                </div>
+                
+                <!-- Title -->
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                  Waiting for Teacher
+                </h2>
+                
+                <!-- Message -->
+                <p class="text-gray-600 text-lg mb-4">
+                  Your teacher hasn't requested portfolio compilation yet.
+                </p>
+                <p class="text-gray-500 text-base">
+                  You'll be notified when it's time to start compiling your portfolio.
+                </p>
               </div>
             </div>
           </div>
@@ -772,10 +834,12 @@ const currentUser = ref({
 
 const activeTab = ref('portfolio');
 const activeContentTab = ref('samples');
+const portfolioCompilationRequested = ref(false); // Track if teacher requested compilation
 
 // Navigation tabs
 const tabs = [
-  { id: 'portfolio', name: 'Portfolio', icon: 'pi-folder' },
+  { id: 'portfolio', name: 'Activities', icon: 'pi-folder' },
+  { id: 'compilation', name: 'Portfolio Compilation', icon: 'pi-book' },
   { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' },
 ];
 
@@ -1281,6 +1345,33 @@ const handleClassChange = async (event) => {
   await loadPortfolioFolders();
 };
 
+// Check if teacher has requested portfolio compilation
+const checkPortfolioCompilationStatus = async () => {
+  try {
+    const className = props.className || selectedClass.value?.name;
+    
+    if (!className) {
+      console.log('No class selected, skipping portfolio compilation check');
+      return;
+    }
+    
+    // Check for portfolio compilation notification
+    const response = await axios.get(`/api/notifications/portfolio-compilation/${encodeURIComponent(className)}/`);
+    
+    if (response.data && response.data.compilation_requested) {
+      portfolioCompilationRequested.value = true;
+      console.log('✅ Portfolio compilation has been requested by teacher');
+    } else {
+      portfolioCompilationRequested.value = false;
+      console.log('ℹ️ Portfolio compilation not yet requested');
+    }
+  } catch (error) {
+    console.error('❌ Error checking portfolio compilation status:', error);
+    // Default to false if there's an error
+    portfolioCompilationRequested.value = false;
+  }
+};
+
 // Load portfolio folders when component mounts
 onMounted(async () => {
   // Authenticate with backend first, then load folders
@@ -1343,6 +1434,9 @@ onMounted(async () => {
   } else {
     console.error('Failed to authenticate with backend');
   }
+  
+  // Check for portfolio compilation request
+  await checkPortfolioCompilationStatus();
   
   // Listen for class change events
   window.addEventListener('classChanged', handleClassChange);

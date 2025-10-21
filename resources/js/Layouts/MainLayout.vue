@@ -494,9 +494,13 @@ const auth = computed(() => ({
             <!-- Sidebar -->
             <div :class="['bg-white/90 backdrop-blur-sm shadow-lg sticky top-0 flex flex-col transition-all duration-300 border-r border-indigo-100 z-10', isCollapsed ? 'w-20' : 'w-64']">
                 <!-- Sidebar Header -->
-                <div class="p-4 border-b h-[52px] flex items-center justify-between">
-                    <button @click="toggleSidebar" class="p-2 rounded-lg hover:bg-violet-500 transition-colors focus:outline-none">
-                        <i :class="['pi', isCollapsed ? 'pi-bars' : 'pi-arrow-left', 'text-gray-600']"></i>
+                <div class="p-4 border-b h-[52px] flex items-center relative overflow-hidden">
+                    <button 
+                        @click="toggleSidebar" 
+                        class="p-2 rounded-lg hover:bg-blue-500 transition-all duration-300 ease-in-out focus:outline-none"
+                        :style="{ transform: isCollapsed ? 'translateX(0)' : 'translateX(192px)' }"
+                    >
+                        <i class="pi pi-bars text-gray-600"></i>
                     </button>
                 </div>
 

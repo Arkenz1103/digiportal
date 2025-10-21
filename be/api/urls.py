@@ -75,4 +75,8 @@ urlpatterns = [
     path('api/submissions/<int:submission_id>/remarks/', views.submission_remarks_api, name='submission_remarks_api'),
     path('api/submissions/<int:submission_id>/remarks/<int:remark_id>/', views.submission_remark_detail_api, name='submission_remark_detail_api'),
     path('api/student/submission-remarks/', views.student_submission_remarks_api, name='student_submission_remarks_api'),
+    
+    # Portfolio Compilation routes
+    path('api/notifications/portfolio-compilation/', views.request_portfolio_compilation_api, name='request_portfolio_compilation_api'),
+    path('api/notifications/portfolio-compilation/<str:class_name>/', views.check_portfolio_compilation_status_api, name='check_portfolio_compilation_status_api'),
 ]

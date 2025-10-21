@@ -85,13 +85,13 @@
                         <div v-if="!showingActivities" class="space-y-6">
                             <!-- Header with title and New Folder button -->
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                                <h2 class="text-xl md:text-2xl font-bold text-gray-900">Pupils Portfolio</h2>
+                                <h2 class="text-xl md:text-2xl font-bold text-gray-900">Pupil's Activities</h2>
                                 <button
                                     @click="showNewFolderDialog = true"
                                     class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                                 >
                                     <i class="pi pi-plus"></i>
-                                    <span>Create Class Portfolio</span>
+                                    <span>Create Class Activity</span>
                                 </button>
                             </div>
 
@@ -106,8 +106,8 @@
                                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
                                     <i class="pi pi-folder text-gray-400 text-xl"></i>
                                 </div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Portfolio Folders</h3>
-                                <p class="text-gray-500">Click "Create Class Portfolio" to create your first folder.</p>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Activity Folders</h3>
+                                <p class="text-gray-500">Click "Create Class Activity" to create your first folder.</p>
                             </div>
                             
                             <!-- Folders Grid -->
@@ -189,7 +189,7 @@
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                                 <!-- List of Activities Header -->
                                 <div class="rounded-lg py-2 px-4">
-                                    <span class="text-2xl font-bold text-indigo-900">List of Activities - Portfolio {{ selectedSubject }}</span>
+                                    <span class="text-2xl font-bold text-indigo-900">List of Activities - {{ selectedSubject }}</span>
                                 </div>
 
                                 <div class="flex flex-wrap gap-2">
@@ -329,6 +329,35 @@
                     </div>
                 </template>
 
+                <template v-if="activeTab === 'portfolio'">
+                    <div class="p-4 md:p-6 bg-transparent">
+                        <!-- Portfolio Compilation Content -->
+                        <div class="flex items-center justify-center min-h-[60vh]">
+                            <div class="text-center">
+                                <!-- Show Start button if not active -->
+                                <button
+                                    v-if="!portfolioCompilationActive"
+                                    @click="showPortfolioCompilationDialog = true"
+                                    class="px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                                >
+                                    <i class="pi pi-book mr-2"></i>
+                                    Start Portfolio Compilation
+                                </button>
+                                
+                                <!-- Show Drop button if active -->
+                                <button
+                                    v-else
+                                    @click="showDropCompilationDialog = true"
+                                    class="px-8 py-4 bg-red-600 text-white text-lg font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                                >
+                                    <i class="pi pi-trash mr-2"></i>
+                                    Drop Portfolio Compilation
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
                 <template v-if="activeTab === 'schedule'">
                     <div class="p-4 md:p-6 bg-transparent">
                         <!-- Calendar Header -->
@@ -396,7 +425,7 @@
         <!-- New Folder Dialog -->
         <Dialog v-model:visible="showNewFolderDialog"
             modal
-            header="Create New - Portfolio Folder"
+            header="Create New Folder"
             :style="{ width: '90%', maxWidth: '40rem' }">
             <div class="p-6">
                 <div class="grid grid-cols-2 gap-6">
@@ -604,6 +633,64 @@
                         class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2">
                         <i class="pi pi-archive"></i>
                         Archive Class
+                    </button>
+                </div>
+            </div>
+        </Dialog>
+
+        <!-- Portfolio Compilation Confirmation Dialog -->
+        <Dialog v-model:visible="showPortfolioCompilationDialog"
+            modal
+            header="Start Portfolio Compilation"
+            :style="{ width: '90%', maxWidth: '30rem' }">
+            <div class="p-6">
+                <div class="mb-6 text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
+                        <i class="pi pi-book text-indigo-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Notify Students?</h3>
+                    <p class="text-sm text-gray-500">
+                        This will notify all students in this class to start compiling their portfolios. Do you want to proceed?
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button @click="showPortfolioCompilationDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+                        Cancel
+                    </button>
+                    <button @click="confirmPortfolioCompilation"
+                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2">
+                        <i class="pi pi-check"></i>
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </Dialog>
+
+        <!-- Drop Portfolio Compilation Confirmation Dialog -->
+        <Dialog v-model:visible="showDropCompilationDialog"
+            modal
+            header="Drop Portfolio Compilation"
+            :style="{ width: '90%', maxWidth: '30rem' }">
+            <div class="p-6">
+                <div class="mb-6 text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                        <i class="pi pi-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Drop Portfolio Compilation?</h3>
+                    <p class="text-sm text-gray-500">
+                        This will delete the portfolio compilation and notify all students that the compilation has been cancelled. Do you want to proceed?
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button @click="showDropCompilationDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+                        Cancel
+                    </button>
+                    <button @click="confirmDropPortfolioCompilation"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2">
+                        <i class="pi pi-trash"></i>
+                        Drop Request
                     </button>
                 </div>
             </div>
@@ -1620,7 +1707,8 @@ const activeTab = ref('pupil');
 
 // Tab configurations
 const tabs = [
-    { id: 'pupil', name: 'Pupils Portfolio', icon: 'pi-users' },
+    { id: 'pupil', name: "Pupil's Activities", icon: 'pi-users' },
+    { id: 'portfolio', name: "Pupil's Portfolio Compilation", icon: 'pi-folder' },
     { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' }
 ];
 
@@ -1657,6 +1745,9 @@ const showScheduleDetails = (date) => {
 // Settings Dropdown State
 const showSettingsDropdown = ref(false);
 const showArchiveDialog = ref(false);
+const showPortfolioCompilationDialog = ref(false);
+const showDropCompilationDialog = ref(false);
+const portfolioCompilationActive = ref(false); // Track if compilation is already requested
 const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false));
 const activeMenuIndex = ref(null);
 const menuButtonRefs = ref({});
@@ -1739,6 +1830,29 @@ const authenticateWithBackend = async () => {
     }
 };
 
+// Check if portfolio compilation is already active for this class
+const checkPortfolioCompilationStatus = async () => {
+    try {
+        const classNameValue = props.className || className.value;
+        
+        if (!classNameValue) {
+            return;
+        }
+        
+        const response = await axios.get(`/api/notifications/portfolio-compilation/${encodeURIComponent(classNameValue)}/`);
+        
+        if (response.data && response.data.compilation_requested) {
+            portfolioCompilationActive.value = true;
+            console.log('✅ Portfolio compilation is active for this class');
+        } else {
+            portfolioCompilationActive.value = false;
+        }
+    } catch (error) {
+        console.error('❌ Error checking portfolio compilation status:', error);
+        portfolioCompilationActive.value = false;
+    }
+};
+
 onMounted(async () => {
     document.addEventListener('click', handleDocumentClick, true);
     document.addEventListener('click', handleClickOutside);
@@ -1748,6 +1862,9 @@ onMounted(async () => {
     const authenticated = await authenticateWithBackend();
     if (authenticated) {
         await loadPortfolioFolders();
+        
+        // Check portfolio compilation status
+        await checkPortfolioCompilationStatus();
         
         // Check if returning from Outputs/Sprogress page to show activities list
         const returnContext = localStorage.getItem('return_to_activities');
@@ -2126,6 +2243,74 @@ const undoArchive = () => {
             clearTimeout(toastTimeout);
             toastTimeout = null;
         }
+    }
+};
+
+// Handle portfolio compilation confirmation
+const confirmPortfolioCompilation = async () => {
+    try {
+        // Close the dialog
+        showPortfolioCompilationDialog.value = false;
+        
+        // Get the class name from props
+        const classNameValue = props.className || className.value;
+        
+        if (!classNameValue) {
+            alert('Class name not found');
+            return;
+        }
+        
+        // Send notification to all students in this class
+        const response = await axios.post('/api/notifications/portfolio-compilation/', {
+            class_name: classNameValue
+        });
+        
+        console.log('✅ Portfolio compilation notification sent:', response.data);
+        
+        // Set compilation as active
+        portfolioCompilationActive.value = true;
+        
+        // Show success message with details
+        const studentsNotified = response.data.students_notified || 0;
+        alert(`Portfolio compilation request sent successfully!\n${studentsNotified} student(s) have been notified.`);
+        
+    } catch (error) {
+        console.error('❌ Error sending portfolio compilation notification:', error);
+        const errorMsg = error.response?.data?.error || error.message;
+        alert('Failed to send notification: ' + errorMsg);
+    }
+};
+
+// Handle confirm drop portfolio compilation
+const confirmDropPortfolioCompilation = async () => {
+    try {
+        // Close the dialog
+        showDropCompilationDialog.value = false;
+        
+        const classNameValue = props.className || className.value;
+        
+        if (!classNameValue) {
+            alert('Class name not found');
+            return;
+        }
+        
+        // Delete the compilation request and notify students
+        const response = await axios.delete(`/api/notifications/portfolio-compilation/${encodeURIComponent(classNameValue)}/`);
+        
+        console.log('✅ Portfolio compilation dropped:', response.data);
+        
+        // Set compilation as inactive
+        portfolioCompilationActive.value = false;
+        
+        // Show success message
+        const notificationsDeleted = response.data.notifications_deleted || 0;
+        const studentsNotified = response.data.students_notified || 0;
+        alert(`Portfolio compilation has been deleted successfully.\n${notificationsDeleted} notification(s) removed.\n${studentsNotified} student(s) notified about cancellation.`);
+        
+    } catch (error) {
+        console.error('❌ Error dropping portfolio compilation:', error);
+        const errorMsg = error.response?.data?.error || error.message;
+        alert('Failed to drop compilation request: ' + errorMsg);
     }
 };
 

@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest
 from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer, RemarkSerializer
 import json
 
@@ -600,7 +600,14 @@ def portfolio_activities_api(request, folder_id):
                 if activity.due_date:
                     from datetime import datetime, time as time_type
                     try:
-                        due_date_str = activity.due_date.strftime('%B %d, %Y')
+                        # Handle both date objects and strings
+                        if isinstance(activity.due_date, str):
+                            # Parse string date
+                            due_date_obj = datetime.strptime(activity.due_date, '%Y-%m-%d').date()
+                            due_date_str = due_date_obj.strftime('%B %d, %Y')
+                        else:
+                            due_date_str = activity.due_date.strftime('%B %d, %Y')
+                        
                         if activity.due_time:
                             # Convert time object to datetime for formatting
                             if isinstance(activity.due_time, time_type):
@@ -733,7 +740,14 @@ def activity_detail_api(request, activity_id):
             if activity.due_date:
                 from datetime import datetime, time as time_type
                 try:
-                    due_date_str = activity.due_date.strftime('%B %d, %Y')
+                    # Handle both date objects and strings
+                    if isinstance(activity.due_date, str):
+                        # Parse string date
+                        due_date_obj = datetime.strptime(activity.due_date, '%Y-%m-%d').date()
+                        due_date_str = due_date_obj.strftime('%B %d, %Y')
+                    else:
+                        due_date_str = activity.due_date.strftime('%B %d, %Y')
+                    
                     if activity.due_time:
                         # Convert time object to datetime for formatting
                         if isinstance(activity.due_time, time_type):
@@ -796,7 +810,14 @@ def activity_detail_api(request, activity_id):
             if activity.due_date:
                 from datetime import datetime, time as time_type
                 try:
-                    due_date_str = activity.due_date.strftime('%B %d, %Y')
+                    # Handle both date objects and strings
+                    if isinstance(activity.due_date, str):
+                        # Parse string date
+                        due_date_obj = datetime.strptime(activity.due_date, '%Y-%m-%d').date()
+                        due_date_str = due_date_obj.strftime('%B %d, %Y')
+                    else:
+                        due_date_str = activity.due_date.strftime('%B %d, %Y')
+                    
                     if activity.due_time:
                         # Convert time object to datetime for formatting
                         if isinstance(activity.due_time, time_type):
@@ -1926,3 +1947,189 @@ def student_submission_remarks_api(request):
     except Exception as e:
         print(f"Error fetching student submission remarks: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def request_portfolio_compilation_api(request):
+    """
+    POST: Teacher requests portfolio compilation for a class
+    Creates notifications for all students in the class
+    """
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        data = request.data
+        class_name = data.get('class_name')
+        
+        print(f"📋 Portfolio compilation request for class: {class_name}")
+        
+        if not class_name:
+            return Response({'error': 'class_name is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create or update compilation request for this class
+        print(f"Creating/updating compilation request...")
+        compilation_request, created = PortfolioCompilationRequest.objects.get_or_create(
+            class_name=class_name,
+            requested_by=request.user,
+            defaults={'is_active': True}
+        )
+        print(f"Compilation request {'created' if created else 'updated'}: {compilation_request.id}")
+        
+        if not created:
+            # Update existing request
+            compilation_request.is_active = True
+            compilation_request.requested_at = timezone.now()
+            compilation_request.save()
+        
+        # Get all students (not just those with submissions)
+        # This ensures all students in the system get notified
+        students = User.objects.filter(role='student').exclude(username='admin')
+        
+        print(f"📢 Found {students.count()} students to notify")
+        
+        # Create notifications for all students
+        notifications_created = 0
+        for student in students:
+            # Check if notification already exists for this student
+            existing_notification = Notification.objects.filter(
+                recipient=student,
+                notification_type='portfolio_compilation',
+                title__contains=class_name
+            ).first()
+            
+            if not existing_notification:
+                notification = create_notification(
+                    recipient=student,
+                    notification_type='portfolio_compilation',
+                    title=f'Portfolio Compilation - {class_name}',
+                    message=f'Your teacher has asked you to start compiling your portfolio for {class_name}.'
+                )
+                if notification:
+                    notifications_created += 1
+                    print(f"✅ Notified student: {student.username}")
+                else:
+                    print(f"❌ Failed to notify student: {student.username}")
+            else:
+                print(f"⏭️ Skipped {student.username} - already has notification")
+        
+        return Response({
+            'message': 'Portfolio compilation request sent successfully',
+            'class_name': class_name,
+            'students_notified': notifications_created,
+            'request_id': compilation_request.id
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error requesting portfolio compilation: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'DELETE'])
+def check_portfolio_compilation_status_api(request, class_name):
+    """
+    GET: Check if portfolio compilation has been requested for a class
+    DELETE: Drop/cancel portfolio compilation request for a class (teacher only)
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    if request.method == 'GET':
+        try:
+            # Check if there's an active compilation request for this class
+            compilation_request = PortfolioCompilationRequest.objects.filter(
+                class_name=class_name,
+                is_active=True
+            ).first()
+            
+            if compilation_request:
+                # Also check if the student has a notification for this
+                has_notification = Notification.objects.filter(
+                    recipient=request.user,
+                    notification_type='portfolio_compilation',
+                    title__contains=class_name
+                ).exists()
+                
+                return Response({
+                    'compilation_requested': True,
+                    'requested_at': compilation_request.requested_at,
+                    'has_notification': has_notification
+                })
+            else:
+                return Response({
+                    'compilation_requested': False,
+                    'has_notification': False
+                })
+                
+        except Exception as e:
+            print(f"Error checking portfolio compilation status: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'DELETE':
+        # Only teachers can delete compilation requests
+        if request.user.role != 'teacher':
+            return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            print(f"🗑️ Dropping portfolio compilation for class: {class_name}")
+            
+            # Find and deactivate the compilation request
+            compilation_request = PortfolioCompilationRequest.objects.filter(
+                class_name=class_name,
+                requested_by=request.user,
+                is_active=True
+            ).first()
+            
+            if not compilation_request:
+                return Response({'error': 'No active compilation request found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Deactivate the request
+            compilation_request.is_active = False
+            compilation_request.save()
+            
+            # Delete old compilation notifications
+            deleted_count = Notification.objects.filter(
+                notification_type='portfolio_compilation',
+                title__contains=class_name
+            ).delete()[0]
+            
+            print(f"🗑️ Deleted {deleted_count} old notifications")
+            
+            # Get all students to notify about cancellation
+            students = User.objects.filter(role='student').exclude(username='admin')
+            
+            print(f"📢 Notifying {students.count()} students about cancellation")
+            
+            # Notify students about cancellation
+            students_notified = 0
+            for student in students:
+                notification = create_notification(
+                    recipient=student,
+                    notification_type='portfolio_compilation',
+                    title=f'Portfolio Compilation Cancelled - {class_name}',
+                    message=f'The portfolio compilation for {class_name} has been cancelled by your teacher.'
+                )
+                if notification:
+                    students_notified += 1
+                    print(f"✅ Notified {student.username} about cancellation")
+                else:
+                    print(f"❌ Failed to notify {student.username}")
+            
+            print(f"✅ Compilation request deactivated, {deleted_count} notifications deleted, {students_notified} students notified")
+            
+            return Response({
+                'message': 'Portfolio compilation request dropped successfully',
+                'class_name': class_name,
+                'notifications_deleted': deleted_count,
+                'students_notified': students_notified
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            import traceback
+            print(f"❌ Error dropping portfolio compilation: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

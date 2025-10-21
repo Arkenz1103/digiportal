@@ -179,9 +179,6 @@
                   </div>
                 </div>
               </div>
-              
-              <!-- Hover Effect Border -->
-              <div class="absolute inset-0 border-2 border-transparent group-hover:border-indigo-400 rounded-2xl transition-colors duration-300 pointer-events-none"></div>
             </div>
           </TransitionGroup>
 

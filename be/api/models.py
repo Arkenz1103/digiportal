@@ -245,6 +245,7 @@ class Notification(models.Model):
         ('remark_added', 'Remark Added'),
         ('remark_updated', 'Remark Updated'),
         ('remark_deleted', 'Remark Deleted'),
+        ('portfolio_compilation', 'Portfolio Compilation'),
         
         # Teacher notifications
         ('submission_received', 'Submission Received'),
@@ -273,3 +274,18 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.recipient.username} - {self.title}"
+
+
+class PortfolioCompilationRequest(models.Model):
+    """Track portfolio compilation requests per class"""
+    class_name = models.CharField(max_length=255)
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compilation_requests')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        db_table = 'portfolio_compilation_requests'
+        ordering = ['-requested_at']
+    
+    def __str__(self):
+        return f"Compilation request for {self.class_name} by {self.requested_by.username}"
