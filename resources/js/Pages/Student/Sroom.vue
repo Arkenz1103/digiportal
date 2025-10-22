@@ -424,8 +424,355 @@
         <!-- Portfolio Compilation Tab Content -->
         <template v-if="activeTab === 'compilation'">
           <div class="p-4 md:p-6">
-            <!-- Show message only if teacher requested compilation -->
-            <div v-if="portfolioCompilationRequested" class="flex items-center justify-center min-h-[60vh]">
+            <!-- Show designed portfolio envelope if created -->
+            <div v-if="portfolioEnvelopeCreated" class="max-w-3xl mx-auto">
+              <!-- Portfolio Envelope Display - Hide when opened -->
+              <div 
+                v-if="!isEnvelopeOpen"
+                @click="toggleEnvelope"
+                class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
+              >
+                <!-- Envelope Preview -->
+                <div class="relative w-full aspect-[21/9]"
+                     :style="{ backgroundColor: envelopeDesign.color }">
+                  
+                  <!-- Pattern Overlay -->
+                  <div v-if="envelopeDesign.pattern === 'dots'" 
+                       class="absolute inset-0 opacity-20"
+                       style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
+                  </div>
+                  <div v-else-if="envelopeDesign.pattern === 'lines'" 
+                       class="absolute inset-0 opacity-20"
+                       style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
+                  </div>
+                  <div v-else-if="envelopeDesign.pattern === 'grid'" 
+                       class="absolute inset-0 opacity-20"
+                       style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
+                  </div>
+
+                  <!-- Envelope Flap with Animation -->
+                  <div 
+                    class="absolute top-0 left-0 right-0 h-1/4 border-b-4 border-white/30 transition-all duration-700 ease-out origin-top"
+                    :class="{ 
+                      'rotate-x-180 -translate-y-full opacity-0': isEnvelopeOpen,
+                      'rotate-x-0 translate-y-0 opacity-100': !isEnvelopeOpen
+                    }"
+                    :style="{ 
+                      background: `linear-gradient(180deg, ${envelopeDesign.color} 0%, ${adjustBrightness(envelopeDesign.color, -20)} 100%)`,
+                      transformStyle: 'preserve-3d',
+                      perspective: '1000px'
+                    }">
+                      <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
+                                  border-l-[150px] border-r-[150px] border-t-[80px] border-l-transparent border-r-transparent transition-all duration-700"
+                           :style="{ borderTopColor: adjustBrightness(envelopeDesign.color, -20) }">
+                      </div>
+                  </div>
+
+                  <!-- Content Area with Slide-Up Animation -->
+                  <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                      <div 
+                        class="bg-white/20 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 max-w-sm w-full transition-all duration-700 ease-out"
+                        :class="{
+                          'translate-y-0 opacity-100 scale-100': isEnvelopeOpen,
+                          'translate-y-8 opacity-70 scale-95': !isEnvelopeOpen
+                        }"
+                      >
+                          <h1 class="text-2xl font-bold text-white mb-2 transition-all duration-500" 
+                              :class="{ 'scale-110': isEnvelopeOpen }"
+                              style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
+                              {{ envelopeDesign.title }}
+                          </h1>
+                          <p class="text-base text-white/90 font-medium mb-1 transition-all duration-500 delay-100" 
+                             :class="{ 'opacity-100': isEnvelopeOpen, 'opacity-80': !isEnvelopeOpen }"
+                             style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                              {{ envelopeDesign.studentName }}
+                          </p>
+                          <p class="text-sm text-white/80 transition-all duration-500 delay-200" 
+                             :class="{ 'opacity-100': isEnvelopeOpen, 'opacity-70': !isEnvelopeOpen }"
+                             style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                              {{ envelopeDesign.className }}
+                          </p>
+                          
+                          <!-- Open Indicator - Only show when closed -->
+                          <div v-if="!isEnvelopeOpen" class="mt-4 text-white/60 text-xs animate-pulse">
+                            <i class="pi pi-hand-pointer mr-1"></i>
+                            Click to open
+                          </div>
+                      </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Activities Carousel - Show when envelope is opened -->
+              <div v-if="isEnvelopeOpen && portfolioActivities.length > 0" class="relative">
+                <!-- Portfolio Tabs with Back Button -->
+                <div class="flex justify-between items-center mb-6">
+                  <!-- Tabs on the left -->
+                  <div class="flex gap-2">
+                    <button
+                      @click="activePortfolioTab = 'all'"
+                      class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+                      :class="activePortfolioTab === 'all' 
+                        ? 'bg-indigo-600 text-white shadow-lg' 
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'"
+                    >
+                      <i class="pi pi-list"></i>
+                      Activity Compilation
+                      <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                            :class="activePortfolioTab === 'all' ? 'bg-white/20' : 'bg-gray-200'">
+                        {{ portfolioActivities.length }}
+                      </span>
+                    </button>
+                    <button
+                      @click="activePortfolioTab = 'missing'"
+                      class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+                      :class="activePortfolioTab === 'missing' 
+                        ? 'bg-orange-600 text-white shadow-lg' 
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'"
+                    >
+                      <i class="pi pi-exclamation-triangle"></i>
+                      Missing Activity Compilation
+                      <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                            :class="activePortfolioTab === 'missing' ? 'bg-white/20' : 'bg-orange-100 text-orange-800'">
+                        {{ missingActivities.length }}
+                      </span>
+                    </button>
+                  </div>
+
+                  <!-- Back Button on the right -->
+                  <button
+                    @click="isEnvelopeOpen = false"
+                    class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                  >
+                    <i class="pi pi-arrow-left text-sm"></i>
+                    Back to Envelope
+                  </button>
+                </div>
+
+                <!-- All Activities Tab Content -->
+                <div v-if="activePortfolioTab === 'all'" class="rounded-2xl shadow-xl overflow-hidden min-h-[600px] relative"
+                     :style="{ background: `linear-gradient(135deg, ${envelopeDesign.color} 0%, ${adjustBrightness(envelopeDesign.color, -20)} 100%)` }">
+                  
+                  <!-- Pattern Overlay (matching envelope) -->
+                  <div v-if="envelopeDesign.pattern === 'dots'" 
+                       class="absolute inset-0 opacity-10 pointer-events-none"
+                       style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
+                  </div>
+                  <div v-else-if="envelopeDesign.pattern === 'lines'" 
+                       class="absolute inset-0 opacity-10 pointer-events-none"
+                       style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
+                  </div>
+                  <div v-else-if="envelopeDesign.pattern === 'grid'" 
+                       class="absolute inset-0 opacity-10 pointer-events-none"
+                       style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
+                  </div>
+
+                  <!-- Activity Display -->
+                  <div class="relative p-8">
+                    <!-- Activity Counter -->
+                    <div class="absolute top-4 right-4 z-10 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg"
+                         :style="{ backgroundColor: adjustBrightness(envelopeDesign.color, -30) }">
+                      {{ currentActivityIndex + 1 }} / {{ portfolioActivities.length }}
+                    </div>
+
+                    <!-- Activity Content -->
+                    <div v-if="portfolioActivities[currentActivityIndex]">
+                      <!-- Content Card with Glass Effect -->
+                      <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl relative">
+                      <!-- Activity Image/Preview -->
+                      <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50">
+                        <img v-if="portfolioActivities[currentActivityIndex].submission_file" 
+                             :src="portfolioActivities[currentActivityIndex].submission_file"
+                             alt="Activity submission"
+                             class="w-full h-full object-cover"
+                             @error="(e) => { e.target.style.display = 'none'; }"
+                        />
+                        <div v-if="!portfolioActivities[currentActivityIndex].submission_file || portfolioActivities[currentActivityIndex].submission_status === 'missing'" 
+                             class="text-center flex flex-col items-center">
+                          <i class="pi pi-file text-6xl text-indigo-300 mb-4"></i>
+                          <p class="text-indigo-600 font-medium">
+                            {{ portfolioActivities[currentActivityIndex].submission_status === 'missing' ? 'No Submission' : 'Activity' }}
+                          </p>
+                        </div>
+                      </div>
+
+                      <!-- Submission Caption -->
+                      <div v-if="portfolioActivities[currentActivityIndex].submission_caption" class="mb-4 p-4 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-700 italic">
+                          "{{ portfolioActivities[currentActivityIndex].submission_caption }}"
+                        </p>
+                      </div>
+
+                      <!-- Score and Feedback -->
+                      <div v-if="portfolioActivities[currentActivityIndex].submission_score !== null && portfolioActivities[currentActivityIndex].submission_score !== undefined" 
+                           class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div class="flex items-center justify-between mb-2">
+                          <span class="text-sm font-medium text-gray-700">Score:</span>
+                          <span class="text-2xl font-bold text-green-700">{{ portfolioActivities[currentActivityIndex].submission_score }}</span>
+                        </div>
+                        <div v-if="portfolioActivities[currentActivityIndex].submission_feedback" class="mt-2 pt-2 border-t border-green-200">
+                          <p class="text-sm text-gray-600">
+                            <span class="font-medium">Feedback:</span> {{ portfolioActivities[currentActivityIndex].submission_feedback }}
+                          </p>
+                        </div>
+                      </div>
+
+                      <!-- Activity Details -->
+                      <div class="space-y-4">
+                        <div>
+                          <div class="flex items-center gap-3 mb-3">
+                            <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold uppercase">
+                              {{ portfolioActivities[currentActivityIndex].activity_type || 'Activity' }}
+                            </span>
+                            <span class="text-sm text-gray-500">
+                              {{ portfolioActivities[currentActivityIndex].folder_name }}
+                            </span>
+                          </div>
+                          <h3 class="text-2xl font-bold text-gray-900 mb-2">
+                            {{ portfolioActivities[currentActivityIndex].title }}
+                          </h3>
+                          <p class="text-gray-600">
+                            {{ portfolioActivities[currentActivityIndex].description }}
+                          </p>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+                          <div>
+                            <span class="text-sm text-gray-500 block mb-1">Status:</span>
+                            <span class="px-3 py-1 rounded-full text-sm font-medium inline-block"
+                                  :class="portfolioActivities[currentActivityIndex].submission_status === 'submitted' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800'">
+                              {{ portfolioActivities[currentActivityIndex].submission_status === 'submitted' ? 'Submitted' : 'Missing' }}
+                            </span>
+                          </div>
+                          <div v-if="portfolioActivities[currentActivityIndex].submission_date">
+                            <span class="text-sm text-gray-500 block mb-1">Submitted:</span>
+                            <span class="text-sm font-medium text-gray-900">
+                              {{ new Date(portfolioActivities[currentActivityIndex].submission_date).toLocaleDateString() }}
+                            </span>
+                          </div>
+                          <div v-if="portfolioActivities[currentActivityIndex].due_date">
+                            <span class="text-sm text-gray-500 block mb-1">Due Date:</span>
+                            <span class="text-sm font-medium text-gray-900">
+                              {{ new Date(portfolioActivities[currentActivityIndex].due_date).toLocaleDateString() }}
+                            </span>
+                          </div>
+                          <div v-if="portfolioActivities[currentActivityIndex].due_time">
+                            <span class="text-sm text-gray-500 block mb-1">Due Time:</span>
+                            <span class="text-sm font-medium text-gray-900">
+                              {{ portfolioActivities[currentActivityIndex].due_time }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      </div>
+                      <!-- Close Content Card -->
+                      
+                      <!-- Navigation Arrows - Centered with image, inside card -->
+                      <button
+                        @click="previousActivity"
+                        :disabled="currentActivityIndex === 0"
+                        class="absolute left-2 top-[200px] w-14 h-14 bg-white/90 backdrop-blur-sm rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed z-30"
+                        :style="{ borderColor: envelopeDesign.color, borderWidth: '3px' }"
+                      >
+                        <i class="pi pi-chevron-left text-xl" :style="{ color: envelopeDesign.color }"></i>
+                      </button>
+                      <button
+                        @click="nextActivity"
+                        :disabled="currentActivityIndex >= portfolioActivities.length - 1"
+                        class="absolute right-2 top-[200px] w-14 h-14 bg-white/90 backdrop-blur-sm rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed z-30"
+                        :style="{ borderColor: envelopeDesign.color, borderWidth: '3px' }"
+                      >
+                        <i class="pi pi-chevron-right text-xl" :style="{ color: envelopeDesign.color }"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Activity Compilation Tab Content -->
+                <div v-if="activePortfolioTab === 'missing'" class="bg-white rounded-2xl shadow-xl overflow-hidden p-8">
+                  <div v-if="missingActivities.length > 0">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-6">Missing Activities to Compile</h3>
+                    
+                    <!-- Missing Activities List -->
+                    <div class="space-y-4">
+                      <div v-for="activity in missingActivities" :key="activity.id"
+                           class="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-6 hover:shadow-lg transition-all">
+                        <div class="flex items-start justify-between">
+                          <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-3">
+                              <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
+                                Missing
+                              </span>
+                              <span class="text-sm text-gray-500">
+                                {{ activity.folder_name }}
+                              </span>
+                            </div>
+                            <h4 class="text-xl font-bold text-gray-900 mb-2">{{ activity.title }}</h4>
+                            <p class="text-gray-600 mb-4">{{ activity.description }}</p>
+                            <div class="flex items-center gap-4 text-sm text-gray-500">
+                              <span v-if="activity.due_date">
+                                <i class="pi pi-calendar mr-1"></i>
+                                Due: {{ new Date(activity.due_date).toLocaleDateString() }}
+                              </span>
+                              <span v-if="activity.due_time">
+                                <i class="pi pi-clock mr-1"></i>
+                                {{ activity.due_time }}
+                              </span>
+                              <span class="capitalize">
+                                <i class="pi pi-tag mr-1"></i>
+                                {{ activity.activity_type }}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            @click="compileActivity(activity)"
+                            class="ml-4 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                          >
+                            <i class="pi pi-plus"></i>
+                            Compile Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Empty State -->
+                  <div v-else class="text-center py-12">
+                    <i class="pi pi-check-circle text-6xl text-green-500 mb-4"></i>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-2">All Activities Completed!</h3>
+                    <p class="text-gray-600">You have submitted all activities. Great job!</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons - Only show when envelope is closed -->
+              <div v-if="!isEnvelopeOpen" class="flex flex-wrap gap-3 justify-center">
+                <button
+                  @click="editEnvelopeDesign"
+                  class="px-6 py-3 bg-white text-gray-700 font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+                >
+                  <i class="pi pi-pencil"></i>
+                  Edit Design
+                </button>
+                <button
+                  class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                >
+                  <i class="pi pi-download"></i>
+                  Download Portfolio
+                </button>
+                <button
+                  class="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                >
+                  <i class="pi pi-share-alt"></i>
+                  Share Portfolio
+                </button>
+              </div>
+            </div>
+
+            <!-- Show message only if teacher requested compilation but envelope not created -->
+            <div v-else-if="portfolioCompilationRequested" class="flex items-center justify-center min-h-[60vh]">
               <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 md:p-12 text-center">
                 <!-- Icon -->
                 <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-indigo-100 mb-6">
@@ -445,6 +792,7 @@
                 
                 <!-- Start Button -->
                 <button
+                  @click="startPortfolioCompilation"
                   class="px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 inline-flex items-center gap-3"
                 >
                   <i class="pi pi-play-circle text-xl"></i>
@@ -695,6 +1043,94 @@
       </template>
     </Dialog>
 
+    <!-- Missing Activities Dialog -->
+    <Dialog v-model:visible="showMissingActivitiesDialog"
+        modal
+        header="Missing Activities"
+        :style="{ width: '95%', maxWidth: '50rem' }">
+        <div class="p-6">
+            <div class="mb-6">
+                <p class="text-gray-600 mb-4">
+                    The following activities are missing submissions. You can compile them now to complete your portfolio.
+                </p>
+            </div>
+
+            <!-- Missing Activities List -->
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                <div v-for="activity in missingActivities" :key="activity.id"
+                     class="bg-red-50 border border-red-200 rounded-lg p-4 hover:bg-red-100 transition-colors">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900 mb-1">{{ activity.title }}</h4>
+                            <p class="text-sm text-gray-600 mb-2">{{ activity.description }}</p>
+                            <div class="flex items-center gap-4 text-xs text-gray-500">
+                                <span v-if="activity.due_date">
+                                    <i class="pi pi-calendar mr-1"></i>
+                                    Due: {{ new Date(activity.due_date).toLocaleDateString() }}
+                                </span>
+                                <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full font-medium">
+                                    Missing
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            @click="compileActivity(activity)"
+                            class="ml-4 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                        >
+                            <i class="pi pi-plus"></i>
+                            Compile
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-if="missingActivities.length === 0" class="text-center py-8">
+                <i class="pi pi-check-circle text-4xl text-green-500 mb-3"></i>
+                <p class="text-gray-600">All activities have been submitted!</p>
+            </div>
+
+            <!-- Close Button -->
+            <div class="mt-6 flex justify-end">
+                <button
+                    @click="showMissingActivitiesDialog = false"
+                    class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                    Close
+                </button>
+            </div>
+        </div>
+    </Dialog>
+
+    <!-- Envelope Confirmation Dialog -->
+    <Dialog v-model:visible="showEnvelopeConfirmDialog"
+        modal
+        header="Confirm Portfolio Envelope"
+        :style="{ width: '90%', maxWidth: '30rem' }">
+        <div class="p-6">
+            <div class="mb-6 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
+                    <i class="pi pi-check-circle text-indigo-600 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Create Portfolio Envelope?</h3>
+                <p class="text-sm text-gray-500">
+                    Are you sure you want to create this portfolio envelope? Your teacher will be notified.
+                </p>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button @click="showEnvelopeConfirmDialog = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Cancel
+                </button>
+                <button @click="confirmSaveEnvelope"
+                    class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2">
+                    <i class="pi pi-check"></i>
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </Dialog>
+
     <!-- Archive Class Dialog -->
     <Dialog v-model:visible="showArchiveDialog"
         modal
@@ -720,6 +1156,168 @@
                     <i class="pi pi-archive"></i>
                     Archive Class
                 </button>
+            </div>
+        </div>
+    </Dialog>
+
+    <!-- Portfolio Envelope Designer Dialog -->
+    <Dialog v-model:visible="showEnvelopeDesigner"
+        modal
+        header="Design Your Portfolio Envelope"
+        :style="{ width: '95%', maxWidth: '70rem' }"
+        :contentStyle="{ padding: '0' }">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+            <!-- Left Side: Design Controls -->
+            <div class="space-y-6">
+                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <i class="pi pi-palette text-indigo-600"></i>
+                        Customize Your Envelope
+                    </h3>
+                    
+                    <!-- Portfolio Title -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Portfolio Title</label>
+                        <input
+                            v-model="envelopeDesign.title"
+                            type="text"
+                            placeholder="My Portfolio"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    <!-- Student Name -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Your Name</label>
+                        <input
+                            v-model="envelopeDesign.studentName"
+                            type="text"
+                            placeholder="Enter your name"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    <!-- Class Name -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Class</label>
+                        <input
+                            v-model="envelopeDesign.className"
+                            type="text"
+                            :placeholder="props.className"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    <!-- Envelope Color -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Envelope Color</label>
+                        <div class="grid grid-cols-5 gap-3">
+                            <button
+                                v-for="color in envelopeColors"
+                                :key="color.value"
+                                @click="envelopeDesign.color = color.value"
+                                :style="{ backgroundColor: color.value }"
+                                :class="[
+                                    'w-full h-12 rounded-lg transition-all duration-200 border-4',
+                                    envelopeDesign.color === color.value ? 'border-gray-800 scale-110 shadow-lg' : 'border-transparent hover:scale-105'
+                                ]"
+                                :title="color.name"
+                            ></button>
+                        </div>
+                    </div>
+
+                    <!-- Pattern Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Pattern Style</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button
+                                v-for="pattern in envelopePatterns"
+                                :key="pattern.value"
+                                @click="envelopeDesign.pattern = pattern.value"
+                                :class="[
+                                    'px-4 py-3 rounded-lg border-2 transition-all duration-200 text-sm font-medium',
+                                    envelopeDesign.pattern === pattern.value
+                                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                        : 'border-gray-300 bg-white text-gray-700 hover:border-indigo-400'
+                                ]"
+                            >
+                                {{ pattern.name }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Live Preview -->
+            <div class="space-y-4">
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <i class="pi pi-eye text-indigo-600"></i>
+                        Live Preview
+                    </h3>
+                    
+                    <!-- Envelope Preview -->
+                    <div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow-2xl"
+                         :style="{ backgroundColor: envelopeDesign.color }">
+                        
+                        <!-- Pattern Overlay -->
+                        <div v-if="envelopeDesign.pattern === 'dots'" 
+                             class="absolute inset-0 opacity-20"
+                             style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
+                        </div>
+                        <div v-else-if="envelopeDesign.pattern === 'lines'" 
+                             class="absolute inset-0 opacity-20"
+                             style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
+                        </div>
+                        <div v-else-if="envelopeDesign.pattern === 'grid'" 
+                             class="absolute inset-0 opacity-20"
+                             style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
+                        </div>
+
+                        <!-- Envelope Flap -->
+                        <div class="absolute top-0 left-0 right-0 h-1/3 border-b-4 border-white/30"
+                             :style="{ 
+                                 background: `linear-gradient(180deg, ${envelopeDesign.color} 0%, ${adjustBrightness(envelopeDesign.color, -20)} 100%)`
+                             }">
+                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
+                                        border-l-[100px] border-r-[100px] border-t-[60px] border-l-transparent border-r-transparent"
+                                 :style="{ borderTopColor: adjustBrightness(envelopeDesign.color, -20) }">
+                            </div>
+                        </div>
+
+                        <!-- Content Area -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                            <div class="bg-white/20 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-white/30 max-w-sm">
+                                <h2 class="text-xl font-bold text-white mb-2" style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
+                                    {{ envelopeDesign.title || 'My Portfolio' }}
+                                </h2>
+                                <p class="text-base text-white/90 font-medium mb-1" style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                                    {{ envelopeDesign.studentName || 'Student Name' }}
+                                </p>
+                                <p class="text-sm text-white/80" style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                                    {{ envelopeDesign.className || props.className }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3 mt-6">
+                        <button
+                            @click="showEnvelopeDesigner = false"
+                            class="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            @click="showConfirmEnvelopeDialog"
+                            class="flex-1 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                        >
+                            <i class="pi pi-check"></i>
+                            Save & Continue
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </Dialog>
@@ -835,6 +1433,24 @@ const currentUser = ref({
 const activeTab = ref('portfolio');
 const activeContentTab = ref('samples');
 const portfolioCompilationRequested = ref(false); // Track if teacher requested compilation
+const showEnvelopeDesigner = ref(false); // Track if envelope designer is shown
+const showEnvelopeConfirmDialog = ref(false); // Track confirmation dialog
+const portfolioEnvelopeCreated = ref(false); // Track if envelope has been created
+const isEnvelopeOpen = ref(false); // Track if envelope is opened
+const envelopeDesign = ref({
+  color: '#4F46E5',
+  pattern: 'solid',
+  title: 'My Portfolio',
+  studentName: '',
+  className: ''
+});
+
+// Portfolio activities
+const portfolioActivities = ref([]);
+const currentActivityIndex = ref(0);
+const showMissingActivitiesDialog = ref(false);
+const missingActivities = ref([]);
+const activePortfolioTab = ref('all'); // 'all' or 'missing'
 
 // Navigation tabs
 const tabs = [
@@ -1377,6 +1993,9 @@ onMounted(async () => {
   // Authenticate with backend first, then load folders
   const authenticated = await authenticateWithBackend();
   if (authenticated) {
+    // Check if student has an existing portfolio envelope
+    await checkExistingEnvelope();
+    
     // Restore previous view state after refresh
     const savedView = localStorage.getItem('student_current_view');
     if (savedView) {
@@ -1546,6 +2165,202 @@ const confirmArchive = () => {
 
   // Optionally redirect to the archived classes page
   // You can implement navigation here if needed
+};
+
+// Envelope designer colors
+const envelopeColors = [
+  { name: 'Indigo', value: '#4F46E5' },
+  { name: 'Purple', value: '#9333EA' },
+  { name: 'Blue', value: '#3B82F6' },
+  { name: 'Teal', value: '#14B8A6' },
+  { name: 'Green', value: '#10B981' },
+  { name: 'Red', value: '#EF4444' },
+  { name: 'Orange', value: '#F97316' },
+  { name: 'Pink', value: '#EC4899' },
+  { name: 'Gray', value: '#6B7280' },
+  { name: 'Navy', value: '#1E3A8A' }
+];
+
+// Envelope patterns
+const envelopePatterns = [
+  { name: 'Solid', value: 'solid' },
+  { name: 'Dots', value: 'dots' },
+  { name: 'Lines', value: 'lines' },
+  { name: 'Grid', value: 'grid' }
+];
+
+// Start portfolio compilation - show envelope designer
+const startPortfolioCompilation = () => {
+  // Initialize with current user data
+  envelopeDesign.value.studentName = currentUser.value.name;
+  envelopeDesign.value.className = props.className;
+  
+  // Show the envelope designer
+  showEnvelopeDesigner.value = true;
+};
+
+// Helper function to adjust color brightness
+const adjustBrightness = (color, percent) => {
+  const num = parseInt(color.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
+  return '#' + (
+    0x1000000 +
+    (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+    (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+    (B < 255 ? (B < 1 ? 0 : B) : 255)
+  ).toString(16).slice(1);
+};
+
+// Show confirmation dialog
+const showConfirmEnvelopeDialog = () => {
+  // Validate required fields
+  if (!envelopeDesign.value.title || !envelopeDesign.value.studentName) {
+    alert('Please fill in all required fields (Title and Student Name)');
+    return;
+  }
+  
+  // Show confirmation dialog
+  showEnvelopeConfirmDialog.value = true;
+};
+
+// Confirm and save envelope design
+const confirmSaveEnvelope = async () => {
+  console.log('Saving envelope design:', envelopeDesign.value);
+  
+  try {
+    // Save to backend
+    const response = await axios.post('/api/portfolio-envelope/create/', {
+      title: envelopeDesign.value.title,
+      student_name: envelopeDesign.value.studentName,
+      class_name: envelopeDesign.value.className || props.className,
+      color: envelopeDesign.value.color,
+      pattern: envelopeDesign.value.pattern
+    });
+    
+    console.log('✅ Portfolio envelope created:', response.data);
+    
+    // Mark envelope as created and close dialogs
+    portfolioEnvelopeCreated.value = true;
+    showEnvelopeConfirmDialog.value = false;
+    showEnvelopeDesigner.value = false;
+    
+    alert('Portfolio envelope created successfully!');
+  } catch (error) {
+    console.error('❌ Error creating portfolio envelope:', error);
+    alert('Failed to create portfolio envelope: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+// Edit envelope design
+const editEnvelopeDesign = async () => {
+  try {
+    // Fetch existing envelope data
+    const classNameValue = props.className;
+    const response = await axios.get(`/api/portfolio-envelope/student/${encodeURIComponent(classNameValue)}/`);
+    
+    if (response.data && response.data.envelope) {
+      // Load existing envelope data into the designer
+      envelopeDesign.value = {
+        title: response.data.envelope.title,
+        studentName: response.data.envelope.student_name,
+        className: response.data.envelope.class_name,
+        color: response.data.envelope.color,
+        pattern: response.data.envelope.pattern
+      };
+      console.log('✅ Loaded existing envelope data for editing');
+    }
+  } catch (error) {
+    console.error('❌ Error loading envelope data:', error);
+    // If no envelope found, use default values
+    envelopeDesign.value.studentName = currentUser.value.name;
+    envelopeDesign.value.className = props.className;
+  }
+  
+  showEnvelopeDesigner.value = true;
+};
+
+// Toggle envelope open/close
+const toggleEnvelope = async () => {
+  isEnvelopeOpen.value = !isEnvelopeOpen.value;
+  console.log('Envelope toggled:', isEnvelopeOpen.value ? 'opened' : 'closed');
+  
+  // Fetch activities when envelope is opened
+  if (isEnvelopeOpen.value && portfolioActivities.value.length === 0) {
+    await fetchPortfolioActivities();
+  }
+};
+
+// Fetch portfolio activities
+const fetchPortfolioActivities = async () => {
+  try {
+    const classNameValue = props.className;
+    const response = await axios.get(`/api/portfolio-envelope/activities/${encodeURIComponent(classNameValue)}/`);
+    
+    if (response.data) {
+      portfolioActivities.value = response.data.all_activities || [];
+      missingActivities.value = response.data.missing_activities || [];
+      currentActivityIndex.value = 0;
+      console.log(`✅ Loaded ${portfolioActivities.value.length} activities (${missingActivities.value.length} missing)`);
+    }
+  } catch (error) {
+    console.error('❌ Error fetching portfolio activities:', error);
+  }
+};
+
+// Navigate activities
+const nextActivity = () => {
+  if (currentActivityIndex.value < portfolioActivities.value.length - 1) {
+    currentActivityIndex.value++;
+  }
+};
+
+const previousActivity = () => {
+  if (currentActivityIndex.value > 0) {
+    currentActivityIndex.value--;
+  }
+};
+
+// Show missing activities dialog
+const showMissingActivities = () => {
+  showMissingActivitiesDialog.value = true;
+};
+
+// Compile missing activity
+const compileActivity = (activity) => {
+  console.log('Compiling activity:', activity.title);
+  // Close the missing activities dialog
+  showMissingActivitiesDialog.value = false;
+  // Open the activity for submission
+  openActivity(activity);
+};
+
+// Check if student has existing envelope
+const checkExistingEnvelope = async () => {
+  try {
+    const classNameValue = props.className;
+    const response = await axios.get(`/api/portfolio-envelope/student/${encodeURIComponent(classNameValue)}/`);
+    
+    if (response.data && response.data.envelope) {
+      // Load existing envelope data
+      envelopeDesign.value = {
+        title: response.data.envelope.title,
+        studentName: response.data.envelope.student_name,
+        className: response.data.envelope.class_name,
+        color: response.data.envelope.color,
+        pattern: response.data.envelope.pattern
+      };
+      portfolioEnvelopeCreated.value = true;
+      console.log('✅ Existing envelope found and loaded');
+    } else {
+      portfolioEnvelopeCreated.value = false;
+    }
+  } catch (error) {
+    console.log('ℹ️ No existing envelope found:', error.response?.status);
+    portfolioEnvelopeCreated.value = false;
+  }
 };
 
 // Submit new product

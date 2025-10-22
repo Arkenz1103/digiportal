@@ -332,27 +332,191 @@
                 <template v-if="activeTab === 'portfolio'">
                     <div class="p-4 md:p-6 bg-transparent">
                         <!-- Portfolio Compilation Content -->
-                        <div class="flex items-center justify-center min-h-[60vh]">
+                        <div v-if="!portfolioCompilationActive" class="flex items-center justify-center min-h-[60vh]">
                             <div class="text-center">
                                 <!-- Show Start button if not active -->
                                 <button
-                                    v-if="!portfolioCompilationActive"
                                     @click="showPortfolioCompilationDialog = true"
                                     class="px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                                 >
                                     <i class="pi pi-book mr-2"></i>
                                     Start Portfolio Compilation
                                 </button>
-                                
-                                <!-- Show Drop button if active -->
-                                <button
-                                    v-else
-                                    @click="showDropCompilationDialog = true"
-                                    class="px-8 py-4 bg-red-600 text-white text-lg font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                            </div>
+                        </div>
+
+                        <!-- Student Portfolio Compilation Table -->
+                        <div v-else class="space-y-4">
+                            <!-- Show selected envelope if viewing one -->
+                            <div v-if="selectedEnvelope" class="max-w-3xl mx-auto">
+                                <!-- Back Button - Right Aligned -->
+                                <div class="flex justify-end mb-4">
+                                    <button
+                                        @click="selectedEnvelope = null; isEnvelopeOpen = false"
+                                        class="px-6 py-3 bg-white text-gray-700 font-semibold rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                    >
+                                        <i class="pi pi-arrow-left"></i>
+                                        Back to List
+                                    </button>
+                                </div>
+
+                                <!-- Portfolio Envelope Display -->
+                                <div 
+                                    @click="toggleEnvelopeOpen"
+                                    class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
+                                    :class="{ 'scale-95': isEnvelopeOpen }"
                                 >
-                                    <i class="pi pi-trash mr-2"></i>
-                                    Drop Portfolio Compilation
-                                </button>
+                                    <!-- Envelope Preview -->
+                                    <div class="relative w-full aspect-[21/9]"
+                                         :style="{ backgroundColor: selectedEnvelope.color }">
+                                        
+                                        <!-- Pattern Overlay -->
+                                        <div v-if="selectedEnvelope.pattern === 'dots'" 
+                                             class="absolute inset-0 opacity-20"
+                                             style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
+                                        </div>
+                                        <div v-else-if="selectedEnvelope.pattern === 'lines'" 
+                                             class="absolute inset-0 opacity-20"
+                                             style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
+                                        </div>
+                                        <div v-else-if="selectedEnvelope.pattern === 'grid'" 
+                                             class="absolute inset-0 opacity-20"
+                                             style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
+                                        </div>
+
+                                        <!-- Envelope Flap with Animation -->
+                                        <div 
+                                            class="absolute top-0 left-0 right-0 h-1/4 border-b-4 border-white/30 transition-all duration-700 ease-out origin-top"
+                                            :class="{ 
+                                                'rotate-x-180 -translate-y-full opacity-0': isEnvelopeOpen,
+                                                'rotate-x-0 translate-y-0 opacity-100': !isEnvelopeOpen
+                                            }"
+                                            :style="{ 
+                                                background: `linear-gradient(180deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`,
+                                                transformStyle: 'preserve-3d',
+                                                perspective: '1000px'
+                                            }">
+                                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
+                                                        border-l-[150px] border-r-[150px] border-t-[80px] border-l-transparent border-r-transparent transition-all duration-700"
+                                                 :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -20) }">
+                                            </div>
+                                        </div>
+
+                                        <!-- Content Area with Slide-Up Animation -->
+                                        <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                                            <div 
+                                                class="bg-white/20 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 max-w-sm w-full transition-all duration-700 ease-out"
+                                                :class="{
+                                                    'translate-y-0 opacity-100 scale-100': isEnvelopeOpen,
+                                                    'translate-y-8 opacity-70 scale-95': !isEnvelopeOpen
+                                                }"
+                                            >
+                                                <h1 class="text-2xl font-bold text-white mb-2 transition-all duration-500" 
+                                                    :class="{ 'scale-110': isEnvelopeOpen }"
+                                                    style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
+                                                    {{ selectedEnvelope.title }}
+                                                </h1>
+                                                <p class="text-base text-white/90 font-medium mb-1 transition-all duration-500 delay-100" 
+                                                   :class="{ 'opacity-100': isEnvelopeOpen, 'opacity-80': !isEnvelopeOpen }"
+                                                   style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                                                    {{ selectedEnvelope.name }}
+                                                </p>
+                                                <p class="text-sm text-white/80 transition-all duration-500 delay-200" 
+                                                   :class="{ 'opacity-100': isEnvelopeOpen, 'opacity-70': !isEnvelopeOpen }"
+                                                   style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                                                    {{ selectedEnvelope.className }}
+                                                </p>
+                                                
+                                                <!-- Open Indicator -->
+                                                <div v-if="!isEnvelopeOpen" class="mt-4 text-white/60 text-xs animate-pulse">
+                                                    <i class="pi pi-hand-pointer mr-1"></i>
+                                                    Click to open
+                                                </div>
+                                                <div v-else class="mt-4 text-white/60 text-xs">
+                                                    <i class="pi pi-check-circle mr-1"></i>
+                                                    Envelope opened
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Show table if not viewing an envelope -->
+                            <div v-else>
+                                <!-- Header with Drop Button -->
+                                <div class="flex justify-between items-center mb-6">
+                                    <h2 class="text-2xl font-bold text-gray-900">Portfolio Compilation Status</h2>
+                                    <button
+                                        @click="showDropCompilationDialog = true"
+                                        class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+                                    >
+                                        <i class="pi pi-trash"></i>
+                                        Drop Portfolio Compilation
+                                    </button>
+                                </div>
+
+                                <!-- Table Container -->
+                            <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                                <!-- Table Header -->
+                                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
+                                    <div class="grid grid-cols-4 gap-4 text-white font-semibold text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <i class="pi pi-user"></i>
+                                            Student Name
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="pi pi-id-card"></i>
+                                            ID Number
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="pi pi-calendar"></i>
+                                            Date Created
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="pi pi-clock"></i>
+                                            Time Created
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Table Body -->
+                                <div class="divide-y divide-gray-200">
+                                    <!-- Student Rows - Clickable -->
+                                    <div 
+                                        v-for="student in portfolioStudents" 
+                                        :key="student.id"
+                                        @click="viewStudentEnvelope(student)"
+                                        class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150 cursor-pointer"
+                                    >
+                                        <div class="grid grid-cols-4 gap-4 items-center text-sm">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                                                    {{ student.name.charAt(0) }}
+                                                </div>
+                                                <span class="font-medium text-gray-900">{{ student.name }}</span>
+                                            </div>
+                                            <div class="text-gray-700 font-mono">{{ student.idNumber }}</div>
+                                            <div class="text-gray-700">{{ student.dateCreated }}</div>
+                                            <div class="text-gray-700">{{ student.timeCreated }}</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Empty State -->
+                                    <div v-if="portfolioStudents.length === 0" class="px-6 py-12 text-center">
+                                        <i class="pi pi-inbox text-5xl text-gray-300 mb-4"></i>
+                                        <p class="text-gray-500 text-lg font-medium">No students have started yet</p>
+                                        <p class="text-gray-400 text-sm mt-2">Students will appear here once they create their portfolio envelope</p>
+                                    </div>
+                                </div>
+
+                                <!-- Table Footer -->
+                                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                                    <div class="text-sm text-gray-600">
+                                        <span>Total Students: <strong class="text-indigo-600">{{ portfolioStudents.length }}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -662,6 +826,93 @@
                         class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2">
                         <i class="pi pi-check"></i>
                         Confirm
+                    </button>
+                </div>
+            </div>
+        </Dialog>
+
+        <!-- View Student Envelope Dialog -->
+        <Dialog v-model:visible="showEnvelopeViewDialog"
+            modal
+            header="Student Portfolio Envelope"
+            :style="{ width: '95%', maxWidth: '50rem' }">
+            <div v-if="selectedEnvelope" class="p-6">
+                <!-- Envelope Display -->
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="relative w-full aspect-[21/9]"
+                         :style="{ backgroundColor: selectedEnvelope.color }">
+                        
+                        <!-- Pattern Overlay -->
+                        <div v-if="selectedEnvelope.pattern === 'dots'" 
+                             class="absolute inset-0 opacity-20"
+                             style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
+                        </div>
+                        <div v-else-if="selectedEnvelope.pattern === 'lines'" 
+                             class="absolute inset-0 opacity-20"
+                             style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
+                        </div>
+                        <div v-else-if="selectedEnvelope.pattern === 'grid'" 
+                             class="absolute inset-0 opacity-20"
+                             style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
+                        </div>
+
+                        <!-- Envelope Flap -->
+                        <div class="absolute top-0 left-0 right-0 h-1/4 border-b-4 border-white/30"
+                             :style="{ 
+                                 background: `linear-gradient(180deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`
+                             }">
+                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
+                                        border-l-[150px] border-r-[150px] border-t-[80px] border-l-transparent border-r-transparent"
+                                 :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -20) }">
+                            </div>
+                        </div>
+
+                        <!-- Content Area -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                            <div class="bg-white/20 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 max-w-sm w-full">
+                                <h1 class="text-2xl font-bold text-white mb-2" style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
+                                    {{ selectedEnvelope.title }}
+                                </h1>
+                                <p class="text-base text-white/90 font-medium mb-1" style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                                    {{ selectedEnvelope.name }}
+                                </p>
+                                <p class="text-sm text-white/80" style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                                    {{ selectedEnvelope.className }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Info -->
+                <div class="mt-6 bg-gray-50 rounded-lg p-4">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-600">Student Name:</span>
+                            <span class="ml-2 font-medium text-gray-900">{{ selectedEnvelope.name }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">ID Number:</span>
+                            <span class="ml-2 font-medium text-gray-900 font-mono">{{ selectedEnvelope.idNumber }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Date Created:</span>
+                            <span class="ml-2 font-medium text-gray-900">{{ selectedEnvelope.dateCreated }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Time Created:</span>
+                            <span class="ml-2 font-medium text-gray-900">{{ selectedEnvelope.timeCreated }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Close Button -->
+                <div class="mt-6 flex justify-end">
+                    <button
+                        @click="showEnvelopeViewDialog = false"
+                        class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                        Close
                     </button>
                 </div>
             </div>
@@ -1748,6 +1999,13 @@ const showArchiveDialog = ref(false);
 const showPortfolioCompilationDialog = ref(false);
 const showDropCompilationDialog = ref(false);
 const portfolioCompilationActive = ref(false); // Track if compilation is already requested
+
+// Portfolio students data
+const portfolioStudents = ref([]);
+const showEnvelopeViewDialog = ref(false);
+const selectedEnvelope = ref(null);
+const isEnvelopeOpen = ref(false);
+
 const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false));
 const activeMenuIndex = ref(null);
 const menuButtonRefs = ref({});
@@ -1844,12 +2102,78 @@ const checkPortfolioCompilationStatus = async () => {
         if (response.data && response.data.compilation_requested) {
             portfolioCompilationActive.value = true;
             console.log('✅ Portfolio compilation is active for this class');
+            
+            // Fetch portfolio envelopes if compilation is active
+            await fetchPortfolioEnvelopes();
         } else {
             portfolioCompilationActive.value = false;
         }
     } catch (error) {
         console.error('❌ Error checking portfolio compilation status:', error);
         portfolioCompilationActive.value = false;
+    }
+};
+
+// View student envelope
+const viewStudentEnvelope = (student) => {
+    selectedEnvelope.value = student;
+    isEnvelopeOpen.value = false; // Reset envelope state
+    console.log('Viewing envelope for:', student.name);
+};
+
+// Toggle envelope open/close
+const toggleEnvelopeOpen = () => {
+    isEnvelopeOpen.value = !isEnvelopeOpen.value;
+    console.log('Envelope toggled:', isEnvelopeOpen.value ? 'opened' : 'closed');
+};
+
+// Helper function to adjust color brightness
+const adjustBrightness = (color, percent) => {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return '#' + (
+        0x1000000 +
+        (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+        (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+        (B < 255 ? (B < 1 ? 0 : B) : 255)
+    ).toString(16).slice(1);
+};
+
+// Fetch portfolio envelopes for the class
+const fetchPortfolioEnvelopes = async () => {
+    try {
+        const classNameValue = props.className || className.value;
+        
+        if (!classNameValue) {
+            return;
+        }
+        
+        console.log('📋 Fetching portfolio envelopes for:', classNameValue);
+        
+        const response = await axios.get(`/api/portfolio-envelope/${encodeURIComponent(classNameValue)}/`);
+        
+        if (response.data && response.data.envelopes) {
+            portfolioStudents.value = response.data.envelopes.map(env => ({
+                id: env.id,
+                name: env.student_name,
+                idNumber: env.id_number,
+                dateCreated: env.date_created,
+                timeCreated: env.time_created,
+                // Store full envelope data for viewing
+                title: env.title,
+                color: env.color,
+                pattern: env.pattern,
+                className: env.class_name || props.className || className.value
+            }));
+            
+            console.log(`✅ Loaded ${portfolioStudents.value.length} portfolio envelopes`);
+        }
+    } catch (error) {
+        console.error('❌ Error fetching portfolio envelopes:', error);
+        portfolioStudents.value = [];
     }
 };
 
@@ -2299,13 +2623,15 @@ const confirmDropPortfolioCompilation = async () => {
         
         console.log('✅ Portfolio compilation dropped:', response.data);
         
-        // Set compilation as inactive
+        // Set compilation as inactive and clear students list
         portfolioCompilationActive.value = false;
+        portfolioStudents.value = [];
         
         // Show success message
+        const envelopesDeleted = response.data.envelopes_deleted || 0;
         const notificationsDeleted = response.data.notifications_deleted || 0;
         const studentsNotified = response.data.students_notified || 0;
-        alert(`Portfolio compilation has been deleted successfully.\n${notificationsDeleted} notification(s) removed.\n${studentsNotified} student(s) notified about cancellation.`);
+        alert(`Portfolio compilation has been deleted successfully.\n${envelopesDeleted} portfolio envelope(s) deleted.\n${notificationsDeleted} notification(s) removed.\n${studentsNotified} student(s) notified about cancellation.`);
         
     } catch (error) {
         console.error('❌ Error dropping portfolio compilation:', error);

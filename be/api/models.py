@@ -13,6 +13,7 @@ class User(AbstractUser):
     
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     email = models.EmailField(unique=True)
+    id_number = models.CharField(max_length=50, blank=True, null=True)  # Student ID number
     
     class Meta:
         db_table = 'users'
@@ -115,6 +116,8 @@ class StudentSubmission(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='unscored')
     post_to_feed = models.BooleanField(default=False)
     approval_status = models.CharField(max_length=50, choices=APPROVAL_CHOICES, default='pending')
+    is_active = models.BooleanField(default=True)  # Track if submission is active
+    submission_version = models.IntegerField(default=1)  # Track version for resubmissions
     submitted_at = models.DateTimeField(auto_now_add=True)
     scored_at = models.DateTimeField(null=True, blank=True)
     
@@ -289,3 +292,23 @@ class PortfolioCompilationRequest(models.Model):
     
     def __str__(self):
         return f"Compilation request for {self.class_name} by {self.requested_by.username}"
+
+
+class PortfolioEnvelope(models.Model):
+    """Student portfolio envelope designs"""
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='portfolio_envelopes')
+    class_name = models.CharField(max_length=255)
+    title = models.CharField(max_length=255)
+    student_name = models.CharField(max_length=255)
+    color = models.CharField(max_length=50, default='#4F46E5')
+    pattern = models.CharField(max_length=50, default='solid')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'portfolio_envelopes'
+        ordering = ['-created_at']
+        unique_together = ['student', 'class_name']  # One envelope per student per class
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.title} ({self.class_name})"

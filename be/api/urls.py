@@ -79,4 +79,10 @@ urlpatterns = [
     # Portfolio Compilation routes
     path('api/notifications/portfolio-compilation/', views.request_portfolio_compilation_api, name='request_portfolio_compilation_api'),
     path('api/notifications/portfolio-compilation/<str:class_name>/', views.check_portfolio_compilation_status_api, name='check_portfolio_compilation_status_api'),
+    
+    # Portfolio Envelope routes
+    path('api/portfolio-envelope/create/', views.create_portfolio_envelope_api, name='create_portfolio_envelope_api'),
+    path('api/portfolio-envelope/student/<str:class_name>/', views.get_student_envelope_api, name='get_student_envelope_api'),
+    path('api/portfolio-envelope/<str:class_name>/', views.get_portfolio_envelopes_api, name='get_portfolio_envelopes_api'),
+    path('api/portfolio-envelope/activities/<str:class_name>/', views.get_student_portfolio_activities_api, name='get_student_portfolio_activities_api'),
 ]

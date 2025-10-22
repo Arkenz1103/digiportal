@@ -2091,6 +2091,11 @@ def check_portfolio_compilation_status_api(request, class_name):
             compilation_request.is_active = False
             compilation_request.save()
             
+            # Delete all portfolio envelopes for this class
+            from .models import PortfolioEnvelope
+            envelopes_deleted = PortfolioEnvelope.objects.filter(class_name=class_name).delete()[0]
+            print(f"🗑️ Deleted {envelopes_deleted} portfolio envelopes")
+            
             # Delete old compilation notifications
             deleted_count = Notification.objects.filter(
                 notification_type='portfolio_compilation',
@@ -2119,11 +2124,12 @@ def check_portfolio_compilation_status_api(request, class_name):
                 else:
                     print(f"❌ Failed to notify {student.username}")
             
-            print(f"✅ Compilation request deactivated, {deleted_count} notifications deleted, {students_notified} students notified")
+            print(f"✅ Compilation request deactivated, {envelopes_deleted} envelopes deleted, {deleted_count} notifications deleted, {students_notified} students notified")
             
             return Response({
                 'message': 'Portfolio compilation request dropped successfully',
                 'class_name': class_name,
+                'envelopes_deleted': envelopes_deleted,
                 'notifications_deleted': deleted_count,
                 'students_notified': students_notified
             }, status=status.HTTP_200_OK)
@@ -2133,3 +2139,260 @@ def check_portfolio_compilation_status_api(request, class_name):
             print(f"❌ Error dropping portfolio compilation: {str(e)}")
             print(f"Traceback: {traceback.format_exc()}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def create_portfolio_envelope_api(request):
+    """Create a portfolio envelope for a student"""
+    try:
+        from .models import PortfolioEnvelope
+        
+        print(f"📬 Creating portfolio envelope for user: {request.user.username}")
+        
+        # Get data from request
+        title = request.data.get('title')
+        student_name = request.data.get('student_name')
+        class_name = request.data.get('class_name')
+        color = request.data.get('color', '#4F46E5')
+        pattern = request.data.get('pattern', 'solid')
+        
+        # Validate required fields
+        if not all([title, student_name, class_name]):
+            return Response({
+                'error': 'Missing required fields: title, student_name, class_name'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create or update envelope
+        envelope, created = PortfolioEnvelope.objects.update_or_create(
+            student=request.user,
+            class_name=class_name,
+            defaults={
+                'title': title,
+                'student_name': student_name,
+                'color': color,
+                'pattern': pattern
+            }
+        )
+        
+        action = 'created' if created else 'updated'
+        print(f"✅ Portfolio envelope {action} for {request.user.username} in {class_name}")
+        
+        # Notify teacher about the envelope creation/update
+        try:
+            # Find the teacher who requested the compilation for this class
+            from .models import PortfolioCompilationRequest
+            compilation_request = PortfolioCompilationRequest.objects.filter(
+                class_name=class_name,
+                is_active=True
+            ).first()
+            
+            if compilation_request and compilation_request.requested_by:
+                teacher = compilation_request.requested_by
+                
+                # Create notification for teacher
+                notification_title = f'Portfolio Envelope {"Created" if created else "Updated"} - {class_name}'
+                notification_message = f'{student_name} has {"created" if created else "updated"} their portfolio envelope for {class_name}.'
+                
+                notification = create_notification(
+                    recipient=teacher,
+                    notification_type='portfolio_envelope',
+                    title=notification_title,
+                    message=notification_message
+                )
+                
+                if notification:
+                    print(f"✅ Notified teacher {teacher.username} about envelope {action}")
+                else:
+                    print(f"❌ Failed to notify teacher {teacher.username}")
+            else:
+                print(f"⚠️ No active compilation request found for {class_name}")
+                
+        except Exception as notify_error:
+            print(f"⚠️ Error notifying teacher: {str(notify_error)}")
+            # Don't fail the envelope creation if notification fails
+        
+        return Response({
+            'message': f'Portfolio envelope {action} successfully',
+            'envelope': {
+                'id': envelope.id,
+                'title': envelope.title,
+                'student_name': envelope.student_name,
+                'class_name': envelope.class_name,
+                'color': envelope.color,
+                'pattern': envelope.pattern,
+                'created_at': envelope.created_at.isoformat()
+            }
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error creating portfolio envelope: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def get_student_envelope_api(request, class_name):
+    """Get the student's own portfolio envelope for a class"""
+    try:
+        from .models import PortfolioEnvelope
+        
+        print(f"📋 Fetching portfolio envelope for student: {request.user.username} in class: {class_name}")
+        
+        # Get the student's envelope for this class
+        try:
+            envelope = PortfolioEnvelope.objects.get(
+                student=request.user,
+                class_name=class_name
+            )
+            
+            return Response({
+                'envelope': {
+                    'id': envelope.id,
+                    'title': envelope.title,
+                    'student_name': envelope.student_name,
+                    'class_name': envelope.class_name,
+                    'color': envelope.color,
+                    'pattern': envelope.pattern,
+                    'created_at': envelope.created_at.isoformat(),
+                    'updated_at': envelope.updated_at.isoformat()
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except PortfolioEnvelope.DoesNotExist:
+            return Response({
+                'error': 'No portfolio envelope found for this class'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error fetching student envelope: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def get_student_portfolio_activities_api(request, class_name):
+    """Get all activities (submitted and missing) for a student's portfolio"""
+    try:
+        from .models import PortfolioActivity, StudentSubmission, PortfolioFolder
+        
+        print(f"📚 Fetching portfolio activities for student: {request.user.username} in class: {class_name}")
+        
+        # Get all portfolio folders for this class
+        folders = PortfolioFolder.objects.filter(class_name=class_name)
+        
+        activity_list = []
+        for folder in folders:
+            # Get all activities in this folder
+            activities = PortfolioActivity.objects.filter(folder=folder).order_by('created_at')
+            
+            for activity in activities:
+                # Check if student has submitted this activity
+                submission = StudentSubmission.objects.filter(
+                    activity=activity,
+                    student=request.user
+                ).first()
+                
+                # Get submission file path
+                submission_file = None
+                if submission:
+                    if submission.file:
+                        # Use the FileField URL
+                        submission_file = submission.file.url if submission.file else None
+                    elif submission.file_path:
+                        # Fallback to file_path for base64 or legacy data
+                        submission_file = submission.file_path
+                
+                activity_data = {
+                    'id': activity.id,
+                    'title': activity.title,
+                    'description': activity.description,
+                    'due_date': activity.due_date.isoformat() if activity.due_date else None,
+                    'due_time': activity.due_time.strftime('%H:%M') if activity.due_time else None,
+                    'created_at': activity.created_at.isoformat(),
+                    'activity_type': activity.activity_type,
+                    'has_submission': submission is not None,
+                    'submission_id': submission.id if submission else None,
+                    'submission_date': submission.submitted_at.isoformat() if submission else None,
+                    'submission_file': submission_file,
+                    'submission_caption': submission.caption if submission else None,
+                    'submission_score': submission.score if submission else None,
+                    'submission_feedback': submission.feedback if submission else None,
+                    'submission_status': 'submitted' if submission else 'missing',
+                    'folder_name': folder.name
+                }
+                
+                activity_list.append(activity_data)
+        
+        # Separate submitted and missing activities
+        submitted_activities = [a for a in activity_list if a['has_submission']]
+        missing_activities = [a for a in activity_list if not a['has_submission']]
+        
+        print(f"✅ Found {len(submitted_activities)} submitted and {len(missing_activities)} missing activities")
+        
+        return Response({
+            'all_activities': activity_list,
+            'submitted_activities': submitted_activities,
+            'missing_activities': missing_activities,
+            'total_count': len(activity_list),
+            'submitted_count': len(submitted_activities),
+            'missing_count': len(missing_activities)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error fetching portfolio activities: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def get_portfolio_envelopes_api(request, class_name):
+    """Get all portfolio envelopes for a class (teacher only)"""
+    try:
+        from .models import PortfolioEnvelope
+        
+        print(f"📋 Fetching portfolio envelopes for class: {class_name}")
+        
+        # Check if user is a teacher
+        if request.user.role != 'teacher':
+            return Response({
+                'error': 'Only teachers can view portfolio envelopes'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get all envelopes for this class
+        envelopes = PortfolioEnvelope.objects.filter(class_name=class_name).select_related('student')
+        
+        envelope_list = []
+        for envelope in envelopes:
+            envelope_list.append({
+                'id': envelope.id,
+                'student_id': envelope.student.id,
+                'student_name': envelope.student_name,
+                'student_username': envelope.student.username,
+                'id_number': envelope.student.id_number or envelope.student.username,  # Use actual ID number or fallback to username
+                'title': envelope.title,
+                'color': envelope.color,
+                'pattern': envelope.pattern,
+                'created_at': envelope.created_at.isoformat(),
+                'date_created': envelope.created_at.strftime('%b %d, %Y'),
+                'time_created': envelope.created_at.strftime('%I:%M %p')
+            })
+        
+        print(f"✅ Found {len(envelope_list)} portfolio envelopes for {class_name}")
+        
+        return Response({
+            'envelopes': envelope_list,
+            'count': len(envelope_list)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error fetching portfolio envelopes: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
