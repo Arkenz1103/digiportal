@@ -253,6 +253,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { useToast } from '../../composables/useToast';
+
+// Initialize toast
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 // Mock user data for notifications
 const currentUser = ref({
@@ -385,7 +389,7 @@ const deleteSelectedNotifications = async () => {
     isSelectMode.value = false;
   } catch (error) {
     console.error('❌ Error deleting notifications:', error);
-    alert('Failed to delete notifications. Please try again.');
+    showError('Failed to delete notifications', 'Update Failed');
   }
 };
 
@@ -404,7 +408,7 @@ const deleteAllNotifications = async () => {
     }
   } catch (error) {
     console.error('❌ Error deleting notifications:', error);
-    alert('Failed to delete notifications. Please try again.');
+    showError('Failed to delete notifications', 'Update Failed');
   }
 };
 

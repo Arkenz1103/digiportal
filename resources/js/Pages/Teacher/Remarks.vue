@@ -215,6 +215,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import axios from 'axios';
+import { useToast } from '../../composables/useToast';
+
+// Initialize toast
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 import Button from "primevue/button";
 import Textarea from "primevue/textarea";
 import Dialog from 'primevue/dialog';
@@ -439,11 +443,11 @@ async function confirmAddRemark() {
         
         newRemark.value = "";
         showAddRemarkDialog.value = false;
-        console.log('Remark added successfully');
+        showSuccess('Remark saved successfully!', 'Saved');
       }
     } catch (error) {
       console.error('Error adding remark:', error);
-      alert('Failed to add remark. Please try again.');
+      showError(error.response?.data?.error || error.message, 'Save Failed');
       showAddRemarkDialog.value = false;
     }
   }

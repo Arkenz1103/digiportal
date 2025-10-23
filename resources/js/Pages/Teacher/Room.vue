@@ -251,7 +251,6 @@
                                                 <i class="pi pi-file-edit text-indigo-600"></i>
                                                 Draft Activities
                                             </h3>
-                                            <p class="text-sm text-gray-500 mt-1">Activities not yet published to students</p>
                                         </div>
                                         
                                         <!-- Table Header -->
@@ -300,9 +299,9 @@
                                     <div class="w-12 flex justify-end opacity-100 relative" style="z-index: 50;">
                                         <button 
                                             class="p-1.5 rounded-full hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 focus:outline-none" 
-                                            @click.stop="toggleActivityMenu($event, activity, index)"
-                                            :ref="'menuButton' + index"
-                                            :aria-expanded="activeMenuIndex === index"
+                                            @click.stop="toggleActivityMenu($event, activity, 'draft-' + index)"
+                                            :ref="'menuButton-draft-' + index"
+                                            :aria-expanded="activeMenuIndex === 'draft-' + index"
                                             aria-haspopup="true"
                                         >
                                             <i class="pi pi-ellipsis-v"></i>
@@ -318,7 +317,7 @@
                                             leave-to-class="transform opacity-0 scale-95"
                                         >
                                             <div 
-                                                v-if="activeMenuIndex === index"
+                                                v-if="activeMenuIndex === 'draft-' + index"
                                                 class="activity-menu-dropdown absolute z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
                                                 style="bottom: 100%; margin-bottom: 0.5rem; right: 0;"
                                             >
@@ -377,7 +376,6 @@
                                                 <i class="pi pi-check-circle text-green-600"></i>
                                                 Published Activities
                                             </h3>
-                                            <p class="text-sm text-gray-500 mt-1">Activities currently visible to students</p>
                                         </div>
                                         
                                         <!-- Table Header -->
@@ -426,9 +424,9 @@
                                         <div class="w-12 flex justify-end opacity-100 relative" style="z-index: 50;">
                                             <button 
                                                 class="p-1.5 rounded-full hover:bg-green-100 text-green-700 hover:text-green-900 focus:outline-none" 
-                                                @click.stop="toggleActivityMenu($event, activity, index)"
-                                                :ref="'menuButton' + index"
-                                                :aria-expanded="activeMenuIndex === index"
+                                                @click.stop="toggleActivityMenu($event, activity, 'published-' + index)"
+                                                :ref="'menuButton-published-' + index"
+                                                :aria-expanded="activeMenuIndex === 'published-' + index"
                                                 aria-haspopup="true"
                                             >
                                                 <i class="pi pi-ellipsis-v"></i>
@@ -444,7 +442,7 @@
                                                 leave-to-class="transform opacity-0 scale-95"
                                             >
                                                 <div 
-                                                    v-if="activeMenuIndex === index"
+                                                    v-if="activeMenuIndex === 'published-' + index"
                                                     class="activity-menu-dropdown absolute z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
                                                     style="bottom: 100%; margin-bottom: 0.5rem; right: 0;"
                                                 >
@@ -1810,6 +1808,7 @@ import { ref, computed, onMounted, onUnmounted, watch, inject, nextTick } from '
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
+import { useToast } from '../../composables/useToast';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import Calendar from 'primevue/calendar';
@@ -1820,6 +1819,9 @@ import Tag from 'primevue/tag';
 
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
+
+// Initialize toast
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 // Navigate to activity outputs
 const navigateToActivityOutputs = (activity, index) => {
@@ -1959,7 +1961,7 @@ const createNewFolder = async () => {
             newFolder.value = { title: '', description: '' };
             
             // Show success message
-            alert('Portfolio folder created successfully!');
+            showSuccess('Portfolio folder created successfully!', 'Folder Created');
         }
     } catch (error) {
         console.error('Error creating folder:', error);
@@ -1970,9 +1972,9 @@ const createNewFolder = async () => {
         const errorDetail = error.response?.data?.detail || '';
         
         if (errorDetail) {
-            alert(`${errorMsg}\n\n${errorDetail}`);
+            showError(`${errorMsg}\n\n${errorDetail}`, 'Failed to Create Folder');
         } else {
-            alert(`Error: ${errorMsg}`);
+            showError(errorMsg, 'Failed to Create Folder');
         }
         
         // If authentication failed, try to re-authenticate
@@ -1980,7 +1982,7 @@ const createNewFolder = async () => {
             console.log('Authentication failed, attempting to re-authenticate...');
             const authenticated = await authenticateWithBackend();
             if (authenticated) {
-                alert('Re-authenticated successfully. Please try creating the folder again.');
+                showInfo('Please try creating the folder again.', 'Re-authenticated');
             }
         }
     }
@@ -2032,7 +2034,7 @@ const updateFolder = async () => {
             
             showUpdateFolderDialog.value = false;
             updateFolderData.value = { id: null, title: '', description: '' };
-            alert('Portfolio folder updated successfully! The change is reflected in the database and for all students.');
+            showSuccess('The change is reflected in the database and for all students.', 'Folder Updated');
         }
     } catch (error) {
         console.error('Error updating folder:', error);
@@ -2042,9 +2044,9 @@ const updateFolder = async () => {
         const errorDetail = error.response?.data?.detail || '';
         
         if (errorDetail) {
-            alert(`Failed to update folder: ${errorMsg}\n\n${errorDetail}`);
+            showError(`${errorMsg}\n\n${errorDetail}`, 'Failed to Update Folder');
         } else {
-            alert('Failed to update folder: ' + errorMsg);
+            showError(errorMsg, 'Failed to Update Folder');
         }
     }
 };
@@ -2053,7 +2055,7 @@ const updateFolder = async () => {
 const openDropFolderDialog = (folder) => {
     // Prevent opening dialog if folder has activities
     if (folder.items > 0) {
-        alert(`Cannot drop folder with activities. This folder contains ${folder.items} activity/activities. Please delete all activities first before deleting the folder.`);
+        showWarning(`This folder contains ${folder.items} activity/activities. Please delete all activities first before deleting the folder.`, 'Cannot Delete Folder');
         activeFolderMenuIndex.value = null;
         return;
     }
@@ -2091,7 +2093,7 @@ const dropFolder = async () => {
         showDropFolderDialog.value = false;
         dropFolderData.value = { id: null, name: '', items: 0 };
         
-        alert('Portfolio folder has been permanently deleted.');
+        showSuccess('Portfolio folder has been permanently deleted.', 'Folder Deleted');
     } catch (error) {
         console.error('Error dropping folder:', error);
         console.error('Error details:', error.response?.data);
@@ -2102,9 +2104,9 @@ const dropFolder = async () => {
         
         // Show detailed error message
         if (errorDetail) {
-            alert(`Failed to drop folder: ${errorMsg}\n\n${errorDetail}`);
+            showError(`${errorMsg}\n\n${errorDetail}`, 'Failed to Delete Folder');
         } else {
-            alert('Failed to drop folder: ' + errorMsg);
+            showError(errorMsg, 'Failed to Delete Folder');
         }
         
         // Close the dialog
@@ -2155,18 +2157,18 @@ const createCriterion = (index) => {
     
     // Validate name
     if (!criterion.name || !criterion.name.trim()) {
-        alert('Criterion name is required');
+        showWarning('Criterion name is required', 'Invalid Criterion');
         return;
     }
     
     // Validate score - must be a number and required
     if (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined || isNaN(criterion.maxScore)) {
-        alert('Score level is required');
+        showWarning('Score level is required', 'Invalid Score');
         return;
     }
     
     if (criterion.maxScore <= 0) {
-        alert('Score must be greater than 0');
+        showWarning('Score must be greater than 0', 'Invalid Score');
         return;
     }
     
@@ -2196,18 +2198,18 @@ const confirmEdit = (index) => {
     
     // Validate name
     if (!criterion.name || !criterion.name.trim()) {
-        alert('Criterion name is required');
+        showWarning('Criterion name is required', 'Invalid Criterion');
         return;
     }
     
     // Validate score - must be a number and required
     if (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined || isNaN(criterion.maxScore)) {
-        alert('Score level is required');
+        showWarning('Score level is required', 'Invalid Score');
         return;
     }
     
     if (criterion.maxScore <= 0) {
-        alert('Score must be greater than 0');
+        showWarning('Score must be greater than 0', 'Invalid Score');
         return;
     }
     
@@ -2235,7 +2237,7 @@ const cancelEdit = (index) => {
 const removeNewCriterion = (index) => {
     // Prevent removing the last criterion
     if (savedCriteria.value.length === 1) {
-        alert('You must have at least one criterion');
+        showWarning('You must have at least one criterion', 'Cannot Remove');
         return;
     }
     savedCriteria.value.splice(index, 1);
@@ -2347,32 +2349,32 @@ const getMinTimeForEdit = () => {
 const addNewActivity = async () => {
     // Validate Activity Type
     if (!newActivity.value.type) {
-        alert('Activity Type is required. Please select an activity type.');
+        showWarning('Please select an activity type.', 'Activity Type Required');
         return;
     }
     
     // Validate Activity Title
     if (!newActivity.value.title || !newActivity.value.title.trim()) {
-        alert('Activity Title is required. Please enter a title for the activity.');
+        showWarning('Please enter a title for the activity.', 'Activity Title Required');
         return;
     }
     
     // Validate Due Date
     if (!newActivity.value.dueDate) {
-        alert('Due Date is required. Please select a due date.');
+        showWarning('Please select a due date.', 'Due Date Required');
         return;
     }
     
     // Validate Due Time
     if (!newActivity.value.dueTime || !newActivity.value.dueTime.trim()) {
-        alert('Due Time is required. Please select a due time.');
+        showWarning('Please select a due time.', 'Due Time Required');
         return;
     }
     
     // Validate Scoring Criteria
     const createdCriteria = savedCriteria.value.filter(c => c.isCreated);
     if (createdCriteria.length === 0) {
-        alert('Scoring Criteria is required. Please add and create at least one scoring criterion with points greater than 0.');
+        showWarning('Please add and create at least one scoring criterion with points greater than 0.', 'Scoring Criteria Required');
         return;
     }
 
@@ -2380,7 +2382,7 @@ const addNewActivity = async () => {
         // Get the current folder ID
         const currentFolder = subjectFolders.value.find(f => f.name === selectedSubject.value);
         if (!currentFolder) {
-            alert('Please select a folder first');
+            showWarning('Please select a folder first', 'No Folder Selected');
             return;
         }
 
@@ -2400,7 +2402,7 @@ const addNewActivity = async () => {
             selectedDate.setHours(0, 0, 0, 0);
             
             if (selectedDate < today) {
-                alert('Due date cannot be in the past. Please select today or a future date.');
+                showWarning('Please select today or a future date.', 'Invalid Due Date');
                 return;
             }
             
@@ -2408,7 +2410,7 @@ const addNewActivity = async () => {
             if (selectedDate.getTime() === today.getTime()) {
                 const currentTime = getCurrentTime();
                 if (newActivity.value.dueTime < currentTime) {
-                    alert('Due time cannot be in the past. Please select a future time.');
+                    showWarning('Please select a future time.', 'Invalid Due Time');
                     return;
                 }
             }
@@ -2463,11 +2465,11 @@ const addNewActivity = async () => {
                 { name: '', maxScore: 0, isCreated: false, isEditing: false, originalName: '', originalScore: 0 }
             ];
 
-            alert('Activity added successfully!');
+            showSuccess('Activity added successfully!', 'Activity Created');
         }
     } catch (error) {
         console.error('Error creating activity:', error);
-        alert('Failed to create activity: ' + (error.response?.data?.message || error.message));
+        showError(error.response?.data?.message || error.message, 'Failed to Create Activity');
     }
 };
 
@@ -2640,6 +2642,22 @@ const handleClickOutside = (event) => {
     }
 };
 
+// Helper to get CSRF token
+const getCsrfToken = () => {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+};
+
 // Function to authenticate with backend
 const authenticateWithBackend = async () => {
     try {
@@ -2647,6 +2665,43 @@ const authenticateWithBackend = async () => {
         const checkResponse = await axios.get('/api/validate-session/');
         if (checkResponse.data.authenticated) {
             console.log('Already authenticated:', checkResponse.data.user);
+            // Check if role is teacher - if not, logout and re-authenticate as teacher
+            if (checkResponse.data.user?.role !== 'teacher') {
+                console.warn('⚠️ User is authenticated as', checkResponse.data.user?.role, '- need to switch to teacher');
+                try {
+                    // Logout first
+                    await axios.post('/logout/');
+                    console.log('Logged out from', checkResponse.data.user?.role);
+                    
+                    // Refresh CSRF token after logout
+                    const csrfToken = getCsrfToken();
+                    if (csrfToken) {
+                        axios.defaults.headers.common['X-CSRFToken'] = csrfToken;
+                    }
+                    
+                    // Then login as teacher
+                    const authResponse = await axios.post('/api/validate-session/', {
+                        role: 'teacher'
+                    });
+                    console.log('✅ Re-authenticated as teacher:', authResponse.data.user);
+                    return true;
+                } catch (switchError) {
+                    console.error('❌ Failed to switch to teacher role:', switchError);
+                    console.error('Error details:', switchError.response?.data);
+                    // Try direct auth without logout
+                    try {
+                        const authResponse = await axios.post('/api/validate-session/', {
+                            role: 'teacher'
+                        });
+                        console.log('✅ Authenticated as teacher (direct):', authResponse.data.user);
+                        return true;
+                    } catch (directError) {
+                        console.error('❌ Direct auth also failed:', directError);
+                        console.error('Direct error details:', directError.response?.data);
+                        return false;
+                    }
+                }
+            }
             return true;
         }
     } catch (error) {
@@ -2659,6 +2714,7 @@ const authenticateWithBackend = async () => {
             return true;
         } catch (authError) {
             console.error('Authentication failed:', authError);
+            console.error('Auth error details:', authError.response?.data);
             return false;
         }
     }
@@ -3117,7 +3173,7 @@ const deleteActivity = async (activity, index) => {
             await loadActivities(selectedFolderId.value);
         }
         
-        alert('Activity deleted successfully!');
+        showSuccess('Activity deleted successfully!', 'Activity Deleted');
         
         // For now, just remove from local state
         activities.value.splice(index, 1);
@@ -3164,14 +3220,14 @@ const confirmSubmitActivity = async () => {
             activityToSubmit.value = null;
             
             if (wasRetracted) {
-                alert('Activity re-published successfully! Students can now see this activity again.');
+                showSuccess('Students can now see this activity again.', 'Activity Re-Published');
             } else {
-                alert('Activity published successfully! Students can now see this activity.');
+                showSuccess('Students can now see this activity.', 'Activity Published');
             }
         }
     } catch (error) {
         console.error('❌ Error publishing activity:', error);
-        alert('Failed to publish activity: ' + (error.response?.data?.error || error.message));
+        showError(error.response?.data?.error || error.message, 'Failed to Publish Activity');
     }
 };
 
@@ -3214,11 +3270,11 @@ const confirmRetractActivity = async () => {
             
             showRetractDialog.value = false;
             activityToRetract.value = null;
-            alert('Activity retracted successfully! Students can no longer see this activity.');
+            showSuccess('Students can no longer see this activity.', 'Activity Retracted');
         }
     } catch (error) {
         console.error('❌ Error retracting activity:', error);
-        alert('Failed to retract activity: ' + (error.response?.data?.error || error.message));
+        showError(error.response?.data?.error || error.message, 'Failed to Retract Activity');
     }
 };
 

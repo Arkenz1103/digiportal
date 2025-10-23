@@ -3,6 +3,10 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
+import { useToast } from '../../composables/useToast';
+
+// Initialize toast
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 // Load activity from localStorage
 const activity = ref({
@@ -184,7 +188,8 @@ const loadUnscoredSubmissions = async () => {
                     time: timeStr,
                     file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
                     file_type: submission.file_type,
-                    submitted_at: submission.submitted_at
+                    submitted_at: submission.submitted_at,
+                    is_late: submission.is_late || false
                 };
             });
             console.log('Loaded unscored submissions for activity:', activity.value.id, submissions.value);
@@ -237,7 +242,8 @@ const loadScoredSubmissions = async () => {
                     time: timeStr,
                     file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
                     file_type: submission.file_type,
-                    submitted_at: submission.submitted_at
+                    submitted_at: submission.submitted_at,
+                    is_late: submission.is_late || false
                 };
             });
             console.log('Loaded scored submissions for activity:', activity.value.id, scoredSubmissionsData.value);
@@ -341,10 +347,10 @@ const deleteRemarks = async () => {
             selectedSubmission.value.newRemark = '';
             isEditingRemarks.value = false;
             
-            alert('Remark deleted successfully!');
+            showSuccess('Remark deleted successfully!', 'Deleted');
         } catch (error) {
             console.error('Error deleting remark:', error);
-            alert('Failed to delete remark: ' + (error.response?.data?.error || error.message));
+            showError(error.response?.data?.error || error.message, 'Delete Failed');
         }
     }
 };
@@ -392,10 +398,10 @@ const saveRemarks = async () => {
             isEditingRemarks.value = false;
             selectedSubmission.value.newRemark = '';
             
-            alert('Remark saved successfully!');
+            showSuccess('Remark saved successfully!', 'Saved');
         } catch (error) {
             console.error('Error saving remark:', error);
-            alert('Failed to save remark: ' + (error.response?.data?.error || error.message));
+            showError(error.response?.data?.error || error.message, 'Save Failed');
         }
     }
 };
@@ -446,7 +452,7 @@ const saveScore = async () => {
     );
     
     if (!selectedSubmission.value || !allScoresEntered) {
-        alert('Please enter scores for all criteria');
+        showWarning('Please enter scores for all criteria', 'Incomplete Scores');
         return;
     }
     
@@ -491,14 +497,14 @@ const saveScore = async () => {
         console.log('📊 Scored count:', scoredSubmissionsData.value.length);
         
         // Show success message
-        alert('Score saved successfully!');
+        showSuccess('Score saved successfully!', 'Scored');
         
         // Close both dialogs AFTER everything is done
         closeAddScoreDialog();
         closeDialog();
     } catch (error) {
         console.error('Error saving score:', error);
-        alert('Failed to save score: ' + (error.response?.data?.error || error.message));
+        showError(error.response?.data?.error || error.message, 'Save Failed');
     }
 };
 
@@ -525,9 +531,9 @@ const calculateMaxTotalScore = () => {
 
 // Computed properties for filtering submissions
 const unscoredSubmissions = computed(() => {
-    return submissions.value.filter(submission => 
-        !studentOutputs.value[submission.id]?.scores
-    );
+    // Backend already filters by status='unscored', so just return the submissions
+    // No need to filter again on frontend
+    return submissions.value;
 });
 
 const scoredSubmissions = computed(() => {
@@ -1131,14 +1137,21 @@ const getMedalDetails = (rank) => {
                             <div class="w-1/4 text-gray-600 font-medium">
                                 {{ submission.studentId }}
                             </div>
-                            <div class="w-1/4">
-                                <span :class="[
-                                    'px-4 py-2 text-sm font-medium rounded-xl shadow-sm transition-all duration-300',
-                                    submission.status === 'Submitted' ? 'bg-green-100 text-green-800 group-hover:bg-green-200' :
-                                    submission.status === 'Late' ? 'bg-yellow-100 text-yellow-800 group-hover:bg-yellow-200' :
-                                    'bg-red-100 text-red-800 group-hover:bg-red-200'
-                                ]">
-                                    {{ submission.status }}
+                            <div class="w-1/4 flex items-center gap-2">
+                                <!-- Status Badge (Same as Student View) -->
+                                <span 
+                                    v-if="submission.is_late"
+                                    class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
+                                >
+                                    <i class="pi pi-clock text-xs"></i>
+                                    <span>Submitted late</span>
+                                </span>
+                                <span 
+                                    v-else
+                                    class="px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1.5 text-xs font-medium"
+                                >
+                                    <i class="pi pi-check-circle text-xs"></i>
+                                    <span>Submitted</span>
                                 </span>
                             </div>
                             <div class="w-1/5 text-gray-600 font-medium pl-4">
@@ -1146,10 +1159,8 @@ const getMedalDetails = (rank) => {
                                 <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
                             </div>
                             <div class="w-1/6">
-                                <span v-if="studentOutputs[submission.id]?.scores" class="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-800">
-                                    {{ studentOutputs[submission.id].scores.total }}/30
-                                </span>
-                                <span v-else class="text-sm text-gray-400">-</span>
+                                <!-- Unscored submissions should not have scores -->
+                                <span class="text-sm text-gray-400">-</span>
                             </div>
                         </div>
                     </div>
@@ -1216,20 +1227,17 @@ const getMedalDetails = (rank) => {
                                          style="background-color: #e0e7ff; color: #111827;">
                                         {{ submission.name.charAt(0) }}
                                     </div>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
+                                            <span v-if="submission.is_late" class="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium flex-shrink-0">
+                                                Late Submitted
+                                            </span>
+                                        </div>
                                         <p class="text-xs text-gray-500 truncate">ID: {{ submission.studentId }}</p>
                                     </div>
                                 </div>
 
-                                <!-- Score Display -->
-                                <div v-if="studentOutputs[submission.id]?.scores" class="flex items-center justify-between">
-                                    <div class="flex items-center text-gray-500">
-                                        <i class="pi pi-star mr-2" style="color: #6366f1;"></i>
-                                        <span class="text-sm font-medium text-indigo-700">Score: {{ studentOutputs[submission.id].scores.total }}/30</span>
-                                    </div>
-                                </div>
-                                
                                 <!-- Submission Details with Icons -->
                                 <div class="pt-3 border-t flex items-center justify-between text-sm"
                                      style="border-color: #e0e7ff;">
@@ -1312,9 +1320,21 @@ const getMedalDetails = (rank) => {
                                 <div class="w-1/4 text-gray-600 font-medium">
                                     {{ submission.studentId }}
                                 </div>
-                                <div class="w-1/4">
-                                    <span class="px-4 py-2 text-sm font-medium rounded-xl shadow-sm transition-all duration-300 bg-green-100 text-green-800 group-hover:bg-green-200">
-                                        Scored
+                                <div class="w-1/4 flex items-center gap-2">
+                                    <!-- Status Badge (Same as Student View) -->
+                                    <span 
+                                        v-if="submission.is_late"
+                                        class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
+                                    >
+                                        <i class="pi pi-clock text-xs"></i>
+                                        <span>Submitted late</span>
+                                    </span>
+                                    <span 
+                                        v-else
+                                        class="px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1.5 text-xs font-medium"
+                                    >
+                                        <i class="pi pi-check-circle text-xs"></i>
+                                        <span>Submitted</span>
                                     </span>
                                 </div>
                                 <div class="w-1/5 text-gray-600 font-medium pl-4">
@@ -1373,13 +1393,19 @@ const getMedalDetails = (rank) => {
 
                                     <!-- Status Badge -->
                                     <div class="absolute top-3 left-3">
-                                        <span :class="[
-                                            'px-3 py-1.5 text-xs font-medium rounded-full shadow-sm',
-                                            submission.status === 'Submitted' ? 'bg-green-400/90 text-white' :
-                                            submission.status === 'Late' ? 'bg-yellow-400/90 text-white' :
-                                            'bg-red-400/90 text-white'
-                                        ]">
-                                            {{ submission.status }}
+                                        <span 
+                                            v-if="submission.is_late"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-orange-400/90 text-white flex items-center gap-1.5"
+                                        >
+                                            <i class="pi pi-clock text-xs"></i>
+                                            <span>Submitted late</span>
+                                        </span>
+                                        <span 
+                                            v-else
+                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-green-400/90 text-white flex items-center gap-1.5"
+                                        >
+                                            <i class="pi pi-check-circle text-xs"></i>
+                                            <span>Submitted</span>
                                         </span>
                                     </div>
                                 </div>
@@ -1392,17 +1418,19 @@ const getMedalDetails = (rank) => {
                                              style="background-color: #e0e7ff; color: #111827;">
                                             {{ submission.name.charAt(0) }}
                                         </div>
-                                        <div class="min-w-0">
-                                            <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
-                                            <p class="text-xs text-gray-500 truncate">ID: {{ submission.id }}</p>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2">
+                                                <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
+                                            </div>
+                                            <p class="text-xs text-gray-500 truncate">ID: {{ submission.studentId }}</p>
                                         </div>
                                     </div>
 
                                     <!-- Score Display -->
-                                    <div v-if="studentOutputs[submission.id]?.scores" class="flex items-center justify-between">
+                                    <div v-if="submission.score !== null && submission.score !== undefined" class="flex items-center justify-between">
                                         <div class="flex items-center text-gray-500">
                                             <i class="pi pi-star mr-2" style="color: #6366f1;"></i>
-                                            <span class="text-sm font-medium text-indigo-700">Score: {{ studentOutputs[submission.id].scores.total }}/30</span>
+                                            <span class="text-sm font-medium text-indigo-700">Score: {{ submission.score }}</span>
                                         </div>
                                     </div>
                                     
@@ -1545,11 +1573,12 @@ const getMedalDetails = (rank) => {
                                                 <span class="text-gray-500">Status:</span>
                                                 <span :class="[
                                                     'px-3 py-1 rounded-full text-xs font-medium',
+                                                    selectedSubmission.is_late ? 'bg-orange-100 text-orange-800' :
                                                     selectedSubmission.status === 'Submitted' || selectedSubmission.status === 'Scored' ? 'bg-green-100 text-green-800' :
                                                     selectedSubmission.status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
                                                     'bg-red-100 text-red-800'
                                                 ]">
-                                                    {{ selectedSubmission.status || 'Unknown' }}
+                                                    {{ selectedSubmission.is_late ? 'Late Submitted' : (selectedSubmission.status || 'Unknown') }}
                                                 </span>
                                             </div>
                                             <div class="flex justify-between text-sm">
@@ -1563,15 +1592,24 @@ const getMedalDetails = (rank) => {
                                     </div>
                                 </div>
 
-                                <!-- Description -->
+                                <!-- Activity Details -->
                                 <div class="bg-white p-5 rounded-xl border-2 border-indigo-100">
-                                    <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                        <i class="pi pi-align-left" style="color: #6366f1;"></i>
-                                        Description
-                                    </h4>
-                                    <p class="text-gray-600 text-sm">
-                                        {{ selectedSubmission.caption || 'No description provided.' }}
-                                    </p>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Activity Type:</p>
+                                            <p class="text-gray-900 text-sm capitalize">{{ selectedSubmission.activityType || 'N/A' }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Activity Title:</p>
+                                            <p class="text-gray-900 text-sm">{{ selectedSubmission.activityTitle || 'N/A' }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Description:</p>
+                                            <p class="text-gray-900 text-sm">
+                                                {{ selectedSubmission.caption || 'No description provided.' }}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

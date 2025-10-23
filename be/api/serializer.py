@@ -62,6 +62,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     activity_type = serializers.SerializerMethodField()
     total_score = serializers.SerializerMethodField()
     max_score = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
     
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
@@ -92,6 +93,17 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
             except:
                 pass
         return 10  # Default max score
+    
+    def get_file_url(self, obj):
+        """Return the proper file URL - prefer actual file over base64"""
+        if obj.file:
+            # If file field has actual file, return its URL
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        # Fallback to file_path (base64 or old data)
+        return obj.file_path
     
     class Meta:
         model = StudentSubmission

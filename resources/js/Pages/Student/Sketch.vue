@@ -1,6 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
+import { useToast } from '../../composables/useToast';
+
+// Initialize toast
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 // Define emits to suppress Vue warnings
 defineEmits(['navigate']);
@@ -341,11 +345,11 @@ const saveDrawing = async () => {
                 date: new Date(response.data.created_at).toLocaleString()
             });
             
-            alert('Sketch saved to My Sketches!');
+            showSuccess('Sketch saved to My Sketches!', 'Saved');
         }
     } catch (error) {
         console.error('Error saving sketch:', error);
-        alert('Failed to save sketch. Please try again.');
+        showError('Failed to save sketch. Please try again.', 'Save Failed');
     }
 };
 
@@ -382,7 +386,7 @@ const deleteSketch = async (id, e) => {
             mySketches.value = mySketches.value.filter(sketch => sketch.id !== id);
         } catch (error) {
             console.error('Error deleting sketch:', error);
-            alert('Failed to delete sketch. Please try again.');
+            showError('Failed to delete sketch. Please try again.', 'Delete Failed');
         }
     }
 };
@@ -402,7 +406,7 @@ const useSketch = () => {
 // Open post to newsfeed modal
 const openPostToFeedModal = () => {
     if (mySketches.value.length === 0) {
-        alert('Please save a sketch first before posting to newsfeed!');
+        showWarning('Please save a sketch first before posting to newsfeed!', 'No Sketch');
         return;
     }
     showPostToFeedModal.value = true;
@@ -416,12 +420,12 @@ const selectSketchForPost = (sketch) => {
 // Post sketch to newsfeed
 const postToNewsfeed = async () => {
     if (!selectedSketchForPost.value) {
-        alert('Please select a sketch to post');
+        showWarning('Please select a sketch to post', 'No Selection');
         return;
     }
     
     if (!postCaption.value.trim()) {
-        alert('Please add a caption for your post');
+        showWarning('Please add a caption for your post', 'Caption Required');
         return;
     }
     
@@ -435,7 +439,7 @@ const postToNewsfeed = async () => {
         
         if (response.data) {
             console.log('Sketch posted successfully:', response.data);
-            alert('Sketch submitted for approval! It will appear in the newsfeed once approved by your teacher.');
+            showSuccess('It will appear in the newsfeed once approved by your teacher.', 'Submitted for Approval');
             
             // Reset and close modal
             showPostToFeedModal.value = false;
@@ -444,7 +448,7 @@ const postToNewsfeed = async () => {
         }
     } catch (error) {
         console.error('Error posting to newsfeed:', error);
-        alert('Failed to post sketch: ' + (error.response?.data?.error || error.message));
+        showError(error.response?.data?.error || error.message, 'Post Failed');
     }
 };
 
@@ -457,7 +461,7 @@ const handleImageUpload = (e) => {
     if (!file) return;
 
     if (!file.type.match('image.*')) {
-        alert('Please select an image file.');
+        showWarning('Please select an image file.', 'Invalid File');
         return;
     }
 
@@ -564,7 +568,7 @@ const zoomOut = () => {
 // Crop functionality
 const startCrop = () => {
     if (!attachedImage.value) {
-        alert('Please attach an image first!');
+        showWarning('Please attach an image first!', 'No Image');
         return;
     }
     isCropping.value = true;

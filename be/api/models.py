@@ -96,6 +96,7 @@ class PortfolioActivity(models.Model):
 class StudentSubmission(models.Model):
     """Student submission model for portfolio activities"""
     STATUS_CHOICES = [
+        ('draft', 'Draft'),
         ('unscored', 'Unscored'),
         ('scored', 'Scored'),
     ]
@@ -119,8 +120,9 @@ class StudentSubmission(models.Model):
     post_to_feed = models.BooleanField(default=False)
     approval_status = models.CharField(max_length=50, choices=APPROVAL_CHOICES, default='pending')
     is_active = models.BooleanField(default=True)  # Track if submission is active
+    is_late = models.BooleanField(default=False)  # Track if submission was submitted after due date
     submission_version = models.IntegerField(default=1)  # Track version for resubmissions
-    submitted_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)  # Set when actually turned in, not when draft created
     scored_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:

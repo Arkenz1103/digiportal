@@ -97,9 +97,26 @@
                   </div>
 
                   <div class="flex flex-wrap gap-2">
+                    <!-- Submitted Collection button -->
+                    <button
+                      v-if="selectedFolder && !selectedActivity && !showSubmittedCollection"
+                      @click="openSubmittedCollection"
+                      class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <i class="pi pi-folder-open"></i>
+                      <span>Submitted Collection</span>
+                    </button>
                     <!-- Back button -->
                     <button
-                      v-if="!selectedActivity"
+                      v-if="!selectedActivity && showSubmittedCollection"
+                      @click="closeSubmittedCollection"
+                      class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <i class="pi pi-arrow-left"></i>
+                      <span>Back to Activities</span>
+                    </button>
+                    <button
+                      v-else-if="!selectedActivity"
                       @click="backToFolders"
                       class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                     >
@@ -119,108 +136,282 @@
 
                 <!-- Activity Detail View -->
                 <div v-if="selectedActivity" class="bg-white rounded-xl shadow-lg p-6 mb-6 border border-indigo-100">
-                  <!-- Activity Header with Title and Buttons -->
-                  <div class="flex flex-col gap-4 mb-6">
-                    <div class="flex justify-between items-center flex-wrap gap-4">
-                      <div class="flex items-center gap-4">
+                  <!-- Top Section: Title, Due Date, View Score Button, and Your Work Card -->
+                  <div class="flex justify-between items-start gap-4 mb-6">
+                    <!-- Left: Title and Due Date -->
+                    <div class="flex-1">
+                      <div class="flex items-center gap-4 flex-wrap mb-4">
                         <h2 class="text-lg font-bold text-gray-900">{{ selectedActivity.title }}</h2>
                         <span class="px-3 py-1 rounded-full text-sm font-medium text-gray-900 inline-block w-fit">
                           Due: {{ selectedActivity.date }}<span v-if="selectedActivity.formattedTime"> at {{ selectedActivity.formattedTime }}</span>
-                          <span class="text-xs block mt-1 text-gray-900/70">You cannot submit after the due date</span>
                         </span>
                       </div>
-                      <div class="flex items-center gap-4 w-full sm:w-auto justify-center sm:justify-end mt-4 sm:mt-0">
-                        <!-- Turn In Button - Show when not submitted and not past due -->
-                        <button
-                          v-if="!hasSubmittedWork && !isPastDue"
-                          @click="addSampleProduct"
-                          class="group flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
-                        >
-                          <i class="pi pi-plus"></i>
-                          <span>Turn in</span>
-                        </button>
+                      
+                      <!-- Type and Description -->
+                      <div class="space-y-2">
+                        <div class="flex items-start gap-2">
+                          <span class="text-sm font-medium text-gray-900">Type:</span>
+                          <span class="text-sm text-gray-600 capitalize">{{ selectedActivity.type }}</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                          <span class="text-sm font-medium text-gray-900">Description:</span>
+                          <p class="text-sm text-gray-600">{{ selectedActivity.description }}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Middle: View Score Button -->
+                    <div class="flex items-start">
+                      <button
+                        v-if="hasSubmittedWork && hasScore"
+                        @click="showScoreDialog = true"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                      >
+                        <i class="pi pi-star-fill"></i>
+                        <span>View Score</span>
+                      </button>
+                    </div>
+                    
+                    <!-- Right: Your Work Card -->
+                    <div class="w-80 flex-shrink-0">
+                      <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 p-4 shadow-sm">
+                        <!-- Header -->
+                        <div class="mb-3">
+                          <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                              <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                <i class="pi pi-briefcase text-white text-sm"></i>
+                              </div>
+                              <h3 class="text-base font-bold text-gray-800">Your Work</h3>
+                            </div>
+                            
+                            <!-- Status Badge (Main Design) -->
+                            <div class="flex flex-col items-end gap-1">
+                              <!-- Submitted Late: Was missing but then turned in -->
+                              <span
+                                v-if="hasSubmittedWork && existingSubmission?.is_late"
+                                class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
+                              >
+                                <i class="pi pi-clock text-xs"></i>
+                                <span>Submitted late</span>
+                              </span>
+                              <!-- Submitted: Turned in on time -->
+                              <span
+                                v-else-if="hasSubmittedWork"
+                                class="px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1.5 text-xs font-medium"
+                              >
+                                <i class="pi pi-check-circle text-xs"></i>
+                                <span>Submitted</span>
+                              </span>
+                              <!-- Missing: Past due and not submitted -->
+                              <span
+                                v-else-if="!hasSubmittedWork && isPastDue"
+                                class="px-3 py-1.5 rounded-lg bg-red-100 text-red-800 flex items-center gap-1.5 text-xs font-medium"
+                              >
+                                <i class="pi pi-times-circle text-xs"></i>
+                                <span>Missing</span>
+                              </span>
+                              <!-- Pending: Assigned but not yet due -->
+                              <span
+                                v-else
+                                class="px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-800 flex items-center gap-1.5 text-xs font-medium"
+                              >
+                                <i class="pi pi-clock text-xs"></i>
+                                <span>Pending</span>
+                              </span>
+                              
+                              <!-- Submitted Date & Time (Show when submitted) -->
+                              <span
+                                v-if="hasSubmittedWork && existingSubmission?.submitted_at"
+                                class="text-xs text-gray-500"
+                              >
+                                {{ formatSubmittedDateTime(existingSubmission.submitted_at) }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                         
-                        <!-- Missing Badge - Show when not submitted and past due -->
-                        <span
-                          v-if="!hasSubmittedWork && isPastDue"
-                          class="px-4 py-2 rounded-lg bg-red-100 text-red-800 flex items-center gap-2 font-medium"
-                        >
-                          <i class="pi pi-times-circle"></i>
-                          <span>Missing - Past Due</span>
-                        </span>
-                        
-                        <!-- Submitted Section - Show when work has been submitted -->
-                        <template v-if="hasSubmittedWork">
-                          <button
-                            v-if="hasScore"
-                            @click="showScoreDialog = true"
-                            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                        <!-- Files Display (Draft or Submitted) -->
+                        <div v-if="draftFiles.length > 0 || (hasSubmittedWork && studentSubmissions.length > 0)" class="mb-3 space-y-2">
+                          <!-- Show draft files if not submitted -->
+                          <div
+                            v-if="!hasSubmittedWork"
+                            v-for="file in draftFiles"
+                            :key="file.id"
+                            class="flex items-center gap-2 p-2 bg-white rounded-lg border border-indigo-200 hover:border-indigo-300 transition-all group"
                           >
-                            <i class="pi pi-star-fill"></i>
-                            <span>View Score</span>
+                            <!-- Thumbnail (Clickable) -->
+                            <button
+                              @click="viewDraftFile(file)"
+                              class="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
+                              :class="file.type === 'image' ? 'bg-gray-100' : 'bg-indigo-100'"
+                            >
+                              <img
+                                v-if="file.type === 'image' && file.path"
+                                :src="file.path"
+                                :alt="file.name"
+                                class="w-full h-full object-cover"
+                                @error="(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                              />
+                              <div 
+                                class="w-full h-full flex items-center justify-center"
+                                :style="file.type === 'image' ? 'display: none;' : ''"
+                              >
+                                <i v-if="file.type === 'image'" class="pi pi-image text-indigo-600 text-lg"></i>
+                                <i v-else-if="file.type === 'pdf'" class="pi pi-file-pdf text-red-600 text-lg"></i>
+                                <i v-else class="pi pi-file text-gray-600 text-lg"></i>
+                              </div>
+                            </button>
+                            
+                            <!-- File Info (Clickable) -->
+                            <button
+                              @click="viewDraftFile(file)"
+                              class="flex-1 min-w-0 text-left"
+                            >
+                              <p class="text-xs font-medium text-gray-900 truncate">{{ file.name }}</p>
+                              <p class="text-xs text-gray-500 capitalize">{{ file.type }}</p>
+                            </button>
+                            
+                            <!-- Remove Button -->
+                            <button
+                              @click.stop="confirmRemoveFile(file)"
+                              class="w-6 h-6 flex items-center justify-center rounded hover:bg-red-100 transition-colors"
+                            >
+                              <i class="pi pi-times text-red-600 text-sm"></i>
+                            </button>
+                          </div>
+                          
+                          <!-- Show submitted files (not clickable) -->
+                          <div
+                            v-else-if="hasSubmittedWork && studentSubmissions.length > 0"
+                            v-for="submission in studentSubmissions.slice(0, 1)"
+                            :key="submission.activityId"
+                            class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200"
+                          >
+                            <!-- Thumbnail (Not clickable - disabled) -->
+                            <div
+                              class="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden opacity-70"
+                              :class="submission.isImage ? 'bg-gray-100' : 'bg-gray-100'"
+                            >
+                              <img
+                                v-if="submission.isImage && submission.previewUrl"
+                                :src="submission.previewUrl"
+                                :alt="submission.caption || 'Submitted work'"
+                                class="w-full h-full object-cover"
+                                @error="(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                              />
+                              <div 
+                                class="w-full h-full flex items-center justify-center"
+                                :style="submission.isImage && submission.previewUrl ? 'display: none;' : ''"
+                              >
+                                <i v-if="submission.isImage" class="pi pi-image text-gray-500 text-lg"></i>
+                                <i v-else class="pi pi-file text-gray-500 text-lg"></i>
+                              </div>
+                            </div>
+                            
+                            <!-- File Info (Not clickable) -->
+                            <div class="flex-1 min-w-0">
+                              <p class="text-xs font-medium text-gray-700 truncate">{{ submission.caption || 'Submitted work' }}</p>
+                              <p class="text-xs text-gray-500">Submitted</p>
+                            </div>
+                            
+                            <!-- Lock Icon (Submitted) -->
+                            <div class="w-6 h-6 flex items-center justify-center">
+                              <i class="pi pi-lock text-gray-400 text-sm"></i>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Action Buttons (Always visible) -->
+                        <div class="space-y-2">
+                          <!-- Hidden File Input -->
+                          <input
+                            type="file"
+                            ref="autoSaveFileInput"
+                            @change="handleAutoSaveFileUpload"
+                            accept="image/*,.pdf,.doc,.docx"
+                            class="hidden"
+                          />
+                          
+                          <!-- Add Button (Only show if not submitted) -->
+                          <button
+                            v-if="!hasSubmittedWork"
+                            @click="showUploadDialog = true"
+                            :disabled="isSubmitting"
+                            class="w-full px-4 py-2 bg-white border-2 border-indigo-200 rounded-lg text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <i v-if="!isSubmitting" class="pi pi-plus"></i>
+                            <i v-else class="pi pi-spin pi-spinner"></i>
+                            <span>{{ isSubmitting ? 'Uploading...' : 'Add or create' }}</span>
                           </button>
-                          <span
-                            class="px-4 py-2 rounded-lg bg-green-100 text-green-800 flex items-center gap-2"
+                          
+                          <!-- Turn In / Resubmit Button -->
+                          <button
+                            v-if="!hasSubmittedWork"
+                            @click="showTurnInDialog = true"
+                            :disabled="draftFiles.length === 0"
+                            class="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <i class="pi pi-check-circle"></i>
-                            <span>Submitted</span>
-                          </span>
-                        </template>
-                      </div>
-                    </div>
-
-                    <!-- Activity Type and Description -->
-                    <div class="mt-1/2 space-y-1/2">
-                      <div class="flex items-start gap-2">
-                        <span class="text-sm font-medium text-gray-900">Type:</span>
-                        <span class="text-sm text-gray-600 capitalize">{{ selectedActivity.type }}</span>
-                      </div>
-                      <div class="flex items-start gap-2">
-                        <span class="text-sm font-medium text-gray-900">Description:</span>
-                        <p class="text-sm text-gray-600">{{ selectedActivity.description }}</p>
+                            <span>Turn in</span>
+                          </button>
+                          
+                          <!-- Resubmit Button (Show when already submitted) -->
+                          <button
+                            v-else
+                            @click="handleResubmit"
+                            class="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-sm font-semibold hover:from-orange-600 hover:to-orange-700 transition-all flex items-center justify-center gap-2"
+                          >
+                            <i class="pi pi-refresh"></i>
+                            <span>Resubmit</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Scoring Criteria Section -->
-                  <div class="mb-6">
-                    <div v-if="selectedActivity.scoringCriteria && selectedActivity.scoringCriteria.length > 0" class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-                      <h3 class="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <i class="pi pi-star text-indigo-600"></i>
-                        Scoring Criteria
-                      </h3>
-                      <div class="space-y-2">
-                        <div
-                          v-for="(criterion, index) in selectedActivity.scoringCriteria"
-                          :key="index"
-                          class="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100"
-                        >
-                          <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
-                            <span class="text-sm font-medium text-gray-900">{{ criterion.name }}</span>
+                  <!-- Scoring Criteria Section (Centered) -->
+                  <div class="mb-6 flex justify-center">
+                    <div class="w-full max-w-md">
+                      <div v-if="selectedActivity.scoringCriteria && selectedActivity.scoringCriteria.length > 0" class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                        <h3 class="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <i class="pi pi-star text-indigo-600"></i>
+                          Scoring Criteria
+                        </h3>
+                        <div class="space-y-2">
+                          <div
+                            v-for="(criterion, index) in selectedActivity.scoringCriteria"
+                            :key="index"
+                            class="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100"
+                          >
+                            <div class="flex items-center gap-2">
+                              <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+                              <span class="text-sm font-medium text-gray-900">{{ criterion.name }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <span class="text-sm font-semibold text-indigo-600">{{ criterion.maxScore }}</span>
+                              <span class="text-xs text-gray-500">pts</span>
+                            </div>
                           </div>
-                          <div class="flex items-center gap-1">
-                            <span class="text-sm font-semibold text-indigo-600">{{ criterion.maxScore }}</span>
-                            <span class="text-xs text-gray-500">pts</span>
-                          </div>
-                        </div>
-                        <!-- Total Points -->
-                        <div class="flex items-center justify-between p-3 bg-indigo-100 rounded-lg border border-indigo-200 mt-2">
-                          <span class="text-sm font-semibold text-gray-900">Total Points</span>
-                          <div class="flex items-center gap-1">
-                            <span class="text-base font-bold text-indigo-700">{{ calculateTotalPoints(selectedActivity.scoringCriteria) }}</span>
-                            <span class="text-xs text-gray-600">pts</span>
+                          <!-- Total Points -->
+                          <div class="flex items-center justify-between p-3 bg-indigo-100 rounded-lg border border-indigo-200 mt-2">
+                            <span class="text-sm font-semibold text-gray-900">Total Points</span>
+                            <div class="flex items-center gap-1">
+                              <span class="text-base font-bold text-indigo-700">{{ calculateTotalPoints(selectedActivity.scoringCriteria) }}</span>
+                              <span class="text-xs text-gray-600">pts</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div v-else class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div class="flex items-center gap-2 text-gray-600">
-                        <i class="pi pi-info-circle"></i>
-                        <span class="text-sm">No scoring criteria has been set for this activity yet.</span>
+                      <div v-else class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div class="flex items-center gap-2 text-gray-600">
+                          <i class="pi pi-info-circle"></i>
+                          <span class="text-sm">No scoring criteria has been set for this activity yet.</span>
+                        </div>
                       </div>
                     </div>
                   </div>
+
 
                   <!-- Student Submissions Section -->
                   <div class="mt-6 border-t border-indigo-100 pt-6" v-if="studentSubmissions.length > 0">
@@ -261,13 +452,90 @@
                           </div>
                           
                           <div class="flex justify-between items-center mt-2">
-                            <span class="text-xs text-gray-500">{{ submission.date }}</span>
+                            <div class="flex items-center gap-2">
+                              <span class="text-xs text-gray-500">{{ submission.date }}</span>
+                            </div>
                             <span class="text-xs px-2 py-1 rounded"
                                   :class="submission.status === 'scored' ? 'bg-green-100 text-green-800' : 
                                          submission.status === 'unscored' ? 'bg-yellow-100 text-yellow-800' : 
                                          'bg-blue-100 text-blue-800'">
                               {{ submission.status === 'scored' ? 'Scored' : submission.status === 'unscored' ? 'Unscored' : submission.status }}
                             </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Submitted Collection View -->
+                <div v-else-if="showSubmittedCollection" class="space-y-4">
+                  <!-- Loading State -->
+                  <div v-if="isLoadingCollection" class="flex justify-center items-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+                  </div>
+
+                  <!-- Empty State -->
+                  <div v-else-if="submittedCollection.length === 0" class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-12 text-center">
+                    <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500">No submitted works yet.</p>
+                  </div>
+
+                  <!-- Collection Cards (Google Classroom Style) -->
+                  <div v-else class="space-y-3">
+                    <div
+                      v-for="item in submittedCollection"
+                      :key="item.id"
+                      class="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 overflow-hidden"
+                    >
+                      <div class="flex items-start gap-4 p-4">
+                        <!-- Thumbnail/Icon -->
+                        <div class="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                          <img
+                            v-if="item.file_type === 'image'"
+                            :src="item.file_path"
+                            :alt="item.activity_title"
+                            class="w-full h-full object-cover"
+                          />
+                          <i v-else class="pi pi-file text-2xl text-gray-400"></i>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="flex-1 min-w-0">
+                          <!-- Activity Title -->
+                          <h3 class="font-semibold text-gray-900 mb-1 truncate">{{ item.activity_title }}</h3>
+                          
+                          <!-- Metadata Row -->
+                          <div class="flex items-center gap-3 text-sm text-gray-600 mb-2">
+                            <span class="flex items-center gap-1">
+                              <i class="pi pi-folder text-xs"></i>
+                              {{ item.folder_name }}
+                            </span>
+                            <span class="text-gray-400">•</span>
+                            <span class="capitalize">{{ item.activity_type }}</span>
+                          </div>
+
+                          <!-- Submitted Date -->
+                          <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <i class="pi pi-check-circle text-green-600"></i>
+                            <span>Submitted {{ new Date(item.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</span>
+                            <span v-if="item.is_late" class="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                              Late
+                            </span>
+                          </div>
+                        </div>
+
+                        <!-- Score Badge (if scored) -->
+                        <div v-if="item.status === 'scored'" class="flex-shrink-0">
+                          <div class="bg-indigo-50 rounded-lg px-4 py-2 text-center">
+                            <div class="text-2xl font-bold text-indigo-700">{{ item.score }}</div>
+                            <div class="text-xs text-gray-600">points</div>
+                          </div>
+                        </div>
+                        <div v-else class="flex-shrink-0">
+                          <div class="bg-gray-50 rounded-lg px-4 py-2 text-center">
+                            <div class="text-sm text-gray-500">Not yet</div>
+                            <div class="text-xs text-gray-400">graded</div>
                           </div>
                         </div>
                       </div>
@@ -328,7 +596,12 @@
                           <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
                         </div>
                         <div class="w-28">
-                          <span v-if="getActivityStatus(activity) === 'submitted'" 
+                          <span v-if="getActivityStatus(activity) === 'submitted' && activity.isLate" 
+                                class="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 flex items-center gap-1 w-fit">
+                            <i class="pi pi-clock text-xs"></i>
+                            Submitted late
+                          </span>
+                          <span v-else-if="getActivityStatus(activity) === 'submitted'" 
                                 class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1 w-fit">
                             <i class="pi pi-check-circle text-xs"></i>
                             Submitted
@@ -339,7 +612,7 @@
                             Missing
                           </span>
                           <span v-else 
-                                class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 flex items-center gap-1 w-fit">
+                                class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center gap-1 w-fit">
                             <i class="pi pi-clock text-xs"></i>
                             Pending
                           </span>
@@ -1568,6 +1841,302 @@
             </div>
         </div>
     </Dialog>
+
+    <!-- Remove File Confirmation Dialog -->
+    <Dialog v-model:visible="showRemoveConfirmDialog" modal :style="{ width: '90vw', maxWidth: '450px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-exclamation-triangle text-orange-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Remove Attached Work</h3>
+        </div>
+      </template>
+
+      <div class="py-4">
+        <p class="text-gray-700 mb-4">Are you sure you want to remove this attached work?</p>
+        <div v-if="fileToRemove" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <i v-if="fileToRemove.type === 'image'" class="pi pi-image text-indigo-600 text-xl"></i>
+            <i v-else-if="fileToRemove.type === 'pdf'" class="pi pi-file-pdf text-red-600 text-xl"></i>
+            <i v-else class="pi pi-file text-gray-600 text-xl"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">{{ fileToRemove.name }}</p>
+            <p class="text-xs text-gray-500 capitalize">{{ fileToRemove.type }}</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-500 mt-4">This action cannot be undone.</p>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showRemoveConfirmDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="removeDraftFile"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center gap-2"
+          >
+            <i class="pi pi-trash"></i>
+            <span>Remove</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Upload Dialog with Tabs -->
+    <Dialog v-model:visible="showUploadDialog" modal :style="{ width: '90vw', maxWidth: '700px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-cloud-upload text-indigo-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Add or Create Work</h3>
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <!-- Tabs Navigation -->
+        <div class="flex border-b border-gray-200">
+          <button
+            v-for="tab in uploadTabs"
+            :key="tab.id"
+            @click="activeUploadTab = tab.id"
+            :class="[
+              'flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2',
+              activeUploadTab === tab.id
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            ]"
+          >
+            <div class="flex items-center justify-center gap-2">
+              <i :class="tab.icon"></i>
+              <span>{{ tab.name }}</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="min-h-[300px]">
+          <!-- From Device Tab -->
+          <div v-if="activeUploadTab === 'device'" class="flex flex-col items-center justify-center py-12">
+            <div class="text-center space-y-4">
+              <div class="w-20 h-20 mx-auto bg-indigo-100 rounded-full flex items-center justify-center">
+                <i class="pi pi-upload text-indigo-600 text-3xl"></i>
+              </div>
+              <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2">Upload from Device</h4>
+                <p class="text-sm text-gray-500 mb-6">Select a file from your computer</p>
+              </div>
+              <button
+                @click="triggerAutoSaveFileUpload"
+                class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 mx-auto"
+              >
+                <i class="pi pi-folder-open"></i>
+                <span>Browse Files</span>
+              </button>
+              <p class="text-xs text-gray-400 mt-4">Supported formats: Images, PDF, Word documents</p>
+            </div>
+          </div>
+
+          <!-- My Sketch Tab -->
+          <div v-else-if="activeUploadTab === 'sketch'" class="flex flex-col items-center justify-center py-12">
+            <div class="text-center space-y-4">
+              <div class="w-20 h-20 mx-auto bg-purple-100 rounded-full flex items-center justify-center">
+                <i class="pi pi-palette text-purple-600 text-3xl"></i>
+              </div>
+              <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2">My Sketches</h4>
+                <p class="text-sm text-gray-500 mb-6">Select from your saved sketches</p>
+              </div>
+              <div class="px-6 py-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-sm text-gray-600 italic">Coming soon...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submitted Collection Tab -->
+          <div v-else-if="activeUploadTab === 'collection'" class="flex flex-col items-center justify-center py-12">
+            <div class="text-center space-y-4">
+              <div class="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                <i class="pi pi-folder text-green-600 text-3xl"></i>
+              </div>
+              <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2">Submitted Collection</h4>
+                <p class="text-sm text-gray-500 mb-6">Reuse from your previous submissions</p>
+              </div>
+              <div class="px-6 py-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-sm text-gray-600 italic">Coming soon...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showUploadDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Turn In Dialog -->
+    <Dialog v-model:visible="showTurnInDialog" modal :style="{ width: '90vw', maxWidth: '600px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-upload text-indigo-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Submit Your Work</h3>
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <!-- Caption Input -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Caption</label>
+          <textarea
+            v-model="submissionCaption"
+            rows="4"
+            placeholder="Add a caption to your work..."
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Upload Your Work Section -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Upload Your Work</label>
+          <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+            <div v-if="draftFiles.length > 0" class="space-y-2">
+              <div
+                v-for="file in draftFiles"
+                :key="file.id"
+                class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200"
+              >
+                <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <i v-if="file.type === 'image'" class="pi pi-image text-indigo-600"></i>
+                  <i v-else-if="file.type === 'pdf'" class="pi pi-file-pdf text-red-600"></i>
+                  <i v-else class="pi pi-file text-gray-600"></i>
+                </div>
+                <div class="flex-1 text-left">
+                  <p class="text-sm font-medium text-gray-900 truncate">{{ file.name }}</p>
+                  <p class="text-xs text-gray-500 capitalize">{{ file.type }}</p>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-gray-500">
+              <i class="pi pi-upload text-3xl mb-2"></i>
+              <p class="text-sm">Click to upload or drag and drop</p>
+              <p class="text-xs text-gray-400">(PDF, DOC, DOCX, or Images)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Post to Feed Checkbox -->
+        <div class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="postToFeed"
+            v-model="postToFeed"
+            class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+          />
+          <label for="postToFeed" class="text-sm text-gray-700">
+            Post this output to feeds (visible to class)
+          </label>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showTurnInDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="turnInDraft"
+            :disabled="isSubmitting || draftFiles.length === 0"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+            <i v-else class="pi pi-check"></i>
+            <span>{{ isSubmitting ? 'Submitting...' : 'Submit Work' }}</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- File Preview Dialog -->
+    <Dialog v-model:visible="showFilePreview" modal :style="{ width: '90vw', maxWidth: '1200px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-eye text-indigo-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">File Preview</h3>
+        </div>
+      </template>
+
+      <div v-if="previewFile" class="space-y-4">
+        <!-- File Info -->
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <i v-if="previewFile.type === 'image'" class="pi pi-image text-indigo-600 text-xl"></i>
+              <i v-else-if="previewFile.type === 'pdf'" class="pi pi-file-pdf text-red-600 text-xl"></i>
+              <i v-else class="pi pi-file text-gray-600 text-xl"></i>
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900">{{ previewFile.name }}</p>
+              <p class="text-sm text-gray-500 capitalize">{{ previewFile.type }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- File Preview Content -->
+        <div class="bg-gray-100 rounded-lg p-4 min-h-[300px] flex items-center justify-center">
+          <!-- Image Preview -->
+          <img
+            v-if="previewFile.type === 'image' && previewFile.path"
+            :src="previewFile.path"
+            :alt="previewFile.name"
+            class="max-w-full max-h-[400px] object-contain rounded-lg shadow-lg"
+          />
+          
+          <!-- PDF Preview -->
+          <iframe
+            v-else-if="previewFile.type === 'pdf' && previewFile.path"
+            :src="previewFile.path"
+            class="w-full h-[600px] rounded-lg border border-gray-300"
+          ></iframe>
+          
+          <!-- Document Preview -->
+          <div v-else-if="previewFile.type === 'document'" class="text-center">
+            <i class="pi pi-file text-6xl text-indigo-400 mb-4"></i>
+            <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
+            <p class="text-gray-500 text-sm">Document file</p>
+          </div>
+          
+          <!-- Other Files -->
+          <div v-else class="text-center">
+            <i class="pi pi-file text-6xl text-gray-400 mb-4"></i>
+            <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
+            <p class="text-gray-500 text-sm">File preview not available</p>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <button
+          @click="showFilePreview = false"
+          class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+        >
+          Close
+        </button>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -1575,6 +2144,10 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
+import { useToast } from '../../composables/useToast';
+
+// Initialize toast
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 const props = defineProps({
   className: {
@@ -1663,6 +2236,22 @@ const hasScore = ref(false);
 const showScoreDialog = ref(false);
 const submissionScore = ref(null);
 
+// Submitted Collection state
+const showSubmittedCollection = ref(false);
+const submittedCollection = ref([]);
+const isLoadingCollection = ref(false);
+
+// Draft submission state
+const draftSubmission = ref(null);
+const draftFiles = ref([]);
+const showFilePreview = ref(false);
+const previewFile = ref(null);
+const showTurnInDialog = ref(false);
+const submissionCaption = ref('');
+const postToFeed = ref(false);
+const showRemoveConfirmDialog = ref(false);
+const fileToRemove = ref(null);
+
 // Portfolio submission state
 const showSubmitPortfolioDialog = ref(false);
 const isSubmittingPortfolio = ref(false);
@@ -1741,9 +2330,13 @@ const loadFolderActivities = async (folderId) => {
         response.data.map(async (activity) => {
           // Check if student has submitted for this activity
           let hasSubmitted = false;
+          let isLate = false;
           try {
             const submissionResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
-            hasSubmitted = submissionResponse.data && submissionResponse.data.length > 0;
+            if (submissionResponse.data && submissionResponse.data.length > 0) {
+              hasSubmitted = true;
+              isLate = submissionResponse.data[0].is_late || false;
+            }
           } catch (error) {
             console.error(`Error checking submission for activity ${activity.id}:`, error);
           }
@@ -1787,6 +2380,7 @@ const loadFolderActivities = async (folderId) => {
             due_time: activity.due_time,
             formattedTime: formattedTime,
             hasSubmitted: hasSubmitted,
+            isLate: isLate,
             scoringCriteria: scoringCriteria
           };
         })
@@ -1846,6 +2440,7 @@ const backToActivitiesList = () => {
   selectedActivity.value = null;
   studentSubmissions.value = [];
   hasSubmittedWork.value = false;
+  showSubmittedCollection.value = false;
   
   // Update view state to folder only
   if (selectedFolder.value) {
@@ -1857,14 +2452,38 @@ const backToActivitiesList = () => {
   }
 };
 
+// Load submitted collection
+const loadSubmittedCollection = async () => {
+  isLoadingCollection.value = true;
+  try {
+    const response = await axios.get('/api/submissions/my-collection/');
+    if (response.data) {
+      submittedCollection.value = response.data;
+      console.log('✅ Loaded submitted collection:', submittedCollection.value.length, 'items');
+    }
+  } catch (error) {
+    console.error('❌ Error loading submitted collection:', error);
+    showError('Failed to load submitted collection', 'Load Failed');
+  } finally {
+    isLoadingCollection.value = false;
+  }
+};
+
+// Show submitted collection
+const openSubmittedCollection = async () => {
+  showSubmittedCollection.value = true;
+  await loadSubmittedCollection();
+};
+
+// Close submitted collection
+const closeSubmittedCollection = () => {
+  showSubmittedCollection.value = false;
+};
+
 // Function to get activity status
 const getActivityStatus = (activity) => {
-  // If already submitted, return 'submitted'
-  if (activity.hasSubmitted) {
-    return 'submitted';
-  }
-  
-  // Check if past due date and time
+  // Check if past due date and time first
+  let isPastDue = false;
   if (activity.due_date) {
     const now = new Date();
     
@@ -1879,10 +2498,21 @@ const getActivityStatus = (activity) => {
       dueDateTime.setHours(23, 59, 59, 999);
     }
     
-    // If past due date/time and not submitted, return 'missing'
-    if (now > dueDateTime) {
-      return 'missing';
+    isPastDue = now > dueDateTime;
+  }
+  
+  // If already submitted
+  if (activity.hasSubmitted) {
+    // Check if it was submitted late
+    if (activity.isLate || (isPastDue && activity.submittedAt)) {
+      activity.isLate = true; // Set the flag for the template
     }
+    return 'submitted';
+  }
+  
+  // If past due date/time and not submitted, return 'missing'
+  if (isPastDue) {
+    return 'missing';
   }
   
   // Otherwise, return 'pending'
@@ -1895,6 +2525,36 @@ const calculateTotalPoints = (criteria) => {
   return criteria.reduce((total, criterion) => {
     return total + (parseInt(criterion.maxScore) || 0);
   }, 0);
+};
+
+// Format submitted date and time (Philippine Time)
+const formatSubmittedDateTime = (dateTimeString) => {
+  if (!dateTimeString) return '';
+  
+  try {
+    const date = new Date(dateTimeString);
+    
+    // Format date: Oct 24, 2025 (Philippine Time)
+    const dateStr = date.toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'Asia/Manila'
+    });
+    
+    // Format time: 4:18 PM (Philippine Time)
+    const timeStr = date.toLocaleTimeString('en-PH', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Manila'
+    });
+    
+    return `${dateStr} at ${timeStr}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateTimeString;
+  }
 };
 
 // Calculate max score from criteria_scores JSON
@@ -1957,6 +2617,45 @@ const openActivity = async (activity) => {
   
   // Load submissions for this activity
   await loadActivitySubmissions(activity.id);
+  
+  // Load draft submissions separately
+  await loadDraftSubmissions(activity.id);
+};
+
+// Load draft submissions for the current activity
+const loadDraftSubmissions = async (activityId) => {
+  try {
+    // Request submissions including drafts
+    const response = await axios.get(`/api/activities/${activityId}/submissions/?include_drafts=true`);
+    console.log('📥 Checking for draft submissions:', response.data);
+    
+    // Filter for draft submissions only
+    const drafts = response.data.filter(sub => sub.status === 'draft');
+    
+    if (drafts.length > 0) {
+      // Load the most recent draft
+      const latestDraft = drafts[0];
+      draftSubmission.value = latestDraft;
+      
+      // Use file_url from backend (already formatted correctly)
+      let filePath = latestDraft.file_url || latestDraft.file_path || latestDraft.file;
+      
+      draftFiles.value = [{
+        id: latestDraft.id,
+        name: latestDraft.caption || 'Uploaded file',
+        type: latestDraft.file_type,
+        path: filePath
+      }];
+      console.log('✅ Loaded draft submission:', draftSubmission.value);
+      console.log('📎 File path:', filePath);
+    } else {
+      draftSubmission.value = null;
+      draftFiles.value = [];
+      console.log('ℹ️ No draft submissions found');
+    }
+  } catch (error) {
+    console.error('❌ Error loading draft submissions:', error);
+  }
 };
 
 // Load submissions for the current activity
@@ -1968,16 +2667,15 @@ const loadActivitySubmissions = async (activityId) => {
     if (response.data && response.data.length > 0) {
       // Map API response to display format
       studentSubmissions.value = response.data.map(submission => {
-        let previewUrl = submission.file_path;
+        // Use file_url from backend (already formatted correctly)
+        let previewUrl = submission.file_url || submission.file_path || submission.file;
         
         console.log('🖼️ Processing submission:', {
           id: submission.id,
           caption: submission.caption,
           file_type: submission.file_type,
-          has_file_path: !!submission.file_path,
-          file_path_length: submission.file_path?.length,
-          file_path_starts_with: submission.file_path?.substring(0, 50),
-          file_path_value: submission.file_path,
+          has_file_url: !!submission.file_url,
+          file_url: submission.file_url,
           status: submission.status,
           score: submission.score
         });
@@ -1993,35 +2691,6 @@ const loadActivitySubmissions = async (activityId) => {
           console.log('✅ Submission has been scored:', submissionScore.value);
         }
         
-        // Format base64 image data if needed
-        if (submission.file_type === 'image') {
-          if (!previewUrl || previewUrl.trim() === '') {
-            console.error('❌ Empty file_path for image submission:', submission.caption);
-            previewUrl = null; // Will show error state
-          } else {
-            // Remove any whitespace or newlines
-            previewUrl = previewUrl.trim();
-            
-            // Check if it's already a data URL
-            if (!previewUrl.startsWith('data:')) {
-              // Detect image type from base64 header
-              let imageType = 'png'; // default
-              
-              if (previewUrl.startsWith('/9j/')) {
-                imageType = 'jpeg';
-              } else if (previewUrl.startsWith('iVBOR')) {
-                imageType = 'png';
-              }
-              
-              // Format as data URL
-              previewUrl = `data:image/${imageType};base64,${previewUrl}`;
-              console.log('✅ Formatted as data URL:', imageType, 'Length:', previewUrl.length);
-            } else {
-              console.log('✅ Already a data URL, Length:', previewUrl.length);
-            }
-          }
-        }
-        
         return {
           activityId: activityId,
           caption: submission.caption,
@@ -2035,6 +2704,7 @@ const loadActivitySubmissions = async (activityId) => {
           status: submission.status,
           score: submission.score,
           feedback: submission.feedback,
+          is_late: submission.is_late || false,
           loadError: false
         };
       });
@@ -2055,7 +2725,9 @@ const checkSubmissionStatus = async (activityId) => {
     if (response.data && response.data.length > 0) {
       hasSubmittedWork.value = true;
       existingSubmission.value = response.data[0];
-      console.log('Student already submitted:', existingSubmission.value);
+      console.log('✅ Student already submitted:', existingSubmission.value);
+      console.log('📅 Submitted at (from backend):', existingSubmission.value.submitted_at);
+      console.log('📅 Formatted:', formatSubmittedDateTime(existingSubmission.value.submitted_at));
     } else {
       hasSubmittedWork.value = false;
       existingSubmission.value = null;
@@ -2202,8 +2874,12 @@ onMounted(async () => {
               // Load submissions for this activity
               await loadActivitySubmissions(activity.id);
               
+              // Load draft submissions separately
+              await loadDraftSubmissions(activity.id);
+              
               console.log('✅ Restored activity view:', activity.title);
               console.log('✅ Submissions loaded:', studentSubmissions.value.length);
+              console.log('✅ Draft files loaded:', draftFiles.value.length);
             } else {
               console.warn('⚠️ Activity not found in loaded activities');
             }
@@ -2323,6 +2999,253 @@ const addSampleProduct = () => {
   clearFile();
 };
 
+// Upload dialog state
+const showUploadDialog = ref(false);
+const activeUploadTab = ref('device');
+const uploadTabs = [
+  { id: 'device', name: 'From Device', icon: 'pi pi-desktop' },
+  { id: 'sketch', name: 'My Sketch', icon: 'pi pi-palette' },
+  { id: 'collection', name: 'Submitted Collection', icon: 'pi pi-folder' }
+];
+
+// Auto-save file upload functions
+const autoSaveFileInput = ref(null);
+
+const triggerAutoSaveFileUpload = () => {
+  if (autoSaveFileInput.value) {
+    autoSaveFileInput.value.click();
+    showUploadDialog.value = false; // Close dialog after file selection
+  }
+};
+
+const handleAutoSaveFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  isSubmitting.value = true;
+
+  try {
+    // Create FormData for file upload as DRAFT
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('caption', file.name);
+    formData.append('post_to_feed', false);
+    formData.append('is_draft', true);  // Mark as draft
+
+    console.log('📤 Saving file as draft:', file.name);
+
+    // Upload the file as draft
+    const response = await axios.post(
+      `/api/activities/${selectedActivity.value.id}/submissions/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    console.log('✅ File saved as draft:', response.data);
+    
+    // Store draft submission
+    draftSubmission.value = response.data;
+    draftFiles.value.push({
+      id: response.data.id,
+      name: file.name,
+      type: response.data.file_type,
+      path: response.data.file_path
+    });
+    
+    // Show success message
+    showSuccess('File added as draft!', 'Saved');
+
+    // Reset file input
+    event.target.value = '';
+  } catch (error) {
+    console.error('❌ Error saving draft:', error);
+    showError(
+      error.response?.data?.error || 'Failed to save draft',
+      'Save Failed'
+    );
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Turn in the draft submission
+const turnInDraft = async () => {
+  if (!draftSubmission.value) {
+    showWarning('Please add a file first', 'No File');
+    return;
+  }
+
+  isSubmitting.value = true;
+
+  try {
+    console.log('📤 Turning in draft submission:', draftSubmission.value.id);
+
+    // Update the draft to final submission with caption
+    const response = await axios.put(
+      `/api/submissions/${draftSubmission.value.id}/`,
+      {
+        status: 'unscored',
+        is_draft: false,
+        caption: submissionCaption.value || draftSubmission.value.caption,
+        post_to_feed: postToFeed.value
+      }
+    );
+
+    console.log('✅ Submission turned in successfully:', response.data);
+    
+    // Show success message
+    showSuccess('Work submitted successfully!', 'Submitted');
+
+    // Update state
+    hasSubmittedWork.value = true;
+    existingSubmission.value = response.data;
+    draftSubmission.value = null;
+    submissionCaption.value = '';
+    postToFeed.value = false;
+    showTurnInDialog.value = false;
+
+    // Keep draftFiles empty since we'll show submitted files instead
+    draftFiles.value = [];
+
+    // Reload submissions to populate studentSubmissions array
+    await loadActivitySubmissions(selectedActivity.value.id);
+    
+    // Also reload to update the submission status
+    await checkSubmissionStatus(selectedActivity.value.id);
+    
+    console.log('📊 After turn in - State:', {
+      hasSubmittedWork: hasSubmittedWork.value,
+      studentSubmissions: studentSubmissions.value.length,
+      existingSubmission: existingSubmission.value
+    });
+  } catch (error) {
+    console.error('❌ Error turning in submission:', error);
+    showError(
+      error.response?.data?.error || 'Failed to submit work',
+      'Submit Failed'
+    );
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Handle resubmission
+const handleResubmit = async () => {
+  if (!selectedActivity.value || studentSubmissions.value.length === 0) return;
+  
+  try {
+    console.log('🔄 Starting resubmission process...');
+    
+    // Get the existing submission
+    const existingSubmissionData = studentSubmissions.value[0];
+    const submissionId = existingSubmissionData.activityId || existingSubmissionData.id;
+    
+    // Find the actual submission ID from backend
+    const submissionsResponse = await axios.get(`/api/activities/${selectedActivity.value.id}/submissions/`);
+    const actualSubmission = submissionsResponse.data.find(sub => sub.status !== 'draft');
+    
+    if (!actualSubmission) {
+      showError('No submission found to resubmit', 'Error');
+      return;
+    }
+    
+    console.log('📝 Converting submission to draft:', actualSubmission.id);
+    
+    // Convert submission back to draft status
+    const response = await axios.put(`/api/submissions/${actualSubmission.id}/`, {
+      status: 'draft'
+    });
+    
+    console.log('✅ Converted to draft:', response.data);
+    
+    // Update state - now it's a draft again
+    hasSubmittedWork.value = false;
+    existingSubmission.value = null;
+    studentSubmissions.value = [];
+    
+    // Set as draft submission with the file
+    draftSubmission.value = response.data;
+    
+    // Load the file into draftFiles so it can be viewed/removed
+    const filePath = response.data.file_url || response.data.file_path || response.data.file;
+    draftFiles.value = [{
+      id: response.data.id,
+      name: response.data.caption || 'Submitted file',
+      type: response.data.file_type,
+      path: filePath
+    }];
+    
+    console.log('✅ Draft file loaded:', draftFiles.value);
+    
+    showSuccess('You can now edit and resubmit your work', 'Ready to Resubmit');
+  } catch (error) {
+    console.error('❌ Error preparing resubmission:', error);
+    showError('Failed to prepare resubmission', 'Error');
+  }
+};
+
+// Confirm remove file
+const confirmRemoveFile = (file) => {
+  fileToRemove.value = file;
+  showRemoveConfirmDialog.value = true;
+};
+
+// Remove draft file
+const removeDraftFile = async () => {
+  if (!fileToRemove.value) return;
+  
+  try {
+    console.log('🗑️ Removing draft file:', fileToRemove.value.id);
+    await axios.delete(`/api/submissions/${fileToRemove.value.id}/`);
+    
+    // Remove from local state
+    draftFiles.value = draftFiles.value.filter(f => f.id !== fileToRemove.value.id);
+    if (draftFiles.value.length === 0) {
+      draftSubmission.value = null;
+    }
+    
+    showSuccess('File removed', 'Removed');
+    console.log('✅ File removed successfully');
+    
+    // Close dialog and reset
+    showRemoveConfirmDialog.value = false;
+    fileToRemove.value = null;
+  } catch (error) {
+    console.error('❌ Error removing file:', error);
+    const errorMsg = error.response?.data?.error || 'Failed to remove file';
+    showError(errorMsg, 'Error');
+  }
+};
+
+// View draft file
+const viewDraftFile = async (file) => {
+  try {
+    // Fetch the full submission data to get the file path
+    const response = await axios.get(`/api/submissions/${file.id}/`);
+    console.log('📥 Loaded submission data:', response.data);
+    
+    // Use file_url from backend (already formatted correctly)
+    let filePath = response.data.file_url || response.data.file_path || response.data.file;
+    
+    previewFile.value = {
+      ...file,
+      path: filePath,
+      fullData: response.data
+    };
+    showFilePreview.value = true;
+    console.log('👁️ Viewing file:', previewFile.value);
+    console.log('📎 Preview path:', filePath);
+  } catch (error) {
+    console.error('❌ Error loading file:', error);
+    showError('Failed to load file preview', 'Error');
+  }
+};
+
+
 // Archive the current class
 const confirmArchive = () => {
   // TODO: Implement actual archive functionality
@@ -2330,7 +3253,7 @@ const confirmArchive = () => {
 
   // Show success message
   // In a real app, you would make an API call here
-  alert('Class archived successfully!');
+  showSuccess('Class archived successfully!', 'Archived');
 
   // Close the dialog
   showArchiveDialog.value = false;
@@ -2390,7 +3313,7 @@ const adjustBrightness = (color, percent) => {
 const showConfirmEnvelopeDialog = () => {
   // Validate required fields
   if (!envelopeDesign.value.title || !envelopeDesign.value.studentName) {
-    alert('Please fill in all required fields (Title and Student Name)');
+    showWarning('Please fill in all required fields (Title and Student Name)', 'Missing Information');
     return;
   }
   
@@ -2419,10 +3342,10 @@ const confirmSaveEnvelope = async () => {
     showEnvelopeConfirmDialog.value = false;
     showEnvelopeDesigner.value = false;
     
-    alert('Portfolio envelope created successfully!');
+    showSuccess('Portfolio envelope created successfully!', 'Envelope Created');
   } catch (error) {
     console.error('❌ Error creating portfolio envelope:', error);
-    alert('Failed to create portfolio envelope: ' + (error.response?.data?.error || error.message));
+    showError(error.response?.data?.error || error.message, 'Failed to Create Envelope');
   }
 };
 
@@ -2528,12 +3451,12 @@ const confirmSubmitPortfolio = async () => {
       showSubmitPortfolioDialog.value = false;
       
       // Show success message
-      alert(`Portfolio submitted successfully!\nSubmitted on: ${response.data.submitted_date} at ${response.data.submitted_time}`);
+      showSuccess(`Submitted on: ${response.data.submitted_date} at ${response.data.submitted_time}`, 'Portfolio Submitted');
     }
   } catch (error) {
     console.error('❌ Error submitting portfolio:', error);
     const errorMessage = error.response?.data?.error || error.message || 'Failed to submit portfolio';
-    alert('Error: ' + errorMessage);
+    showError(errorMessage, 'Submission Failed');
   } finally {
     isSubmittingPortfolio.value = false;
   }
@@ -2566,7 +3489,7 @@ const submitMissingActivity = async () => {
   }
 
   if (!selectedFile.value || !selectedActivity.value) {
-    alert('Please select a file');
+    showWarning('Please select a file', 'No File Selected');
     return;
   }
 
@@ -2605,11 +3528,11 @@ const submitMissingActivity = async () => {
       // Refresh activities to update status
       await fetchPortfolioActivities();
 
-      alert('Activity submitted successfully! Your teacher will review it.');
+      showSuccess('Your teacher will review it.', 'Activity Submitted');
     }
   } catch (error) {
     console.error('❌ Error submitting missing activity:', error);
-    alert(error.response?.data?.error || 'Failed to submit activity. Please try again.');
+    showError(error.response?.data?.error || 'Failed to submit activity. Please try again.', 'Submission Failed');
   } finally {
     isSubmitting.value = false;
   }
@@ -2660,7 +3583,7 @@ const submitNewProduct = async () => {
   }
 
   if (!selectedFile.value || !selectedActivity.value) {
-    alert('Please select a file and activity');
+    showWarning('Please select a file and activity', 'Missing Selection');
     return;
   }
 
@@ -2690,12 +3613,16 @@ const submitNewProduct = async () => {
     console.log('File path length:', filePath?.length);
     console.log('File type:', fileType);
 
+    // Check if submission is late
+    const isLateSubmission = isPastDue.value;
+
     // Submit to API
     const response = await axios.post(`/api/activities/${selectedActivity.value.id}/submissions/`, {
       caption: newProductCaption.value,
       file_path: filePath,
       file_type: fileType,
-      post_to_feed: postOutputOption.value
+      post_to_feed: postOutputOption.value,
+      is_late: isLateSubmission
     });
 
     if (response.data) {
@@ -2718,6 +3645,7 @@ const submitNewProduct = async () => {
           day: 'numeric'
         }),
         status: 'submitted',
+        is_late: response.data.is_late || false,  // Use backend's determination
         loadError: false
       };
 
@@ -2729,11 +3657,11 @@ const submitNewProduct = async () => {
       postOutputOption.value = false;
       clearFile();
 
-      alert('Work submitted successfully!');
+      showSuccess('Work submitted successfully!', 'Submitted');
     }
   } catch (error) {
     console.error('Error submitting work:', error);
-    alert('Failed to submit work: ' + (error.response?.data?.error || error.message));
+    showError(error.response?.data?.error || error.message, 'Submission Failed');
   } finally {
     isSubmitting.value = false;
   }

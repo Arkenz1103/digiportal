@@ -604,7 +604,31 @@ def portfolio_activities_api(request, folder_id):
             activities = folder.activities.filter(is_published=True).order_by('-created_at')
         
         serializer = PortfolioActivitySerializer(activities, many=True)
-        return Response(serializer.data)
+        activities_data = serializer.data
+        
+        # For students, add submission status and is_late flag
+        if request.user.is_authenticated and request.user.role == 'student':
+            from django.utils import timezone
+            from datetime import datetime, time as dt_time
+            
+            for activity_data in activities_data:
+                activity_id = activity_data['id']
+                
+                # Check if student has submitted
+                submission = StudentSubmission.objects.filter(
+                    activity_id=activity_id,
+                    student=request.user
+                ).exclude(status='draft').first()
+                
+                if submission:
+                    activity_data['hasSubmitted'] = True
+                    activity_data['isLate'] = submission.is_late
+                    activity_data['submittedAt'] = submission.submitted_at
+                else:
+                    activity_data['hasSubmitted'] = False
+                    activity_data['isLate'] = False
+        
+        return Response(activities_data)
     
     elif request.method == 'POST':
         if not request.user.is_authenticated or request.user.role != 'teacher':
@@ -1278,16 +1302,36 @@ def activity_submissions_api(request, activity_id):
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'GET':
+        # Check if requesting drafts only
+        include_drafts = request.GET.get('include_drafts', 'false').lower() == 'true'
+        
         # Teachers see all submissions, students see only their own
         if request.user.role == 'teacher':
-            submissions = StudentSubmission.objects.filter(activity=activity).order_by('-submitted_at')
+            # Teachers see only final submissions (not drafts) unless specifically requested
+            if include_drafts:
+                submissions = StudentSubmission.objects.filter(activity=activity).order_by('-submitted_at')
+            else:
+                submissions = StudentSubmission.objects.filter(
+                    activity=activity
+                ).exclude(status='draft').order_by('-submitted_at')
             # Use lightweight serializer for teachers (excludes large file_path)
             from .serializer import StudentSubmissionListSerializer
             serializer = StudentSubmissionListSerializer(submissions, many=True)
         else:
-            submissions = StudentSubmission.objects.filter(activity=activity, student=request.user)
+            # Students can request all submissions including drafts
+            if include_drafts:
+                submissions = StudentSubmission.objects.filter(
+                    activity=activity, 
+                    student=request.user
+                ).order_by('-submitted_at')
+            else:
+                # By default, exclude drafts
+                submissions = StudentSubmission.objects.filter(
+                    activity=activity, 
+                    student=request.user
+                ).exclude(status='draft').order_by('-submitted_at')
             # Use full serializer for students (includes file_path for their own submissions)
-            serializer = StudentSubmissionSerializer(submissions, many=True)
+            serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
         
         return Response(serializer.data)
     
@@ -1311,16 +1355,90 @@ def activity_submissions_api(request, activity_id):
                 existing_submission.caption = data.get('caption', '')
                 existing_submission.file_path = data.get('file_path', '')
                 existing_submission.file_type = data.get('file_type', '')
+                
+                # Check if this update is late (if not already marked as late)
+                if not existing_submission.is_late and activity.due_date:
+                    from django.utils import timezone
+                    from datetime import datetime, time as dt_time
+                    
+                    now = timezone.now()
+                    if activity.due_time:
+                        due_datetime = timezone.make_aware(
+                            datetime.combine(activity.due_date, activity.due_time)
+                        )
+                    else:
+                        due_datetime = timezone.make_aware(
+                            datetime.combine(activity.due_date, dt_time(23, 59, 59))
+                        )
+                    
+                    if now > due_datetime:
+                        existing_submission.is_late = True
+                
                 existing_submission.save()
                 serializer = StudentSubmissionSerializer(existing_submission)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
-                # Create new submission directly
-                post_to_feed = data.get('post_to_feed', False)
+                # Create new submission
+                # Handle post_to_feed - convert string to boolean
+                post_to_feed_raw = data.get('post_to_feed', False)
+                if isinstance(post_to_feed_raw, str):
+                    post_to_feed = post_to_feed_raw.lower() in ('true', '1', 'yes')
+                else:
+                    post_to_feed = bool(post_to_feed_raw)
+                
+                # Check if this is a draft or final submission
+                is_draft = data.get('is_draft', True)  # Default to draft
+                if isinstance(is_draft, str):
+                    is_draft = is_draft.lower() in ('true', '1', 'yes')
+                else:
+                    is_draft = bool(is_draft)
+                
+                # Automatically detect if submission is late (only for final submissions)
+                is_late = False
+                if not is_draft and activity.due_date:
+                    from django.utils import timezone
+                    from datetime import datetime, time as dt_time
+                    
+                    # Get current time
+                    now = timezone.now()
+                    
+                    # Create due datetime
+                    if activity.due_time:
+                        # Combine date and time
+                        due_datetime = timezone.make_aware(
+                            datetime.combine(activity.due_date, activity.due_time)
+                        )
+                    else:
+                        # If no time specified, use end of day (23:59:59)
+                        due_datetime = timezone.make_aware(
+                            datetime.combine(activity.due_date, dt_time(23, 59, 59))
+                        )
+                    
+                    # Check if current time is after due datetime
+                    is_late = now > due_datetime
+                    print(f"📅 Due date check: now={now}, due={due_datetime}, is_late={is_late}")
                 
                 # Handle file upload - support both base64 and actual file
                 file_path = data.get('file_path', '')
                 file_obj = request.FILES.get('file')  # Check if actual file was uploaded
+                
+                # Determine file type
+                file_type = data.get('file_type', '')
+                if file_obj and not file_type:
+                    # Auto-detect file type from uploaded file
+                    content_type = file_obj.content_type
+                    if content_type.startswith('image/'):
+                        file_type = 'image'
+                    elif content_type == 'application/pdf':
+                        file_type = 'pdf'
+                    elif content_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                        file_type = 'document'
+                    else:
+                        file_type = 'file'
+                    print(f"📎 Auto-detected file type: {file_type} from {content_type}")
+                
+                # Set status based on draft flag
+                submission_status = 'draft' if is_draft else 'unscored'
                 
                 submission = StudentSubmission.objects.create(
                     activity=activity,
@@ -1328,22 +1446,26 @@ def activity_submissions_api(request, activity_id):
                     caption=data.get('caption', ''),
                     file=file_obj if file_obj else None,  # Store actual file if provided
                     file_path=file_path,  # Store base64 as fallback
-                    file_type=data.get('file_type', ''),
-                    status='unscored',
+                    file_type=file_type,
+                    status=submission_status,
                     post_to_feed=post_to_feed,
-                    approval_status='pending' if post_to_feed else 'approved'
+                    approval_status='pending' if post_to_feed else 'approved',
+                    is_late=is_late
                 )
                 
-                # Notify teacher about new submission
-                teacher = activity.folder.teacher
-                create_notification(
-                    recipient=teacher,
-                    notification_type='submission_received',
-                    title='New Submission Received',
-                    message=f'{request.user.username} submitted work for "{activity.title}"',
-                    submission=submission,
-                    activity=activity
-                )
+                print(f"✅ Submission created: ID={submission.id}, status={submission_status}, file_type={file_type}, is_late={is_late}, is_draft={is_draft}")
+                
+                # Only notify teacher if this is a final submission (not draft)
+                if not is_draft:
+                    teacher = activity.folder.teacher
+                    create_notification(
+                        recipient=teacher,
+                        notification_type='submission_received',
+                        title='New Submission Received',
+                        message=f'{request.user.username} submitted work for "{activity.title}"',
+                        submission=submission,
+                        activity=activity
+                    )
                 
                 # If requesting approval, send additional notification
                 if post_to_feed:
@@ -1376,8 +1498,20 @@ def unscored_submissions_api(request):
         return Response({'error': 'Only teachers can view unscored submissions'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all unscored submissions (distinct to avoid duplicates)
-        submissions = StudentSubmission.objects.filter(status='unscored').distinct().order_by('-submitted_at')
+        # Get all unscored submissions - explicitly filter by status='unscored' 
+        # AND exclude any that have scores (double safety check)
+        # AND exclude drafts
+        submissions = StudentSubmission.objects.filter(
+            status='unscored'
+        ).exclude(
+            status='scored'
+        ).exclude(
+            status='draft'
+        ).exclude(
+            score__isnull=False  # Exclude any submission that has a score, regardless of status
+        ).distinct().order_by('-submitted_at')
+        
+        print(f"📊 Unscored submissions query: Found {submissions.count()} submissions")
         
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -1398,8 +1532,15 @@ def scored_submissions_api(request):
         return Response({'error': 'Only teachers can view scored submissions'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all scored submissions (distinct to avoid duplicates)
-        submissions = StudentSubmission.objects.filter(status='scored').distinct().order_by('-scored_at')
+        # Get all scored submissions - filter by status='scored' OR has a score
+        # This ensures we catch all scored submissions even if status wasn't updated properly
+        submissions = StudentSubmission.objects.filter(
+            Q(status='scored') | Q(score__isnull=False)
+        ).exclude(
+            status='draft'
+        ).distinct().order_by('-scored_at', '-submitted_at')
+        
+        print(f"📊 Scored submissions query: Found {submissions.count()} submissions")
         
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -1407,6 +1548,67 @@ def scored_submissions_api(request):
         return Response(serializer.data)
     except Exception as e:
         print(f"Error fetching scored submissions: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def student_submitted_collection_api(request):
+    """
+    GET: Get all submissions by the current student (student only)
+    Returns all submitted works across all activities for the student's submitted collection
+    """
+    if not request.user.is_authenticated or request.user.role != 'student':
+        return Response({'error': 'Only students can view their submitted collection'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Get all submissions by this student, ordered by most recent first
+        submissions = StudentSubmission.objects.filter(
+            student=request.user
+        ).select_related('activity', 'activity__folder').order_by('-submitted_at')
+        
+        print(f"📦 Processing {submissions.count()} submissions for student {request.user.username}")
+        
+        # Format response with activity details
+        collection_data = []
+        for submission in submissions:
+            try:
+                activity = submission.activity
+                if not activity:
+                    print(f"⚠️ Submission {submission.id} has no activity, skipping")
+                    continue
+                
+                # Get folder name safely
+                folder_name = 'Unknown'
+                if hasattr(activity, 'folder') and activity.folder:
+                    folder_name = activity.folder.name
+                
+                collection_data.append({
+                    'id': submission.id,
+                    'activity_id': activity.id,
+                    'activity_title': activity.title,
+                    'activity_type': activity.activity_type,
+                    'folder_name': folder_name,
+                    'caption': submission.caption or '',
+                    'file_path': submission.file_path or '',
+                    'file_type': submission.file_type or 'unknown',
+                    'submitted_at': submission.submitted_at.isoformat() if submission.submitted_at else None,
+                    'is_late': submission.is_late,
+                    'status': submission.status,
+                    'score': submission.score if submission.status == 'scored' else None,
+                    'feedback': submission.feedback if submission.status == 'scored' else '',
+                    'scored_at': submission.scored_at.isoformat() if submission.scored_at else None,
+                })
+            except Exception as item_error:
+                print(f"⚠️ Error processing submission {submission.id}: {str(item_error)}")
+                continue
+        
+        print(f"✅ Successfully formatted {len(collection_data)} submissions for student {request.user.username}")
+        return Response(collection_data)
+    except Exception as e:
+        import traceback
+        print(f"❌ Error fetching submitted collection: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1593,19 +1795,131 @@ def newsfeed_api(request):
 
 
 @csrf_exempt
-@api_view(['GET'])
+@api_view(['GET', 'PUT', 'DELETE'])
 def submission_detail_api(request, submission_id):
     """
     GET: Get full submission details including file_path (for viewing individual submission)
+    PUT: Update submission (for turning in drafts or updating caption)
+    DELETE: Delete submission (for removing drafts)
     """
     try:
         submission = StudentSubmission.objects.get(id=submission_id)
-        serializer = StudentSubmissionSerializer(submission)
-        return Response(serializer.data)
+        
+        # Check permissions - only the student who created it or teacher can modify
+        if request.user.role == 'student' and submission.student != request.user:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if request.method == 'GET':
+            serializer = StudentSubmissionSerializer(submission, context={'request': request})
+            return Response(serializer.data)
+        
+        elif request.method == 'PUT':
+            # Update submission
+            data = request.data
+            
+            if 'caption' in data:
+                submission.caption = data['caption']
+            if 'post_to_feed' in data:
+                post_to_feed_raw = data['post_to_feed']
+                if isinstance(post_to_feed_raw, str):
+                    submission.post_to_feed = post_to_feed_raw.lower() in ('true', '1', 'yes')
+                else:
+                    submission.post_to_feed = bool(post_to_feed_raw)
+            
+            # Check if status is being changed (turning in work)
+            if 'status' in data:
+                old_status = submission.status
+                new_status = data['status']
+                submission.status = new_status
+                
+                # If changing from draft to final submission, ALWAYS update submitted_at to current time
+                if old_status == 'draft' and new_status in ['unscored', 'scored']:
+                    from django.utils import timezone
+                    from datetime import datetime, time as dt_time
+                    
+                    # ALWAYS update submitted_at to current time (when student turned in)
+                    now = timezone.now()
+                    submission.submitted_at = now
+                    
+                    activity = submission.activity
+                    if activity and activity.due_date:
+                        if activity.due_time:
+                            due_datetime = timezone.make_aware(
+                                datetime.combine(activity.due_date, activity.due_time)
+                            )
+                        else:
+                            due_datetime = timezone.make_aware(
+                                datetime.combine(activity.due_date, dt_time(23, 59, 59))
+                            )
+                        
+                        # Check if late based on CURRENT submission time
+                        submission.is_late = now > due_datetime
+                        print(f"📅 Turning in work: submitted_at={now}, due={due_datetime}, is_late={submission.is_late}")
+                    else:
+                        print(f"📅 Turning in work: submitted_at={now}")
+                    
+                    # Notify teacher when work is turned in
+                    if activity:
+                        teacher = activity.folder.teacher
+                        create_notification(
+                            recipient=teacher,
+                            notification_type='submission_received',
+                            title='New Submission Received',
+                            message=f'{request.user.username} submitted work for "{activity.title}"',
+                            submission=submission,
+                            activity=activity
+                        )
+            
+            # Legacy support: Check if turning in a draft using is_draft parameter
+            is_draft = data.get('is_draft', None)
+            if is_draft is not None:
+                if isinstance(is_draft, str):
+                    is_draft = is_draft.lower() in ('true', '1', 'yes')
+                else:
+                    is_draft = bool(is_draft)
+                
+                # If turning in (is_draft=False), check for late submission and update submitted_at
+                if not is_draft and submission.status == 'draft':
+                    from django.utils import timezone
+                    from datetime import datetime, time as dt_time
+                    
+                    # Update submitted_at to current time
+                    now = timezone.now()
+                    submission.submitted_at = now
+                    
+                    activity = submission.activity
+                    if activity and activity.due_date:
+                        if activity.due_time:
+                            due_datetime = timezone.make_aware(
+                                datetime.combine(activity.due_date, activity.due_time)
+                            )
+                        else:
+                            due_datetime = timezone.make_aware(
+                                datetime.combine(activity.due_date, dt_time(23, 59, 59))
+                            )
+                        
+                        submission.is_late = now > due_datetime
+                        print(f"📅 Legacy is_draft: submitted_at={now}, is_late={submission.is_late}")
+            
+            submission.save()
+            serializer = StudentSubmissionSerializer(submission, context={'request': request})
+            return Response(serializer.data)
+        
+        elif request.method == 'DELETE':
+            # Only allow deleting drafts
+            if submission.status != 'draft':
+                return Response({'error': 'Can only delete draft submissions'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            submission.delete()
+            return Response({'message': 'Submission deleted successfully'}, status=status.HTTP_200_OK)
+        
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        print(f"Error fetching submission: {str(e)}")
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Error in submission_detail_api: {str(e)}")
+        print(error_trace)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1752,14 +2066,19 @@ def score_submission_api(request, submission_id):
         print(f"  Criteria scores: {criteria_scores}")
         
         # Update submission with score, feedback, and criteria scores
+        print(f"📝 Before update - Status: {submission.status}, Score: {submission.score}")
+        
         submission.score = score
         submission.feedback = feedback
         submission.criteria_scores = criteria_scores  # Save the criteria scores JSON
         submission.status = 'scored'
         submission.scored_at = timezone.now()
-        submission.save()
+        submission.save(update_fields=['score', 'feedback', 'criteria_scores', 'status', 'scored_at'])
         
+        # Refresh from database to confirm the save
+        submission.refresh_from_db()
         print(f"✅ Submission {submission_id} marked as scored")
+        print(f"📝 After update - Status: {submission.status}, Score: {submission.score}, Scored at: {submission.scored_at}")
         
         # Check if there are any remarks and feedback for this submission
         has_remarks = Remark.objects.filter(submission=submission).exists()

@@ -5,10 +5,12 @@ import { createApp } from 'vue'
 // PrimeVue
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';
+import ToastService from 'primevue/toastservice';
 import 'primeicons/primeicons.css'
 
 // Global CSS
 import '../css/app.css'
+import '../css/toast.css'
 
 // Import App component
 import App from './App.vue'
@@ -33,5 +35,8 @@ app.use(PrimeVue, {
       tooltip: 1100       //tooltip
   }
 })
+
+// Use ToastService
+app.use(ToastService)
 
 app.mount('#app')

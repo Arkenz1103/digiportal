@@ -1,6 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { useToast } from '../../composables/useToast';
+
+// Initialize toast
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 
@@ -143,11 +147,11 @@ const submitFeedback = async (isApproved) => {
                 rejectionDetails: ''
             };
             
-            alert(`Submission ${action}d successfully!`);
+            showSuccess('Notice sent successfully!', 'Sent');
         }
     } catch (error) {
         console.error('Error submitting feedback:', error);
-        alert('Failed to submit feedback: ' + (error.response?.data?.error || error.message));
+        showError(error.response?.data?.error || error.message, 'Send Failed');
     }
 };
 
@@ -171,7 +175,7 @@ const showRejectionReasonsDialog = () => {
 
 const confirmRejection = async () => {
     if (!feedbackForm.value.rejectionReason) {
-        alert('Please select a reason for rejection');
+        showWarning('Please fill in all fields', 'Missing Information');
         return;
     }
     await submitFeedback(false);

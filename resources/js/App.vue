@@ -1,5 +1,8 @@
 <template>
   <div id="app">
+    <!-- Toast Notification Component -->
+    <Toast position="top-right" />
+    
     <!-- Debug info -->
     <div v-if="false" class="fixed top-0 right-0 bg-red-500 text-white p-2 z-50">
       Current Page: {{ currentPage }}
@@ -37,6 +40,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import Toast from 'primevue/toast'
 import Landing from './Pages/Landing.vue'
 import AuthLogin from './Pages/Auth/Login.vue'
 import MainLayout from './Layouts/MainLayout.vue'
