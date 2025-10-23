@@ -144,7 +144,14 @@
                                                 </button>
                                                 <button
                                                     @click.stop="openDropFolderDialog(folder)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
+                                                    :disabled="folder.items > 0"
+                                                    :class="[
+                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2',
+                                                        folder.items > 0 
+                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                                                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                                                    ]"
+                                                    :title="folder.items > 0 ? 'Cannot drop folder with activities. Please delete all activities first.' : 'Drop this folder'"
                                                 >
                                                     <i class="pi pi-trash text-sm"></i>
                                                     <span>Drop</span>
@@ -918,8 +925,8 @@
                                     <div class="absolute w-24 h-28 rounded-md transform rotate-[5deg] transition-all duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
                                 </div>
                                 <!-- Folder Title -->
-                                <div class="relative z-10">
-                                    <h3 class="text-xl md:text-2xl font-bold mb-1 text-gray-900 group-hover:text-indigo-700 transition-colors">
+                                <div class="relative z-10 pr-32">
+                                    <h3 class="text-xl md:text-2xl font-bold mb-1 text-gray-900 group-hover:text-indigo-700 transition-colors break-words overflow-hidden">
                                         {{ newFolder.title || 'Folder Title' }}
                                     </h3>
                                     <div class="flex items-center space-x-2">
@@ -1023,13 +1030,8 @@
                     <div>
                         <h4 class="font-semibold text-red-900 mb-1">Warning: Permanent Action</h4>
                         <p class="text-sm text-red-700">
-                            Dropping this portfolio folder will permanently delete:
+                            Dropping this portfolio folder will permanently delete the folder.
                         </p>
-                        <ul class="text-sm text-red-700 mt-2 ml-4 list-disc space-y-1">
-                            <li>All activities in this folder</li>
-                            <li>All student submissions for these activities</li>
-                            <li>All student portfolios created under this folder</li>
-                        </ul>
                         <p class="text-sm text-red-700 mt-2 font-medium">
                             This action cannot be undone!
                         </p>
@@ -1043,6 +1045,14 @@
                         <strong>Items:</strong> {{ dropFolderData.items }} activities
                     </p>
                 </div>
+                <div v-if="dropFolderData.items > 0" class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <i class="pi pi-info-circle text-amber-600 text-xl mt-0.5"></i>
+                    <div>
+                        <p class="text-sm text-amber-700">
+                            <strong>Note:</strong> This folder contains activities. You must delete all activities before you can drop this folder.
+                        </p>
+                    </div>
+                </div>
             </div>
             <template #footer>
                 <div class="flex justify-end gap-2">
@@ -1052,7 +1062,13 @@
                     </button>
                     <button
                         @click="dropFolder"
-                        class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2"
+                        :disabled="dropFolderData.items > 0"
+                        :class="[
+                            'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
+                            dropFolderData.items > 0
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-red-600 text-white hover:bg-red-700'
+                        ]"
                     >
                         <i class="pi pi-trash"></i>
                         Drop Folder
@@ -1950,8 +1966,14 @@ const createNewFolder = async () => {
         console.error('Error response:', error.response?.data);
         
         // Show detailed error message
-        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to create folder';
-        alert(`Error: ${errorMsg}\n\nPlease check the console for more details.`);
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to create folder';
+        const errorDetail = error.response?.data?.detail || '';
+        
+        if (errorDetail) {
+            alert(`${errorMsg}\n\n${errorDetail}`);
+        } else {
+            alert(`Error: ${errorMsg}`);
+        }
         
         // If authentication failed, try to re-authenticate
         if (error.response?.status === 401) {
@@ -2016,13 +2038,26 @@ const updateFolder = async () => {
         console.error('Error updating folder:', error);
         console.error('Error details:', error.response?.data);
         
-        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
-        alert('Failed to update folder: ' + errorMsg);
+        const errorMsg = error.response?.data?.error || error.message;
+        const errorDetail = error.response?.data?.detail || '';
+        
+        if (errorDetail) {
+            alert(`Failed to update folder: ${errorMsg}\n\n${errorDetail}`);
+        } else {
+            alert('Failed to update folder: ' + errorMsg);
+        }
     }
 };
 
 // Open drop folder dialog
 const openDropFolderDialog = (folder) => {
+    // Prevent opening dialog if folder has activities
+    if (folder.items > 0) {
+        alert(`Cannot drop folder with activities. This folder contains ${folder.items} activity/activities. Please delete all activities first before deleting the folder.`);
+        activeFolderMenuIndex.value = null;
+        return;
+    }
+    
     dropFolderData.value = {
         id: folder.id,
         name: folder.name,
@@ -2037,7 +2072,7 @@ const dropFolder = async () => {
     try {
         console.log('Dropping folder:', dropFolderData.value);
         
-        // Delete folder from database (will cascade delete all activities, submissions, and student portfolios)
+        // Delete folder from database (only if it has no activities)
         const response = await axios.delete(`/api/portfolio/folders/${dropFolderData.value.id}/`);
         
         console.log('Folder dropped successfully:', response.data);
@@ -2056,13 +2091,24 @@ const dropFolder = async () => {
         showDropFolderDialog.value = false;
         dropFolderData.value = { id: null, name: '', items: 0 };
         
-        alert('Portfolio folder and all associated data (activities, submissions, and student portfolios) have been permanently deleted.');
+        alert('Portfolio folder has been permanently deleted.');
     } catch (error) {
         console.error('Error dropping folder:', error);
         console.error('Error details:', error.response?.data);
         
+        // Get error message from backend
         const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
-        alert('Failed to drop folder: ' + errorMsg);
+        const errorDetail = error.response?.data?.detail || '';
+        
+        // Show detailed error message
+        if (errorDetail) {
+            alert(`Failed to drop folder: ${errorMsg}\n\n${errorDetail}`);
+        } else {
+            alert('Failed to drop folder: ' + errorMsg);
+        }
+        
+        // Close the dialog
+        showDropFolderDialog.value = false;
     }
 };
 

@@ -443,6 +443,19 @@ def portfolio_folders_api(request):
             if not name:
                 return Response({'error': 'Folder name is required'}, status=status.HTTP_400_BAD_REQUEST)
             
+            # Check for duplicate folder name for this teacher and class (case-sensitive)
+            existing_folder = PortfolioFolder.objects.filter(
+                teacher=request.user,
+                name=name,  # Case-sensitive comparison (exact match)
+                class_name=class_name
+            ).first()
+            
+            if existing_folder:
+                return Response({
+                    'error': 'Duplicate folder name',
+                    'detail': f'A folder with the exact name "{name}" already exists in {class_name}. Please choose a different name.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             print(f"Creating folder - Name: {name}, User: {request.user.username}, Class: {class_name}")
             
             folder = PortfolioFolder.objects.create(
@@ -506,7 +519,23 @@ def portfolio_folder_detail_api(request, folder_id):
         
         try:
             data = json.loads(request.body)
-            folder.name = data.get('name', folder.name)
+            new_name = data.get('name', folder.name)
+            
+            # Check for duplicate folder name (excluding the current folder, case-sensitive)
+            if new_name != folder.name:  # Only check if name is being changed
+                existing_folder = PortfolioFolder.objects.filter(
+                    teacher=request.user,
+                    name=new_name,  # Case-sensitive comparison (exact match)
+                    class_name=folder.class_name
+                ).exclude(id=folder.id).first()
+                
+                if existing_folder:
+                    return Response({
+                        'error': 'Duplicate folder name',
+                        'detail': f'A folder with the exact name "{new_name}" already exists in {folder.class_name}. Please choose a different name.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            folder.name = new_name
             folder.description = data.get('description', folder.description)
             folder.save()
             
@@ -529,6 +558,14 @@ def portfolio_folder_detail_api(request, folder_id):
     elif request.method == 'DELETE':
         if not request.user.is_authenticated or request.user.role != 'teacher':
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if folder has any activities
+        activity_count = folder.activities.count()
+        if activity_count > 0:
+            return Response({
+                'error': 'Cannot delete folder with activities',
+                'detail': f'This folder contains {activity_count} activity/activities. Please delete all activities first before deleting the folder.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         folder_name = folder.name
         
