@@ -36,6 +36,8 @@ urlpatterns = [
     path('api/portfolio/folders/<int:folder_id>/', views.portfolio_folder_detail_api, name='portfolio_folder_detail_api'),
     path('api/portfolio/folders/<int:folder_id>/activities/', views.portfolio_activities_api, name='portfolio_activities_api'),
     path('api/activities/<int:activity_id>/', views.activity_detail_api, name='activity_detail_api'),
+    path('api/activities/<int:activity_id>/publish/', views.publish_activity_api, name='publish_activity_api'),
+    path('api/activities/<int:activity_id>/retract/', views.retract_activity_api, name='retract_activity_api'),
     
     # Submission API routes
     path('api/activities/<int:activity_id>/submissions/', views.activity_submissions_api, name='activity_submissions_api'),
@@ -61,6 +63,7 @@ urlpatterns = [
     # Notification routes
     path('api/notifications/', views.notifications_api, name='notifications_api'),
     path('api/notifications/unread-count/', views.unread_notifications_count_api, name='unread_notifications_count_api'),
+    path('api/notifications/check-edit-deadlines/', views.check_activity_edit_deadlines_api, name='check_activity_edit_deadlines_api'),
     
     # Student progress routes
     path('api/students/progress/', views.student_progress_list_api, name='student_progress_list_api'),

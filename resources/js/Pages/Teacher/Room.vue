@@ -237,28 +237,38 @@
 
                                 <!-- Activities List -->
                                 <template v-else>
-                                    <!-- Table Header -->
-                                    <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-100/80 border-b border-indigo-200/50 rounded-t-xl">
-                                        <div class="w-32">
-                                            <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
+                                    <!-- DRAFT ACTIVITIES TABLE -->
+                                    <div v-if="draftActivities.length > 0" class="mb-8">
+                                        <div class="mb-3 px-2">
+                                            <h3 class="text-lg font-bold text-gray-700 flex items-center gap-2">
+                                                <i class="pi pi-file-edit text-indigo-600"></i>
+                                                Draft Activities
+                                            </h3>
+                                            <p class="text-sm text-gray-500 mt-1">Activities not yet published to students</p>
                                         </div>
-                                        <div class="w-40 md:w-48">
-                                            <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
+                                        
+                                        <!-- Table Header -->
+                                        <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-100/80 border-b border-indigo-200/50 rounded-t-xl">
+                                            <div class="w-32">
+                                                <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
+                                            </div>
+                                            <div class="w-40 md:w-48">
+                                                <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
+                                            </div>
+                                            <div class="flex-1">
+                                                <span class="text-sm font-semibold text-indigo-900">Instruction</span>
+                                            </div>
+                                            <div class="w-28 text-center">
+                                                <span class="text-sm font-semibold text-indigo-900">Due Time</span>
+                                            </div>
+                                            <div class="w-36 text-right">
+                                                <span class="text-sm font-semibold text-indigo-900">Due Date</span>
+                                            </div>
+                                            <div class="w-12"></div>
                                         </div>
-                                        <div class="flex-1">
-                                            <span class="text-sm font-semibold text-indigo-900">Description</span>
-                                        </div>
-                                        <div class="w-28 text-center">
-                                            <span class="text-sm font-semibold text-indigo-900">Due Time</span>
-                                        </div>
-                                        <div class="w-36 text-right">
-                                            <span class="text-sm font-semibold text-indigo-900">Due Date</span>
-                                        </div>
-                                        <div class="w-12"></div>
-                                    </div>
 
-                                    <!-- Activity Items -->
-                                    <div v-for="(activity, index) in activities" :key="activity.id"
+                                        <!-- Draft Activity Items -->
+                                        <div v-for="(activity, index) in draftActivities" :key="activity.id"
                                     class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
                                     @click="navigateToActivityOutputs(activity, index)">
                                     <div class="w-32 flex items-center gap-2">
@@ -306,23 +316,178 @@
                                                 style="bottom: 100%; margin-bottom: 0.5rem; right: 0;"
                                             >
                                                 <button
+                                                    @click.stop="submitActivity(activity, index)"
+                                                    :disabled="activity.is_published"
+                                                    :class="[
+                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
+                                                        activity.is_published 
+                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                                                            : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+                                                    ]"
+                                                    :title="activity.is_published ? 'Activity is already published. Use Retract to unpublish.' : 'Publish activity to students'"
+                                                >
+                                                    <i class="pi pi-send text-sm"></i>
+                                                    <span>{{ activity.is_published ? 'Published' : 'Submit' }}</span>
+                                                </button>
+                                                <button
                                                     @click.stop="editActivity(activity, index)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2 transition-colors"
+                                                    :disabled="isActivityPastDue(activity)"
+                                                    :class="[
+                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
+                                                        isActivityPastDue(activity)
+                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                                                            : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+                                                    ]"
+                                                    :title="isActivityPastDue(activity) ? 'Cannot edit activity within 3 hours of deadline or after it has passed' : 'Edit activity details'"
                                                 >
                                                     <i class="pi pi-pencil text-sm"></i>
                                                     <span>Edit Activity</span>
                                                 </button>
                                                 <button
-                                                    @click.stop="confirmDelete(activity, index)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors"
+                                                    @click.stop="retractActivity(activity, index)"
+                                                    :disabled="!activity.is_published"
+                                                    :class="[
+                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
+                                                        !activity.is_published 
+                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                                                            : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                                                    ]"
+                                                    :title="!activity.is_published ? 'Activity must be published first before retracting' : 'Retract activity from students'"
                                                 >
-                                                    <i class="pi pi-trash text-sm"></i>
-                                                    <span>Delete</span>
+                                                    <i class="pi pi-undo text-sm"></i>
+                                                    <span>Retract</span>
                                                 </button>
                                             </div>
                                         </transition>
                                     </div>
                                 </div>
+                                    </div>
+
+                                    <!-- PUBLISHED ACTIVITIES TABLE -->
+                                    <div v-if="publishedActivities.length > 0">
+                                        <div class="mb-3 px-2">
+                                            <h3 class="text-lg font-bold text-gray-700 flex items-center gap-2">
+                                                <i class="pi pi-check-circle text-green-600"></i>
+                                                Published Activities
+                                            </h3>
+                                            <p class="text-sm text-gray-500 mt-1">Activities currently visible to students</p>
+                                        </div>
+                                        
+                                        <!-- Table Header -->
+                                        <div class="flex items-center px-4 md:px-6 py-4 bg-green-100/80 border-b border-green-200/50 rounded-t-xl">
+                                            <div class="w-32">
+                                                <span class="text-sm font-semibold text-green-900">Activity Type</span>
+                                            </div>
+                                            <div class="w-40 md:w-48">
+                                                <span class="text-sm font-semibold text-green-900">Activity Title</span>
+                                            </div>
+                                            <div class="flex-1">
+                                                <span class="text-sm font-semibold text-green-900">Instruction</span>
+                                            </div>
+                                            <div class="w-28 text-center">
+                                                <span class="text-sm font-semibold text-green-900">Due Time</span>
+                                            </div>
+                                            <div class="w-36 text-right">
+                                                <span class="text-sm font-semibold text-green-900">Due Date</span>
+                                            </div>
+                                            <div class="w-12"></div>
+                                        </div>
+
+                                        <!-- Published Activity Items -->
+                                        <div v-for="(activity, index) in publishedActivities" :key="activity.id"
+                                        class="group flex items-center px-4 md:px-6 py-4 hover:bg-green-50 border-b border-green-100 cursor-pointer transition-colors duration-200"
+                                        @click="navigateToActivityOutputs(activity, index)">
+                                        <div class="w-32 flex items-center gap-2">
+                                            <span class="text-sm text-green-700 capitalize">{{ activity.type }}</span>
+                                            <span v-if="activity.archived" class="text-amber-500" title="Archived">
+                                                <i class="pi pi-archive text-xs"></i>
+                                            </span>
+                                        </div>
+                                        <div class="w-40 md:w-48">
+                                            <span class="font-medium text-green-700 transition-colors duration-100">{{ activity.title }}</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <span class="text-green-700 group-hover:text-green-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
+                                        </div>
+                                        <div class="w-28 text-center">
+                                            <span v-if="activity.formattedTime" class="text-sm text-green-600 font-medium">{{ activity.formattedTime }}</span>
+                                            <span v-else class="text-xs text-gray-400 italic">No time</span>
+                                        </div>
+                                        <div class="w-36 text-right">
+                                            <span class="text-sm text-green-600">{{ activity.date }}</span>
+                                        </div>
+                                        <div class="w-12 flex justify-end opacity-100 relative" style="z-index: 50;">
+                                            <button 
+                                                class="p-1.5 rounded-full hover:bg-green-100 text-green-700 hover:text-green-900 focus:outline-none" 
+                                                @click.stop="toggleActivityMenu($event, activity, index)"
+                                                :ref="'menuButton' + index"
+                                                :aria-expanded="activeMenuIndex === index"
+                                                aria-haspopup="true"
+                                            >
+                                                <i class="pi pi-ellipsis-v"></i>
+                                            </button>
+                                            
+                                            <!-- Activity Actions Menu -->
+                                            <transition
+                                                enter-active-class="transition ease-out duration-100"
+                                                enter-from-class="transform opacity-0 scale-95"
+                                                enter-to-class="transform opacity-100 scale-100"
+                                                leave-active-class="transition ease-in duration-75"
+                                                leave-from-class="transform opacity-100 scale-100"
+                                                leave-to-class="transform opacity-0 scale-95"
+                                            >
+                                                <div 
+                                                    v-if="activeMenuIndex === index"
+                                                    class="activity-menu-dropdown absolute z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
+                                                    style="bottom: 100%; margin-bottom: 0.5rem; right: 0;"
+                                                >
+                                                    <button
+                                                        @click.stop="submitActivity(activity, index)"
+                                                        :disabled="activity.is_published"
+                                                        :class="[
+                                                            'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
+                                                            activity.is_published 
+                                                                ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                                                                : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+                                                        ]"
+                                                        :title="activity.is_published ? 'Activity is already published. Use Retract to unpublish.' : 'Publish activity to students'"
+                                                    >
+                                                        <i class="pi pi-send text-sm"></i>
+                                                        <span>{{ activity.is_published ? 'Published' : 'Submit' }}</span>
+                                                    </button>
+                                                    <button
+                                                        @click.stop="editActivity(activity, index)"
+                                                        :disabled="isActivityPastDue(activity)"
+                                                        :class="[
+                                                            'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
+                                                            isActivityPastDue(activity)
+                                                                ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                                                                : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+                                                        ]"
+                                                        :title="isActivityPastDue(activity) ? 'Cannot edit activity within 3 hours of deadline or after it has passed' : 'Edit activity details'"
+                                                    >
+                                                        <i class="pi pi-pencil text-sm"></i>
+                                                        <span>Edit Activity</span>
+                                                    </button>
+                                                    <button
+                                                        @click.stop="retractActivity(activity, index)"
+                                                        :disabled="!activity.is_published"
+                                                        :class="[
+                                                            'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
+                                                            !activity.is_published 
+                                                                ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                                                                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                                                        ]"
+                                                        :title="!activity.is_published ? 'Activity must be published first before retracting' : 'Retract activity from students'"
+                                                    >
+                                                        <i class="pi pi-undo text-sm"></i>
+                                                        <span>Retract</span>
+                                                    </button>
+                                                </div>
+                                            </transition>
+                                        </div>
+                                    </div>
+                                    </div>
                                 </template>
                             </div>
                         </div>
@@ -1109,40 +1274,51 @@
                             </Dropdown>
                         </div>
                         <div>
-                            <label for="activityTitle" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Title</label>
+                            <label for="activityTitle" class="block text-xs font-medium text-gray-700 mb-0.5">
+                                Activity Title <span class="text-red-500">*</span>
+                            </label>
                             <input
                                 id="activityTitle"
                                 v-model="newActivity.title"
                                 type="text"
+                                required
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 placeholder="Enter title"
                             >
                         </div>
                         <div>
-                            <label for="activityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Description</label>
+                            <label for="activityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Instruction</label>
                             <textarea
                                 id="activityDescription"
                                 v-model="newActivity.description"
                                 rows="2"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                                placeholder="Enter description"
+                                placeholder="Enter instruction"
                             ></textarea>
                         </div>
                         <div>
-                            <label for="activityDate" class="block text-xs font-medium text-gray-700 mb-0.5">Due Date</label>
+                            <label for="activityDate" class="block text-xs font-medium text-gray-700 mb-0.5">
+                                Due Date <span class="text-red-500">*</span>
+                            </label>
                             <input
                                 id="activityDate"
                                 v-model="newActivity.dueDate"
                                 type="date"
+                                required
+                                :min="getTodayDate()"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                         </div>
                         <div>
-                            <label for="activityTime" class="block text-xs font-medium text-gray-700 mb-0.5">Due Time</label>
+                            <label for="activityTime" class="block text-xs font-medium text-gray-700 mb-0.5">
+                                Due Time <span class="text-red-500">*</span>
+                            </label>
                             <input
                                 id="activityTime"
                                 v-model="newActivity.dueTime"
                                 type="time"
+                                required
+                                :min="getMinTime()"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                         </div>
@@ -1151,7 +1327,9 @@
                     <!-- Right Column: Scoring Criteria -->
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-gray-900">Scoring Criteria</h3>
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                Scoring Criteria <span class="text-red-500">*</span>
+                            </h3>
                             <button
                                 @click="addCriterion"
                                 type="button"
@@ -1278,8 +1456,7 @@
                 </div>
             </div>
             <template #footer>
-                <div class="flex justify-between items-center">
-                    <p class="text-sm text-gray-500">* All fields are required</p>
+                <div class="flex justify-end items-center">
                     <div class="flex gap-2">
                         <button @click="showAddActivityDialog = false"
                             class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -1287,13 +1464,7 @@
                         </button>
                         <button
                             @click="addNewActivity"
-                            :disabled="!newActivity.type || !newActivity.title || !newActivity.description || !newActivity.dueDate"
-                            :class="[
-                                'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
-                                newActivity.type && newActivity.title && newActivity.description && newActivity.dueDate
-                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                    : 'bg-indigo-100 text-indigo-300 cursor-not-allowed'
-                            ]"
+                            class="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700"
                         >
                             <i class="pi pi-check"></i>
                             Add Activity
@@ -1316,7 +1487,9 @@
                         <h3 class="text-base font-semibold text-gray-900 mb-2">Activity Details</h3>
                         
                         <div>
-                            <label for="editActivityType" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Type</label>
+                            <label for="editActivityType" class="block text-xs font-medium text-gray-700 mb-0.5">
+                                Activity Type <span class="text-red-500">*</span>
+                            </label>
                             <Dropdown
                                 id="editActivityType"
                                 v-model="editActivityData.type"
@@ -1342,7 +1515,9 @@
                             </Dropdown>
                         </div>
                         <div>
-                            <label for="editActivityTitle" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Title</label>
+                            <label for="editActivityTitle" class="block text-xs font-medium text-gray-700 mb-0.5">
+                                Activity Title <span class="text-red-500">*</span>
+                            </label>
                             <input
                                 id="editActivityTitle"
                                 v-model="editActivityData.title"
@@ -1352,30 +1527,36 @@
                             >
                         </div>
                         <div>
-                            <label for="editActivityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Description</label>
+                            <label for="editActivityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Instruction</label>
                             <textarea
                                 id="editActivityDescription"
                                 v-model="editActivityData.description"
                                 rows="2"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                                placeholder="Enter description"
+                                placeholder="Enter instruction"
                             ></textarea>
                         </div>
                         <div>
-                            <label for="editActivityDate" class="block text-xs font-medium text-gray-700 mb-0.5">Due Date</label>
+                            <label for="editActivityDate" class="block text-xs font-medium text-gray-700 mb-0.5">
+                                Due Date <span class="text-red-500">*</span>
+                            </label>
                             <input
                                 id="editActivityDate"
                                 v-model="editActivityData.dueDate"
                                 type="date"
+                                :min="getTodayDate()"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                         </div>
                         <div>
-                            <label for="editActivityTime" class="block text-xs font-medium text-gray-700 mb-0.5">Due Time</label>
+                            <label for="editActivityTime" class="block text-xs font-medium text-gray-700 mb-0.5">
+                                Due Time <span class="text-red-500">*</span>
+                            </label>
                             <input
                                 id="editActivityTime"
                                 v-model="editActivityData.dueTime"
                                 type="time"
+                                :min="getMinTimeForEdit()"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                         </div>
@@ -1384,7 +1565,9 @@
                     <!-- Right Column: Scoring Criteria -->
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-gray-900">Scoring Criteria</h3>
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                Scoring Criteria <span class="text-red-500">*</span>
+                            </h3>
                             <button
                                 @click="editScoringCriteria.push({ name: '', maxScore: 0, isCreated: false, isEditing: false })"
                                 type="button"
@@ -1445,8 +1628,7 @@
                 </div>
             </div>
             <template #footer>
-                <div class="flex justify-between items-center">
-                    <p class="text-sm text-gray-500">* All fields are required</p>
+                <div class="flex justify-end items-center">
                     <div class="flex gap-2">
                         <button @click="showEditDialog = false"
                             class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -1454,18 +1636,84 @@
                         </button>
                         <button
                             @click="updateActivity"
-                            :disabled="!editActivityData.type || !editActivityData.title || !editActivityData.description || !editActivityData.dueDate"
-                            :class="[
-                                'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
-                                editActivityData.type && editActivityData.title && editActivityData.description && editActivityData.dueDate
-                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                    : 'bg-indigo-100 text-indigo-300 cursor-not-allowed'
-                            ]"
+                            class="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700"
                         >
                             <i class="pi pi-check"></i>
                             Save Changes
                         </button>
                     </div>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Submit Confirmation Dialog -->
+        <Dialog v-model:visible="showSubmitDialog" 
+                modal 
+                header="Publish Activity" 
+                :style="{ width: '90%', maxWidth: '28rem' }">
+            <div class="p-6">
+                <div class="flex items-start gap-4">
+                    <div class="mt-1 flex-shrink-0">
+                        <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                            <i class="pi pi-send text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">Publish Activity to Students</h3>
+                        <p class="mt-1 text-gray-600">
+                            Are you sure you want to publish "<span class="font-medium">{{ activityToSubmit?.title }}</span>"? 
+                            Students will be notified and can start working on this activity.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-3">
+                    <button @click="showSubmitDialog = false"
+                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Cancel
+                    </button>
+                    <button @click="confirmSubmitActivity"
+                        class="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center gap-2">
+                        <i class="pi pi-check"></i>
+                        Confirm & Publish
+                    </button>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Retract Confirmation Dialog -->
+        <Dialog v-model:visible="showRetractDialog" 
+                modal 
+                header="Retract Activity" 
+                :style="{ width: '90%', maxWidth: '28rem' }">
+            <div class="p-6">
+                <div class="flex items-start gap-4">
+                    <div class="mt-1 flex-shrink-0">
+                        <div class="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                            <i class="pi pi-undo text-orange-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">Retract Activity from Students</h3>
+                        <p class="mt-1 text-gray-600">
+                            Are you sure you want to retract "<span class="font-medium">{{ activityToRetract?.title }}</span>"? 
+                            Students will no longer be able to see or submit this activity. You can publish it again later.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-3">
+                    <button @click="showRetractDialog = false"
+                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Cancel
+                    </button>
+                    <button @click="confirmRetractActivity"
+                        class="px-4 py-2 text-white bg-orange-600 rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center gap-2">
+                        <i class="pi pi-undo"></i>
+                        Confirm & Retract
+                    </button>
                 </div>
             </template>
         </Dialog>
@@ -1649,6 +1897,24 @@ const editActivityData = ref({
 
 const editScoringCriteria = ref([]);
 const showEditDialog = ref(false);
+
+// Computed property to validate activity form
+const isActivityFormValid = computed(() => {
+    // Check if required fields are filled
+    const hasTitle = newActivity.value.title && newActivity.value.title.trim() !== '';
+    const hasDueDate = newActivity.value.dueDate && newActivity.value.dueDate.trim() !== '';
+    const hasDueTime = newActivity.value.dueTime && newActivity.value.dueTime.trim() !== '';
+    
+    // Check if at least one criterion is created with valid points
+    const hasValidCriteria = savedCriteria.value.some(c => 
+        c.isCreated && 
+        c.name && 
+        c.name.trim() !== '' && 
+        c.maxScore > 0
+    );
+    
+    return hasTitle && hasDueDate && hasDueTime && hasValidCriteria;
+});
 
 // Function to create new folder
 const createNewFolder = async () => {
@@ -1853,8 +2119,8 @@ const createCriterion = (index) => {
         return;
     }
     
-    if (criterion.maxScore < 0) {
-        alert('Score must be 0 or greater');
+    if (criterion.maxScore <= 0) {
+        alert('Score must be greater than 0');
         return;
     }
     
@@ -1894,8 +2160,8 @@ const confirmEdit = (index) => {
         return;
     }
     
-    if (criterion.maxScore < 0) {
-        alert('Score must be 0 or greater');
+    if (criterion.maxScore <= 0) {
+        alert('Score must be greater than 0');
         return;
     }
     
@@ -1936,9 +2202,133 @@ const removeSavedCriterion = (index) => {
     }
 };
 
+// Helper function to get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// Helper function to get current time in HH:MM format
+const getCurrentTime = () => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+};
+
+// Helper function to check if activity is past due or too close to deadline
+const isActivityPastDue = (activity) => {
+    if (!activity.due_date) return false;
+    
+    // Configuration: Minimum hours before due date/time to allow editing (must match backend)
+    const EDIT_CUTOFF_HOURS = 3;
+    
+    // Parse due date
+    const dueDate = new Date(activity.due_date);
+    
+    // Combine date and time
+    let dueDatetime;
+    if (activity.due_time) {
+        const [hours, minutes] = activity.due_time.split(':');
+        dueDatetime = new Date(dueDate);
+        dueDatetime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    } else {
+        // If no time specified, use end of day
+        dueDatetime = new Date(dueDate);
+        dueDatetime.setHours(23, 59, 59, 999);
+    }
+    
+    // Get current time
+    const now = new Date();
+    
+    // Calculate time remaining in milliseconds
+    const timeRemaining = dueDatetime - now;
+    
+    // If deadline has passed
+    if (timeRemaining <= 0) {
+        return true;
+    }
+    
+    // If less than EDIT_CUTOFF_HOURS remaining
+    const cutoffMilliseconds = EDIT_CUTOFF_HOURS * 60 * 60 * 1000;
+    if (timeRemaining < cutoffMilliseconds) {
+        return true;
+    }
+    
+    return false;
+};
+
+// Helper function to get minimum time for time input (only if date is today)
+const getMinTime = () => {
+    if (!newActivity.value.dueDate) return '';
+    
+    const selectedDate = new Date(newActivity.value.dueDate);
+    const today = new Date();
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    
+    // If selected date is today, return current time as minimum
+    if (selectedDate.getTime() === today.getTime()) {
+        return getCurrentTime();
+    }
+    
+    // If future date, no minimum time restriction
+    return '';
+};
+
+// Helper function to get minimum time for edit dialog
+const getMinTimeForEdit = () => {
+    if (!editActivityData.value.dueDate) return '';
+    
+    const selectedDate = new Date(editActivityData.value.dueDate);
+    const today = new Date();
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    
+    // If selected date is today, return current time as minimum
+    if (selectedDate.getTime() === today.getTime()) {
+        return getCurrentTime();
+    }
+    
+    // If future date, no minimum time restriction
+    return '';
+};
+
 // Function to add new activity
 const addNewActivity = async () => {
-    if (!newActivity.value.type || !newActivity.value.title || !newActivity.value.description || !newActivity.value.dueDate) return;
+    // Validate Activity Type
+    if (!newActivity.value.type) {
+        alert('Activity Type is required. Please select an activity type.');
+        return;
+    }
+    
+    // Validate Activity Title
+    if (!newActivity.value.title || !newActivity.value.title.trim()) {
+        alert('Activity Title is required. Please enter a title for the activity.');
+        return;
+    }
+    
+    // Validate Due Date
+    if (!newActivity.value.dueDate) {
+        alert('Due Date is required. Please select a due date.');
+        return;
+    }
+    
+    // Validate Due Time
+    if (!newActivity.value.dueTime || !newActivity.value.dueTime.trim()) {
+        alert('Due Time is required. Please select a due time.');
+        return;
+    }
+    
+    // Validate Scoring Criteria
+    const createdCriteria = savedCriteria.value.filter(c => c.isCreated);
+    if (createdCriteria.length === 0) {
+        alert('Scoring Criteria is required. Please add and create at least one scoring criterion with points greater than 0.');
+        return;
+    }
 
     try {
         // Get the current folder ID
@@ -1956,18 +2346,33 @@ const addNewActivity = async () => {
             if (!isNaN(dateObj.getTime())) {
                 formattedDueDate = dateObj.toISOString().split('T')[0];
             }
+            
+            // Validate that the date is not in the past
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const selectedDate = new Date(formattedDueDate);
+            selectedDate.setHours(0, 0, 0, 0);
+            
+            if (selectedDate < today) {
+                alert('Due date cannot be in the past. Please select today or a future date.');
+                return;
+            }
+            
+            // If the date is today, validate the time is not in the past
+            if (selectedDate.getTime() === today.getTime()) {
+                const currentTime = getCurrentTime();
+                if (newActivity.value.dueTime < currentTime) {
+                    alert('Due time cannot be in the past. Please select a future time.');
+                    return;
+                }
+            }
         }
 
-        // Validate that at least one criterion has been created
-        const createdCriteria = savedCriteria.value.filter(c => c.isCreated).map(c => ({
+        // Map created criteria for submission
+        const criteriaForSubmission = createdCriteria.map(c => ({
             name: c.name,
             maxScore: c.maxScore
         }));
-        
-        if (createdCriteria.length === 0) {
-            alert('Please create at least one scoring criterion before creating the activity');
-            return;
-        }
 
         console.log('Creating activity with criteria:', {
             folder_id: currentFolder.id,
@@ -1976,7 +2381,7 @@ const addNewActivity = async () => {
             description: newActivity.value.description,
             due_date: formattedDueDate,
             due_time: newActivity.value.dueTime || null,
-            scoring_criteria: createdCriteria
+            scoring_criteria: criteriaForSubmission
         });
 
         // Save to database via API
@@ -1986,7 +2391,7 @@ const addNewActivity = async () => {
             description: newActivity.value.description,
             due_date: formattedDueDate,
             due_time: newActivity.value.dueTime || null,
-            scoring_criteria: JSON.stringify(createdCriteria)
+            scoring_criteria: JSON.stringify(criteriaForSubmission)
         });
 
         if (response.data) {
@@ -2239,6 +2644,22 @@ const checkPortfolioCompilationStatus = async () => {
     }
 };
 
+// Check for activities approaching edit deadline
+const checkEditDeadlines = async () => {
+    try {
+        console.log('🔔 Checking for activities approaching edit deadline...');
+        const response = await axios.get('/api/notifications/check-edit-deadlines/');
+        
+        if (response.data && response.data.warnings_sent > 0) {
+            console.log(`✅ ${response.data.warnings_sent} edit deadline warning(s) sent:`, response.data.activities_warned);
+        } else {
+            console.log('✅ No activities approaching edit deadline');
+        }
+    } catch (error) {
+        console.error('❌ Error checking edit deadlines:', error);
+    }
+};
+
 // View student envelope
 const viewStudentEnvelope = async (student) => {
     selectedEnvelope.value = student;
@@ -2352,6 +2773,9 @@ onMounted(async () => {
         // Check portfolio compilation status
         await checkPortfolioCompilationStatus();
         
+        // Check for activities approaching edit deadline
+        await checkEditDeadlines();
+        
         // Check if returning from Outputs/Sprogress page to show activities list
         const returnContext = localStorage.getItem('return_to_activities');
         if (returnContext) {
@@ -2458,6 +2882,15 @@ const selectedFolderId = ref(null);
 const activities = ref([]);
 const isLoadingActivities = ref(false);
 
+// Computed properties to separate draft and published activities
+const draftActivities = computed(() => {
+    return activities.value.filter(activity => !activity.is_published);
+});
+
+const publishedActivities = computed(() => {
+    return activities.value.filter(activity => activity.is_published);
+});
+
 // Function to go back to folders view
 const backToFolders = () => {
     showingActivities.value = false;
@@ -2528,6 +2961,8 @@ const loadActivities = async (folderId) => {
                     formattedTime = `${displayHour}:${minutes} ${ampm}`;
                 }
                 
+                console.log(`📌 Activity "${activity.title}" - is_published:`, activity.is_published, 'published_at:', activity.published_at);
+                
                 return {
                     id: activity.id,
                     type: activity.activity_type,
@@ -2542,7 +2977,9 @@ const loadActivities = async (folderId) => {
                     due_time: activity.due_time,
                     formattedTime: formattedTime,
                     archived: false,
-                    scoringCriteria: scoringCriteria  // Use camelCase for consistency
+                    scoringCriteria: scoringCriteria,  // Use camelCase for consistency
+                    is_published: activity.is_published || false,  // Include publish status
+                    published_at: activity.published_at || null    // Include publish timestamp
                 };
             });
             console.log('✅ Final loaded activities:', activities.value);
@@ -2558,6 +2995,12 @@ const loadActivities = async (folderId) => {
 // Handle edit activity
 const editActivity = (activity, index) => {
     closeMenu();
+    
+    // Check if activity is past due or too close to deadline
+    if (isActivityPastDue(activity)) {
+        alert('Cannot edit activity within 3 hours of the deadline or after it has passed.');
+        return;
+    }
     
     console.log('📝 Editing activity:', activity);
     console.log('📊 Activity scoring criteria:', activity.scoringCriteria);
@@ -2640,20 +3083,164 @@ const deleteActivity = async (activity, index) => {
     }
 };
 
+// Submit activity state
+const showSubmitDialog = ref(false);
+const activityToSubmit = ref(null);
+
+// Submit activity (show confirmation dialog)
+const submitActivity = (activity, index) => {
+    closeMenu();
+    activityToSubmit.value = activity;
+    showSubmitDialog.value = true;
+};
+
+// Confirm submit activity
+const confirmSubmitActivity = async () => {
+    if (!activityToSubmit.value) return;
+    
+    try {
+        const wasRetracted = activityToSubmit.value.is_published === false && activityToSubmit.value.published_at === null;
+        console.log('Publishing activity:', activityToSubmit.value.id, wasRetracted ? '(Re-publishing retracted activity)' : '');
+        
+        const response = await axios.post(`/api/activities/${activityToSubmit.value.id}/publish/`);
+        
+        if (response.data) {
+            console.log('✅ Activity published successfully:', response.data);
+            
+            // Update the activity in the local list
+            const activityIndex = activities.value.findIndex(a => a.id === activityToSubmit.value.id);
+            if (activityIndex !== -1) {
+                activities.value[activityIndex].is_published = true;
+                activities.value[activityIndex].published_at = response.data.activity.published_at;
+            }
+            
+            showSubmitDialog.value = false;
+            activityToSubmit.value = null;
+            
+            if (wasRetracted) {
+                alert('Activity re-published successfully! Students can now see this activity again.');
+            } else {
+                alert('Activity published successfully! Students can now see this activity.');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error publishing activity:', error);
+        alert('Failed to publish activity: ' + (error.response?.data?.error || error.message));
+    }
+};
+
+// Retract activity state
+const showRetractDialog = ref(false);
+const activityToRetract = ref(null);
+
+// Retract activity (show confirmation dialog)
+const retractActivity = (activity, index) => {
+    closeMenu();
+    
+    // Check if activity is published
+    if (!activity.is_published) {
+        alert('This activity is not published yet.');
+        return;
+    }
+    
+    activityToRetract.value = activity;
+    showRetractDialog.value = true;
+};
+
+// Confirm retract activity
+const confirmRetractActivity = async () => {
+    if (!activityToRetract.value) return;
+    
+    try {
+        console.log('Retracting activity:', activityToRetract.value.id);
+        
+        const response = await axios.post(`/api/activities/${activityToRetract.value.id}/retract/`);
+        
+        if (response.data) {
+            console.log('✅ Activity retracted successfully:', response.data);
+            
+            // Update the activity in the local list
+            const activityIndex = activities.value.findIndex(a => a.id === activityToRetract.value.id);
+            if (activityIndex !== -1) {
+                activities.value[activityIndex].is_published = false;
+                activities.value[activityIndex].published_at = null;
+            }
+            
+            showRetractDialog.value = false;
+            activityToRetract.value = null;
+            alert('Activity retracted successfully! Students can no longer see this activity.');
+        }
+    } catch (error) {
+        console.error('❌ Error retracting activity:', error);
+        alert('Failed to retract activity: ' + (error.response?.data?.error || error.message));
+    }
+};
+
 // Update activity
 const updateActivity = async () => {
+    // Validate Activity Type
+    if (!editActivityData.value.type) {
+        alert('Activity Type is required. Please select an activity type.');
+        return;
+    }
+    
+    // Validate Activity Title
+    if (!editActivityData.value.title || !editActivityData.value.title.trim()) {
+        alert('Activity Title is required. Please enter a title for the activity.');
+        return;
+    }
+    
+    // Validate Due Date
+    if (!editActivityData.value.dueDate) {
+        alert('Due Date is required. Please select a due date.');
+        return;
+    }
+    
+    // Validate Due Time
+    if (!editActivityData.value.dueTime || !editActivityData.value.dueTime.trim()) {
+        alert('Due Time is required. Please select a due time.');
+        return;
+    }
+    
+    // Validate Scoring Criteria
+    const validCriteria = editScoringCriteria.value.filter(c => c.name && c.name.trim() && c.maxScore > 0);
+    if (validCriteria.length === 0) {
+        alert('Scoring Criteria is required. Please add at least one criterion with a name and points greater than 0.');
+        return;
+    }
+
     try {
         const activityId = editActivityData.value.id;
         
         console.log('Updating activity:', activityId);
         
+        // Validate date and time
+        if (editActivityData.value.dueDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const selectedDate = new Date(editActivityData.value.dueDate);
+            selectedDate.setHours(0, 0, 0, 0);
+            
+            if (selectedDate < today) {
+                alert('Due date cannot be in the past. Please select today or a future date.');
+                return;
+            }
+            
+            // If the date is today, validate the time is not in the past
+            if (selectedDate.getTime() === today.getTime()) {
+                const currentTime = getCurrentTime();
+                if (editActivityData.value.dueTime < currentTime) {
+                    alert('Due time cannot be in the past. Please select a future time.');
+                    return;
+                }
+            }
+        }
+        
         // Prepare scoring criteria
-        const scoringCriteria = editScoringCriteria.value
-            .filter(c => c.name && c.maxScore > 0)
-            .map(c => ({
-                name: c.name,
-                maxScore: parseInt(c.maxScore)
-            }));
+        const scoringCriteria = validCriteria.map(c => ({
+            name: c.name,
+            maxScore: parseInt(c.maxScore)
+        }));
         
         // Make API call to update the activity
         const response = await axios.put(`/api/activities/${editActivityData.value.id}/`, {

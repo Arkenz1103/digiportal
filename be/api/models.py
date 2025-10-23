@@ -81,6 +81,8 @@ class PortfolioActivity(models.Model):
     due_time = models.TimeField(null=True, blank=True)
     file_path = models.CharField(max_length=500, null=True, blank=True)
     scoring_criteria = models.TextField(null=True, blank=True)  # JSON string of criteria
+    is_published = models.BooleanField(default=False)  # Track if activity is published to students
+    published_at = models.DateTimeField(null=True, blank=True)  # When the activity was published
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

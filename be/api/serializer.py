@@ -42,7 +42,7 @@ class PortfolioActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = PortfolioActivity
         fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'published_at']
 
 
 class PortfolioFolderSerializer(serializers.ModelSerializer):

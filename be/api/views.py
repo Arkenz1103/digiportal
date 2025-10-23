@@ -559,7 +559,13 @@ def portfolio_activities_api(request, folder_id):
         return Response({'error': 'Folder not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'GET':
-        activities = folder.activities.all().order_by('-created_at')
+        # Teachers see all activities, students only see published ones
+        if request.user.is_authenticated and request.user.role == 'teacher':
+            activities = folder.activities.all().order_by('-created_at')
+        else:
+            # Students only see published activities
+            activities = folder.activities.filter(is_published=True).order_by('-created_at')
+        
         serializer = PortfolioActivitySerializer(activities, many=True)
         return Response(serializer.data)
     
@@ -572,6 +578,119 @@ def portfolio_activities_api(request, folder_id):
             print(f"Received data: {data}")  # Debug log
             print(f"Request user: {request.user}")
             print(f"Folder: {folder}")
+            
+            # Validate required fields
+            if not data.get('title') or not data.get('title').strip():
+                return Response(
+                    {'error': 'Activity Title is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not data.get('due_date'):
+                return Response(
+                    {'error': 'Due Date is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not data.get('due_time'):
+                return Response(
+                    {'error': 'Due Time is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate due date is not in the past
+            from datetime import date, datetime, time as time_type
+            if data.get('due_date'):
+                try:
+                    # Parse the due date
+                    if isinstance(data.get('due_date'), str):
+                        due_date_obj = datetime.strptime(data.get('due_date'), '%Y-%m-%d').date()
+                    else:
+                        due_date_obj = data.get('due_date')
+                    
+                    # Check if date is in the past
+                    today = date.today()
+                    if due_date_obj < today:
+                        return Response(
+                            {'error': 'Due date cannot be in the past. Please select today or a future date.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # If date is today, validate time is not in the past (time is now required)
+                    if due_date_obj == today:
+                        try:
+                            # Parse the due time
+                            if isinstance(data.get('due_time'), str):
+                                time_parts = data.get('due_time').split(':')
+                                due_time_obj = time_type(int(time_parts[0]), int(time_parts[1]))
+                            else:
+                                due_time_obj = data.get('due_time')
+                            
+                            # Check if time is in the past
+                            current_time = datetime.now().time()
+                            if due_time_obj < current_time:
+                                return Response(
+                                    {'error': 'Due time cannot be in the past. Please select a future time.'},
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except (ValueError, IndexError) as e:
+                            print(f"Error parsing time: {e}")
+                            return Response(
+                                {'error': 'Invalid time format. Please use HH:MM format.'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                except (ValueError, TypeError) as e:
+                    print(f"Error parsing date: {e}")
+                    return Response(
+                        {'error': 'Invalid date format. Please use YYYY-MM-DD format.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Validate scoring criteria
+            import json
+            scoring_criteria_str = data.get('scoring_criteria', '[]')
+            try:
+                scoring_criteria = json.loads(scoring_criteria_str) if isinstance(scoring_criteria_str, str) else scoring_criteria_str
+                
+                # Check if at least one criterion exists
+                if not scoring_criteria or len(scoring_criteria) == 0:
+                    return Response(
+                        {'error': 'At least one scoring criterion is required'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate each criterion
+                for criterion in scoring_criteria:
+                    if not criterion.get('name') or not criterion.get('name').strip():
+                        return Response(
+                            {'error': 'Criterion name is required'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    max_score = criterion.get('maxScore')
+                    if max_score is None or max_score == '':
+                        return Response(
+                            {'error': 'Criterion score is required'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    try:
+                        max_score_int = int(max_score)
+                        if max_score_int <= 0:
+                            return Response(
+                                {'error': 'Criterion score must be greater than 0'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    except (ValueError, TypeError):
+                        return Response(
+                            {'error': 'Criterion score must be a valid number'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+            except json.JSONDecodeError:
+                return Response(
+                    {'error': 'Invalid scoring criteria format'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # Prepare data for serializer
             activity_data = {
@@ -592,57 +711,10 @@ def portfolio_activities_api(request, folder_id):
             if serializer.is_valid():
                 activity = serializer.save()
                 
-                # Notify all students about new activity (exclude admin)
-                students = User.objects.filter(role='student').exclude(username='admin')
+                # Activity is created as draft (is_published=False by default)
+                # No notifications sent until teacher publishes it
                 
-                # Build detailed message with due date/time info
-                due_info = ""
-                if activity.due_date:
-                    from datetime import datetime, time as time_type
-                    try:
-                        # Handle both date objects and strings
-                        if isinstance(activity.due_date, str):
-                            # Parse string date
-                            due_date_obj = datetime.strptime(activity.due_date, '%Y-%m-%d').date()
-                            due_date_str = due_date_obj.strftime('%B %d, %Y')
-                        else:
-                            due_date_str = activity.due_date.strftime('%B %d, %Y')
-                        
-                        if activity.due_time:
-                            # Convert time object to datetime for formatting
-                            if isinstance(activity.due_time, time_type):
-                                temp_datetime = datetime.combine(datetime.today(), activity.due_time)
-                                due_time_str = temp_datetime.strftime('%I:%M %p')
-                            else:
-                                # If it's a string, try to parse it
-                                due_time_str = str(activity.due_time)
-                                if ':' in due_time_str and len(due_time_str) <= 8:
-                                    parts = due_time_str.split(':')
-                                    hour = int(parts[0])
-                                    minute = int(parts[1])
-                                    ampm = 'AM' if hour < 12 else 'PM'
-                                    display_hour = hour if hour <= 12 else hour - 12
-                                    if display_hour == 0:
-                                        display_hour = 12
-                                    due_time_str = f'{display_hour:02d}:{minute:02d} {ampm}'
-                            due_info = f" Due: {due_date_str} at {due_time_str}"
-                        else:
-                            due_info = f" Due: {due_date_str}"
-                    except Exception as e:
-                        print(f"Error formatting due date/time: {e}")
-                        due_info = f" Due: {activity.due_date}"
-                
-                for student in students:
-                    create_notification(
-                        recipient=student,
-                        notification_type='activity_created',
-                        title='New Activity Created',
-                        message=f'New activity "{activity.title}" added to portfolio "{folder.name}".{due_info}',
-                        activity=activity,
-                        portfolio=folder
-                    )
-                
-                print(f"Activity created successfully: {serializer.data}")
+                print(f"Activity created successfully as draft: {serializer.data}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
                 print(f"Serializer errors: {serializer.errors}")
@@ -680,6 +752,112 @@ def activity_detail_api(request, activity_id):
         try:
             data = request.data
             print(f"Updating activity {activity_id} with data: {data}")
+            
+            # Check if activity due date has passed or is too close to deadline
+            from datetime import date, datetime, time as time_type, timedelta
+            
+            # Configuration: Minimum hours before due date/time to allow editing
+            EDIT_CUTOFF_HOURS = 3  # Teachers must edit at least 3 hours before deadline
+            
+            if activity.due_date:
+                # Combine due date and time into a single datetime
+                activity_due_date = activity.due_date if isinstance(activity.due_date, date) else datetime.strptime(str(activity.due_date), '%Y-%m-%d').date()
+                
+                if activity.due_time:
+                    activity_time = activity.due_time if isinstance(activity.due_time, time_type) else datetime.strptime(str(activity.due_time), '%H:%M:%S').time()
+                    due_datetime = datetime.combine(activity_due_date, activity_time)
+                else:
+                    # If no time specified, use end of day (23:59:59)
+                    due_datetime = datetime.combine(activity_due_date, time_type(23, 59, 59))
+                
+                # Get current datetime
+                now = datetime.now()
+                
+                # Calculate time remaining until deadline
+                time_remaining = due_datetime - now
+                
+                # If deadline has passed
+                if time_remaining.total_seconds() <= 0:
+                    return Response(
+                        {'error': 'Cannot edit activity after the due date/time has passed.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # If less than EDIT_CUTOFF_HOURS remaining
+                cutoff_timedelta = timedelta(hours=EDIT_CUTOFF_HOURS)
+                if time_remaining < cutoff_timedelta:
+                    hours_remaining = time_remaining.total_seconds() / 3600
+                    return Response(
+                        {'error': f'Cannot edit activity within {EDIT_CUTOFF_HOURS} hours of the deadline. Only {hours_remaining:.1f} hours remaining.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Validate required fields if provided
+            if 'title' in data and (not data.get('title') or not data.get('title').strip()):
+                return Response(
+                    {'error': 'Activity Title cannot be empty'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if 'due_date' in data and not data.get('due_date'):
+                return Response(
+                    {'error': 'Due Date cannot be empty'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if 'due_time' in data and not data.get('due_time'):
+                return Response(
+                    {'error': 'Due Time cannot be empty'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate due date is not in the past
+            from datetime import date, datetime, time as time_type
+            if data.get('due_date'):
+                try:
+                    # Parse the due date
+                    if isinstance(data.get('due_date'), str):
+                        due_date_obj = datetime.strptime(data.get('due_date'), '%Y-%m-%d').date()
+                    else:
+                        due_date_obj = data.get('due_date')
+                    
+                    # Check if date is in the past
+                    today = date.today()
+                    if due_date_obj < today:
+                        return Response(
+                            {'error': 'Due date cannot be in the past. Please select today or a future date.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # If date is today, validate time is not in the past
+                    if due_date_obj == today and data.get('due_time'):
+                        try:
+                            # Parse the due time
+                            if isinstance(data.get('due_time'), str):
+                                time_parts = data.get('due_time').split(':')
+                                due_time_obj = time_type(int(time_parts[0]), int(time_parts[1]))
+                            else:
+                                due_time_obj = data.get('due_time')
+                            
+                            # Check if time is in the past
+                            current_time = datetime.now().time()
+                            if due_time_obj < current_time:
+                                return Response(
+                                    {'error': 'Due time cannot be in the past. Please select a future time.'},
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except (ValueError, IndexError) as e:
+                            print(f"Error parsing time: {e}")
+                            return Response(
+                                {'error': 'Invalid time format. Please use HH:MM format.'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                except (ValueError, TypeError) as e:
+                    print(f"Error parsing date: {e}")
+                    return Response(
+                        {'error': 'Invalid date format. Please use YYYY-MM-DD format.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             
             # Track what changed
             changes = []
@@ -723,9 +901,56 @@ def activity_detail_api(request, activity_id):
                     changes.append('due time')
             activity.due_time = new_due_time if new_due_time else None
             
-            if data.get('scoring_criteria') and data.get('scoring_criteria') != activity.scoring_criteria:
-                changes.append('scoring criteria')
-            activity.scoring_criteria = data.get('scoring_criteria', activity.scoring_criteria)
+            # Validate scoring criteria if provided
+            if data.get('scoring_criteria'):
+                import json
+                scoring_criteria_str = data.get('scoring_criteria')
+                try:
+                    scoring_criteria = json.loads(scoring_criteria_str) if isinstance(scoring_criteria_str, str) else scoring_criteria_str
+                    
+                    # Check if at least one criterion exists
+                    if not scoring_criteria or len(scoring_criteria) == 0:
+                        return Response(
+                            {'error': 'At least one scoring criterion is required'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate each criterion
+                    for criterion in scoring_criteria:
+                        if not criterion.get('name') or not criterion.get('name').strip():
+                            return Response(
+                                {'error': 'Criterion name is required'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        
+                        max_score = criterion.get('maxScore')
+                        if max_score is None or max_score == '':
+                            return Response(
+                                {'error': 'Criterion score is required'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        
+                        try:
+                            max_score_int = int(max_score)
+                            if max_score_int <= 0:
+                                return Response(
+                                    {'error': 'Criterion score must be greater than 0'},
+                                    status=status.HTTP_400_BAD_REQUEST
+                                )
+                        except (ValueError, TypeError):
+                            return Response(
+                                {'error': 'Criterion score must be a valid number'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                except json.JSONDecodeError:
+                    return Response(
+                        {'error': 'Invalid scoring criteria format'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                if data.get('scoring_criteria') != activity.scoring_criteria:
+                    changes.append('scoring criteria')
+                activity.scoring_criteria = data.get('scoring_criteria')
             
             activity.save()
             
@@ -860,6 +1085,147 @@ def activity_detail_api(request, activity_id):
         except Exception as e:
             print(f"❌ Error deleting activity: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def publish_activity_api(request, activity_id):
+    """
+    POST: Publish an activity to make it visible to students (teacher only)
+    """
+    try:
+        activity = PortfolioActivity.objects.get(id=activity_id)
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Only teachers can publish
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can publish activities'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Check if already published (but allow re-publishing if it was retracted)
+        if activity.is_published:
+            return Response({'error': 'Activity is already published'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Publish or re-publish the activity
+        from django.utils import timezone
+        was_retracted = activity.published_at is None  # Check if this is a first-time publish or re-publish
+        
+        activity.is_published = True
+        activity.published_at = timezone.now()
+        activity.save()
+        
+        action = "re-published" if not was_retracted else "published"
+        print(f"✅ Activity {activity_id} {action} successfully")
+        
+        # Notify all students about the new activity
+        students = User.objects.filter(role='student').exclude(username='admin')
+        
+        # Build detailed message with due date/time info
+        due_info = ""
+        if activity.due_date:
+            from datetime import datetime, time as time_type
+            try:
+                # Handle both date objects and strings
+                if isinstance(activity.due_date, str):
+                    due_date_obj = datetime.strptime(activity.due_date, '%Y-%m-%d').date()
+                    due_date_str = due_date_obj.strftime('%B %d, %Y')
+                else:
+                    due_date_str = activity.due_date.strftime('%B %d, %Y')
+                
+                if activity.due_time:
+                    # Convert time object to datetime for formatting
+                    if isinstance(activity.due_time, str):
+                        time_parts = activity.due_time.split(':')
+                        time_obj = time_type(int(time_parts[0]), int(time_parts[1]))
+                    else:
+                        time_obj = activity.due_time
+                    
+                    # Format time in 12-hour format
+                    time_str = datetime.combine(datetime.today(), time_obj).strftime('%I:%M %p')
+                    due_info = f" Due: {due_date_str} at {time_str}"
+                else:
+                    due_info = f" Due: {due_date_str}"
+            except Exception as e:
+                print(f"Error formatting due date/time: {e}")
+                due_info = f" Due: {activity.due_date}"
+        
+        for student in students:
+            create_notification(
+                recipient=student,
+                notification_type='activity_created',
+                title='New Activity Published',
+                message=f'New activity "{activity.title}" has been published in portfolio "{activity.folder.name}".{due_info}',
+                activity=activity,
+                portfolio=activity.folder
+            )
+        
+        serializer = PortfolioActivitySerializer(activity)
+        return Response({
+            'message': 'Activity published successfully',
+            'activity': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Error publishing activity: {str(e)}")
+        print(error_trace)
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def retract_activity_api(request, activity_id):
+    """
+    POST: Retract (unpublish) an activity to make it hidden from students (teacher only)
+    """
+    try:
+        activity = PortfolioActivity.objects.get(id=activity_id)
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Only teachers can retract
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can retract activities'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Check if activity is published
+        if not activity.is_published:
+            return Response({'error': 'Activity is not published'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Retract the activity (set back to draft)
+        activity.is_published = False
+        activity.published_at = None
+        activity.save()
+        
+        print(f"✅ Activity {activity_id} retracted successfully")
+        
+        # Notify all students that the activity has been retracted
+        students = User.objects.filter(role='student').exclude(username='admin')
+        
+        for student in students:
+            create_notification(
+                recipient=student,
+                notification_type='activity_updated',
+                title='Activity Retracted',
+                message=f'Activity "{activity.title}" has been retracted and is no longer available.',
+                activity=activity,
+                portfolio=activity.folder
+            )
+        
+        serializer = PortfolioActivitySerializer(activity)
+        return Response({
+            'message': 'Activity retracted successfully',
+            'activity': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Error retracting activity: {str(e)}")
+        print(error_trace)
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @csrf_exempt
@@ -2294,8 +2660,8 @@ def get_student_portfolio_activities_api(request, class_name):
         
         activity_list = []
         for folder in folders:
-            # Get all activities in this folder
-            activities = PortfolioActivity.objects.filter(folder=folder).order_by('created_at')
+            # Get only published activities in this folder (students should not see drafts)
+            activities = PortfolioActivity.objects.filter(folder=folder, is_published=True).order_by('created_at')
             
             for activity in activities:
                 # Check if student has submitted this activity
@@ -2734,4 +3100,122 @@ def submit_portfolio_api(request, class_name):
         import traceback
         print(f"❌ Error submitting portfolio: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def check_activity_edit_deadlines_api(request):
+    """
+    Check for activities approaching their edit deadline and notify teachers
+    Should be called periodically (e.g., every hour) or when teacher logs in
+    """
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can check edit deadlines'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from datetime import datetime, timedelta, time as time_type
+        
+        # Configuration
+        EDIT_CUTOFF_HOURS = 3  # Activities can't be edited within 3 hours of deadline
+        WARNING_HOUR = 4  # Warn when 4 hours remain (1 hour before edit cutoff)
+        
+        # Get all published activities for this teacher
+        teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
+        activities = PortfolioActivity.objects.filter(
+            folder__in=teacher_folders,
+            is_published=True
+        )
+        
+        now = datetime.now()
+        warnings = []
+        
+        print(f"🔍 Checking {activities.count()} activities for edit deadline warnings...")
+        print(f"⏰ Current time: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        for activity in activities:
+            if not activity.due_date:
+                continue
+            
+            # Combine due date and time
+            activity_due_date = activity.due_date
+            if activity.due_time:
+                activity_time = activity.due_time
+                due_datetime = datetime.combine(activity_due_date, activity_time)
+            else:
+                due_datetime = datetime.combine(activity_due_date, time_type(23, 59, 59))
+            
+            # Calculate time remaining
+            time_remaining = due_datetime - now
+            hours_remaining = time_remaining.total_seconds() / 3600
+            
+            print(f"📊 Activity '{activity.title}': Due {due_datetime.strftime('%Y-%m-%d %H:%M')}, {hours_remaining:.1f} hours remaining")
+            
+            # Skip if deadline has passed
+            if hours_remaining <= 0:
+                print(f"  ⏭️ Skipped: Deadline passed")
+                continue
+            
+            # Skip if already past edit cutoff
+            if hours_remaining <= EDIT_CUTOFF_HOURS:
+                print(f"  ⏭️ Skipped: Already in edit cutoff window ({hours_remaining:.1f} ≤ {EDIT_CUTOFF_HOURS})")
+                continue
+            
+            # Check if we're at the 1-hour warning mark (4 hours before deadline = 1 hour before edit cutoff)
+            if WARNING_HOUR - 0.5 <= hours_remaining <= WARNING_HOUR + 0.5:
+                print(f"  ⚠️ AT WARNING MARK: {hours_remaining:.1f} hours (1 hour before edit cutoff)")
+                
+                # Check if notification already sent
+                existing_notification = Notification.objects.filter(
+                    recipient=request.user,
+                    notification_type='edit_deadline_warning',
+                    activity=activity,
+                    created_at__gte=now - timedelta(hours=2)  # Don't send duplicate within 2 hours
+                ).exists()
+                
+                if not existing_notification:
+                    print(f"  📨 Creating 1-hour warning notification...")
+                    
+                    # Calculate when editing will be locked
+                    edit_deadline = due_datetime - timedelta(hours=EDIT_CUTOFF_HOURS)
+                    edit_deadline_str = edit_deadline.strftime('%b %d, %Y at %I:%M %p')
+                    
+                    # Create notification
+                    create_notification(
+                        recipient=request.user,
+                        notification_type='edit_deadline_warning',
+                        title='⚠️ You Have 1 Hour Remaining to Make Changes',
+                        message=f'Activity "{activity.title}" in "{activity.folder.name}" can only be edited for 1 more hour. Edit deadline: {edit_deadline_str}.',
+                        activity=activity,
+                        portfolio=activity.folder
+                    )
+                    
+                    print(f"  ✅ 1-hour warning notification created successfully")
+                    
+                    warnings.append({
+                        'activity_id': activity.id,
+                        'activity_title': activity.title,
+                        'folder_name': activity.folder.name,
+                        'hours_remaining': round(hours_remaining, 1),
+                        'edit_deadline': edit_deadline_str
+                    })
+                else:
+                    print(f"  ⏭️ Skipped: 1-hour warning already sent")
+            
+            elif hours_remaining <= EDIT_CUTOFF_HOURS:
+                print(f"  ⏭️ Skipped: Already in edit cutoff window ({hours_remaining:.1f} ≤ {EDIT_CUTOFF_HOURS})")
+            else:
+                print(f"  ⏭️ Skipped: Not at 1-hour warning mark yet ({hours_remaining:.1f} hours)")
+        
+        return Response({
+            'success': True,
+            'warnings_sent': len(warnings),
+            'activities_warned': warnings
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Error checking edit deadlines: {str(e)}")
+        print(error_trace)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
