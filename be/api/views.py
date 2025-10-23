@@ -2248,6 +2248,11 @@ def get_student_envelope_api(request, class_name):
                 class_name=class_name
             )
             
+            # Convert submission time to local timezone if submitted
+            submitted_at_local = None
+            if envelope.is_submitted and envelope.submitted_at:
+                submitted_at_local = timezone.localtime(envelope.submitted_at).isoformat()
+            
             return Response({
                 'envelope': {
                     'id': envelope.id,
@@ -2256,6 +2261,8 @@ def get_student_envelope_api(request, class_name):
                     'class_name': envelope.class_name,
                     'color': envelope.color,
                     'pattern': envelope.pattern,
+                    'is_submitted': envelope.is_submitted,
+                    'submitted_at': submitted_at_local,
                     'created_at': envelope.created_at.isoformat(),
                     'updated_at': envelope.updated_at.isoformat()
                 }
@@ -2297,15 +2304,32 @@ def get_student_portfolio_activities_api(request, class_name):
                     student=request.user
                 ).first()
                 
-                # Get submission file path
+                # Get submission file path with better error handling
                 submission_file = None
                 if submission:
-                    if submission.file:
-                        # Use the FileField URL
-                        submission_file = submission.file.url if submission.file else None
-                    elif submission.file_path:
-                        # Fallback to file_path for base64 or legacy data
-                        submission_file = submission.file_path
+                    try:
+                        if submission.file:
+                            # Use the FileField URL
+                            submission_file = submission.file.url if submission.file else None
+                        elif submission.file_path:
+                            # Fallback to file_path for base64 or legacy data
+                            submission_file = submission.file_path
+                    except Exception as file_error:
+                        print(f"⚠️ Error getting submission file for activity {activity.id}: {file_error}")
+                        submission_file = None
+                
+                # Convert submission time to local timezone if exists
+                local_submitted_time = None
+                submitted_date_str = None
+                submitted_time_str = None
+                
+                if submission and submission.submitted_at:
+                    try:
+                        local_submitted_time = timezone.localtime(submission.submitted_at)
+                        submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
+                        submitted_time_str = local_submitted_time.strftime('%I:%M %p')
+                    except Exception as date_error:
+                        print(f"⚠️ Error formatting submission date: {date_error}")
                 
                 activity_data = {
                     'id': activity.id,
@@ -2317,7 +2341,9 @@ def get_student_portfolio_activities_api(request, class_name):
                     'activity_type': activity.activity_type,
                     'has_submission': submission is not None,
                     'submission_id': submission.id if submission else None,
-                    'submission_date': submission.submitted_at.isoformat() if submission else None,
+                    'submission_date': local_submitted_time.isoformat() if local_submitted_time else None,
+                    'submitted_date': submitted_date_str,
+                    'submitted_time': submitted_time_str,
                     'submission_file': submission_file,
                     'submission_caption': submission.caption if submission else None,
                     'submission_score': submission.score if submission else None,
@@ -2325,6 +2351,8 @@ def get_student_portfolio_activities_api(request, class_name):
                     'submission_status': 'submitted' if submission else 'missing',
                     'folder_name': folder.name
                 }
+                
+                print(f"📝 Activity {activity.id} ({activity.title}): status={activity_data['submission_status']}, has_file={submission_file is not None}")
                 
                 activity_list.append(activity_data)
         
@@ -2351,6 +2379,111 @@ def get_student_portfolio_activities_api(request, class_name):
 
 
 @csrf_exempt
+@api_view(['POST'])
+def submit_missing_activity_api(request, activity_id):
+    """Submit a missing activity from portfolio compilation"""
+    try:
+        from .models import PortfolioActivity, StudentSubmission
+        import base64
+        from django.core.files.base import ContentFile
+        
+        print(f"📝 Submitting missing activity {activity_id} for student: {request.user.username}")
+        
+        # Get the activity
+        activity = PortfolioActivity.objects.get(id=activity_id)
+        
+        # Get submission data
+        file_data = request.data.get('file')
+        caption = request.data.get('caption', '')
+        
+        if not file_data:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if submission already exists
+        existing_submission = StudentSubmission.objects.filter(
+            activity=activity,
+            student=request.user
+        ).first()
+        
+        if existing_submission:
+            return Response({
+                'error': 'Activity already submitted',
+                'submission_id': existing_submission.id
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Handle file upload
+        if file_data.startswith('data:'):
+            # Base64 encoded file
+            format, filestr = file_data.split(';base64,')
+            ext = format.split('/')[-1]
+            file_name = f"submission_{request.user.id}_{activity_id}.{ext}"
+            
+            # Create submission with file
+            submission = StudentSubmission.objects.create(
+                activity=activity,
+                student=request.user,
+                caption=caption,
+                file=ContentFile(base64.b64decode(filestr), name=file_name),
+                file_path=file_data,  # Keep base64 for compatibility
+                file_type=ext,
+                status='unscored',
+                approval_status='pending',
+                post_to_feed=False
+            )
+        else:
+            # Regular file path
+            submission = StudentSubmission.objects.create(
+                activity=activity,
+                student=request.user,
+                caption=caption,
+                file_path=file_data,
+                status='unscored',
+                approval_status='pending',
+                post_to_feed=False
+            )
+        
+        print(f"✅ Missing activity submitted successfully: {submission.id}")
+        
+        # Notify teacher
+        try:
+            teacher = activity.folder.teacher
+            notification_title = f'Missing Activity Submitted - {activity.title}'
+            notification_message = f'{request.user.username} has submitted the missing activity "{activity.title}" for {activity.folder.class_name}.'
+            
+            notification = create_notification(
+                recipient=teacher,
+                notification_type='submission_created',
+                title=notification_title,
+                message=notification_message
+            )
+            
+            if notification:
+                print(f"✅ Notified teacher {teacher.username}")
+        except Exception as notify_error:
+            print(f"⚠️ Error notifying teacher: {str(notify_error)}")
+        
+        return Response({
+            'message': 'Activity submitted successfully',
+            'submission': {
+                'id': submission.id,
+                'activity_id': activity.id,
+                'activity_title': activity.title,
+                'caption': submission.caption,
+                'submitted_at': submission.submitted_at.isoformat(),
+                'status': submission.status
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        import traceback
+        print(f"❌ Error submitting missing activity: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
 @api_view(['GET'])
 def get_portfolio_envelopes_api(request, class_name):
     """Get all portfolio envelopes for a class (teacher only)"""
@@ -2365,23 +2498,29 @@ def get_portfolio_envelopes_api(request, class_name):
                 'error': 'Only teachers can view portfolio envelopes'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Get all envelopes for this class
-        envelopes = PortfolioEnvelope.objects.filter(class_name=class_name).select_related('student')
+        # Get all submitted envelopes for this class (only show submitted portfolios to teachers)
+        envelopes = PortfolioEnvelope.objects.filter(
+            class_name=class_name,
+            is_submitted=True
+        ).select_related('student')
         
         envelope_list = []
         for envelope in envelopes:
+            # Convert UTC time to local timezone (Asia/Manila)
+            local_time = timezone.localtime(envelope.created_at)
+            
             envelope_list.append({
                 'id': envelope.id,
                 'student_id': envelope.student.id,
                 'student_name': envelope.student_name,
                 'student_username': envelope.student.username,
-                'id_number': envelope.student.id_number or envelope.student.username,  # Use actual ID number or fallback to username
+                'id_number': envelope.student.id,  # Use database primary key as ID number
                 'title': envelope.title,
                 'color': envelope.color,
                 'pattern': envelope.pattern,
-                'created_at': envelope.created_at.isoformat(),
-                'date_created': envelope.created_at.strftime('%b %d, %Y'),
-                'time_created': envelope.created_at.strftime('%I:%M %p')
+                'created_at': local_time.isoformat(),
+                'date_created': local_time.strftime('%b %d, %Y'),
+                'time_created': local_time.strftime('%I:%M %p')
             })
         
         print(f"✅ Found {len(envelope_list)} portfolio envelopes for {class_name}")
@@ -2394,5 +2533,205 @@ def get_portfolio_envelopes_api(request, class_name):
     except Exception as e:
         import traceback
         print(f"❌ Error fetching portfolio envelopes: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def get_teacher_student_activities_api(request, class_name, student_id):
+    """Get all activities (submitted and missing) for a specific student (teacher view)"""
+    try:
+        from .models import PortfolioActivity, StudentSubmission, PortfolioFolder
+        from django.contrib.auth import get_user_model
+        
+        User = get_user_model()
+        
+        print(f"📚 Teacher fetching activities for student ID: {student_id} in class: {class_name}")
+        
+        # Check if user is a teacher
+        if request.user.role != 'teacher':
+            return Response({
+                'error': 'Only teachers can view student activities'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get the student
+        try:
+            student = User.objects.get(id=student_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Student not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get all portfolio folders for this class
+        folders = PortfolioFolder.objects.filter(class_name=class_name)
+        
+        activity_list = []
+        for folder in folders:
+            # Get all activities in this folder
+            activities = PortfolioActivity.objects.filter(folder=folder).order_by('created_at')
+            
+            for activity in activities:
+                # Check if student has submitted this activity
+                submission = StudentSubmission.objects.filter(
+                    activity=activity,
+                    student=student
+                ).first()
+                
+                # Get submission file path
+                submission_file = None
+                if submission:
+                    try:
+                        if submission.file:
+                            # Use the FileField URL
+                            submission_file = submission.file.url if submission.file else None
+                        elif submission.file_path:
+                            # Fallback to file_path for base64 or legacy data
+                            submission_file = submission.file_path
+                    except Exception as file_error:
+                        print(f"⚠️ Error getting submission file: {file_error}")
+                        submission_file = None
+                
+                # Convert submission time to local timezone if exists
+                local_submitted_time = None
+                submitted_date_str = None
+                submitted_time_str = None
+                submission_date_iso = None
+                
+                if submission and submission.submitted_at:
+                    try:
+                        local_submitted_time = timezone.localtime(submission.submitted_at)
+                        submission_date_iso = local_submitted_time.isoformat()
+                        submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
+                        submitted_time_str = local_submitted_time.strftime('%I:%M %p')
+                    except Exception as date_error:
+                        print(f"⚠️ Error formatting submission date: {date_error}")
+                
+                activity_data = {
+                    'id': activity.id,
+                    'title': activity.title,
+                    'description': activity.description,
+                    'due_date': activity.due_date.isoformat() if activity.due_date else None,
+                    'due_time': activity.due_time.strftime('%H:%M') if activity.due_time else None,
+                    'created_at': activity.created_at.isoformat(),
+                    'activity_type': activity.activity_type,
+                    'has_submission': submission is not None,
+                    'submission_id': submission.id if submission else None,
+                    'submission_date': submission_date_iso,
+                    'submitted_date': submitted_date_str,
+                    'submitted_time': submitted_time_str,
+                    'submission_file': submission_file,
+                    'submission_caption': submission.caption if submission else None,
+                    'submission_score': submission.score if submission else None,
+                    'submission_feedback': submission.feedback if submission else None,
+                    'submission_status': 'submitted' if submission else 'missing',
+                    'folder_name': folder.name
+                }
+                
+                activity_list.append(activity_data)
+        
+        # Separate submitted and missing activities
+        submitted_activities = [a for a in activity_list if a['has_submission']]
+        missing_activities = [a for a in activity_list if not a['has_submission']]
+        
+        print(f"✅ Found {len(submitted_activities)} submitted and {len(missing_activities)} missing activities for student")
+        
+        return Response({
+            'all_activities': activity_list,
+            'submitted_activities': submitted_activities,
+            'missing_activities': missing_activities,
+            'total_count': len(activity_list),
+            'submitted_count': len(submitted_activities),
+            'missing_count': len(missing_activities),
+            'student_name': student.username
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error fetching student activities: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def submit_portfolio_api(request, class_name):
+    """Submit a portfolio envelope (student only)"""
+    try:
+        from .models import PortfolioEnvelope
+        
+        print(f"📤 Student {request.user.username} submitting portfolio for class: {class_name}")
+        
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if user is a student
+        if request.user.role != 'student':
+            return Response({
+                'error': 'Only students can submit portfolios'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get the student's envelope for this class
+        try:
+            envelope = PortfolioEnvelope.objects.get(
+                student=request.user,
+                class_name=class_name
+            )
+        except PortfolioEnvelope.DoesNotExist:
+            return Response({
+                'error': 'Portfolio envelope not found. Please create your envelope first.'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if already submitted
+        if envelope.is_submitted:
+            return Response({
+                'error': 'Portfolio has already been submitted',
+                'submitted_at': envelope.submitted_at.isoformat() if envelope.submitted_at else None
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark as submitted
+        envelope.is_submitted = True
+        envelope.submitted_at = timezone.now()
+        envelope.save()
+        
+        print(f"✅ Portfolio submitted successfully by {request.user.username} for {class_name}")
+        
+        # Notify teacher about the submission
+        try:
+            from .models import PortfolioCompilationRequest
+            compilation_request = PortfolioCompilationRequest.objects.filter(
+                class_name=class_name,
+                is_active=True
+            ).first()
+            
+            if compilation_request and compilation_request.requested_by:
+                teacher = compilation_request.requested_by
+                create_notification(
+                    recipient=teacher,
+                    notification_type='portfolio_submitted',
+                    title='Portfolio Submitted',
+                    message=f'{request.user.username} has submitted their portfolio for {class_name}'
+                )
+                print(f"📧 Notification sent to teacher: {teacher.username}")
+        except Exception as e:
+            print(f"⚠️ Could not send notification to teacher: {str(e)}")
+        
+        # Convert to local timezone for response
+        local_submitted_time = timezone.localtime(envelope.submitted_at)
+        
+        return Response({
+            'success': True,
+            'message': 'Portfolio submitted successfully',
+            'submitted_at': local_submitted_time.isoformat(),
+            'submitted_date': local_submitted_time.strftime('%b %d, %Y'),
+            'submitted_time': local_submitted_time.strftime('%I:%M %p')
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Error submitting portfolio: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

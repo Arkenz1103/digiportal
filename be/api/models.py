@@ -302,6 +302,8 @@ class PortfolioEnvelope(models.Model):
     student_name = models.CharField(max_length=255)
     color = models.CharField(max_length=50, default='#4F46E5')
     pattern = models.CharField(max_length=50, default='solid')
+    is_submitted = models.BooleanField(default=False)  # Track if student submitted the portfolio
+    submitted_at = models.DateTimeField(null=True, blank=True)  # When the portfolio was submitted
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

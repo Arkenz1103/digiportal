@@ -348,96 +348,219 @@
                         <!-- Student Portfolio Compilation Table -->
                         <div v-else class="space-y-4">
                             <!-- Show selected envelope if viewing one -->
-                            <div v-if="selectedEnvelope" class="max-w-3xl mx-auto">
-                                <!-- Back Button - Right Aligned -->
-                                <div class="flex justify-end mb-4">
-                                    <button
-                                        @click="selectedEnvelope = null; isEnvelopeOpen = false"
-                                        class="px-6 py-3 bg-white text-gray-700 font-semibold rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                                    >
-                                        <i class="pi pi-arrow-left"></i>
-                                        Back to List
-                                    </button>
+                            <div v-if="selectedEnvelope" class="rounded-2xl shadow-2xl overflow-hidden relative min-h-[600px] animate-scaleIn"
+                                 :style="{ 
+                                   background: `linear-gradient(135deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`,
+                                   animation: 'gradientShift 8s ease infinite'
+                                 }">
+                                
+                                <!-- Animated Pattern Overlay (matching envelope) -->
+                                <div v-if="selectedEnvelope.pattern === 'dots'" 
+                                     class="absolute inset-0 opacity-10 pointer-events-none animate-patternFloat"
+                                     style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
+                                </div>
+                                <div v-else-if="selectedEnvelope.pattern === 'lines'" 
+                                     class="absolute inset-0 opacity-10 pointer-events-none animate-patternSlide"
+                                     style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
+                                </div>
+                                <div v-else-if="selectedEnvelope.pattern === 'grid'" 
+                                     class="absolute inset-0 opacity-10 pointer-events-none animate-patternPulse"
+                                     style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                                 </div>
 
-                                <!-- Portfolio Envelope Display -->
-                                <div 
-                                    @click="toggleEnvelopeOpen"
-                                    class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
-                                    :class="{ 'scale-95': isEnvelopeOpen }"
-                                >
-                                    <!-- Envelope Preview -->
-                                    <div class="relative w-full aspect-[21/9]"
-                                         :style="{ backgroundColor: selectedEnvelope.color }">
-                                        
-                                        <!-- Pattern Overlay -->
-                                        <div v-if="selectedEnvelope.pattern === 'dots'" 
-                                             class="absolute inset-0 opacity-20"
-                                             style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
-                                        </div>
-                                        <div v-else-if="selectedEnvelope.pattern === 'lines'" 
-                                             class="absolute inset-0 opacity-20"
-                                             style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
-                                        </div>
-                                        <div v-else-if="selectedEnvelope.pattern === 'grid'" 
-                                             class="absolute inset-0 opacity-20"
-                                             style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
-                                        </div>
+                                <!-- Floating Particles Effect -->
+                                <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                                    <div v-for="i in 15" :key="i" 
+                                         class="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
+                                         :style="{
+                                           left: `${Math.random() * 100}%`,
+                                           top: `${Math.random() * 100}%`,
+                                           animationDelay: `${Math.random() * 5}s`,
+                                           animationDuration: `${5 + Math.random() * 10}s`
+                                         }">
+                                    </div>
+                                </div>
 
-                                        <!-- Envelope Flap with Animation -->
-                                        <div 
-                                            class="absolute top-0 left-0 right-0 h-1/4 border-b-4 border-white/30 transition-all duration-700 ease-out origin-top"
-                                            :class="{ 
-                                                'rotate-x-180 -translate-y-full opacity-0': isEnvelopeOpen,
-                                                'rotate-x-0 translate-y-0 opacity-100': !isEnvelopeOpen
-                                            }"
-                                            :style="{ 
-                                                background: `linear-gradient(180deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`,
-                                                transformStyle: 'preserve-3d',
-                                                perspective: '1000px'
-                                            }">
-                                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
-                                                        border-l-[150px] border-r-[150px] border-t-[80px] border-l-transparent border-r-transparent transition-all duration-700"
-                                                 :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -20) }">
-                                            </div>
-                                        </div>
-
-                                        <!-- Content Area with Slide-Up Animation -->
-                                        <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-                                            <div 
-                                                class="bg-white/20 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 max-w-sm w-full transition-all duration-700 ease-out"
-                                                :class="{
-                                                    'translate-y-0 opacity-100 scale-100': isEnvelopeOpen,
-                                                    'translate-y-8 opacity-70 scale-95': !isEnvelopeOpen
-                                                }"
+                                <div class="max-w-5xl mx-auto p-8 relative z-10">
+                                    <!-- Tab Header with Back Button -->
+                                    <div class="flex justify-between items-center mb-6 animate-slideDown">
+                                        <!-- Tab on the left -->
+                                        <div class="flex gap-2">
+                                            <button
+                                                class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-indigo-600 text-white shadow-lg"
                                             >
-                                                <h1 class="text-2xl font-bold text-white mb-2 transition-all duration-500" 
-                                                    :class="{ 'scale-110': isEnvelopeOpen }"
-                                                    style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
-                                                    {{ selectedEnvelope.title }}
-                                                </h1>
-                                                <p class="text-base text-white/90 font-medium mb-1 transition-all duration-500 delay-100" 
-                                                   :class="{ 'opacity-100': isEnvelopeOpen, 'opacity-80': !isEnvelopeOpen }"
-                                                   style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
-                                                    {{ selectedEnvelope.name }}
-                                                </p>
-                                                <p class="text-sm text-white/80 transition-all duration-500 delay-200" 
-                                                   :class="{ 'opacity-100': isEnvelopeOpen, 'opacity-70': !isEnvelopeOpen }"
-                                                   style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
-                                                    {{ selectedEnvelope.className }}
-                                                </p>
-                                                
-                                                <!-- Open Indicator -->
-                                                <div v-if="!isEnvelopeOpen" class="mt-4 text-white/60 text-xs animate-pulse">
-                                                    <i class="pi pi-hand-pointer mr-1"></i>
-                                                    Click to open
-                                                </div>
-                                                <div v-else class="mt-4 text-white/60 text-xs">
-                                                    <i class="pi pi-check-circle mr-1"></i>
-                                                    Envelope opened
-                                                </div>
-                                            </div>
+                                                <i class="pi pi-list"></i>
+                                                Student Activity Compilation
+                                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/20">
+                                                    {{ studentActivities.length }}
+                                                </span>
+                                            </button>
                                         </div>
+
+                                        <!-- Back Button on the right -->
+                                        <button
+                                            @click="selectedEnvelope = null; isEnvelopeOpen = false; studentActivities = []; currentActivityIndex = 0"
+                                            class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                        >
+                                            <i class="pi pi-arrow-left text-sm"></i>
+                                            Back to List
+                                        </button>
+                                    </div>
+
+                                    <!-- Display Student Activities (Carousel Style like Student View) -->
+                                    <div class="relative min-h-[600px]">
+                                    
+                                    <!-- Loading state -->
+                                    <div v-if="studentActivities.length === 0" class="text-center py-20 relative z-10">
+                                        <div class="inline-block p-8 rounded-full mb-6 bg-white/30">
+                                            <i class="pi pi-inbox text-6xl text-white"></i>
+                                        </div>
+                                        <p class="text-xl font-semibold text-white">No submitted activities found</p>
+                                        <p class="text-sm text-white/80 mt-2">This student hasn't submitted any activities yet</p>
+                                    </div>
+                                    
+                                    <!-- Activity Carousel -->
+                                    <div v-else class="relative">
+                                        <!-- Activity Counter with Enhanced Design -->
+                                        <div class="absolute top-4 right-4 z-10 text-white px-6 py-3 rounded-full text-base font-bold shadow-2xl animate-pulse-slow transform transition-all duration-300 hover:scale-110"
+                                             :style="{ 
+                                               background: `linear-gradient(135deg, ${adjustBrightness(selectedEnvelope.color, -20)} 0%, ${adjustBrightness(selectedEnvelope.color, -40)} 100%)`,
+                                               boxShadow: `0 0 30px ${selectedEnvelope.color}60, 0 8px 16px rgba(0,0,0,0.2)`
+                                             }">
+                                          <span class="relative z-10 flex items-center gap-2">
+                                            <i class="pi pi-book"></i>
+                                            {{ currentActivityIndex + 1 }} / {{ studentActivities.length }}
+                                          </span>
+                                          <div class="absolute inset-0 rounded-full animate-ping opacity-20"
+                                               :style="{ backgroundColor: selectedEnvelope.color }">
+                                          </div>
+                                        </div>
+
+                                        <!-- Activity Content -->
+                                        <div v-if="studentActivities[currentActivityIndex]" 
+                                             :key="currentActivityIndex"
+                                             class="animate-fadeIn">
+                                          <!-- Content Card with Glass Effect -->
+                                          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl relative transform transition-all duration-500 hover:shadow-3xl hover:scale-[1.01]">
+                                            <!-- Activity Image/Preview -->
+                                            <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
+                                                 :style="{ borderColor: `${selectedEnvelope.color}40` }">
+                                              <img v-if="studentActivities[currentActivityIndex].submission_file" 
+                                                   :src="studentActivities[currentActivityIndex].submission_file"
+                                                   alt="Activity submission"
+                                                   class="w-full h-full object-contain"
+                                                   @error="(e) => { e.target.style.display = 'none'; }"
+                                              />
+                                              <div v-else class="text-center flex flex-col items-center">
+                                                <i class="pi pi-file text-6xl text-gray-300 mb-4"></i>
+                                                <p class="text-gray-500 font-medium">No File</p>
+                                              </div>
+                                            </div>
+
+                                            <!-- Submission Caption -->
+                                            <div v-if="studentActivities[currentActivityIndex].submission_caption" class="mb-4 p-4 bg-gray-50 rounded-lg">
+                                              <p class="text-sm text-gray-700 italic">
+                                                "{{ studentActivities[currentActivityIndex].submission_caption }}"
+                                              </p>
+                                            </div>
+
+                                            <!-- Score and Feedback -->
+                                            <div v-if="studentActivities[currentActivityIndex].submission_score !== null" 
+                                                 class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                              <div class="flex items-center justify-between mb-2">
+                                                <span class="text-sm font-medium text-gray-700">Score:</span>
+                                                <span class="text-2xl font-bold text-green-700">{{ studentActivities[currentActivityIndex].submission_score }}</span>
+                                              </div>
+                                              <div v-if="studentActivities[currentActivityIndex].submission_feedback" class="mt-2 pt-2 border-t border-green-200">
+                                                <p class="text-sm text-gray-600">
+                                                  <span class="font-medium">Feedback:</span> {{ studentActivities[currentActivityIndex].submission_feedback }}
+                                                </p>
+                                              </div>
+                                            </div>
+
+                                            <!-- Activity Details -->
+                                            <div class="space-y-4">
+                                              <div>
+                                                <div class="flex items-center gap-3 mb-3">
+                                                  <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold uppercase">
+                                                    {{ studentActivities[currentActivityIndex].activity_type || 'Activity' }}
+                                                  </span>
+                                                  <span class="text-sm text-gray-500">
+                                                    {{ studentActivities[currentActivityIndex].folder_name }}
+                                                  </span>
+                                                </div>
+                                                <h3 class="text-2xl font-bold text-gray-900 mb-2">
+                                                  {{ studentActivities[currentActivityIndex].title }}
+                                                </h3>
+                                                <p class="text-gray-600">
+                                                  {{ studentActivities[currentActivityIndex].description }}
+                                                </p>
+                                              </div>
+
+                                              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                                                <div>
+                                                  <span class="text-sm text-gray-500 block mb-1">Status:</span>
+                                                  <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium inline-block">
+                                                    Submitted
+                                                  </span>
+                                                </div>
+                                                <div v-if="studentActivities[currentActivityIndex].submitted_date">
+                                                  <span class="text-sm text-gray-500 block mb-1">Submitted:</span>
+                                                  <span class="text-sm font-medium text-gray-900">
+                                                    {{ studentActivities[currentActivityIndex].submitted_date }}
+                                                  </span>
+                                                </div>
+                                                <div v-if="studentActivities[currentActivityIndex].submitted_time">
+                                                  <span class="text-sm text-gray-500 block mb-1">Time:</span>
+                                                  <span class="text-sm font-medium text-gray-900">
+                                                    {{ studentActivities[currentActivityIndex].submitted_time }}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        <!-- Navigation Arrows with Enhanced Design -->
+                                        <button
+                                          @click="previousActivity"
+                                          :disabled="currentActivityIndex === 0"
+                                          class="absolute left-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
+                                          :style="{ 
+                                            borderColor: selectedEnvelope.color, 
+                                            borderWidth: '3px',
+                                            boxShadow: `0 8px 32px ${selectedEnvelope.color}40, 0 0 0 0 ${selectedEnvelope.color}20`
+                                          }"
+                                        >
+                                          <i class="pi pi-chevron-left text-2xl transition-all duration-300 group-hover:scale-110" 
+                                             :style="{ color: selectedEnvelope.color }"></i>
+                                          <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                               :style="{ 
+                                                 background: `radial-gradient(circle, ${selectedEnvelope.color}20 0%, transparent 70%)`,
+                                                 animation: 'pulse 2s infinite'
+                                               }">
+                                          </div>
+                                        </button>
+                                        <button
+                                          @click="nextActivity"
+                                          :disabled="currentActivityIndex >= studentActivities.length - 1"
+                                          class="absolute right-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
+                                          :style="{ 
+                                            borderColor: selectedEnvelope.color, 
+                                            borderWidth: '3px',
+                                            boxShadow: `0 8px 32px ${selectedEnvelope.color}40, 0 0 0 0 ${selectedEnvelope.color}20`
+                                          }"
+                                        >
+                                          <i class="pi pi-chevron-right text-2xl transition-all duration-300 group-hover:scale-110" 
+                                             :style="{ color: selectedEnvelope.color }"></i>
+                                          <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                               :style="{ 
+                                                 background: `radial-gradient(circle, ${selectedEnvelope.color}20 0%, transparent 70%)`,
+                                                 animation: 'pulse 2s infinite'
+                                               }">
+                                          </div>
+                                        </button>
+                                    </div>
                                     </div>
                                 </div>
                             </div>
@@ -2005,6 +2128,8 @@ const portfolioStudents = ref([]);
 const showEnvelopeViewDialog = ref(false);
 const selectedEnvelope = ref(null);
 const isEnvelopeOpen = ref(false);
+const studentActivities = ref([]); // Store student's submitted activities
+const currentActivityIndex = ref(0); // Current activity index for carousel
 
 const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false));
 const activeMenuIndex = ref(null);
@@ -2115,16 +2240,52 @@ const checkPortfolioCompilationStatus = async () => {
 };
 
 // View student envelope
-const viewStudentEnvelope = (student) => {
+const viewStudentEnvelope = async (student) => {
     selectedEnvelope.value = student;
-    isEnvelopeOpen.value = false; // Reset envelope state
-    console.log('Viewing envelope for:', student.name);
+    isEnvelopeOpen.value = true; // Automatically open and show activities
+    currentActivityIndex.value = 0; // Reset to first activity
+    console.log('Viewing activities for:', student.name);
+    
+    // Fetch student activities immediately
+    await fetchStudentActivities(student.student_id);
 };
 
-// Toggle envelope open/close
-const toggleEnvelopeOpen = () => {
-    isEnvelopeOpen.value = !isEnvelopeOpen.value;
-    console.log('Envelope toggled:', isEnvelopeOpen.value ? 'opened' : 'closed');
+// Navigate activities
+const nextActivity = () => {
+    if (currentActivityIndex.value < studentActivities.value.length - 1) {
+        currentActivityIndex.value++;
+    }
+};
+
+const previousActivity = () => {
+    if (currentActivityIndex.value > 0) {
+        currentActivityIndex.value--;
+    }
+};
+
+// Fetch student's submitted activities
+const fetchStudentActivities = async (studentId) => {
+    try {
+        const classNameValue = props.className || className.value;
+        
+        if (!classNameValue || !studentId) {
+            return;
+        }
+        
+        console.log(`📚 Fetching activities for student ID: ${studentId}`);
+        
+        // Fetch activities for specific student (teacher view)
+        const response = await axios.get(`/api/portfolio-envelope/teacher-activities/${encodeURIComponent(classNameValue)}/${studentId}/`);
+        
+        if (response.data) {
+            // Use submitted_activities to show only submitted work
+            studentActivities.value = response.data.submitted_activities || [];
+            console.log(`✅ Loaded ${studentActivities.value.length} submitted activities for student (${response.data.total_count} total)`);
+        }
+    } catch (error) {
+        console.error('❌ Error fetching student activities:', error);
+        studentActivities.value = [];
+    }
 };
 
 // Helper function to adjust color brightness
@@ -2158,6 +2319,7 @@ const fetchPortfolioEnvelopes = async () => {
         if (response.data && response.data.envelopes) {
             portfolioStudents.value = response.data.envelopes.map(env => ({
                 id: env.id,
+                student_id: env.student_id, // Add student_id for fetching activities
                 name: env.student_name,
                 idNumber: env.id_number,
                 dateCreated: env.date_created,

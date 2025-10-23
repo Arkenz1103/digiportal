@@ -85,4 +85,7 @@ urlpatterns = [
     path('api/portfolio-envelope/student/<str:class_name>/', views.get_student_envelope_api, name='get_student_envelope_api'),
     path('api/portfolio-envelope/<str:class_name>/', views.get_portfolio_envelopes_api, name='get_portfolio_envelopes_api'),
     path('api/portfolio-envelope/activities/<str:class_name>/', views.get_student_portfolio_activities_api, name='get_student_portfolio_activities_api'),
+    path('api/portfolio-envelope/teacher-activities/<str:class_name>/<int:student_id>/', views.get_teacher_student_activities_api, name='get_teacher_student_activities_api'),
+    path('api/portfolio-envelope/submit-missing/<int:activity_id>/', views.submit_missing_activity_api, name='submit_missing_activity_api'),
+    path('api/portfolio-envelope/submit/<str:class_name>/', views.submit_portfolio_api, name='submit_portfolio_api'),
 ]

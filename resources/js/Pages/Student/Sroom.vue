@@ -423,9 +423,100 @@
 
         <!-- Portfolio Compilation Tab Content -->
         <template v-if="activeTab === 'compilation'">
-          <div class="p-4 md:p-6">
+          <div class="min-h-screen transition-all duration-700 relative overflow-hidden"
+               :style="isEnvelopeOpen && portfolioEnvelopeCreated ? { 
+                 background: `
+                   radial-gradient(circle at 20% 50%, ${adjustBrightness(envelopeDesign.color, 20)} 0%, transparent 50%),
+                   radial-gradient(circle at 80% 80%, ${adjustBrightness(envelopeDesign.color, -10)} 0%, transparent 50%),
+                   radial-gradient(circle at 40% 20%, ${adjustBrightness(envelopeDesign.color, 10)} 0%, transparent 50%),
+                   linear-gradient(135deg, ${envelopeDesign.color} 0%, ${adjustBrightness(envelopeDesign.color, -30)} 100%)
+                 `,
+                 backgroundSize: '200% 200%',
+                 animation: 'gradientShift 12s ease infinite'
+               } : { background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }">
+            
+            <!-- Animated Background Elements -->
+            <div class="absolute inset-0 pointer-events-none overflow-hidden">
+              <!-- Mesh Gradient Overlay -->
+              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated" 
+                   class="absolute inset-0 opacity-30"
+                   :style="{
+                     background: `
+                       radial-gradient(at 0% 0%, ${envelopeDesign.color}40 0px, transparent 50%),
+                       radial-gradient(at 100% 0%, ${adjustBrightness(envelopeDesign.color, 20)}40 0px, transparent 50%),
+                       radial-gradient(at 100% 100%, ${adjustBrightness(envelopeDesign.color, -20)}40 0px, transparent 50%),
+                       radial-gradient(at 0% 100%, ${envelopeDesign.color}40 0px, transparent 50%)
+                     `
+                   }">
+              </div>
+              
+              <!-- Animated Pattern Overlay -->
+              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated && envelopeDesign.pattern === 'dots'" 
+                   class="absolute inset-0 opacity-5 animate-patternFloat"
+                   style="background-image: radial-gradient(circle, white 3px, transparent 3px); background-size: 40px 40px;">
+              </div>
+              <div v-else-if="isEnvelopeOpen && portfolioEnvelopeCreated && envelopeDesign.pattern === 'lines'" 
+                   class="absolute inset-0 opacity-5 animate-patternSlide"
+                   style="background-image: repeating-linear-gradient(45deg, white 0, white 3px, transparent 3px, transparent 20px);">
+              </div>
+              <div v-else-if="isEnvelopeOpen && portfolioEnvelopeCreated && envelopeDesign.pattern === 'grid'" 
+                   class="absolute inset-0 opacity-5 animate-patternPulse"
+                   style="background-image: linear-gradient(white 2px, transparent 2px), linear-gradient(90deg, white 2px, transparent 2px); background-size: 40px 40px;">
+              </div>
+              
+              <!-- Large Floating Orbs -->
+              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated">
+                <div v-for="i in 12" :key="`orb-${i}`"
+                     class="absolute rounded-full blur-3xl opacity-20 animate-float"
+                     :style="{
+                       width: `${150 + Math.random() * 300}px`,
+                       height: `${150 + Math.random() * 300}px`,
+                       background: `radial-gradient(circle, ${adjustBrightness(envelopeDesign.color, 40)} 0%, transparent 70%)`,
+                       left: `${Math.random() * 100}%`,
+                       top: `${Math.random() * 100}%`,
+                       animationDelay: `${Math.random() * 5}s`,
+                       animationDuration: `${15 + Math.random() * 20}s`
+                     }">
+                </div>
+              </div>
+              
+              <!-- Sparkle Effects -->
+              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated">
+                <div v-for="i in 30" :key="`sparkle-${i}`"
+                     class="absolute bg-white rounded-full animate-sparkle"
+                     :style="{
+                       width: `${1 + Math.random() * 2}px`,
+                       height: `${1 + Math.random() * 2}px`,
+                       left: `${Math.random() * 100}%`,
+                       top: `${Math.random() * 100}%`,
+                       animationDelay: `${Math.random() * 3}s`,
+                       animationDuration: `${2 + Math.random() * 4}s`,
+                       boxShadow: '0 0 4px rgba(255, 255, 255, 0.8)'
+                     }">
+                </div>
+              </div>
+              
+              <!-- Ambient Light Rays -->
+              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated" class="absolute inset-0">
+                <div v-for="i in 5" :key="`ray-${i}`"
+                     class="absolute h-full opacity-10 animate-float"
+                     :style="{
+                       width: '2px',
+                       background: `linear-gradient(to bottom, transparent, ${envelopeDesign.color}, transparent)`,
+                       left: `${i * 20}%`,
+                       animationDelay: `${i * 0.5}s`,
+                       animationDuration: `${8 + i * 2}s`,
+                       transform: 'rotate(15deg)'
+                     }">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Content Area with Padding -->
+            <div class="relative z-10 p-4 md:p-6">
+            
             <!-- Show designed portfolio envelope if created -->
-            <div v-if="portfolioEnvelopeCreated" class="max-w-3xl mx-auto">
+            <div v-if="portfolioEnvelopeCreated" class="max-w-3xl mx-auto relative z-10">
               <!-- Portfolio Envelope Display - Hide when opened -->
               <div 
                 v-if="!isEnvelopeOpen"
@@ -504,9 +595,9 @@
               </div>
 
               <!-- Activities Carousel - Show when envelope is opened -->
-              <div v-if="isEnvelopeOpen && portfolioActivities.length > 0" class="relative">
+              <div v-if="isEnvelopeOpen && portfolioActivities.length > 0" class="relative animate-fadeIn">
                 <!-- Portfolio Tabs with Back Button -->
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex justify-between items-center mb-6 animate-slideDown">
                   <!-- Tabs on the left -->
                   <div class="flex gap-2">
                     <button
@@ -550,48 +641,72 @@
                 </div>
 
                 <!-- All Activities Tab Content -->
-                <div v-if="activePortfolioTab === 'all'" class="rounded-2xl shadow-xl overflow-hidden min-h-[600px] relative"
-                     :style="{ background: `linear-gradient(135deg, ${envelopeDesign.color} 0%, ${adjustBrightness(envelopeDesign.color, -20)} 100%)` }">
+                <div v-if="activePortfolioTab === 'all'" 
+                     class="rounded-2xl shadow-xl overflow-hidden min-h-[600px] relative animate-scaleIn"
+                     :style="{ 
+                       background: `linear-gradient(135deg, ${envelopeDesign.color} 0%, ${adjustBrightness(envelopeDesign.color, -20)} 100%)`,
+                       animation: 'gradientShift 8s ease infinite'
+                     }">
                   
-                  <!-- Pattern Overlay (matching envelope) -->
+                  <!-- Animated Pattern Overlay (matching envelope) -->
                   <div v-if="envelopeDesign.pattern === 'dots'" 
-                       class="absolute inset-0 opacity-10 pointer-events-none"
+                       class="absolute inset-0 opacity-10 pointer-events-none animate-patternFloat"
                        style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
                   </div>
                   <div v-else-if="envelopeDesign.pattern === 'lines'" 
-                       class="absolute inset-0 opacity-10 pointer-events-none"
+                       class="absolute inset-0 opacity-10 pointer-events-none animate-patternSlide"
                        style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
                   </div>
                   <div v-else-if="envelopeDesign.pattern === 'grid'" 
-                       class="absolute inset-0 opacity-10 pointer-events-none"
+                       class="absolute inset-0 opacity-10 pointer-events-none animate-patternPulse"
                        style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                   </div>
 
+                  <!-- Floating Particles Effect -->
+                  <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                    <div v-for="i in 15" :key="i" 
+                         class="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
+                         :style="{
+                           left: `${Math.random() * 100}%`,
+                           top: `${Math.random() * 100}%`,
+                           animationDelay: `${Math.random() * 5}s`,
+                           animationDuration: `${5 + Math.random() * 10}s`
+                         }">
+                    </div>
+                  </div>
+
                   <!-- Activity Display -->
-                  <div class="relative p-8">
-                    <!-- Activity Counter -->
-                    <div class="absolute top-4 right-4 z-10 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg"
-                         :style="{ backgroundColor: adjustBrightness(envelopeDesign.color, -30) }">
-                      {{ currentActivityIndex + 1 }} / {{ portfolioActivities.length }}
+                  <div class="relative p-8 z-10">
+                    <!-- Activity Counter with Pulse Animation -->
+                    <div class="absolute top-4 right-4 z-10 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-2xl animate-pulse-slow transform transition-all duration-300 hover:scale-110"
+                         :style="{ 
+                           backgroundColor: adjustBrightness(envelopeDesign.color, -30),
+                           boxShadow: `0 0 20px ${envelopeDesign.color}80, 0 0 40px ${envelopeDesign.color}40`
+                         }">
+                      <span class="relative z-10">{{ currentActivityIndex + 1 }} / {{ portfolioActivities.length }}</span>
+                      <div class="absolute inset-0 rounded-full animate-ping opacity-20"
+                           :style="{ backgroundColor: envelopeDesign.color }">
+                      </div>
                     </div>
 
                     <!-- Activity Content -->
-                    <div v-if="portfolioActivities[currentActivityIndex]">
+                    <div v-if="portfolioActivities[currentActivityIndex]" 
+                         :key="currentActivityIndex">
                       <!-- Content Card with Glass Effect -->
-                      <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl relative">
+                      <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl relative transform transition-all duration-500 hover:shadow-3xl hover:scale-[1.01]">
                       <!-- Activity Image/Preview -->
-                      <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50">
-                        <img v-if="portfolioActivities[currentActivityIndex].submission_file" 
+                      <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
+                           :style="{ borderColor: `${envelopeDesign.color}40` }">
+                        <img v-if="portfolioActivities[currentActivityIndex].submission_file && portfolioActivities[currentActivityIndex].submission_status === 'submitted'" 
                              :src="portfolioActivities[currentActivityIndex].submission_file"
                              alt="Activity submission"
-                             class="w-full h-full object-cover"
-                             @error="(e) => { e.target.style.display = 'none'; }"
+                             class="w-full h-full object-contain"
+                             @error="(e) => { console.error('Image load error:', portfolioActivities[currentActivityIndex].submission_file); e.target.style.display = 'none'; }"
                         />
-                        <div v-if="!portfolioActivities[currentActivityIndex].submission_file || portfolioActivities[currentActivityIndex].submission_status === 'missing'" 
-                             class="text-center flex flex-col items-center">
+                        <div v-else class="text-center flex flex-col items-center">
                           <i class="pi pi-file text-6xl text-indigo-300 mb-4"></i>
                           <p class="text-indigo-600 font-medium">
-                            {{ portfolioActivities[currentActivityIndex].submission_status === 'missing' ? 'No Submission' : 'Activity' }}
+                            {{ portfolioActivities[currentActivityIndex].submission_status === 'missing' ? 'No Submission' : 'No File Available' }}
                           </p>
                         </div>
                       </div>
@@ -673,18 +788,40 @@
                       <button
                         @click="previousActivity"
                         :disabled="currentActivityIndex === 0"
-                        class="absolute left-2 top-[200px] w-14 h-14 bg-white/90 backdrop-blur-sm rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed z-30"
-                        :style="{ borderColor: envelopeDesign.color, borderWidth: '3px' }"
+                        class="absolute left-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
+                        :style="{ 
+                          borderColor: envelopeDesign.color, 
+                          borderWidth: '3px',
+                          boxShadow: `0 8px 32px ${envelopeDesign.color}40, 0 0 0 0 ${envelopeDesign.color}20`
+                        }"
                       >
-                        <i class="pi pi-chevron-left text-xl" :style="{ color: envelopeDesign.color }"></i>
+                        <i class="pi pi-chevron-left text-2xl transition-all duration-300 group-hover:scale-110" 
+                           :style="{ color: envelopeDesign.color }"></i>
+                        <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                             :style="{ 
+                               background: `radial-gradient(circle, ${envelopeDesign.color}20 0%, transparent 70%)`,
+                               animation: 'pulse 2s infinite'
+                             }">
+                        </div>
                       </button>
                       <button
                         @click="nextActivity"
                         :disabled="currentActivityIndex >= portfolioActivities.length - 1"
-                        class="absolute right-2 top-[200px] w-14 h-14 bg-white/90 backdrop-blur-sm rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed z-30"
-                        :style="{ borderColor: envelopeDesign.color, borderWidth: '3px' }"
+                        class="absolute right-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
+                        :style="{ 
+                          borderColor: envelopeDesign.color, 
+                          borderWidth: '3px',
+                          boxShadow: `0 8px 32px ${envelopeDesign.color}40, 0 0 0 0 ${envelopeDesign.color}20`
+                        }"
                       >
-                        <i class="pi pi-chevron-right text-xl" :style="{ color: envelopeDesign.color }"></i>
+                        <i class="pi pi-chevron-right text-2xl transition-all duration-300 group-hover:scale-110" 
+                           :style="{ color: envelopeDesign.color }"></i>
+                        <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                             :style="{ 
+                               background: `radial-gradient(circle, ${envelopeDesign.color}20 0%, transparent 70%)`,
+                               animation: 'pulse 2s infinite'
+                             }">
+                        </div>
                       </button>
                     </div>
                   </div>
@@ -748,25 +885,21 @@
               </div>
 
               <!-- Action Buttons - Only show when envelope is closed -->
-              <div v-if="!isEnvelopeOpen" class="flex flex-wrap gap-3 justify-center">
+              <div v-if="!isEnvelopeOpen" class="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6">
                 <button
                   @click="editEnvelopeDesign"
-                  class="px-6 py-3 bg-white text-gray-700 font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+                  class="w-full sm:w-auto px-8 py-3.5 bg-white text-gray-700 font-semibold rounded-xl border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 flex items-center justify-center gap-3 shadow-md hover:shadow-lg"
                 >
-                  <i class="pi pi-pencil"></i>
-                  Edit Design
+                  <i class="pi pi-pencil text-lg"></i>
+                  <span>Edit Design</span>
                 </button>
                 <button
-                  class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                  @click="showSubmitPortfolioDialog = true"
+                  :disabled="portfolioEnvelope?.is_submitted"
+                  class="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-3 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  <i class="pi pi-download"></i>
-                  Download Portfolio
-                </button>
-                <button
-                  class="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
-                >
-                  <i class="pi pi-share-alt"></i>
-                  Share Portfolio
+                  <i class="pi pi-send text-lg"></i>
+                  <span>{{ portfolioEnvelope?.is_submitted ? 'Already Submitted' : 'Submit Portfolio' }}</span>
                 </button>
               </div>
             </div>
@@ -828,6 +961,8 @@
                 </p>
               </div>
             </div>
+            </div>
+            <!-- Close Content Area -->
           </div>
         </template>
 
@@ -1030,14 +1165,14 @@
             Cancel
           </button>
           <button
-            @click="submitNewProduct"
+            @click="isCompilingMissing ? submitMissingActivity() : submitNewProduct()"
             class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
             :disabled="!selectedFile || isSubmitting"
             :class="{'opacity-50 cursor-not-allowed': !selectedFile || isSubmitting}"
           >
             <i v-if="!isSubmitting" class="pi pi-check"></i>
             <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isSubmitting ? 'Submitting...' : 'Submit Work' }}
+            {{ isSubmitting ? 'Submitting...' : (isCompilingMissing ? 'Compile Activity' : 'Submit Work') }}
           </button>
         </div>
       </template>
@@ -1402,6 +1537,37 @@
         </div>
       </div>
     </Dialog>
+
+    <!-- Submit Portfolio Confirmation Dialog -->
+    <Dialog v-model:visible="showSubmitPortfolioDialog"
+        modal
+        header="Submit Portfolio"
+        :style="{ width: '90%', maxWidth: '32rem' }">
+        <div class="space-y-4">
+            <div class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <i class="pi pi-exclamation-triangle text-amber-600 text-xl mt-1"></i>
+                <div class="flex-1">
+                    <h4 class="font-semibold text-gray-900 mb-1">Confirm Submission</h4>
+                    <p class="text-sm text-gray-700">
+                        Are you sure you want to submit your portfolio? Once submitted, your teacher will be able to view it.
+                    </p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button @click="showSubmitPortfolioDialog = false"
+                    class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button @click="confirmSubmitPortfolio"
+                    :disabled="isSubmittingPortfolio"
+                    class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <i v-if="isSubmittingPortfolio" class="pi pi-spin pi-spinner"></i>
+                    <i v-else class="pi pi-check"></i>
+                    <span>{{ isSubmittingPortfolio ? 'Submitting...' : 'Confirm Submit' }}</span>
+                </button>
+            </div>
+        </div>
+    </Dialog>
   </div>
 </template>
 
@@ -1488,6 +1654,7 @@ const showProductUploadModal = ref(false);
 const newProductCaption = ref('');
 const postOutputOption = ref(false);
 const isSubmitting = ref(false);
+const isCompilingMissing = ref(false); // Flag for missing activity compilation
 
 // Check if student has already submitted (reactive state)
 const hasSubmittedWork = ref(false);
@@ -1495,6 +1662,11 @@ const existingSubmission = ref(null);
 const hasScore = ref(false);
 const showScoreDialog = ref(false);
 const submissionScore = ref(null);
+
+// Portfolio submission state
+const showSubmitPortfolioDialog = ref(false);
+const isSubmittingPortfolio = ref(false);
+const portfolioEnvelope = ref(null);
 
 // Check if activity is past due date/time
 const isPastDue = computed(() => {
@@ -2304,6 +2476,8 @@ const fetchPortfolioActivities = async () => {
       missingActivities.value = response.data.missing_activities || [];
       currentActivityIndex.value = 0;
       console.log(`✅ Loaded ${portfolioActivities.value.length} activities (${missingActivities.value.length} missing)`);
+      console.log('📋 Activities data:', portfolioActivities.value);
+      console.log('🎯 Current activity:', portfolioActivities.value[currentActivityIndex.value]);
     }
   } catch (error) {
     console.error('❌ Error fetching portfolio activities:', error);
@@ -2312,14 +2486,56 @@ const fetchPortfolioActivities = async () => {
 
 // Navigate activities
 const nextActivity = () => {
+  console.log('Next clicked. Current:', currentActivityIndex.value, 'Total:', portfolioActivities.value.length);
   if (currentActivityIndex.value < portfolioActivities.value.length - 1) {
     currentActivityIndex.value++;
+    console.log('Moved to:', currentActivityIndex.value);
+  } else {
+    console.log('Already at last activity');
   }
 };
 
 const previousActivity = () => {
+  console.log('Previous clicked. Current:', currentActivityIndex.value);
   if (currentActivityIndex.value > 0) {
     currentActivityIndex.value--;
+    console.log('Moved to:', currentActivityIndex.value);
+  } else {
+    console.log('Already at first activity');
+  }
+};
+
+// Submit portfolio
+const confirmSubmitPortfolio = async () => {
+  try {
+    isSubmittingPortfolio.value = true;
+    const classNameValue = props.className;
+    
+    console.log('📤 Submitting portfolio for class:', classNameValue);
+    
+    const response = await axios.post(`/api/portfolio-envelope/submit/${encodeURIComponent(classNameValue)}/`);
+    
+    if (response.data.success) {
+      console.log('✅ Portfolio submitted successfully');
+      
+      // Update the envelope data to reflect submission
+      if (portfolioEnvelope.value) {
+        portfolioEnvelope.value.is_submitted = true;
+        portfolioEnvelope.value.submitted_at = response.data.submitted_at;
+      }
+      
+      // Close dialog
+      showSubmitPortfolioDialog.value = false;
+      
+      // Show success message
+      alert(`Portfolio submitted successfully!\nSubmitted on: ${response.data.submitted_date} at ${response.data.submitted_time}`);
+    }
+  } catch (error) {
+    console.error('❌ Error submitting portfolio:', error);
+    const errorMessage = error.response?.data?.error || error.message || 'Failed to submit portfolio';
+    alert('Error: ' + errorMessage);
+  } finally {
+    isSubmittingPortfolio.value = false;
   }
 };
 
@@ -2333,8 +2549,70 @@ const compileActivity = (activity) => {
   console.log('Compiling activity:', activity.title);
   // Close the missing activities dialog
   showMissingActivitiesDialog.value = false;
-  // Open the activity for submission
-  openActivity(activity);
+  // Set the selected activity and open submission dialog
+  selectedActivity.value = activity;
+  showProductUploadModal.value = true;
+  selectedFile.value = null;
+  newProductCaption.value = '';
+  postOutputOption.value = false;
+  isCompilingMissing.value = true; // Flag to indicate this is a missing activity submission
+};
+
+// Submit missing activity from portfolio compilation
+const submitMissingActivity = async () => {
+  if (isSubmitting.value) {
+    console.log('Already submitting, please wait...');
+    return;
+  }
+
+  if (!selectedFile.value || !selectedActivity.value) {
+    alert('Please select a file');
+    return;
+  }
+
+  isSubmitting.value = true;
+
+  try {
+    // Convert file to base64
+    const reader = new FileReader();
+    const filePath = await new Promise((resolve, reject) => {
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(selectedFile.value);
+    });
+
+    console.log('Submitting missing activity:', selectedActivity.value.id);
+
+    // Submit to missing activity API
+    const response = await axios.post(
+      `/api/portfolio-envelope/submit-missing/${selectedActivity.value.id}/`,
+      {
+        file: filePath,
+        caption: newProductCaption.value || ''
+      }
+    );
+
+    if (response.data) {
+      console.log('✅ Missing activity submitted successfully:', response.data);
+
+      // Close dialog and reset
+      showProductUploadModal.value = false;
+      newProductCaption.value = '';
+      postOutputOption.value = false;
+      isCompilingMissing.value = false;
+      clearFile();
+
+      // Refresh activities to update status
+      await fetchPortfolioActivities();
+
+      alert('Activity submitted successfully! Your teacher will review it.');
+    }
+  } catch (error) {
+    console.error('❌ Error submitting missing activity:', error);
+    alert(error.response?.data?.error || 'Failed to submit activity. Please try again.');
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
 // Check if student has existing envelope
@@ -2344,7 +2622,10 @@ const checkExistingEnvelope = async () => {
     const response = await axios.get(`/api/portfolio-envelope/student/${encodeURIComponent(classNameValue)}/`);
     
     if (response.data && response.data.envelope) {
-      // Load existing envelope data
+      // Store full envelope data including submission status
+      portfolioEnvelope.value = response.data.envelope;
+      
+      // Load existing envelope data for design
       envelopeDesign.value = {
         title: response.data.envelope.title,
         studentName: response.data.envelope.student_name,
@@ -2353,13 +2634,20 @@ const checkExistingEnvelope = async () => {
         pattern: response.data.envelope.pattern
       };
       portfolioEnvelopeCreated.value = true;
-      console.log('✅ Existing envelope found and loaded');
+      
+      if (response.data.envelope.is_submitted) {
+        console.log('✅ Existing envelope found (Already Submitted)');
+      } else {
+        console.log('✅ Existing envelope found (Not Yet Submitted)');
+      }
     } else {
       portfolioEnvelopeCreated.value = false;
+      portfolioEnvelope.value = null;
     }
   } catch (error) {
     console.log('ℹ️ No existing envelope found:', error.response?.status);
     portfolioEnvelopeCreated.value = false;
+    portfolioEnvelope.value = null;
   }
 };
 
@@ -2527,6 +2815,189 @@ const submitNewProduct = async () => {
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
   background-color: #f9fafb;
+}
+
+/* Portfolio Activity Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes patternFloat {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(-10px) translateX(5px);
+  }
+}
+
+@keyframes patternSlide {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 40px 40px;
+  }
+}
+
+@keyframes patternPulse {
+  0%, 100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translateY(-100px) translateX(50px);
+    opacity: 0.4;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.5s ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.5s ease-out;
+}
+
+.animate-patternFloat {
+  animation: patternFloat 6s ease-in-out infinite;
+}
+
+.animate-patternSlide {
+  animation: patternSlide 20s linear infinite;
+}
+
+.animate-patternPulse {
+  animation: patternPulse 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float linear infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5) rotate(180deg);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.6);
+  }
+}
+
+.animate-sparkle {
+  animation: sparkle linear infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background-size: 1000px 100%;
+  animation: shimmer 3s infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Enhanced hover effects */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Glass morphism enhanced */
+.glass-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
