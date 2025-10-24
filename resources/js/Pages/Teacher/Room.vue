@@ -286,8 +286,13 @@
                                     <div class="w-40 md:w-48">
                                         <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
                                     </div>
-                                    <div class="flex-1">
-                                        <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
+                                    <div class="flex-1 relative">
+                                        <div class="instruction-cell group/tooltip">
+                                            <span class="instruction-text">{{ activity.description }}</span>
+                                            <div class="instruction-tooltip">
+                                                {{ activity.description }}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="w-28 text-center">
                                         <span v-if="activity.formattedTime" class="text-sm text-indigo-600 font-medium">{{ activity.formattedTime }}</span>
@@ -411,8 +416,13 @@
                                         <div class="w-40 md:w-48">
                                             <span class="font-medium text-green-700 transition-colors duration-100">{{ activity.title }}</span>
                                         </div>
-                                        <div class="flex-1">
-                                            <span class="text-green-700 group-hover:text-green-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
+                                        <div class="flex-1 relative">
+                                            <div class="instruction-cell group/tooltip">
+                                                <span class="instruction-text text-green-700 group-hover:text-green-900">{{ activity.description }}</span>
+                                                <div class="instruction-tooltip">
+                                                    {{ activity.description }}
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="w-28 text-center">
                                             <span v-if="activity.formattedTime" class="text-sm text-green-600 font-medium">{{ activity.formattedTime }}</span>
@@ -3362,10 +3372,11 @@ const updateActivity = async () => {
         }
         
         showEditDialog.value = false;
-        alert('Activity updated successfully!');
+        showSuccess('Activity has been updated successfully!', 'Activity Updated');
     } catch (error) {
         console.error('❌ Error updating activity:', error);
-        alert('Failed to update activity: ' + (error.response?.data?.error || error.message));
+        const errorMessage = error.response?.data?.error || error.message || 'Unknown error occurred';
+        showError(`Failed to update activity: ${errorMessage}`, 'Update Failed');
     }
 };
 
@@ -3447,12 +3458,13 @@ const confirmPortfolioCompilation = async () => {
         
         // Show success message with details
         const studentsNotified = response.data.students_notified || 0;
-        alert(`Portfolio compilation request sent successfully!\n${studentsNotified} student(s) have been notified.`);
+        const successMessage = `Portfolio compilation request sent successfully! ${studentsNotified} student(s) have been notified.`;
+        showSuccess(successMessage, 'Request Sent');
         
     } catch (error) {
         console.error('❌ Error sending portfolio compilation notification:', error);
-        const errorMsg = error.response?.data?.error || error.message;
-        alert('Failed to send notification: ' + errorMsg);
+        const errorMsg = error.response?.data?.error || error.message || 'Unknown error occurred';
+        showError(`Failed to send notification: ${errorMsg}`, 'Request Failed');
     }
 };
 
@@ -3478,16 +3490,18 @@ const confirmDropPortfolioCompilation = async () => {
         portfolioCompilationActive.value = false;
         portfolioStudents.value = [];
         
-        // Show success message
+        // Show success message with details
         const envelopesDeleted = response.data.envelopes_deleted || 0;
         const notificationsDeleted = response.data.notifications_deleted || 0;
         const studentsNotified = response.data.students_notified || 0;
-        alert(`Portfolio compilation has been deleted successfully.\n${envelopesDeleted} portfolio envelope(s) deleted.\n${notificationsDeleted} notification(s) removed.\n${studentsNotified} student(s) notified about cancellation.`);
+        
+        const successMessage = `${envelopesDeleted} portfolio envelope(s) deleted, ${notificationsDeleted} notification(s) removed, ${studentsNotified} student(s) notified about cancellation.`;
+        showSuccess(successMessage, 'Portfolio Compilation Deleted');
         
     } catch (error) {
         console.error('❌ Error dropping portfolio compilation:', error);
-        const errorMsg = error.response?.data?.error || error.message;
-        alert('Failed to drop compilation request: ' + errorMsg);
+        const errorMsg = error.response?.data?.error || error.message || 'Unknown error occurred';
+        showError(`Failed to drop compilation request: ${errorMsg}`, 'Delete Failed');
     }
 };
 
@@ -3604,5 +3618,115 @@ const confirmDropPortfolioCompilation = async () => {
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* ===== Instruction Cell with Tooltip Styles ===== */
+.instruction-cell {
+    position: relative;
+    width: 100%;
+    cursor: help;
+}
+
+.instruction-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+    color: #4338ca;
+    transition: color 0.2s ease;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+/* Hover effect on text */
+.instruction-cell:hover .instruction-text {
+    color: #312e81;
+}
+
+/* Tooltip styling */
+.instruction-tooltip {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    max-width: 400px;
+    min-width: 250px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+/* Tooltip arrow */
+.instruction-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 1.5rem;
+    border: 6px solid transparent;
+    border-bottom-color: #1e1b4b;
+}
+
+/* Show tooltip on hover */
+.instruction-cell:hover .instruction-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+    .instruction-text {
+        -webkit-line-clamp: 3;
+        font-size: 0.875rem;
+    }
+    
+    .instruction-tooltip {
+        max-width: 280px;
+        min-width: 200px;
+        font-size: 0.8125rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    
+    .instruction-cell:hover .instruction-tooltip {
+        transform: translateX(-50%) translateY(0);
+    }
+    
+    .instruction-tooltip::before {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
+/* Ensure tooltip doesn't overflow on right side */
+@media (min-width: 769px) {
+    .instruction-tooltip {
+        max-width: min(400px, 90vw);
+    }
+}
+
+/* Alternative: Right-aligned tooltip for cells near the end */
+.instruction-cell.tooltip-right .instruction-tooltip {
+    left: auto;
+    right: 0;
+}
+
+.instruction-cell.tooltip-right .instruction-tooltip::before {
+    left: auto;
+    right: 1.5rem;
 }
 </style>

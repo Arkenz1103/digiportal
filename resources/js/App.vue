@@ -24,6 +24,8 @@
       <TeacherNotice v-if="currentPage === 'TeacherNotice'" @navigate="handleNavigation" />
       <TeacherNotify v-if="currentPage === 'TeacherNotify'" @navigate="handleNavigation" />
       <TeacherArchived v-if="currentPage === 'TeacherArchived'" @navigate="handleNavigation" />
+      <TeacherProfile v-if="currentPage === 'TeacherProfile'" @navigate="handleNavigation" />
+      <TeacherSettings v-if="currentPage === 'TeacherSettings'" @navigate="handleNavigation" />
     </MainLayout>
     
     <!-- Student Pages with MainLayout -->
@@ -55,6 +57,8 @@ import TeacherRemarks from './Pages/Teacher/Remarks.vue'
 import TeacherNotice from './Pages/Teacher/Notice.vue'
 import TeacherNotify from './Pages/Teacher/Notify.vue'
 import TeacherArchived from './Pages/Teacher/Archived.vue'
+import TeacherProfile from './Pages/Teacher/Profile.vue'
+import TeacherSettings from './Pages/Teacher/Settings.vue'
 
 // Student components
 import StudentNewsfeed from './Pages/Student/Newsfeed.vue'
@@ -105,6 +109,8 @@ const handleNavigation = (page) => {
     'TeacherNotice': 'Notices - DigiPortal',
     'TeacherNotify': 'Notifications - DigiPortal',
     'TeacherArchived': 'Archived - DigiPortal',
+    'TeacherProfile': 'My Profile - DigiPortal',
+    'TeacherSettings': 'Settings - DigiPortal',
     'StudentNewsfeed': 'Student Home - DigiPortal',
     'StudentRoom': 'Class Room - DigiPortal',
     'StudentSketch': 'Sketch - DigiPortal',
@@ -128,6 +134,8 @@ const handleNavigation = (page) => {
     'TeacherNotice': '/teacher/notice',
     'TeacherNotify': '/teacher/notify',
     'TeacherArchived': '/teacher/archived',
+    'TeacherProfile': '/teacher/profile',
+    'TeacherSettings': '/teacher/settings',
     'StudentNewsfeed': '/student/newsfeed',
     'StudentRoom': '/student/room',
     'StudentSketch': '/student/sketch',
@@ -167,6 +175,8 @@ onMounted(() => {
       'TeacherNotice': 'Notices - DigiPortal',
       'TeacherNotify': 'Notifications - DigiPortal',
       'TeacherArchived': 'Archived - DigiPortal',
+      'TeacherProfile': 'My Profile - DigiPortal',
+      'TeacherSettings': 'Settings - DigiPortal',
       'StudentNewsfeed': 'Student Home - DigiPortal',
       'StudentRoom': 'Class Room - DigiPortal',
       'StudentSketch': 'Sketch - DigiPortal',
