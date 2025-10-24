@@ -46,6 +46,7 @@ urlpatterns = [
     path('api/submissions/scored/', views.scored_submissions_api, name='scored_submissions_api'),
     path('api/submissions/<int:submission_id>/score/', views.score_submission_api, name='score_submission_api'),
     path('api/submissions/my-collection/', views.student_submitted_collection_api, name='student_submitted_collection_api'),
+    path('api/submissions/<int:submission_id>/request-post-approval/', views.request_post_approval_api, name='request_post_approval_api'),
     
     # Feed approval routes
     path('api/submissions/pending-approvals/', views.pending_approvals_api, name='pending_approvals_api'),

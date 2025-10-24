@@ -91,9 +91,11 @@
               <div v-if="selectedFolder" class="space-y-6">
                 <!-- Combined Header with Back Button -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                  <!-- List of Activities Header -->
+                  <!-- Header Title -->
                   <div class="rounded-lg py-2 px-4">
-                    <span class="text-2xl font-bold text-indigo-900">List of Activities - {{ selectedFolder.title }}</span>
+                    <span class="text-2xl font-bold text-indigo-900">
+                      {{ showSubmittedCollection ? 'Submitted Collection Activity' : `List of Activities - ${selectedFolder.title}` }}
+                    </span>
                   </div>
 
                   <div class="flex flex-wrap gap-2">
@@ -106,6 +108,40 @@
                       <i class="pi pi-folder-open"></i>
                       <span>Submitted Collection</span>
                     </button>
+                    
+                    <!-- Select Button (Submitted Collection) -->
+                    <button
+                      v-if="!selectedActivity && showSubmittedCollection && submittedCollection.length > 0"
+                      @click="toggleSelectMode"
+                      class="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200"
+                      :class="isSelectMode 
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                        : 'bg-white text-indigo-600 border border-indigo-600 hover:bg-indigo-600 hover:text-white'"
+                    >
+                      <i :class="isSelectMode ? 'pi pi-times' : 'pi pi-check-square'"></i>
+                      <span>{{ isSelectMode ? 'Cancel' : 'Select' }}</span>
+                    </button>
+                    
+                    <!-- Remove Selected Button -->
+                    <button
+                      v-if="isSelectMode && selectedSubmissions.length > 0"
+                      @click="deleteAction = 'selected'; showDeleteConfirmDialog = true"
+                      class="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors duration-200"
+                    >
+                      <i class="pi pi-eye-slash"></i>
+                      <span>Remove ({{ selectedSubmissions.length }})</span>
+                    </button>
+                    
+                    <!-- Remove All Button -->
+                    <button
+                      v-if="!selectedActivity && showSubmittedCollection && submittedCollection.length > 0 && !isSelectMode"
+                      @click="deleteAction = 'all'; showDeleteConfirmDialog = true"
+                      class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-red-600 border border-red-600 hover:bg-red-600 hover:text-white transition-colors duration-200"
+                    >
+                      <i class="pi pi-eye-slash"></i>
+                      <span>Remove All</span>
+                    </button>
+                    
                     <!-- Back button -->
                     <button
                       v-if="!selectedActivity && showSubmittedCollection"
@@ -147,21 +183,21 @@
                         </span>
                       </div>
                       
-                      <!-- Type and Description -->
+                      <!-- Type and Instruction -->
                       <div class="space-y-2">
                         <div class="flex items-start gap-2">
                           <span class="text-sm font-medium text-gray-900">Type:</span>
                           <span class="text-sm text-gray-600 capitalize">{{ selectedActivity.type }}</span>
                         </div>
                         <div class="flex items-start gap-2">
-                          <span class="text-sm font-medium text-gray-900">Description:</span>
+                          <span class="text-sm font-medium text-gray-900">Instruction:</span>
                           <p class="text-sm text-gray-600">{{ selectedActivity.description }}</p>
                         </div>
                       </div>
                     </div>
                     
-                    <!-- Middle: View Score Button -->
-                    <div class="flex items-start">
+                    <!-- Middle: View Score & Post Output Buttons -->
+                    <div class="flex flex-col items-start gap-2">
                       <button
                         v-if="hasSubmittedWork && hasScore"
                         @click="showScoreDialog = true"
@@ -169,6 +205,17 @@
                       >
                         <i class="pi pi-star-fill"></i>
                         <span>View Score</span>
+                      </button>
+                      
+                      <!-- Post Output Button (Shows if not posted to feed yet) -->
+                      <button
+                        v-if="hasSubmittedWork && existingSubmission && !existingSubmission.post_to_feed"
+                        @click="openPostOutputDialog"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors duration-200"
+                        title="Post your work to class feed"
+                      >
+                        <i class="pi pi-send"></i>
+                        <span>Post Output</span>
                       </button>
                     </div>
                     
@@ -360,10 +407,12 @@
                           <button
                             v-else
                             @click="handleResubmit"
-                            class="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-sm font-semibold hover:from-orange-600 hover:to-orange-700 transition-all flex items-center justify-center gap-2"
+                            :disabled="hasScore"
+                            class="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-sm font-semibold hover:from-orange-600 hover:to-orange-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-orange-600"
+                            :title="hasScore ? 'Cannot resubmit - Already scored' : 'Resubmit your work'"
                           >
                             <i class="pi pi-refresh"></i>
-                            <span>Resubmit</span>
+                            <span>{{ hasScore ? 'Already Scored' : 'Resubmit' }}</span>
                           </button>
                         </div>
                       </div>
@@ -481,62 +530,71 @@
                     <p class="text-gray-500">No submitted works yet.</p>
                   </div>
 
-                  <!-- Collection Cards (Google Classroom Style) -->
+                  <!-- Collection Cards (Enhanced Row Layout) -->
                   <div v-else class="space-y-3">
                     <div
                       v-for="item in submittedCollection"
                       :key="item.id"
-                      class="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 overflow-hidden"
+                      @click="openPreviewDialog(item)"
+                      class="bg-white rounded-xl border-2 border-gray-200 hover:border-indigo-400 hover:shadow-md transition-all duration-200 cursor-pointer"
                     >
-                      <div class="flex items-start gap-4 p-4">
+                      <div class="flex items-center gap-6 p-5">
+                        <!-- Checkbox (Select Mode) -->
+                        <div v-if="isSelectMode" class="flex items-center">
+                          <input
+                            type="checkbox"
+                            :checked="selectedSubmissions.includes(item.id)"
+                            @change="toggleSubmissionSelection(item.id)"
+                            @click.stop
+                            class="w-5 h-5 text-indigo-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </div>
+                        
                         <!-- Thumbnail/Icon -->
-                        <div class="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                        <div class="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl flex items-center justify-center overflow-hidden shadow-sm border border-indigo-100">
                           <img
                             v-if="item.file_type === 'image'"
                             :src="item.file_path"
                             :alt="item.activity_title"
                             class="w-full h-full object-cover"
                           />
-                          <i v-else class="pi pi-file text-2xl text-gray-400"></i>
+                          <i v-else class="pi pi-file text-3xl text-indigo-400"></i>
                         </div>
 
-                        <!-- Content -->
-                        <div class="flex-1 min-w-0">
-                          <!-- Activity Title -->
-                          <h3 class="font-semibold text-gray-900 mb-1 truncate">{{ item.activity_title }}</h3>
+                        <!-- Content - Full Width Row Layout -->
+                        <div class="flex-1 flex items-center justify-between">
+                          <!-- Folder -->
+                          <div class="flex-1 min-w-[120px]">
+                            <div class="text-gray-500 text-xs mb-1 font-medium">Folder:</div>
+                            <div class="flex items-center gap-2 text-gray-900 font-semibold">
+                              <i class="pi pi-folder text-sm text-indigo-600"></i>
+                              <span>{{ item.folder_name }}</span>
+                            </div>
+                          </div>
                           
-                          <!-- Metadata Row -->
-                          <div class="flex items-center gap-3 text-sm text-gray-600 mb-2">
-                            <span class="flex items-center gap-1">
-                              <i class="pi pi-folder text-xs"></i>
-                              {{ item.folder_name }}
-                            </span>
-                            <span class="text-gray-400">•</span>
-                            <span class="capitalize">{{ item.activity_type }}</span>
+                          <!-- Activity Type -->
+                          <div class="flex-1 min-w-[140px]">
+                            <div class="text-gray-500 text-xs mb-1 font-medium">Activity Type:</div>
+                            <div class="text-gray-900 font-semibold capitalize">{{ item.activity_type }}</div>
                           </div>
-
-                          <!-- Submitted Date -->
-                          <div class="flex items-center gap-2 text-xs text-gray-500">
-                            <i class="pi pi-check-circle text-green-600"></i>
-                            <span>Submitted {{ new Date(item.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</span>
-                            <span v-if="item.is_late" class="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                              Late
-                            </span>
+                          
+                          <!-- Activity Title -->
+                          <div class="flex-1 min-w-[140px]">
+                            <div class="text-gray-500 text-xs mb-1 font-medium">Activity Title:</div>
+                            <div class="text-gray-900 font-bold">{{ item.activity_title }}</div>
                           </div>
-                        </div>
-
-                        <!-- Score Badge (if scored) -->
-                        <div v-if="item.status === 'scored'" class="flex-shrink-0">
-                          <div class="bg-indigo-50 rounded-lg px-4 py-2 text-center">
-                            <div class="text-2xl font-bold text-indigo-700">{{ item.score }}</div>
-                            <div class="text-xs text-gray-600">points</div>
+                          
+                          <!-- Submitted Date/Time -->
+                          <div class="flex-1 min-w-[180px] text-right">
+                            <div class="text-gray-500 text-xs mb-1 font-medium">Submitted:</div>
+                            <div class="text-gray-900 font-semibold">{{ formatSubmittedDateTime(item.submitted_at) }}</div>
                           </div>
                         </div>
-                        <div v-else class="flex-shrink-0">
-                          <div class="bg-gray-50 rounded-lg px-4 py-2 text-center">
-                            <div class="text-sm text-gray-500">Not yet</div>
-                            <div class="text-xs text-gray-400">graded</div>
-                          </div>
+
+                        <!-- Score (if scored) -->
+                        <div v-if="item.status === 'scored'" class="flex-shrink-0 text-center pl-6 border-l-2 border-gray-200 min-w-[80px]">
+                          <div class="text-gray-500 text-xs mb-1 font-medium">Score:</div>
+                          <div class="text-2xl font-bold text-indigo-600">{{ item.score }}</div>
                         </div>
                       </div>
                     </div>
@@ -560,16 +618,16 @@
                   <template v-else>
                     <!-- Table Header -->
                     <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-50 border-b border-indigo-100">
-                      <div class="w-32">
+                      <div class="w-36">
                         <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
                       </div>
-                      <div class="w-40 md:w-48">
+                      <div class="w-44">
                         <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
                       </div>
                       <div class="flex-1">
-                        <span class="text-sm font-semibold text-indigo-900">Description</span>
+                        <span class="text-sm font-semibold text-indigo-900">Instruction</span>
                       </div>
-                      <div class="w-28">
+                      <div class="w-36">
                         <span class="text-sm font-semibold text-indigo-900">Status</span>
                       </div>
                       <div class="w-28 text-center">
@@ -586,16 +644,16 @@
                       @click="openActivity(activity)">
                       <!-- Main Activity Row -->
                       <div class="flex items-center px-4 md:px-6 py-4 cursor-pointer">
-                        <div class="w-32">
+                        <div class="w-36">
                           <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
                         </div>
-                        <div class="w-40 md:w-48">
+                        <div class="w-44">
                           <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
                         </div>
                         <div class="flex-1">
-                          <span class="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
+                          <span class="text-sm text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
                         </div>
-                        <div class="w-28">
+                        <div class="w-36">
                           <span v-if="getActivityStatus(activity) === 'submitted' && activity.isLate" 
                                 class="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 flex items-center gap-1 w-fit">
                             <i class="pi pi-clock text-xs"></i>
@@ -1539,6 +1597,216 @@
         </div>
     </Dialog>
 
+    <!-- Remove from Collection Confirmation Dialog -->
+    <Dialog v-model:visible="showDeleteConfirmDialog" modal :style="{ width: '90vw', maxWidth: '500px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-eye-slash text-orange-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Remove from Collection</h3>
+        </div>
+      </template>
+
+      <div class="py-4">
+        <p class="text-gray-700 mb-4">
+          <span v-if="deleteAction === 'all'">
+            Remove all {{ submittedCollection.length }} submission(s) from your collection?
+          </span>
+          <span v-else>
+            Remove {{ selectedSubmissions.length }} submission(s) from your collection?
+          </span>
+        </p>
+        <p class="text-sm text-indigo-600 font-medium bg-indigo-50 p-3 rounded-lg">
+          <i class="pi pi-info-circle mr-2"></i>
+          Note: This will only hide them from this view. Your submissions will still be visible to your teacher and remain in the activity.
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showDeleteConfirmDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="deleteSelectedSubmissions"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center gap-2"
+          >
+            <i class="pi pi-eye-slash"></i>
+            <span>Remove from Collection</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Post Output Dialog -->
+    <Dialog v-model:visible="showPostOutputDialog" modal :style="{ width: '90vw', maxWidth: '600px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-send text-green-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Post Output to Feed</h3>
+        </div>
+      </template>
+
+      <div v-if="existingSubmission" class="space-y-4">
+        <!-- Caption Input -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Caption</label>
+          <textarea
+            v-model="postOutputCaption"
+            rows="3"
+            placeholder="Add a caption to your work..."
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Output Preview -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Your Output</label>
+          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 flex items-center justify-center" style="min-height: 250px;">
+            <img
+              v-if="getSubmissionImageUrl()"
+              :src="getSubmissionImageUrl()"
+              :alt="selectedActivity?.title || 'Submission'"
+              class="max-w-full max-h-[300px] object-contain rounded-lg shadow-sm"
+              @error="(e) => { console.error('Image load error:', e.target.src); e.target.style.display = 'none'; }"
+            />
+            <div v-else class="text-center py-8">
+              <i class="pi pi-file text-4xl text-gray-400 mb-2"></i>
+              <p class="text-gray-600 text-sm">{{ existingSubmission?.file_type || 'File' }}</p>
+              <p class="text-xs text-gray-500 mt-2">No preview available</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Include Score Checkbox (Only if scored) -->
+        <div v-if="hasScore" class="flex items-start gap-3 bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+          <input
+            type="checkbox"
+            id="includeScore"
+            v-model="includeScore"
+            class="w-5 h-5 text-green-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-green-500 cursor-pointer mt-0.5"
+          />
+          <label for="includeScore" class="flex-1 cursor-pointer">
+            <div class="font-semibold text-gray-900">Include overall score</div>
+            <div class="text-sm text-gray-600 mt-1">
+              Your score ({{ existingSubmission.score }} points) will be visible to your classmates
+            </div>
+          </label>
+        </div>
+
+        <!-- Info Message -->
+        <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-yellow-600 text-lg mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-gray-700">
+                Your teacher will review and approve your post before it appears in the class feed.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="closePostOutputDialog"
+            :disabled="isPostingOutput"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            @click="submitPostOutput"
+            :disabled="isPostingOutput || !postOutputCaption.trim()"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i class="pi pi-send"></i>
+            <span>{{ isPostingOutput ? 'Sending...' : 'Send Request' }}</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Preview Collection Dialog -->
+    <Dialog v-model:visible="showPreviewDialog" modal :style="{ width: '90vw', maxWidth: '900px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-eye text-indigo-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Preview Submission</h3>
+        </div>
+      </template>
+
+      <div v-if="selectedPreviewItem" class="space-y-4">
+        <!-- Submission Image/File -->
+        <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-center" style="min-height: 250px;">
+          <img
+            v-if="selectedPreviewItem.file_type === 'image'"
+            :src="selectedPreviewItem.file_path"
+            :alt="selectedPreviewItem.activity_title"
+            class="max-w-full max-h-[300px] object-contain rounded-lg shadow-md"
+          />
+          <div v-else class="text-center">
+            <i class="pi pi-file text-4xl text-gray-400 mb-3"></i>
+            <p class="text-gray-600">File preview not available</p>
+            <p class="text-sm text-gray-500 mt-2">{{ selectedPreviewItem.file_type }}</p>
+          </div>
+        </div>
+
+        <!-- Submission Details -->
+        <div class="grid grid-cols-2 gap-4 bg-indigo-50 rounded-lg p-4">
+          <div>
+            <div class="text-xs text-gray-600 mb-1">Activity Title:</div>
+            <div class="font-semibold text-gray-900">{{ selectedPreviewItem.activity_title }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-1">Activity Type:</div>
+            <div class="font-semibold text-gray-900 capitalize">{{ selectedPreviewItem.activity_type }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-1">Folder:</div>
+            <div class="flex items-center gap-2 font-semibold text-gray-900">
+              <i class="pi pi-folder text-indigo-600"></i>
+              <span>{{ selectedPreviewItem.folder_name }}</span>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-600 mb-1">Submitted:</div>
+            <div class="font-semibold text-gray-900">{{ formatSubmittedDateTime(selectedPreviewItem.submitted_at) }}</div>
+          </div>
+          <div v-if="selectedPreviewItem.status === 'scored'" class="col-span-2">
+            <div class="text-xs text-gray-600 mb-1">Score:</div>
+            <div class="text-2xl font-bold text-indigo-600">{{ selectedPreviewItem.score }} points</div>
+          </div>
+        </div>
+
+        <!-- Caption (if exists) -->
+        <div v-if="selectedPreviewItem.caption" class="bg-white rounded-lg p-4 border border-gray-200">
+          <div class="text-xs text-gray-600 mb-2">Caption:</div>
+          <p class="text-gray-800">{{ selectedPreviewItem.caption }}</p>
+        </div>
+
+        <!-- Feedback (if scored) -->
+        <div v-if="selectedPreviewItem.status === 'scored' && selectedPreviewItem.feedback" class="bg-green-50 rounded-lg p-4 border border-green-200">
+          <div class="text-xs text-green-700 font-semibold mb-2">Teacher Feedback:</div>
+          <p class="text-gray-800">{{ selectedPreviewItem.feedback }}</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="closePreviewDialog"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+          >
+            Close
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Archive Class Dialog -->
     <Dialog v-model:visible="showArchiveDialog"
         modal
@@ -1940,17 +2208,76 @@
           </div>
 
           <!-- My Sketch Tab -->
-          <div v-else-if="activeUploadTab === 'sketch'" class="flex flex-col items-center justify-center py-12">
-            <div class="text-center space-y-4">
-              <div class="w-20 h-20 mx-auto bg-purple-100 rounded-full flex items-center justify-center">
-                <i class="pi pi-palette text-purple-600 text-3xl"></i>
+          <div v-else-if="activeUploadTab === 'sketch'" class="py-4">
+            <!-- Sub-tabs -->
+            <div class="flex border-b border-gray-200 mb-4">
+              <button
+                @click="activeSketchSubTab = 'sketches'"
+                :class="[
+                  'px-4 py-2 text-sm font-medium transition-all duration-200 border-b-2',
+                  activeSketchSubTab === 'sketches'
+                    ? 'border-purple-600 text-purple-600 bg-purple-50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                ]"
+              >
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-palette"></i>
+                  <span>Sketches</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- Sketches Sub-tab Content -->
+            <div v-if="activeSketchSubTab === 'sketches'">
+              <!-- Loading State -->
+              <div v-if="loadingSketches" class="flex justify-center items-center py-12">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
               </div>
-              <div>
-                <h4 class="text-lg font-semibold text-gray-900 mb-2">My Sketches</h4>
-                <p class="text-sm text-gray-500 mb-6">Select from your saved sketches</p>
+
+              <!-- Empty State -->
+              <div v-else-if="!loadingSketches && mySketches.length === 0" class="text-center py-12">
+                <div class="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                  <i class="pi pi-inbox text-gray-400 text-lg"></i>
+                </div>
+                <p class="text-sm text-gray-500">No sketches saved yet</p>
+                <p class="text-xs text-gray-400 mt-1">Create sketches in the Sketch page</p>
               </div>
-              <div class="px-6 py-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p class="text-sm text-gray-600 italic">Coming soon...</p>
+
+              <!-- Sketches Grid - Extra Small Size -->
+              <div v-else class="grid grid-cols-4 gap-2 max-h-[320px] overflow-y-auto px-1">
+                <div
+                  v-for="sketch in mySketches"
+                  :key="sketch.id"
+                  @click="selectSketch(sketch)"
+                  class="relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all duration-200 hover:border-purple-500 hover:shadow-md"
+                  :class="selectedSketchId === sketch.id ? 'border-purple-600 ring-2 ring-purple-200' : 'border-gray-200'"
+                >
+                  <!-- Sketch Image -->
+                  <div class="aspect-square bg-white p-1">
+                    <img
+                      :src="sketch.image_data"
+                      :alt="sketch.title"
+                      class="w-full h-full object-contain"
+                    />
+                  </div>
+                  
+                  <!-- Overlay on Hover -->
+                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200"></div>
+                  
+                  <!-- Selected Checkmark -->
+                  <div
+                    v-if="selectedSketchId === sketch.id"
+                    class="absolute top-1 right-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center"
+                  >
+                    <i class="pi pi-check text-white" style="font-size: 8px;"></i>
+                  </div>
+                  
+                  <!-- Date Footer -->
+                  <div class="bg-gray-700 bg-opacity-90 text-white text-[9px] px-1 py-0.5 text-center leading-tight">
+                    <div class="font-medium">Created:</div>
+                    <div>{{ formatSketchDate(sketch.created_at) }}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1980,6 +2307,16 @@
             class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
           >
             Cancel
+          </button>
+          <button
+            v-if="activeUploadTab === 'sketch' && selectedSketchId"
+            @click="useSelectedSketch"
+            :disabled="isSubmitting"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i v-if="!isSubmitting" class="pi pi-check"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            <span>{{ isSubmitting ? 'Adding...' : 'Use This Sketch' }}</span>
           </button>
         </div>
       </template>
@@ -2141,7 +2478,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
+import { ref, computed, onMounted, onUnmounted, inject, watch } from 'vue';
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import { useToast } from '../../composables/useToast';
@@ -2478,6 +2815,176 @@ const openSubmittedCollection = async () => {
 // Close submitted collection
 const closeSubmittedCollection = () => {
   showSubmittedCollection.value = false;
+  // Reset selection state
+  isSelectMode.value = false;
+  selectedSubmissions.value = [];
+};
+
+// Toggle select mode
+const toggleSelectMode = () => {
+  isSelectMode.value = !isSelectMode.value;
+  if (!isSelectMode.value) {
+    selectedSubmissions.value = [];
+  }
+};
+
+// Toggle submission selection
+const toggleSubmissionSelection = (submissionId) => {
+  const index = selectedSubmissions.value.indexOf(submissionId);
+  if (index > -1) {
+    selectedSubmissions.value.splice(index, 1);
+  } else {
+    selectedSubmissions.value.push(submissionId);
+  }
+};
+
+// Open preview dialog
+const openPreviewDialog = (item) => {
+  // Don't open if clicking checkbox in select mode
+  if (isSelectMode.value) return;
+  
+  selectedPreviewItem.value = item;
+  showPreviewDialog.value = true;
+  console.log('📸 Opening preview for submission:', item.id);
+};
+
+// Close preview dialog
+const closePreviewDialog = () => {
+  showPreviewDialog.value = false;
+  selectedPreviewItem.value = null;
+};
+
+// Get submission image URL
+const getSubmissionImageUrl = () => {
+  // Try multiple sources for the image URL
+  if (studentSubmissions.value && studentSubmissions.value.length > 0) {
+    const submission = studentSubmissions.value[0];
+    const url = submission.previewUrl || submission.file_url || submission.file_path || submission.file;
+    console.log('📸 Getting image from studentSubmissions:', url);
+    return url;
+  }
+  
+  if (existingSubmission.value) {
+    const url = existingSubmission.value.file_url || existingSubmission.value.file_path || existingSubmission.value.file;
+    console.log('📸 Getting image from existingSubmission:', url);
+    return url;
+  }
+  
+  console.warn('⚠️ No image URL found');
+  return null;
+};
+
+// Open post output dialog
+const openPostOutputDialog = () => {
+  if (!existingSubmission.value) {
+    console.error('❌ No existing submission found');
+    return;
+  }
+  
+  console.log('📤 Opening post output dialog');
+  console.log('   Submission ID:', existingSubmission.value.id);
+  console.log('   File path:', existingSubmission.value.file_path);
+  console.log('   File type:', existingSubmission.value.file_type);
+  console.log('   Caption:', existingSubmission.value.caption);
+  console.log('   Student submissions:', studentSubmissions.value);
+  console.log('   Image URL:', getSubmissionImageUrl());
+  
+  // Pre-fill caption if exists
+  postOutputCaption.value = existingSubmission.value.caption || '';
+  includeScore.value = false;
+  showPostOutputDialog.value = true;
+};
+
+// Close post output dialog
+const closePostOutputDialog = () => {
+  showPostOutputDialog.value = false;
+  postOutputCaption.value = '';
+  includeScore.value = false;
+};
+
+// Submit post output request
+const submitPostOutput = async () => {
+  if (!existingSubmission.value) return;
+  
+  if (!postOutputCaption.value || !postOutputCaption.value.trim()) {
+    showError('Please add a caption to your work', 'Caption Required');
+    return;
+  }
+  
+  try {
+    isPostingOutput.value = true;
+    
+    console.log('📤 Sending post approval request...');
+    console.log('   Submission ID:', existingSubmission.value.id);
+    console.log('   Caption:', postOutputCaption.value);
+    console.log('   Include Score:', includeScore.value);
+    
+    const response = await axios.post(
+      `/api/submissions/${existingSubmission.value.id}/request-post-approval/`,
+      {
+        caption: postOutputCaption.value.trim(),
+        include_score: includeScore.value
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log('✅ Post output request sent:', response.data);
+    showSuccess('Your request to post output has been sent to your teacher for approval', 'Request Sent');
+    
+    closePostOutputDialog();
+  } catch (error) {
+    console.error('❌ Error submitting post output request:', error);
+    console.error('   Error response:', error.response?.data);
+    console.error('   Error status:', error.response?.status);
+    
+    const errorMessage = error.response?.data?.error || 'Failed to send post output request';
+    showError(errorMessage, 'Request Failed');
+  } finally {
+    isPostingOutput.value = false;
+  }
+};
+
+// Delete selected submissions
+const deleteSelectedSubmissions = async () => {
+  try {
+    let deletePromises;
+    let count;
+    
+    if (deleteAction.value === 'all') {
+      // Delete all submissions
+      deletePromises = submittedCollection.value.map(item =>
+        axios.delete(`/api/submissions/${item.id}/`)
+      );
+      count = submittedCollection.value.length;
+    } else {
+      // Delete selected submissions
+      deletePromises = selectedSubmissions.value.map(id =>
+        axios.delete(`/api/submissions/${id}/`)
+      );
+      count = selectedSubmissions.value.length;
+    }
+    
+    await Promise.all(deletePromises);
+    
+    console.log('✅ Removed submissions from collection:', count);
+    showSuccess(`${count} submission(s) removed from collection`, 'Removed');
+    
+    // Reload submitted collection
+    await loadSubmittedCollection();
+    
+    // Clear selection and exit select mode
+    selectedSubmissions.value = [];
+    isSelectMode.value = false;
+    showDeleteConfirmDialog.value = false;
+    deleteAction.value = null;
+  } catch (error) {
+    console.error('❌ Error deleting submissions:', error);
+    showError('Failed to delete submissions', 'Delete Failed');
+  }
 };
 
 // Function to get activity status
@@ -2725,16 +3232,35 @@ const checkSubmissionStatus = async (activityId) => {
     if (response.data && response.data.length > 0) {
       hasSubmittedWork.value = true;
       existingSubmission.value = response.data[0];
+      
+      // Check if submission has been scored
+      if (existingSubmission.value.status === 'scored' && existingSubmission.value.score !== null && existingSubmission.value.score !== undefined) {
+        hasScore.value = true;
+        submissionScore.value = {
+          score: existingSubmission.value.score,
+          feedback: existingSubmission.value.feedback,
+          criteria_scores: existingSubmission.value.criteria_scores
+        };
+        console.log('✅ Submission has been scored:', submissionScore.value);
+      } else {
+        hasScore.value = false;
+        submissionScore.value = null;
+      }
+      
       console.log('✅ Student already submitted:', existingSubmission.value);
+      console.log('📊 Status:', existingSubmission.value.status, 'Score:', existingSubmission.value.score);
       console.log('📅 Submitted at (from backend):', existingSubmission.value.submitted_at);
       console.log('📅 Formatted:', formatSubmittedDateTime(existingSubmission.value.submitted_at));
     } else {
       hasSubmittedWork.value = false;
       existingSubmission.value = null;
+      hasScore.value = false;
+      submissionScore.value = null;
     }
   } catch (error) {
     console.error('Error checking submission status:', error);
     hasSubmittedWork.value = false;
+    hasScore.value = false;
   }
 };
 
@@ -2925,6 +3451,16 @@ const submitWork = (type) => {
 // Settings Dropdown State
 const showSettingsDropdown = ref(false);
 const showArchiveDialog = ref(false);
+const isSelectMode = ref(false);
+const selectedSubmissions = ref([]);
+const showDeleteConfirmDialog = ref(false);
+const deleteAction = ref(null); // 'all' or 'selected'
+const showPreviewDialog = ref(false);
+const selectedPreviewItem = ref(null);
+const showPostOutputDialog = ref(false);
+const postOutputCaption = ref('');
+const includeScore = ref(false);
+const isPostingOutput = ref(false);
 const showAddActivityDialog = ref(false);
 const settingsRef = ref(null);
 const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false));
@@ -3007,6 +3543,130 @@ const uploadTabs = [
   { id: 'sketch', name: 'My Sketch', icon: 'pi pi-palette' },
   { id: 'collection', name: 'Submitted Collection', icon: 'pi pi-folder' }
 ];
+
+// My Sketches state
+const mySketches = ref([]);
+const loadingSketches = ref(false);
+const selectedSketchId = ref(null);
+const activeSketchSubTab = ref('sketches');
+
+// Watch for dialog opening to load sketches
+watch(showUploadDialog, async (newValue) => {
+  if (newValue && activeUploadTab.value === 'sketch') {
+    await loadMySketches();
+  }
+});
+
+// Watch for tab changes to load sketches when switching to sketch tab
+watch(activeUploadTab, async (newValue) => {
+  if (newValue === 'sketch' && showUploadDialog.value) {
+    await loadMySketches();
+  }
+  // Reset selected sketch when changing tabs
+  selectedSketchId.value = null;
+  // Reset to sketches sub-tab
+  activeSketchSubTab.value = 'sketches';
+});
+
+// Load sketches from API
+const loadMySketches = async () => {
+  loadingSketches.value = true;
+  try {
+    const response = await axios.get('/api/sketches/');
+    mySketches.value = response.data;
+    console.log('✅ Loaded sketches:', mySketches.value.length);
+  } catch (error) {
+    console.error('❌ Error loading sketches:', error);
+    showError('Failed to load sketches', 'Error');
+  } finally {
+    loadingSketches.value = false;
+  }
+};
+
+// Select a sketch
+const selectSketch = (sketch) => {
+  selectedSketchId.value = sketch.id;
+};
+
+// Format sketch date
+const formatSketchDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
+// Use selected sketch as submission
+const useSelectedSketch = async () => {
+  if (!selectedSketchId.value) return;
+  
+  const selectedSketch = mySketches.value.find(s => s.id === selectedSketchId.value);
+  if (!selectedSketch) return;
+
+  isSubmitting.value = true;
+
+  try {
+    console.log('📤 Using sketch as draft:', selectedSketch.title);
+
+    // Convert base64 image to blob
+    const base64Data = selectedSketch.image_data;
+    const response = await fetch(base64Data);
+    const blob = await response.blob();
+    
+    // Create a file from the blob
+    const file = new File([blob], `${selectedSketch.title}.png`, { type: 'image/png' });
+
+    // Create FormData for file upload as DRAFT
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('caption', selectedSketch.title);
+    formData.append('post_to_feed', false);
+    formData.append('is_draft', true);
+
+    // Upload the file as draft
+    const uploadResponse = await axios.post(
+      `/api/activities/${selectedActivity.value.id}/submissions/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    console.log('✅ Sketch saved as draft:', uploadResponse.data);
+    
+    // Store draft submission
+    draftSubmission.value = uploadResponse.data;
+    draftFiles.value.push({
+      id: uploadResponse.data.id,
+      name: selectedSketch.title,
+      type: uploadResponse.data.file_type,
+      path: uploadResponse.data.file_path
+    });
+    
+    // Show success message
+    showSuccess('Sketch added as draft!', 'Saved');
+
+    // Close dialog and reset
+    showUploadDialog.value = false;
+    selectedSketchId.value = null;
+  } catch (error) {
+    console.error('❌ Error using sketch:', error);
+    showError(
+      error.response?.data?.error || 'Failed to use sketch',
+      'Error'
+    );
+  } finally {
+    isSubmitting.value = false;
+  }
+};
 
 // Auto-save file upload functions
 const autoSaveFileInput = ref(null);

@@ -1562,9 +1562,11 @@ def student_submitted_collection_api(request):
         return Response({'error': 'Only students can view their submitted collection'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all submissions by this student, ordered by most recent first
+        # Get all submitted works by this student (exclude drafts and hidden items), ordered by most recent first
         submissions = StudentSubmission.objects.filter(
-            student=request.user
+            student=request.user,
+            submitted_at__isnull=False,  # Only include submissions that have been submitted (not drafts)
+            is_active=True  # Only show active submissions (not hidden from collection)
         ).select_related('activity', 'activity__folder').order_by('-submitted_at')
         
         print(f"📦 Processing {submissions.count()} submissions for student {request.user.username}")
@@ -1661,13 +1663,15 @@ def pending_approvals_api(request):
         return Response({'error': 'Only teachers can view pending approvals'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all submissions that are marked for posting to feed and pending approval
+        # Get all submissions with pending approval (both post_to_feed=True and False)
+        # This includes both original submissions and post requests
         submissions = StudentSubmission.objects.filter(
-            post_to_feed=True,
             approval_status='pending'
-        ).order_by('-submitted_at')
+        ).select_related('student', 'activity', 'activity__folder').order_by('-submitted_at')
         
-        serializer = StudentSubmissionSerializer(submissions, many=True)
+        print(f"📝 Found {submissions.count()} pending approvals for teacher {request.user.username}")
+        
+        serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
         return Response(serializer.data)
     except Exception as e:
         print(f"Error fetching pending approvals: {str(e)}")
@@ -1696,20 +1700,23 @@ def approve_submission_api(request, submission_id):
         
         if action == 'approve':
             submission.approval_status = 'approved'
+            submission.post_to_feed = True  # Mark as posted to feed
             submission.save()
+            
+            print(f"✅ Approved submission {submission_id} for posting to feed")
             
             # Notify student about approval
             create_notification(
                 recipient=submission.student,
                 notification_type='submission_approved',
-                title='Submission Approved',
-                message=f'Your submission for "{submission.activity.title}" has been approved and posted to the newsfeed',
+                title='Post Approved',
+                message=f'Your post request for "{submission.activity.title}" has been approved and is now visible in the newsfeed',
                 submission=submission,
                 activity=submission.activity
             )
             
-            # Create a newsfeed post if this submission was marked to post to feed
-            if submission.post_to_feed:
+            # Create a newsfeed post (now that it's approved)
+            if True:  # Always create post when approved
                 # Check if newsfeed post already exists for this submission
                 existing_post = NewsfeedPost.objects.filter(original_submission=submission).first()
                 
@@ -1906,12 +1913,22 @@ def submission_detail_api(request, submission_id):
             return Response(serializer.data)
         
         elif request.method == 'DELETE':
-            # Only allow deleting drafts
-            if submission.status != 'draft':
-                return Response({'error': 'Can only delete draft submissions'}, status=status.HTTP_400_BAD_REQUEST)
+            # Students can hide their own submissions from collection (not permanent delete)
+            # Teachers can permanently delete any submission
+            if request.user.role == 'student' and submission.student != request.user:
+                return Response({'error': 'You can only manage your own submissions'}, status=status.HTTP_403_FORBIDDEN)
             
-            submission.delete()
-            return Response({'message': 'Submission deleted successfully'}, status=status.HTTP_200_OK)
+            if request.user.role == 'student':
+                # Students: Hide from collection (set is_active=False)
+                submission.is_active = False
+                submission.save()
+                print(f"👁️ Hiding submission {submission.id} from collection by {request.user.username}")
+                return Response({'message': 'Submission hidden from collection'}, status=status.HTTP_200_OK)
+            else:
+                # Teachers: Permanent delete
+                print(f"🗑️ Permanently deleting submission {submission.id} by teacher {request.user.username}")
+                submission.delete()
+                return Response({'message': 'Submission deleted permanently'}, status=status.HTTP_200_OK)
         
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -1920,6 +1937,85 @@ def submission_detail_api(request, submission_id):
         error_trace = traceback.format_exc()
         print(f"❌ Error in submission_detail_api: {str(e)}")
         print(error_trace)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def request_post_approval_api(request, submission_id):
+    """
+    POST: Student requests approval to post their output to feed
+    Creates a notification for the teacher to approve/reject
+    """
+    if not request.user.is_authenticated or request.user.role != 'student':
+        return Response({'error': 'Only students can request post approval'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        submission = StudentSubmission.objects.get(id=submission_id, student=request.user)
+        
+        # Check if already posted
+        if submission.post_to_feed:
+            return Response({'error': 'This submission is already posted to feed'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if there's already a pending approval request
+        if submission.approval_status == 'pending':
+            return Response({'error': 'You already have a pending approval request for this submission'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        data = request.data
+        caption = data.get('caption', '').strip()
+        include_score = data.get('include_score', False)
+        
+        # Validate caption
+        if not caption:
+            return Response({'error': 'Caption is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update submission with new caption and set approval status to pending
+        submission.caption = caption
+        submission.approval_status = 'pending'
+        submission.save()
+        
+        print(f"📝 Updated submission {submission_id}:")
+        print(f"   Caption: {caption}")
+        print(f"   Approval status: {submission.approval_status}")
+        
+        # Create notification for teacher
+        activity = submission.activity
+        teacher = activity.folder.teacher if activity and activity.folder else None
+        
+        if teacher:
+            # Create notification
+            notification_message = f'{request.user.username} requests approval to post their work for "{activity.title}"'
+            if include_score:
+                notification_message += f' (with score: {submission.score} points)'
+            
+            create_notification(
+                recipient=teacher,
+                notification_type='post_approval_request',
+                title='Post Approval Request',
+                message=notification_message,
+                submission=submission,
+                activity=activity
+            )
+            
+            print(f"📤 Post approval request created for submission {submission_id}")
+            print(f"   Student: {request.user.username}")
+            print(f"   Include score: {include_score}")
+            print(f"   Caption: {caption[:50]}...")
+            
+            return Response({
+                'message': 'Post approval request sent successfully',
+                'submission_id': submission.id,
+                'approval_status': submission.approval_status
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Teacher not found for this activity'}, status=status.HTTP_404_NOT_FOUND)
+            
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in request_post_approval_api: {str(e)}")
+        print(traceback.format_exc())
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

@@ -17,16 +17,24 @@ const loadPendingApprovals = async () => {
     try {
         const response = await axios.get('/api/submissions/pending-approvals/');
         if (response.data) {
-            pendingOutputs.value = response.data.map(submission => ({
-                id: submission.id,
-                studentName: submission.student_name || submission.student.username,
-                title: submission.activity_title,
-                description: submission.caption,
-                submittedDate: new Date(submission.submitted_at).toISOString().split('T')[0],
-                subject: submission.activity_type,
-                sampleImages: submission.file_type === 'image' ? [submission.file_path] : [],
-                status: 'Pending'
-            }));
+            pendingOutputs.value = response.data.map(submission => {
+                // Get image URL from multiple possible sources
+                const imageUrl = submission.file_url || submission.file_path || submission.file || '';
+                console.log('Submission image URL:', imageUrl, 'for submission:', submission.id);
+                
+                return {
+                    id: submission.id,
+                    studentName: submission.student_name || submission.student?.username || 'Unknown',
+                    title: submission.activity_title || 'Untitled',
+                    subject: submission.activity_type || 'Unknown',
+                    description: submission.caption || 'No description provided',
+                    rank: 0,
+                    sampleImages: imageUrl ? [imageUrl] : [],
+                    file_path: imageUrl,
+                    file_type: submission.file_type,
+                    status: 'Pending'
+                };
+            });
             console.log('Loaded pending approvals:', pendingOutputs.value);
         }
     } catch (error) {
@@ -328,12 +336,21 @@ const cancelRejection = () => {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-[#0E1836] mb-2">Sample Image</label>
-                        <div class="border border-[#B6CFFF] rounded-lg overflow-hidden">
-                            <img 
-                                :src="selectedOutput.sampleImages[0]" 
-                                class="w-full h-auto max-h-64 object-contain"
-                                :alt="`Sample of ${selectedOutput.title}`"
-                            />
+                        <div class="border border-[#B6CFFF] rounded-lg overflow-hidden bg-gray-50">
+                            <div class="flex items-center justify-center" style="min-height: 250px;">
+                                <img 
+                                    v-if="selectedOutput.sampleImages && selectedOutput.sampleImages.length > 0 && selectedOutput.sampleImages[0]"
+                                    :src="selectedOutput.sampleImages[0]" 
+                                    class="w-full h-auto max-h-96 object-contain"
+                                    :alt="`Sample of ${selectedOutput.title}`"
+                                    @error="(e) => { console.error('Image load error:', e.target.src); e.target.style.display = 'none'; }"
+                                />
+                                <div v-else class="text-center py-8">
+                                    <i class="pi pi-image text-4xl text-gray-400 mb-2"></i>
+                                    <p class="text-gray-600 text-sm">No image available</p>
+                                    <p class="text-xs text-gray-500 mt-1">{{ selectedOutput.file_type || 'Unknown type' }}</p>
+                                </div>
+                            </div>
                             <div class="p-2 bg-[#F2FDFF] text-center text-sm text-[#0E1836]/80">
                                 Student Artwork
                             </div>
