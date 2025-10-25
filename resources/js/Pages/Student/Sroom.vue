@@ -190,8 +190,14 @@
                           <span class="text-sm text-gray-600 capitalize">{{ selectedActivity.type }}</span>
                         </div>
                         <div class="flex items-start gap-2">
-                          <span class="text-sm font-medium text-gray-900">Instruction:</span>
-                          <p class="text-sm text-gray-600">{{ selectedActivity.description }}</p>
+                          <span class="text-sm font-medium text-gray-900 flex-shrink-0">Instruction:</span>
+                          <div 
+                            class="text-sm text-gray-600 line-clamp-3 leading-relaxed flex-1 min-w-0"
+                            :title="selectedActivity.description"
+                            style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                          >
+                            {{ selectedActivity.description }}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -616,71 +622,120 @@
 
                   <!-- Activities List -->
                   <template v-else>
-                    <!-- Table Header -->
-                    <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-50 border-b border-indigo-100">
-                      <div class="w-36">
-                        <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
+                    <!-- Modern Table Design -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                      <!-- Table Header -->
+                      <div class="bg-gray-50 border-b border-gray-200">
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <div class="col-span-2">
+                            <span>Activity Type</span>
+                          </div>
+                          <div class="col-span-2">
+                            <span>Activity Title</span>
+                          </div>
+                          <div class="col-span-3">
+                            <span>Instruction</span>
+                          </div>
+                          <div class="col-span-2 text-center">
+                            <span>Status</span>
+                          </div>
+                          <div class="col-span-1 text-center">
+                            <span>Due Time</span>
+                          </div>
+                          <div class="col-span-2 text-center">
+                            <span>Due Date</span>
+                          </div>
+                        </div>
                       </div>
-                      <div class="w-44">
-                        <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
-                      </div>
-                      <div class="flex-1">
-                        <span class="text-sm font-semibold text-indigo-900">Instruction</span>
-                      </div>
-                      <div class="w-36">
-                        <span class="text-sm font-semibold text-indigo-900">Status</span>
-                      </div>
-                      <div class="w-28 text-center">
-                        <span class="text-sm font-semibold text-indigo-900">Due Time</span>
-                      </div>
-                      <div class="w-36 text-right">
-                        <span class="text-sm font-semibold text-indigo-900">Due Date</span>
-                      </div>
-                    </div>
 
-                    <!-- Activity Items -->
-                    <div v-for="(activity, index) in folderActivities" :key="activity.id"
-                      class="group border-b border-indigo-100 hover:bg-indigo-50 transition-colors duration-200"
-                      @click="openActivity(activity)">
-                      <!-- Main Activity Row -->
-                      <div class="flex items-center px-4 md:px-6 py-4 cursor-pointer">
-                        <div class="w-36">
-                          <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
-                        </div>
-                        <div class="w-44">
-                          <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
-                        </div>
-                        <div class="flex-1">
-                          <span class="text-sm text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 line-clamp-2">{{ activity.description }}</span>
-                        </div>
-                        <div class="w-36">
-                          <span v-if="getActivityStatus(activity) === 'submitted' && activity.isLate" 
-                                class="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 flex items-center gap-1 w-fit">
-                            <i class="pi pi-clock text-xs"></i>
-                            Submitted late
-                          </span>
-                          <span v-else-if="getActivityStatus(activity) === 'submitted'" 
-                                class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1 w-fit">
-                            <i class="pi pi-check-circle text-xs"></i>
-                            Submitted
-                          </span>
-                          <span v-else-if="getActivityStatus(activity) === 'missing'" 
-                                class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1 w-fit">
-                            <i class="pi pi-times-circle text-xs"></i>
-                            Missing
-                          </span>
-                          <span v-else 
-                                class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center gap-1 w-fit">
-                            <i class="pi pi-clock text-xs"></i>
-                            Pending
-                          </span>
-                        </div>
-                        <div class="w-28 text-center">
-                          <span v-if="activity.formattedTime" class="text-sm text-indigo-600 font-medium">{{ activity.formattedTime }}</span>
-                          <span v-else class="text-xs text-gray-400 italic">No time</span>
-                        </div>
-                        <div class="w-36 text-right">
-                          <span class="text-sm text-indigo-600">{{ activity.date }}</span>
+                      <!-- Table Body -->
+                      <div class="divide-y divide-gray-200">
+                        <div v-for="(activity, index) in folderActivities" :key="activity.id"
+                          class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+                          @click="openActivity(activity)">
+                          
+                          <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                            <!-- Activity Type with Icon -->
+                            <div class="col-span-2">
+                              <div class="flex items-center gap-2">
+                                <div :class="[
+                                  'w-8 h-8 rounded-lg flex items-center justify-center',
+                                  activity.type === 'project' ? 'bg-purple-100' : 
+                                  activity.type === 'contest' ? 'bg-blue-100' : 
+                                  activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
+                                ]">
+                                  <span :class="[
+                                    'text-lg font-bold',
+                                    activity.type === 'project' ? 'text-purple-600' : 
+                                    activity.type === 'contest' ? 'text-blue-600' : 
+                                    activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
+                                  ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
+                                </div>
+                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
+                              </div>
+                            </div>
+
+                            <!-- Title -->
+                            <div class="col-span-2">
+                              <div class="font-medium text-gray-900">
+                                {{ activity.title }}
+                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
+                              </div>
+                            </div>
+
+                            <!-- Instructions -->
+                            <div class="col-span-3">
+                              <div 
+                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
+                                :title="activity.description"
+                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                              >
+                                {{ activity.description || 'No instructions provided' }}
+                              </div>
+                            </div>
+
+                            <!-- Status Badge -->
+                            <div class="col-span-2 text-center">
+                              <span v-if="getActivityStatus(activity) === 'submitted' && activity.isLate" 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-orange-500"></i>
+                                Submitted Late
+                              </span>
+                              <span v-else-if="getActivityStatus(activity) === 'submitted'" 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-green-500"></i>
+                                Submitted
+                              </span>
+                              <span v-else-if="getActivityStatus(activity) === 'missing'" 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-red-500"></i>
+                                Missing
+                              </span>
+                              <span v-else 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-yellow-500"></i>
+                                Pending
+                              </span>
+                            </div>
+
+                            <!-- Due Time -->
+                            <div class="col-span-1 text-center">
+                              <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
+                              <span v-else class="text-sm text-gray-400">--:--</span>
+                            </div>
+
+                            <!-- Due Date -->
+                            <div class="col-span-2 text-center">
+                              <div class="text-sm text-gray-700">
+                                {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
+                                <div v-if="activity.daysLeft" class="text-xs text-gray-500">
+                                  <span v-if="activity.daysLeft === 'Today'" class="text-orange-600 font-medium">Due today</span>
+                                  <span v-else-if="activity.daysLeft.includes('ago')" class="text-red-600">{{ activity.daysLeft }}</span>
+                                  <span v-else class="text-gray-500">{{ activity.daysLeft }}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

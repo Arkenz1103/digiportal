@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
-import { useToast } from '@/Composables/useToast';
 
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
@@ -17,9 +16,6 @@ provide('isSidebarCollapsed', isCollapsed);
 
 // Profile dropdown state
 const isDropdownOpen = ref(false);
-
-// Initialize toast
-const { showSuccess, showInfo } = useToast();
 
 // State for class dropdown
 const isClassDropdownOpen = ref(false);
@@ -263,7 +259,6 @@ const loadUserData = () => {
     const savedEmail = localStorage.getItem('digiportal_user_email');
     const savedName = localStorage.getItem('digiportal_user_name');
     const savedPage = localStorage.getItem('digiportal_current_page');
-    const savedAvatar = localStorage.getItem('digiportal_user_avatar');
     
     if (savedRole) {
         currentUser.value.role = savedRole;
@@ -293,8 +288,6 @@ const loadUserData = () => {
             currentRoute.value = 'StudentNewsfeed';
         }
     }
-
-    currentUser.value.avatar = savedAvatar || null;
 };
 
 // Current page tracking - default based on role
@@ -329,20 +322,6 @@ const logout = () => {
     
     // Navigate to landing page
     emit('navigate', 'Landing');
-};
-
-// Profile Function
-const goToProfile = () => {
-    isDropdownOpen.value = false; // Close dropdown
-    emit('navigate', 'TeacherProfile');
-    console.log('📱 Navigate to Profile page');
-};
-
-// Settings Function
-const goToSettings = () => {
-    isDropdownOpen.value = false; // Close dropdown
-    emit('navigate', 'TeacherSettings');
-    console.log('⚙️ Navigate to Settings page');
 };
 
 // Theme options
@@ -470,35 +449,16 @@ const closeDropdowns = () => {
 
 // Listen for storage changes (when user logs in/out in another tab or page refreshes)
 const handleStorageChange = (e) => {
-    if ([
-        'digiportal_user_role',
-        'digiportal_user_email',
-        'digiportal_user_name',
-        'digiportal_user_avatar'
-    ].includes(e.key)) {
+    if (e.key === 'digiportal_user_role' || e.key === 'digiportal_user_email' || e.key === 'digiportal_user_name') {
         loadUserData();
         console.log('User data refreshed from storage change');
     }
 };
 
 // Custom event listener for same-tab localStorage changes
-const handleUserDataChange = (event) => {
-    const detail = event?.detail || {};
-    if (detail.name) {
-        currentUser.value.name = detail.name;
-    }
-    if (detail.email) {
-        currentUser.value.email = detail.email;
-    }
-    if (Object.prototype.hasOwnProperty.call(detail, 'avatar')) {
-        currentUser.value.avatar = detail.avatar;
-        if (detail.avatar) {
-            localStorage.setItem('digiportal_user_avatar', detail.avatar);
-        } else {
-            localStorage.removeItem('digiportal_user_avatar');
-        }
-    }
-    console.log('User data refreshed from custom event', detail);
+const handleUserDataChange = () => {
+    loadUserData();
+    console.log('User data refreshed from custom event');
 };
 
 onMounted(() => {
@@ -815,15 +775,13 @@ const auth = computed(() => ({
                                         <!-- Menu Items -->
                                         <div class="py-1">
                                             <button
-                                                @click="goToProfile"
-                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg transition-colors duration-200"
+                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
                                             >
                                                 <i class="pi pi-user text-gray-400"></i>
                                                 Profile
                                             </button>
                                             <button
-                                                @click="goToSettings"
-                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg transition-colors duration-200"
+                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
                                             >
                                                 <i class="pi pi-cog text-gray-400"></i>
                                                 Settings

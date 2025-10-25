@@ -244,264 +244,314 @@
 
                                 <!-- Activities List -->
                                 <template v-else>
-                                    <!-- DRAFT ACTIVITIES TABLE -->
-                                    <div v-if="draftActivities.length > 0" class="mb-8">
-                                        <div class="mb-3 px-2">
-                                            <h3 class="text-lg font-bold text-gray-700 flex items-center gap-2">
-                                                <i class="pi pi-file-edit text-indigo-600"></i>
-                                                Draft Activities
-                                            </h3>
-                                        </div>
-                                        
-                                        <!-- Table Header -->
-                                        <div class="flex items-center px-4 md:px-6 py-4 bg-indigo-100/80 border-b border-indigo-200/50 rounded-t-xl">
-                                            <div class="w-32">
-                                                <span class="text-sm font-semibold text-indigo-900">Activity Type</span>
+                                    <div class="space-y-8">
+                                        <!-- Draft Activities Table -->
+                                        <div v-if="draftActivities.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                            <!-- Section Header -->
+                                            <div class="bg-gradient-to-r from-gray-700 to-gray-600 px-6 py-4 border-b border-gray-300">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                                                            <i class="pi pi-file-edit text-white text-lg"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h3 class="text-lg font-bold text-white">Draft Activities</h3>
+                                                            <p class="text-sm text-white/80">Activities not yet published to students</p>
+                                                        </div>
+                                                    </div>
+                                                    <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                                        {{ draftActivities.length }} Draft{{ draftActivities.length !== 1 ? 's' : '' }}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div class="w-40 md:w-48">
-                                                <span class="text-sm font-semibold text-indigo-900">Activity Title</span>
-                                            </div>
-                                            <div class="flex-1">
-                                                <span class="text-sm font-semibold text-indigo-900">Instruction</span>
-                                            </div>
-                                            <div class="w-28 text-center">
-                                                <span class="text-sm font-semibold text-indigo-900">Due Time</span>
-                                            </div>
-                                            <div class="w-36 text-right">
-                                                <span class="text-sm font-semibold text-indigo-900">Due Date</span>
-                                            </div>
-                                            <div class="w-12"></div>
-                                        </div>
 
-                                        <!-- Draft Activity Items -->
-                                        <div v-for="(activity, index) in draftActivities" :key="activity.id"
-                                    class="group flex items-center px-4 md:px-6 py-4 hover:bg-indigo-50 border-b border-indigo-100 cursor-pointer transition-colors duration-200"
-                                    @click="navigateToActivityOutputs(activity, index)">
-                                    <div class="w-32 flex items-center gap-2">
-                                        <span class="text-sm text-indigo-700 capitalize">{{ activity.type }}</span>
-                                        <span v-if="activity.archived" class="text-amber-500" title="Archived">
-                                            <i class="pi pi-archive text-xs"></i>
-                                        </span>
-                                    </div>
-                                    <div class="w-40 md:w-48">
-                                        <span class="font-medium text-indigo-700 transition-colors duration-100">{{ activity.title }}</span>
-                                    </div>
-                                    <div class="flex-1 relative">
-                                        <div class="instruction-cell group/tooltip">
-                                            <span class="instruction-text">{{ activity.description }}</span>
-                                            <div class="instruction-tooltip">
-                                                {{ activity.description }}
+                                            <!-- Table Header -->
+                                            <div class="bg-gray-50 border-b border-gray-200">
+                                                <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                    <div class="col-span-1">
+                                                        <span>Type</span>
+                                                    </div>
+                                                    <div class="col-span-2">
+                                                        <span>Title</span>
+                                                    </div>
+                                                    <div class="col-span-3">
+                                                        <span>Instructions</span>
+                                                    </div>
+                                                    <div class="col-span-1 text-center">
+                                                        <span>Status</span>
+                                                    </div>
+                                                    <div class="col-span-1 text-center">
+                                                        <span>Due Time</span>
+                                                    </div>
+                                                    <div class="col-span-2 text-center">
+                                                        <span>Due Date</span>
+                                                    </div>
+                                                    <div class="col-span-2 text-center">
+                                                        <span>Actions</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div class="w-28 text-center">
-                                        <span v-if="activity.formattedTime" class="text-sm text-indigo-600 font-medium">{{ activity.formattedTime }}</span>
-                                        <span v-else class="text-xs text-gray-400 italic">No time</span>
-                                    </div>
-                                    <div class="w-36 text-right">
-                                        <span class="text-sm text-indigo-600">{{ activity.date }}</span>
-                                    </div>
-                                    <div class="w-12 flex justify-end opacity-100 relative" style="z-index: 50;">
-                                        <button 
-                                            class="p-1.5 rounded-full hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 focus:outline-none" 
-                                            @click.stop="toggleActivityMenu($event, activity, 'draft-' + index)"
-                                            :ref="'menuButton-draft-' + index"
-                                            :aria-expanded="activeMenuIndex === 'draft-' + index"
-                                            aria-haspopup="true"
-                                        >
-                                            <i class="pi pi-ellipsis-v"></i>
-                                        </button>
-                                        
-                                        <!-- Activity Actions Menu -->
-                                        <transition
-                                            enter-active-class="transition ease-out duration-100"
-                                            enter-from-class="transform opacity-0 scale-95"
-                                            enter-to-class="transform opacity-100 scale-100"
-                                            leave-active-class="transition ease-in duration-75"
-                                            leave-from-class="transform opacity-100 scale-100"
-                                            leave-to-class="transform opacity-0 scale-95"
-                                        >
-                                            <div 
-                                                v-if="activeMenuIndex === 'draft-' + index"
-                                                class="activity-menu-dropdown absolute z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
-                                                style="bottom: 100%; margin-bottom: 0.5rem; right: 0;"
-                                            >
-                                                <button
-                                                    @click.stop="submitActivity(activity, index)"
-                                                    :disabled="activity.is_published"
-                                                    :class="[
-                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
-                                                        activity.is_published 
-                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
-                                                            : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
-                                                    ]"
-                                                    :title="activity.is_published ? 'Activity is already published. Use Retract to unpublish.' : 'Publish activity to students'"
-                                                >
-                                                    <i class="pi pi-send text-sm"></i>
-                                                    <span>{{ activity.is_published ? 'Published' : 'Submit' }}</span>
-                                                </button>
-                                                <button
-                                                    @click.stop="editActivity(activity, index)"
-                                                    :disabled="isActivityPastDue(activity)"
-                                                    :class="[
-                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
-                                                        isActivityPastDue(activity)
-                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50'
-                                                            : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
-                                                    ]"
-                                                    :title="isActivityPastDue(activity) ? 'Cannot edit activity within 3 hours of deadline or after it has passed' : 'Edit activity details'"
-                                                >
-                                                    <i class="pi pi-pencil text-sm"></i>
-                                                    <span>Edit Activity</span>
-                                                </button>
-                                                <button
-                                                    @click.stop="retractActivity(activity, index)"
-                                                    :disabled="!activity.is_published"
-                                                    :class="[
-                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
-                                                        !activity.is_published 
-                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
-                                                            : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
-                                                    ]"
-                                                    :title="!activity.is_published ? 'Activity must be published first before retracting' : 'Retract activity from students'"
-                                                >
-                                                    <i class="pi pi-undo text-sm"></i>
-                                                    <span>Retract</span>
-                                                </button>
-                                            </div>
-                                        </transition>
-                                    </div>
-                                </div>
-                                    </div>
 
-                                    <!-- PUBLISHED ACTIVITIES TABLE -->
-                                    <div v-if="publishedActivities.length > 0">
-                                        <div class="mb-3 px-2">
-                                            <h3 class="text-lg font-bold text-gray-700 flex items-center gap-2">
-                                                <i class="pi pi-check-circle text-green-600"></i>
-                                                Published Activities
-                                            </h3>
-                                        </div>
-                                        
-                                        <!-- Table Header -->
-                                        <div class="flex items-center px-4 md:px-6 py-4 bg-green-100/80 border-b border-green-200/50 rounded-t-xl">
-                                            <div class="w-32">
-                                                <span class="text-sm font-semibold text-green-900">Activity Type</span>
-                                            </div>
-                                            <div class="w-40 md:w-48">
-                                                <span class="text-sm font-semibold text-green-900">Activity Title</span>
-                                            </div>
-                                            <div class="flex-1">
-                                                <span class="text-sm font-semibold text-green-900">Instruction</span>
-                                            </div>
-                                            <div class="w-28 text-center">
-                                                <span class="text-sm font-semibold text-green-900">Due Time</span>
-                                            </div>
-                                            <div class="w-36 text-right">
-                                                <span class="text-sm font-semibold text-green-900">Due Date</span>
-                                            </div>
-                                            <div class="w-12"></div>
-                                        </div>
+                                            <!-- Table Body -->
+                                            <div class="divide-y divide-gray-200">
+                                                <div v-for="(activity, index) in draftActivities" :key="activity.id"
+                                                    class="group hover:bg-gray-50 transition-colors duration-150">
 
-                                        <!-- Published Activity Items -->
-                                        <div v-for="(activity, index) in publishedActivities" :key="activity.id"
-                                        class="group flex items-center px-4 md:px-6 py-4 hover:bg-green-50 border-b border-green-100 cursor-pointer transition-colors duration-200"
-                                        @click="navigateToActivityOutputs(activity, index)">
-                                        <div class="w-32 flex items-center gap-2">
-                                            <span class="text-sm text-green-700 capitalize">{{ activity.type }}</span>
-                                            <span v-if="activity.archived" class="text-amber-500" title="Archived">
-                                                <i class="pi pi-archive text-xs"></i>
-                                            </span>
-                                        </div>
-                                        <div class="w-40 md:w-48">
-                                            <span class="font-medium text-green-700 transition-colors duration-100">{{ activity.title }}</span>
-                                        </div>
-                                        <div class="flex-1 relative">
-                                            <div class="instruction-cell group/tooltip">
-                                                <span class="instruction-text text-green-700 group-hover:text-green-900">{{ activity.description }}</span>
-                                                <div class="instruction-tooltip">
-                                                    {{ activity.description }}
+                                                    <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center cursor-pointer"
+                                                        @click="navigateToActivityOutputs(activity, index)">
+                                                        <!-- Activity Type with Icon -->
+                                                        <div class="col-span-1">
+                                                            <div class="flex items-center gap-2">
+                                                                <div :class="[
+                                                                    'w-8 h-8 rounded-lg flex items-center justify-center',
+                                                                    activity.type === 'project' ? 'bg-purple-100' : 
+                                                                    activity.type === 'contest' ? 'bg-blue-100' : 
+                                                                    activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
+                                                                ]">
+                                                                    <span :class="[
+                                                                        'text-lg font-bold',
+                                                                        activity.type === 'project' ? 'text-purple-600' : 
+                                                                        activity.type === 'contest' ? 'text-blue-600' : 
+                                                                        activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
+                                                                    ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
+                                                                </div>
+                                                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Title -->
+                                                        <div class="col-span-2">
+                                                            <div class="font-medium text-gray-900">
+                                                                {{ activity.title }}
+                                                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Instructions -->
+                                                        <div class="col-span-3">
+                                                            <div 
+                                                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
+                                                                :title="activity.description"
+                                                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                                                            >
+                                                                {{ activity.description || 'No instructions provided' }}
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Status Badge -->
+                                                        <div class="col-span-1 text-center">
+                                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-gray-500"></i>
+                                                                Draft
+                                                            </span>
+                                                        </div>
+
+                                                        <!-- Due Time -->
+                                                        <div class="col-span-1 text-center">
+                                                            <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
+                                                            <span v-else class="text-sm text-gray-400">--:--</span>
+                                                        </div>
+
+                                                        <!-- Due Date -->
+                                                        <div class="col-span-2 text-center">
+                                                            <div class="text-sm text-gray-700">
+                                                                {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
+                                                                <div v-if="activity.daysLeft" class="text-xs text-gray-500">{{ activity.daysLeft }}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Actions -->
+                                                        <div class="col-span-2 flex items-center justify-center gap-2">
+                                                            <!-- Publish Button -->
+                                                            <button 
+                                                                @click.stop="submitActivity(activity, index)"
+                                                                :disabled="activity.is_published"
+                                                                :class="[
+                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
+                                                                    activity.is_published
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow'
+                                                                ]"
+                                                                :title="activity.is_published ? 'Already published' : 'Publish to students'"
+                                                            >
+                                                                <i class="pi pi-send text-xs"></i>
+                                                                <span>Publish</span>
+                                                            </button>
+                                                            
+                                                            <!-- Edit Button -->
+                                                            <button 
+                                                                @click.stop="editActivity(activity, index)"
+                                                                :disabled="isActivityPastDue(activity)"
+                                                                :class="[
+                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
+                                                                    isActivityPastDue(activity)
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
+                                                                ]"
+                                                                :title="isActivityPastDue(activity) ? 'Cannot edit past due activities' : 'Edit activity'"
+                                                            >
+                                                                <i class="pi pi-pencil text-xs"></i>
+                                                                <span>Edit</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="w-28 text-center">
-                                            <span v-if="activity.formattedTime" class="text-sm text-green-600 font-medium">{{ activity.formattedTime }}</span>
-                                            <span v-else class="text-xs text-gray-400 italic">No time</span>
-                                        </div>
-                                        <div class="w-36 text-right">
-                                            <span class="text-sm text-green-600">{{ activity.date }}</span>
-                                        </div>
-                                        <div class="w-12 flex justify-end opacity-100 relative" style="z-index: 50;">
-                                            <button 
-                                                class="p-1.5 rounded-full hover:bg-green-100 text-green-700 hover:text-green-900 focus:outline-none" 
-                                                @click.stop="toggleActivityMenu($event, activity, 'published-' + index)"
-                                                :ref="'menuButton-published-' + index"
-                                                :aria-expanded="activeMenuIndex === 'published-' + index"
-                                                aria-haspopup="true"
-                                            >
-                                                <i class="pi pi-ellipsis-v"></i>
-                                            </button>
-                                            
-                                            <!-- Activity Actions Menu -->
-                                            <transition
-                                                enter-active-class="transition ease-out duration-100"
-                                                enter-from-class="transform opacity-0 scale-95"
-                                                enter-to-class="transform opacity-100 scale-100"
-                                                leave-active-class="transition ease-in duration-75"
-                                                leave-from-class="transform opacity-100 scale-100"
-                                                leave-to-class="transform opacity-0 scale-95"
-                                            >
-                                                <div 
-                                                    v-if="activeMenuIndex === 'published-' + index"
-                                                    class="activity-menu-dropdown absolute z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden py-1"
-                                                    style="bottom: 100%; margin-bottom: 0.5rem; right: 0;"
-                                                >
-                                                    <button
-                                                        @click.stop="submitActivity(activity, index)"
-                                                        :disabled="activity.is_published"
-                                                        :class="[
-                                                            'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
-                                                            activity.is_published 
-                                                                ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
-                                                                : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
-                                                        ]"
-                                                        :title="activity.is_published ? 'Activity is already published. Use Retract to unpublish.' : 'Publish activity to students'"
-                                                    >
-                                                        <i class="pi pi-send text-sm"></i>
-                                                        <span>{{ activity.is_published ? 'Published' : 'Submit' }}</span>
-                                                    </button>
-                                                    <button
-                                                        @click.stop="editActivity(activity, index)"
-                                                        :disabled="isActivityPastDue(activity)"
-                                                        :class="[
-                                                            'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
-                                                            isActivityPastDue(activity)
-                                                                ? 'text-gray-400 cursor-not-allowed bg-gray-50'
-                                                                : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
-                                                        ]"
-                                                        :title="isActivityPastDue(activity) ? 'Cannot edit activity within 3 hours of deadline or after it has passed' : 'Edit activity details'"
-                                                    >
-                                                        <i class="pi pi-pencil text-sm"></i>
-                                                        <span>Edit Activity</span>
-                                                    </button>
-                                                    <button
-                                                        @click.stop="retractActivity(activity, index)"
-                                                        :disabled="!activity.is_published"
-                                                        :class="[
-                                                            'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors',
-                                                            !activity.is_published 
-                                                                ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
-                                                                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
-                                                        ]"
-                                                        :title="!activity.is_published ? 'Activity must be published first before retracting' : 'Retract activity from students'"
-                                                    >
-                                                        <i class="pi pi-undo text-sm"></i>
-                                                        <span>Retract</span>
-                                                    </button>
+
+                                        <!-- Published Activities Table -->
+                                        <div v-if="publishedActivities.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                            <!-- Section Header -->
+                                            <div class="bg-gradient-to-r from-green-600 to-green-500 px-6 py-4 border-b border-green-300">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                                                            <i class="pi pi-check-circle text-white text-lg"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h3 class="text-lg font-bold text-white">Published Activities</h3>
+                                                            <p class="text-sm text-white/80">Activities visible to students</p>
+                                                        </div>
+                                                    </div>
+                                                    <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                                        {{ publishedActivities.length }} Published
+                                                    </span>
                                                 </div>
-                                            </transition>
+                                            </div>
+
+                                            <!-- Table Header -->
+                                            <div class="bg-gray-50 border-b border-gray-200">
+                                                <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                    <div class="col-span-1">
+                                                        <span>Type</span>
+                                                    </div>
+                                                    <div class="col-span-2">
+                                                        <span>Title</span>
+                                                    </div>
+                                                    <div class="col-span-3">
+                                                        <span>Instructions</span>
+                                                    </div>
+                                                    <div class="col-span-1 text-center">
+                                                        <span>Status</span>
+                                                    </div>
+                                                    <div class="col-span-1 text-center">
+                                                        <span>Due Time</span>
+                                                    </div>
+                                                    <div class="col-span-2 text-center">
+                                                        <span>Due Date</span>
+                                                    </div>
+                                                    <div class="col-span-2 text-center">
+                                                        <span>Actions</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Table Body -->
+                                            <div class="divide-y divide-gray-200">
+                                                <div v-for="(activity, index) in publishedActivities" :key="activity.id"
+                                                    class="group hover:bg-gray-50 transition-colors duration-150">
+                                                    
+                                                    <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center cursor-pointer"
+                                                        @click="navigateToActivityOutputs(activity, index)">
+                                                        <!-- Activity Type with Icon -->
+                                                        <div class="col-span-1">
+                                                            <div class="flex items-center gap-2">
+                                                                <div :class="[
+                                                                    'w-8 h-8 rounded-lg flex items-center justify-center',
+                                                                    activity.type === 'project' ? 'bg-purple-100' : 
+                                                                    activity.type === 'contest' ? 'bg-blue-100' : 
+                                                                    activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
+                                                                ]">
+                                                                    <span :class="[
+                                                                        'text-lg font-bold',
+                                                                        activity.type === 'project' ? 'text-purple-600' : 
+                                                                        activity.type === 'contest' ? 'text-blue-600' : 
+                                                                        activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
+                                                                    ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
+                                                                </div>
+                                                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Title -->
+                                                        <div class="col-span-2">
+                                                            <div class="font-medium text-gray-900">
+                                                                {{ activity.title }}
+                                                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Instructions -->
+                                                        <div class="col-span-3">
+                                                            <div 
+                                                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
+                                                                :title="activity.description"
+                                                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                                                            >
+                                                                {{ activity.description || 'No instructions provided' }}
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Status Badge -->
+                                                        <div class="col-span-1 text-center">
+                                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-green-500"></i>
+                                                                Published
+                                                            </span>
+                                                        </div>
+
+                                                        <!-- Due Time -->
+                                                        <div class="col-span-1 text-center">
+                                                            <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
+                                                            <span v-else class="text-sm text-gray-400">--:--</span>
+                                                        </div>
+
+                                                        <!-- Due Date -->
+                                                        <div class="col-span-2 text-center">
+                                                            <div class="text-sm text-gray-700">
+                                                                {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
+                                                                <div v-if="activity.daysLeft" class="text-xs text-gray-500">{{ activity.daysLeft }}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Actions -->
+                                                        <div class="col-span-2 flex items-center justify-center gap-2">
+                                                            <!-- Edit Button -->
+                                                            <button 
+                                                                @click.stop="editActivity(activity, index)"
+                                                                :disabled="isActivityPastDue(activity)"
+                                                                :class="[
+                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
+                                                                    isActivityPastDue(activity)
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
+                                                                ]"
+                                                                :title="isActivityPastDue(activity) ? 'Cannot edit past due activities' : 'Edit activity'"
+                                                            >
+                                                                <i class="pi pi-pencil text-xs"></i>
+                                                                <span>Edit</span>
+                                                            </button>
+                                                            
+                                                            <!-- Retract Button -->
+                                                            <button 
+                                                                @click.stop="retractActivity(activity, index)"
+                                                                :disabled="!activity.is_published"
+                                                                :class="[
+                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
+                                                                    !activity.is_published
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm hover:shadow'
+                                                                ]"
+                                                                :title="!activity.is_published ? 'Already retracted' : 'Retract from students'"
+                                                            >
+                                                                <i class="pi pi-undo text-xs"></i>
+                                                                <span>Retract</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
                                     </div>
                                 </template>
                             </div>
@@ -3372,11 +3422,10 @@ const updateActivity = async () => {
         }
         
         showEditDialog.value = false;
-        showSuccess('Activity has been updated successfully!', 'Activity Updated');
+        alert('Activity updated successfully!');
     } catch (error) {
         console.error('❌ Error updating activity:', error);
-        const errorMessage = error.response?.data?.error || error.message || 'Unknown error occurred';
-        showError(`Failed to update activity: ${errorMessage}`, 'Update Failed');
+        alert('Failed to update activity: ' + (error.response?.data?.error || error.message));
     }
 };
 
@@ -3458,13 +3507,12 @@ const confirmPortfolioCompilation = async () => {
         
         // Show success message with details
         const studentsNotified = response.data.students_notified || 0;
-        const successMessage = `Portfolio compilation request sent successfully! ${studentsNotified} student(s) have been notified.`;
-        showSuccess(successMessage, 'Request Sent');
+        alert(`Portfolio compilation request sent successfully!\n${studentsNotified} student(s) have been notified.`);
         
     } catch (error) {
         console.error('❌ Error sending portfolio compilation notification:', error);
-        const errorMsg = error.response?.data?.error || error.message || 'Unknown error occurred';
-        showError(`Failed to send notification: ${errorMsg}`, 'Request Failed');
+        const errorMsg = error.response?.data?.error || error.message;
+        alert('Failed to send notification: ' + errorMsg);
     }
 };
 
@@ -3490,18 +3538,16 @@ const confirmDropPortfolioCompilation = async () => {
         portfolioCompilationActive.value = false;
         portfolioStudents.value = [];
         
-        // Show success message with details
+        // Show success message
         const envelopesDeleted = response.data.envelopes_deleted || 0;
         const notificationsDeleted = response.data.notifications_deleted || 0;
         const studentsNotified = response.data.students_notified || 0;
-        
-        const successMessage = `${envelopesDeleted} portfolio envelope(s) deleted, ${notificationsDeleted} notification(s) removed, ${studentsNotified} student(s) notified about cancellation.`;
-        showSuccess(successMessage, 'Portfolio Compilation Deleted');
+        alert(`Portfolio compilation has been deleted successfully.\n${envelopesDeleted} portfolio envelope(s) deleted.\n${notificationsDeleted} notification(s) removed.\n${studentsNotified} student(s) notified about cancellation.`);
         
     } catch (error) {
         console.error('❌ Error dropping portfolio compilation:', error);
-        const errorMsg = error.response?.data?.error || error.message || 'Unknown error occurred';
-        showError(`Failed to drop compilation request: ${errorMsg}`, 'Delete Failed');
+        const errorMsg = error.response?.data?.error || error.message;
+        alert('Failed to drop compilation request: ' + errorMsg);
     }
 };
 
@@ -3618,115 +3664,5 @@ const confirmDropPortfolioCompilation = async () => {
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-}
-
-/* ===== Instruction Cell with Tooltip Styles ===== */
-.instruction-cell {
-    position: relative;
-    width: 100%;
-    cursor: help;
-}
-
-.instruction-text {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.5;
-    color: #4338ca;
-    transition: color 0.2s ease;
-    word-break: break-word;
-    max-width: 100%;
-}
-
-/* Hover effect on text */
-.instruction-cell:hover .instruction-text {
-    color: #312e81;
-}
-
-/* Tooltip styling */
-.instruction-tooltip {
-    position: absolute;
-    left: 0;
-    top: 100%;
-    margin-top: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-    color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-    font-size: 0.875rem;
-    line-height: 1.6;
-    max-width: 400px;
-    min-width: 250px;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-    word-wrap: break-word;
-    white-space: normal;
-}
-
-/* Tooltip arrow */
-.instruction-tooltip::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 1.5rem;
-    border: 6px solid transparent;
-    border-bottom-color: #1e1b4b;
-}
-
-/* Show tooltip on hover */
-.instruction-cell:hover .instruction-tooltip {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-/* Responsive adjustments for mobile */
-@media (max-width: 768px) {
-    .instruction-text {
-        -webkit-line-clamp: 3;
-        font-size: 0.875rem;
-    }
-    
-    .instruction-tooltip {
-        max-width: 280px;
-        min-width: 200px;
-        font-size: 0.8125rem;
-        left: 50%;
-        transform: translateX(-50%) translateY(-10px);
-    }
-    
-    .instruction-cell:hover .instruction-tooltip {
-        transform: translateX(-50%) translateY(0);
-    }
-    
-    .instruction-tooltip::before {
-        left: 50%;
-        transform: translateX(-50%);
-    }
-}
-
-/* Ensure tooltip doesn't overflow on right side */
-@media (min-width: 769px) {
-    .instruction-tooltip {
-        max-width: min(400px, 90vw);
-    }
-}
-
-/* Alternative: Right-aligned tooltip for cells near the end */
-.instruction-cell.tooltip-right .instruction-tooltip {
-    left: auto;
-    right: 0;
-}
-
-.instruction-cell.tooltip-right .instruction-tooltip::before {
-    left: auto;
-    right: 1.5rem;
 }
 </style>
