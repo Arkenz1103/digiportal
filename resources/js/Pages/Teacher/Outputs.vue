@@ -1045,37 +1045,47 @@ const getMedalDetails = (rank) => {
             <!-- Show submissions list only when no submission is selected -->
             <div v-if="!selectedSubmission" class="space-y-8">
                 <!-- Unscored Submissions Section -->
-                <div class="bg-white rounded-3xl shadow-lg overflow-hidden border border-indigo-100">
-                    <div class="px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
-                        <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="pi pi-clock text-orange-500"></i>
-                            Unscored Submissions
-                            <span class="text-sm font-normal text-gray-500">({{ unscoredSubmissions.length }})</span>
-                        </h2>
-                        <div class="flex items-center gap-2">
-                            <div class="flex items-center rounded-xl bg-indigo-50 p-1 shadow-sm">
-                                <!-- List View Button -->
-                                <button @click="toggleView('list')"
-                                        :class="[
-                                            'p-2.5 rounded-xl transition-all duration-300 ease-in-out transform',
-                                            viewMode === 'list'
-                                                ? 'bg-indigo-600 text-white scale-105 shadow-md'
-                                                : 'bg-indigo-50 text-gray-600 hover:bg-indigo-50/30'
-                                        ]"
-                                >
-                                    <i class="pi pi-list text-lg"></i>
-                                </button>
-                                <!-- Card View Button -->
-                                <button @click="toggleView('card')"
-                                        :class="[
-                                            'p-2.5 rounded-xl transition-all duration-300 ease-in-out transform',
-                                            viewMode === 'card'
-                                                ? 'bg-indigo-600 text-white scale-105 shadow-md'
-                                                : 'bg-indigo-50 text-gray-600 hover:bg-indigo-50/30'
-                                        ]"
-                                >
-                                    <i class="pi pi-th-large text-lg"></i>
-                                </button>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <!-- Section Header -->
+                    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 px-6 py-4 border-b border-indigo-300">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                                    <i class="pi pi-clock text-white text-lg"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white">Unscored Submissions</h3>
+                                    <p class="text-sm text-white/80">Pending review and scoring</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                    {{ unscoredSubmissions.length }} Submission{{ unscoredSubmissions.length !== 1 ? 's' : '' }}
+                                </span>
+                                <div class="flex items-center rounded-lg bg-white/20 p-1">
+                                    <!-- List View Button -->
+                                    <button @click="toggleView('list')"
+                                            :class="[
+                                                'p-2 rounded-lg transition-all duration-200',
+                                                viewMode === 'list'
+                                                    ? 'bg-white text-indigo-600'
+                                                    : 'text-white/80 hover:text-white'
+                                            ]"
+                                    >
+                                        <i class="pi pi-list text-base"></i>
+                                    </button>
+                                    <!-- Card View Button -->
+                                    <button @click="toggleView('card')"
+                                            :class="[
+                                                'p-2 rounded-lg transition-all duration-200',
+                                                viewMode === 'card'
+                                                    ? 'bg-white text-indigo-600'
+                                                    : 'text-white/80 hover:text-white'
+                                            ]"
+                                    >
+                                        <i class="pi pi-th-large text-base"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1094,73 +1104,83 @@ const getMedalDetails = (rank) => {
                 <!-- List View -->
                 <template v-else-if="viewMode === 'list'">
                     <!-- Table Header -->
-                    <div class="px-6 py-4 flex items-center text-sm font-medium text-gray-600 border-b border-indigo-100 bg-indigo-50">
-                        <div class="w-1/3 flex items-center gap-2">
-                            <i class="pi pi-user text-indigo-700"></i>
-                            Name
-                        </div>
-                        <div class="w-1/4 flex items-center gap-2">
-                            <i class="pi pi-id-card text-indigo-700"></i>
-                            ID Number
-                        </div>
-                        <div class="w-1/4 flex items-center gap-2">
-                            <i class="pi pi-check-circle text-indigo-700"></i>
-                            Status
-                        </div>
-                        <div class="w-1/5 flex items-center gap-2 pl-4">
-                            <i class="pi pi-calendar text-indigo-700 flex-shrink-0"></i>
-                            <span class="whitespace-nowrap">Date & Time</span>
-                        </div>
-                        <div class="w-1/6 flex items-center gap-2">
-                            <i class="pi pi-star text-indigo-700"></i>
-                            <span class="whitespace-nowrap">Score</span>
+                    <div class="bg-gray-50 border-b border-gray-200">
+                        <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            <div class="col-span-3">
+                                <span>Name</span>
+                            </div>
+                            <div class="col-span-2">
+                                <span>ID Number</span>
+                            </div>
+                            <div class="col-span-2">
+                                <span>Status</span>
+                            </div>
+                            <div class="col-span-3">
+                                <span>Date & Time</span>
+                            </div>
+                            <div class="col-span-2 text-center">
+                                <span>Score</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Table Content -->
-                    <div class="divide-y divide-indigo-100/50">
+                    <!-- Table Body -->
+                    <div class="divide-y divide-gray-200">
                         <div v-for="submission in unscoredSubmissions" :key="submission.id"
-                            class="px-6 py-4 flex items-center justify-between cursor-pointer transition-all duration-300 hover:bg-indigo-50 group"
+                            class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
                             @click="viewSubmission(submission)"
                         >
-                            <div class="w-1/3 flex items-center gap-3">
-                                <span class="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-medium bg-indigo-50 text-gray-900 shadow-sm group-hover:shadow transition-shadow duration-300">
-                                    {{ submission.name.charAt(0) }}
-                                </span>
-                                <span class="font-medium text-gray-900">{{ submission.name }}</span>
-                                <div v-if="studentOutputs[submission.id]?.rank" class="ml-2">
-                                    <span :class="['rank-badge', `rank-${studentOutputs[submission.id].rank}`]">
-                                        {{ studentOutputs[submission.id].rank }}
+                            <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center">
+                                <!-- Name -->
+                                <div class="col-span-3 flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                        <span class="text-sm font-bold text-indigo-600">
+                                            {{ submission.name.charAt(0).toUpperCase() }}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ submission.name }}</div>
+                                        <div v-if="studentOutputs[submission.id]?.rank" class="mt-1">
+                                            <span :class="['rank-badge', `rank-${studentOutputs[submission.id].rank}`]">
+                                                {{ studentOutputs[submission.id].rank }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- ID Number -->
+                                <div class="col-span-2">
+                                    <span class="text-sm text-gray-700">{{ submission.studentId }}</span>
+                                </div>
+
+                                <!-- Status -->
+                                <div class="col-span-2">
+                                    <span 
+                                        v-if="submission.is_late"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
+                                    >
+                                        <i class="pi pi-clock text-xs"></i>
+                                        <span>Submitted late</span>
+                                    </span>
+                                    <span 
+                                        v-else
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
+                                    >
+                                        <i class="pi pi-check-circle text-xs"></i>
+                                        <span>Submitted</span>
                                     </span>
                                 </div>
-                            </div>
-                            <div class="w-1/4 text-gray-600 font-medium">
-                                {{ submission.studentId }}
-                            </div>
-                            <div class="w-1/4 flex items-center gap-2">
-                                <!-- Status Badge (Same as Student View) -->
-                                <span 
-                                    v-if="submission.is_late"
-                                    class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
-                                >
-                                    <i class="pi pi-clock text-xs"></i>
-                                    <span>Submitted late</span>
-                                </span>
-                                <span 
-                                    v-else
-                                    class="px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1.5 text-xs font-medium"
-                                >
-                                    <i class="pi pi-check-circle text-xs"></i>
-                                    <span>Submitted</span>
-                                </span>
-                            </div>
-                            <div class="w-1/5 text-gray-600 font-medium pl-4">
-                                <div>{{ submission.date }}</div>
-                                <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
-                            </div>
-                            <div class="w-1/6">
-                                <!-- Unscored submissions should not have scores -->
-                                <span class="text-sm text-gray-400">-</span>
+
+                                <!-- Date & Time -->
+                                <div class="col-span-3">
+                                    <div class="text-sm text-gray-700">{{ submission.date }}</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
+                                </div>
+
+                                <!-- Score -->
+                                <div class="col-span-2 text-center">
+                                    <span class="text-sm text-gray-400">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1259,13 +1279,23 @@ const getMedalDetails = (rank) => {
                 </div>
                 
                 <!-- Scored Submissions Section -->
-                <div class="bg-white rounded-3xl shadow-lg overflow-hidden border border-indigo-100">
-                    <div class="px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
-                        <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="pi pi-check-circle text-green-500"></i>
-                            Scored Submissions
-                            <span class="text-sm font-normal text-gray-500">({{ scoredSubmissions.length }})</span>
-                        </h2>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <!-- Section Header -->
+                    <div class="bg-gradient-to-r from-green-600 to-green-500 px-6 py-4 border-b border-green-300">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                                    <i class="pi pi-check-circle text-white text-lg"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white">Scored Submissions</h3>
+                                    <p class="text-sm text-white/80">Completed and graded work</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                {{ scoredSubmissions.length }} Submission{{ scoredSubmissions.length !== 1 ? 's' : '' }}
+                            </span>
+                        </div>
                     </div>
 
                     <!-- Empty State -->
@@ -1277,75 +1307,87 @@ const getMedalDetails = (rank) => {
                     <!-- List View -->
                     <template v-else-if="viewMode === 'list'">
                         <!-- Table Header -->
-                        <div class="px-6 py-4 flex items-center text-sm font-medium text-gray-600 border-b border-indigo-100 bg-indigo-50">
-                            <div class="w-1/3 flex items-center gap-2">
-                                <i class="pi pi-user text-indigo-700"></i>
-                                Name
-                            </div>
-                            <div class="w-1/4 flex items-center gap-2">
-                                <i class="pi pi-id-card text-indigo-700"></i>
-                                ID Number
-                            </div>
-                            <div class="w-1/4 flex items-center gap-2">
-                                <i class="pi pi-check-circle text-indigo-700"></i>
-                                Status
-                            </div>
-                            <div class="w-1/5 flex items-center gap-2 pl-4">
-                                <i class="pi pi-calendar text-indigo-700 flex-shrink-0"></i>
-                                <span class="whitespace-nowrap">Date & Time</span>
-                            </div>
-                            <div class="w-1/6 flex items-center gap-2">
-                                <i class="pi pi-star text-indigo-700"></i>
-                                <span class="whitespace-nowrap">Score</span>
+                        <div class="bg-gray-50 border-b border-gray-200">
+                            <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                <div class="col-span-3">
+                                    <span>Name</span>
+                                </div>
+                                <div class="col-span-2">
+                                    <span>ID Number</span>
+                                </div>
+                                <div class="col-span-2">
+                                    <span>Status</span>
+                                </div>
+                                <div class="col-span-3">
+                                    <span>Date & Time</span>
+                                </div>
+                                <div class="col-span-2 text-center">
+                                    <span>Score</span>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Table Content -->
-                        <div class="divide-y divide-indigo-100/50">
+                        <!-- Table Body -->
+                        <div class="divide-y divide-gray-200">
                             <div v-for="submission in scoredSubmissions" :key="submission.id"
-                                class="px-6 py-4 flex items-center justify-between cursor-pointer transition-all duration-300 hover:bg-indigo-50 group"
+                                class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
                                 @click="viewSubmission(submission)"
                             >
-                                <div class="w-1/3 flex items-center gap-3">
-                                    <span class="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-medium bg-indigo-50 text-gray-900 shadow-sm group-hover:shadow transition-shadow duration-300">
-                                        {{ submission.name.charAt(0) }}
-                                    </span>
-                                    <span class="font-medium text-gray-900">{{ submission.name }}</span>
-                                    <div v-if="studentOutputs[submission.id]?.rank" class="ml-2">
-                                        <span :class="['rank-badge', `rank-${studentOutputs[submission.id].rank}`]">
-                                            {{ studentOutputs[submission.id].rank }}
+                                <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center">
+                                    <!-- Name -->
+                                    <div class="col-span-3 flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                                            <span class="text-sm font-bold text-green-600">
+                                                {{ submission.name.charAt(0).toUpperCase() }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{ submission.name }}</div>
+                                            <div v-if="studentOutputs[submission.id]?.rank" class="mt-1">
+                                                <span :class="['rank-badge', `rank-${studentOutputs[submission.id].rank}`]">
+                                                    {{ studentOutputs[submission.id].rank }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- ID Number -->
+                                    <div class="col-span-2">
+                                        <span class="text-sm text-gray-700">{{ submission.studentId }}</span>
+                                    </div>
+
+                                    <!-- Status -->
+                                    <div class="col-span-2">
+                                        <span 
+                                            v-if="submission.is_late"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
+                                        >
+                                            <i class="pi pi-clock text-xs"></i>
+                                            <span>Submitted late</span>
+                                        </span>
+                                        <span 
+                                            v-else
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
+                                        >
+                                            <i class="pi pi-check-circle text-xs"></i>
+                                            <span>Submitted</span>
                                         </span>
                                     </div>
-                                </div>
-                                <div class="w-1/4 text-gray-600 font-medium">
-                                    {{ submission.studentId }}
-                                </div>
-                                <div class="w-1/4 flex items-center gap-2">
-                                    <!-- Status Badge (Same as Student View) -->
-                                    <span 
-                                        v-if="submission.is_late"
-                                        class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
-                                    >
-                                        <i class="pi pi-clock text-xs"></i>
-                                        <span>Submitted late</span>
-                                    </span>
-                                    <span 
-                                        v-else
-                                        class="px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1.5 text-xs font-medium"
-                                    >
-                                        <i class="pi pi-check-circle text-xs"></i>
-                                        <span>Submitted</span>
-                                    </span>
-                                </div>
-                                <div class="w-1/5 text-gray-600 font-medium pl-4">
-                                    <div>{{ submission.date }}</div>
-                                    <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
-                                </div>
-                                <div class="w-1/6">
-                                    <span v-if="submission.score !== null && submission.score !== undefined" class="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-800">
-                                        {{ submission.score }}
-                                    </span>
-                                    <span v-else class="text-sm text-gray-400">-</span>
+
+                                    <!-- Date & Time -->
+                                    <div class="col-span-3">
+                                        <div class="text-sm text-gray-700">{{ submission.date }}</div>
+                                        <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
+                                    </div>
+
+                                    <!-- Score -->
+                                    <div class="col-span-2 text-center">
+                                        <span v-if="submission.score !== null && submission.score !== undefined" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-sm font-bold">
+                                            <i class="pi pi-star-fill text-xs"></i>
+                                            {{ submission.score }}
+                                        </span>
+                                        <span v-else class="text-sm text-gray-400">-</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

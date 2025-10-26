@@ -172,120 +172,143 @@
 
                 <!-- Activity Detail View -->
                 <div v-if="selectedActivity" class="bg-white rounded-xl shadow-lg p-6 mb-6 border border-indigo-100">
-                  <!-- Top Section: Title, Due Date, View Score Button, and Your Work Card -->
-                  <div class="flex justify-between items-start gap-4 mb-6">
-                    <!-- Left: Title and Due Date -->
-                    <div class="flex-1">
-                      <div class="flex items-center gap-4 flex-wrap mb-4">
-                        <h2 class="text-lg font-bold text-gray-900">{{ selectedActivity.title }}</h2>
-                        <span class="px-3 py-1 rounded-full text-sm font-medium text-gray-900 inline-block w-fit">
-                          Due: {{ selectedActivity.date }}<span v-if="selectedActivity.formattedTime"> at {{ selectedActivity.formattedTime }}</span>
-                        </span>
-                      </div>
-                      
-                      <!-- Type and Instruction -->
-                      <div class="space-y-2">
-                        <div class="flex items-start gap-2">
-                          <span class="text-sm font-medium text-gray-900">Type:</span>
-                          <span class="text-sm text-gray-600 capitalize">{{ selectedActivity.type }}</span>
-                        </div>
-                        <div class="flex items-start gap-2">
-                          <span class="text-sm font-medium text-gray-900 flex-shrink-0">Instruction:</span>
-                          <div 
-                            class="text-sm text-gray-600 line-clamp-3 leading-relaxed flex-1 min-w-0"
-                            :title="selectedActivity.description"
-                            style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
-                          >
-                            {{ selectedActivity.description }}
+                  <!-- Top Section: Activity Header Card -->
+                  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    <!-- Header with Gradient -->
+                    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 px-6 py-4">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                          <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                            <i class="pi pi-book text-white text-lg"></i>
+                          </div>
+                          <div>
+                            <h2 class="text-xl font-bold text-white">{{ selectedActivity.title }}</h2>
+                            <p class="text-sm text-white/80 mt-0.5">Activity Details</p>
                           </div>
                         </div>
+                        <div class="flex items-center gap-2">
+                          <span class="px-3 py-1.5 bg-white/20 text-white text-sm font-medium rounded-full">
+                            <i class="pi pi-calendar mr-1.5"></i>
+                            Due: {{ selectedActivity.date }}<span v-if="selectedActivity.formattedTime"> at {{ selectedActivity.formattedTime }}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
                     
-                    <!-- Middle: View Score & Post Output Buttons -->
-                    <div class="flex flex-col items-start gap-2">
-                      <button
-                        v-if="hasSubmittedWork && hasScore"
-                        @click="showScoreDialog = true"
-                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
-                      >
-                        <i class="pi pi-star-fill"></i>
-                        <span>View Score</span>
-                      </button>
-                      
-                      <!-- Post Output Button (Shows if not posted to feed yet) -->
-                      <button
-                        v-if="hasSubmittedWork && existingSubmission && !existingSubmission.post_to_feed"
-                        @click="openPostOutputDialog"
-                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors duration-200"
-                        title="Post your work to class feed"
-                      >
-                        <i class="pi pi-send"></i>
-                        <span>Post Output</span>
-                      </button>
-                    </div>
-                    
-                    <!-- Right: Your Work Card -->
-                    <div class="w-80 flex-shrink-0">
-                      <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 p-4 shadow-sm">
-                        <!-- Header -->
-                        <div class="mb-3">
-                          <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                              <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                                <i class="pi pi-briefcase text-white text-sm"></i>
-                              </div>
-                              <h3 class="text-base font-bold text-gray-800">Your Work</h3>
+                    <!-- Content Area -->
+                    <div class="p-6">
+                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left: Activity Info -->
+                        <div class="lg:col-span-2 space-y-4">
+                          <!-- Type -->
+                          <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                              <i class="pi pi-tag text-indigo-600"></i>
                             </div>
-                            
-                            <!-- Status Badge (Main Design) -->
-                            <div class="flex flex-col items-end gap-1">
-                              <!-- Submitted Late: Was missing but then turned in -->
-                              <span
-                                v-if="hasSubmittedWork && existingSubmission?.is_late"
-                                class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
-                              >
-                                <i class="pi pi-clock text-xs"></i>
-                                <span>Submitted late</span>
-                              </span>
-                              <!-- Submitted: Turned in on time -->
-                              <span
-                                v-else-if="hasSubmittedWork"
-                                class="px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1.5 text-xs font-medium"
-                              >
-                                <i class="pi pi-check-circle text-xs"></i>
-                                <span>Submitted</span>
-                              </span>
-                              <!-- Missing: Past due and not submitted -->
-                              <span
-                                v-else-if="!hasSubmittedWork && isPastDue"
-                                class="px-3 py-1.5 rounded-lg bg-red-100 text-red-800 flex items-center gap-1.5 text-xs font-medium"
-                              >
-                                <i class="pi pi-times-circle text-xs"></i>
-                                <span>Missing</span>
-                              </span>
-                              <!-- Pending: Assigned but not yet due -->
-                              <span
-                                v-else
-                                class="px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-800 flex items-center gap-1.5 text-xs font-medium"
-                              >
-                                <i class="pi pi-clock text-xs"></i>
-                                <span>Pending</span>
-                              </span>
-                              
-                              <!-- Submitted Date & Time (Show when submitted) -->
-                              <span
-                                v-if="hasSubmittedWork && existingSubmission?.submitted_at"
-                                class="text-xs text-gray-500"
-                              >
-                                {{ formatSubmittedDateTime(existingSubmission.submitted_at) }}
-                              </span>
+                            <div class="flex-1">
+                              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Activity Type</div>
+                              <div class="text-sm font-medium text-gray-900 capitalize">{{ selectedActivity.type }}</div>
+                            </div>
+                          </div>
+                          
+                          <!-- Instructions -->
+                          <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                              <i class="pi pi-align-left text-indigo-600"></i>
+                            </div>
+                            <div class="flex-1">
+                              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Instructions</div>
+                              <div class="text-sm text-gray-700 leading-relaxed">
+                                {{ selectedActivity.description }}
+                              </div>
                             </div>
                           </div>
                         </div>
                         
-                        <!-- Files Display (Draft or Submitted) -->
-                        <div v-if="draftFiles.length > 0 || (hasSubmittedWork && studentSubmissions.length > 0)" class="mb-3 space-y-2">
+                        <!-- Right: Your Work Card -->
+                        <div class="lg:col-span-1">
+                          <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 p-4 h-full">
+                            <!-- Header -->
+                            <div class="mb-4">
+                              <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                  <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                    <i class="pi pi-briefcase text-white text-sm"></i>
+                                  </div>
+                                  <h3 class="text-base font-bold text-gray-800">Your Work</h3>
+                                </div>
+                                
+                                <!-- Status Badge (Main Design) -->
+                                <div class="flex flex-col items-end gap-1">
+                                  <!-- Submitted Late: Was missing but then turned in -->
+                                  <span
+                                    v-if="hasSubmittedWork && existingSubmission?.is_late"
+                                    class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
+                                  >
+                                    <i class="pi pi-clock text-xs"></i>
+                                    <span>Submitted late</span>
+                                  </span>
+                                  <!-- Submitted: Turned in on time -->
+                                  <span
+                                    v-else-if="hasSubmittedWork"
+                                    class="px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1.5 text-xs font-medium"
+                                  >
+                                    <i class="pi pi-check-circle text-xs"></i>
+                                    <span>Submitted</span>
+                                  </span>
+                                  <!-- Missing: Past due and not submitted -->
+                                  <span
+                                    v-else-if="!hasSubmittedWork && isPastDue"
+                                    class="px-3 py-1.5 rounded-lg bg-red-100 text-red-800 flex items-center gap-1.5 text-xs font-medium"
+                                  >
+                                    <i class="pi pi-times-circle text-xs"></i>
+                                    <span>Missing</span>
+                                  </span>
+                                  <!-- Pending: Assigned but not yet due -->
+                                  <span
+                                    v-else
+                                    class="px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-800 flex items-center gap-1.5 text-xs font-medium"
+                                  >
+                                    <i class="pi pi-clock text-xs"></i>
+                                    <span>Pending</span>
+                                  </span>
+                                  
+                                  <!-- Submitted Date & Time (Show when submitted) -->
+                                  <span
+                                    v-if="hasSubmittedWork && existingSubmission?.submitted_at"
+                                    class="text-xs text-gray-500"
+                                  >
+                                    {{ formatSubmittedDateTime(existingSubmission.submitted_at) }}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex flex-col gap-2 mb-4">
+                              <button
+                                v-if="hasSubmittedWork && hasScore"
+                                @click="showScoreDialog = true"
+                                class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 font-medium"
+                              >
+                                <i class="pi pi-star-fill"></i>
+                                <span>View Score</span>
+                              </button>
+                              
+                              <!-- Post Output Button (Shows if not posted to feed yet) -->
+                              <button
+                                v-if="hasSubmittedWork && existingSubmission && !existingSubmission.post_to_feed"
+                                @click="openPostOutputDialog"
+                                class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors duration-200 font-medium"
+                                title="Post your work to class feed"
+                              >
+                                <i class="pi pi-send"></i>
+                                <span>Post Output</span>
+                              </button>
+                            </div>
+                        
+                            <!-- Files Display (Draft or Submitted) -->
+                            <div v-if="draftFiles.length > 0 || (hasSubmittedWork && studentSubmissions.length > 0)" class="mb-3 space-y-2">
                           <!-- Show draft files if not submitted -->
                           <div
                             v-if="!hasSubmittedWork"
@@ -410,16 +433,26 @@
                           </button>
                           
                           <!-- Resubmit Button (Show when already submitted) -->
-                          <button
-                            v-else
-                            @click="handleResubmit"
-                            :disabled="hasScore"
-                            class="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-sm font-semibold hover:from-orange-600 hover:to-orange-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-orange-600"
-                            :title="hasScore ? 'Cannot resubmit - Already scored' : 'Resubmit your work'"
-                          >
-                            <i class="pi pi-refresh"></i>
-                            <span>{{ hasScore ? 'Already Scored' : 'Resubmit' }}</span>
-                          </button>
+                          <div v-else class="space-y-2">
+                            <!-- Resubmit Counter Info -->
+                            <div v-if="existingSubmission && existingSubmission.resubmit_count > 0" class="text-xs text-center">
+                              <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                                Resubmitted {{ existingSubmission.resubmit_count }} time{{ existingSubmission.resubmit_count > 1 ? 's' : '' }}
+                              </span>
+                            </div>
+                            
+                            <button
+                              @click="handleResubmit"
+                              :disabled="hasScore"
+                              class="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-sm font-semibold hover:from-orange-600 hover:to-orange-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-orange-600"
+                              :title="hasScore ? 'Cannot resubmit - Already scored' : 'Resubmit your work'"
+                            >
+                              <i class="pi pi-refresh"></i>
+                              <span>{{ hasScore ? 'Already Scored' : 'Resubmit' }}</span>
+                            </button>
+                          </div>
+                        </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3869,6 +3902,7 @@ const handleResubmit = async () => {
     }
     
     console.log('📝 Converting submission to draft:', actualSubmission.id);
+    console.log('📊 Current resubmit count:', actualSubmission.resubmit_count || 0);
     
     // Convert submission back to draft status
     const response = await axios.put(`/api/submissions/${actualSubmission.id}/`, {
@@ -3896,10 +3930,35 @@ const handleResubmit = async () => {
     
     console.log('✅ Draft file loaded:', draftFiles.value);
     
-    showSuccess('You can now edit and resubmit your work', 'Ready to Resubmit');
+    // Show resubmit count info
+    const resubmitCount = response.data.resubmit_count || 0;
+    const maxResubmits = 3;
+    const remaining = maxResubmits - resubmitCount;
+    
+    showSuccess(
+      `You can now edit and resubmit your work. Resubmits remaining: ${remaining}/${maxResubmits}`, 
+      'Ready to Resubmit'
+    );
   } catch (error) {
     console.error('❌ Error preparing resubmission:', error);
-    showError('Failed to prepare resubmission', 'Error');
+    
+    // Handle specific error responses
+    if (error.response && error.response.data) {
+      const errorData = error.response.data;
+      
+      if (errorData.reason === 'already_scored') {
+        showError('Cannot resubmit work that has already been scored by your teacher', 'Resubmit Not Allowed');
+      } else if (errorData.reason === 'max_limit_reached') {
+        showError(
+          `You have reached the maximum resubmit limit (${errorData.max_resubmits} times). No more resubmissions allowed.`,
+          'Resubmit Limit Reached'
+        );
+      } else {
+        showError(errorData.error || 'Failed to prepare resubmission', 'Error');
+      }
+    } else {
+      showError('Failed to prepare resubmission', 'Error');
+    }
   }
 };
 

@@ -15,11 +15,84 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     id_number = models.CharField(max_length=50, blank=True, null=True)  # Student ID number
     
+    # Profile fields
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
+    
+    # Teacher-specific fields
+    department = models.CharField(max_length=100, blank=True, null=True)
+    years_of_experience = models.IntegerField(blank=True, null=True)
+    
+    # Student-specific fields
+    grade_level = models.CharField(max_length=50, blank=True, null=True)
+    section = models.CharField(max_length=50, blank=True, null=True)
+    
     class Meta:
         db_table = 'users'
     
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+
+class UserSettings(models.Model):
+    """User settings and preferences"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings')
+    
+    # Notification preferences
+    email_notifications = models.BooleanField(default=True)
+    push_notifications = models.BooleanField(default=True)
+    activity_reminders = models.BooleanField(default=True)
+    score_notifications = models.BooleanField(default=True)
+    remark_notifications = models.BooleanField(default=True)
+    
+    # Privacy settings
+    VISIBILITY_CHOICES = [
+        ('public', 'Public'),
+        ('students', 'Students Only'),
+        ('classmates', 'Classmates Only'),
+        ('teachers', 'Teachers Only'),
+        ('private', 'Private'),
+    ]
+    profile_visibility = models.CharField(max_length=20, choices=VISIBILITY_CHOICES, default='public')
+    show_email = models.BooleanField(default=False)
+    show_phone = models.BooleanField(default=False)
+    show_scores = models.BooleanField(default=True)
+    
+    # Preferences
+    LANGUAGE_CHOICES = [
+        ('en', 'English'),
+        ('fil', 'Filipino'),
+        ('es', 'Spanish'),
+    ]
+    language = models.CharField(max_length=10, choices=LANGUAGE_CHOICES, default='en')
+    
+    THEME_CHOICES = [
+        ('light', 'Light'),
+        ('dark', 'Dark'),
+        ('auto', 'Auto'),
+    ]
+    theme = models.CharField(max_length=10, choices=THEME_CHOICES, default='light')
+    
+    timezone = models.CharField(max_length=50, default='Asia/Manila')
+    date_format = models.CharField(max_length=20, default='MM/DD/YYYY')
+    
+    # Teacher-specific settings
+    submission_alerts = models.BooleanField(default=True)
+    
+    # Student-specific settings
+    study_reminders = models.BooleanField(default=True)
+    daily_goals = models.BooleanField(default=True)
+    weekly_reports = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'user_settings'
+    
+    def __str__(self):
+        return f"Settings for {self.user.username}"
 
 
 class LessonPlan(models.Model):
@@ -122,6 +195,8 @@ class StudentSubmission(models.Model):
     is_active = models.BooleanField(default=True)  # Track if submission is active
     is_late = models.BooleanField(default=False)  # Track if submission was submitted after due date
     submission_version = models.IntegerField(default=1)  # Track version for resubmissions
+    resubmit_count = models.IntegerField(default=0)  # Track number of resubmissions
+    last_resubmit_at = models.DateTimeField(null=True, blank=True)  # Track last resubmit time
     submitted_at = models.DateTimeField(null=True, blank=True)  # Set when actually turned in, not when draft created
     scored_at = models.DateTimeField(null=True, blank=True)
     
@@ -197,6 +272,47 @@ class NewsfeedPost(models.Model):
     
     def __str__(self):
         return f"{self.student_name} - {self.activity_title or 'Post'}"
+    
+    @property
+    def likes_count(self):
+        """Get total number of likes for this post"""
+        return self.likes.count()
+    
+    @property
+    def comments_count(self):
+        """Get total number of comments for this post"""
+        return self.comments.count()
+
+
+class PostLike(models.Model):
+    """Like model for newsfeed posts"""
+    post = models.ForeignKey(NewsfeedPost, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='post_likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'post_likes'
+        unique_together = ['post', 'user']  # Each user can only like a post once
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} likes {self.post.id}"
+
+
+class PostComment(models.Model):
+    """Comment model for newsfeed posts"""
+    post = models.ForeignKey(NewsfeedPost, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='post_comments')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'post_comments'
+        ordering = ['created_at']  # Oldest first for comments
+    
+    def __str__(self):
+        return f"{self.user.username} commented on post {self.post.id}"
 
 
 class Remark(models.Model):

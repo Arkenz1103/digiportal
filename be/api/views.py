@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest, NewsfeedPost, PostLike, PostComment
 from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer, RemarkSerializer
 import json
 
@@ -1663,13 +1663,18 @@ def pending_approvals_api(request):
         return Response({'error': 'Only teachers can view pending approvals'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all submissions with pending approval (both post_to_feed=True and False)
-        # This includes both original submissions and post requests
+        # Get all submissions with pending approval for this teacher's classes
+        # Filter by teacher's folders
         submissions = StudentSubmission.objects.filter(
-            approval_status='pending'
+            approval_status='pending',
+            activity__folder__teacher=request.user
         ).select_related('student', 'activity', 'activity__folder').order_by('-submitted_at')
         
         print(f"📝 Found {submissions.count()} pending approvals for teacher {request.user.username}")
+        
+        # Debug: Print each submission
+        for sub in submissions:
+            print(f"   - ID: {sub.id}, Student: {sub.student.username}, Activity: {sub.activity.title if sub.activity else 'N/A'}, Status: {sub.approval_status}")
         
         serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
         return Response(serializer.data)
@@ -1733,6 +1738,23 @@ def approve_submission_api(request, submission_id):
                         original_submission=submission
                     )
                     print(f"Created newsfeed post for submission {submission_id}")
+        elif action == 'cancel':
+            # Cancel/remove the post request - reset to approved without posting
+            submission.approval_status = 'approved'
+            submission.post_to_feed = False  # Don't post to feed
+            submission.save()
+            
+            print(f"🚫 Cancelled post request for submission {submission_id}")
+            
+            # Notify student that request was cancelled
+            create_notification(
+                recipient=submission.student,
+                notification_type='submission_rejected',
+                title='Post Request Cancelled',
+                message=f'Your post request for "{submission.activity.title}" has been cancelled by your teacher',
+                submission=submission,
+                activity=submission.activity
+            )
         elif action == 'reject':
             submission.approval_status = 'rejected'
             submission.save()
@@ -1786,19 +1808,177 @@ def approve_submission_api(request, submission_id):
 @api_view(['GET'])
 def newsfeed_api(request):
     """
-    GET: Get all newsfeed posts
+    GET: Get all newsfeed posts with likes and comments
     """
     try:
-        from .models import NewsfeedPost
-        from .serializer import NewsfeedPostSerializer
-        
         # Get all newsfeed posts
         posts = NewsfeedPost.objects.all().order_by('-posted_at')
-        serializer = NewsfeedPostSerializer(posts, many=True)
-        return Response(serializer.data)
+        
+        # Serialize posts with additional data
+        posts_data = []
+        for post in posts:
+            # Try to get likes count, fallback to 0 if table doesn't exist
+            try:
+                likes_count = post.likes.count()
+                is_liked = PostLike.objects.filter(post=post, user=request.user).exists() if request.user.is_authenticated else False
+            except Exception:
+                likes_count = 0
+                is_liked = False
+            
+            post_dict = {
+                'id': post.id,
+                'student_name': post.student_name,
+                'caption': post.caption,
+                'file_path': post.file_path,
+                'file_type': post.file_type,
+                'activity_title': post.activity_title,
+                'activity_type': post.activity_type,
+                'posted_at': post.posted_at.isoformat(),
+                'likes': likes_count,
+                'is_liked': is_liked,
+            }
+            posts_data.append(post_dict)
+        
+        return Response(posts_data)
     except Exception as e:
         print(f"Error fetching newsfeed: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def post_like_api(request, post_id):
+    """
+    POST: Toggle like on a post
+    Body: { "liked": true/false }
+    """
+    if not request.user.is_authenticated:
+        print(f"❌ Like API - User not authenticated")
+        return Response({
+            'error': 'Authentication required',
+            'message': 'Please log in to like posts'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import NewsfeedPost, PostLike
+        
+        post = NewsfeedPost.objects.get(id=post_id)
+        liked = request.data.get('liked', True)
+        
+        if liked:
+            # Add like (use get_or_create to avoid duplicates)
+            like, created = PostLike.objects.get_or_create(
+                post=post,
+                user=request.user
+            )
+            message = 'Post liked' if created else 'Already liked'
+        else:
+            # Remove like
+            deleted_count = PostLike.objects.filter(post=post, user=request.user).delete()[0]
+            message = 'Like removed' if deleted_count > 0 else 'Like not found'
+        
+        # Return updated like count
+        return Response({
+            'success': True,
+            'message': message,
+            'likes_count': post.likes_count,
+            'is_liked': liked
+        })
+        
+    except NewsfeedPost.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error toggling like: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'POST'])
+def post_comments_api(request, post_id):
+    """
+    GET: Get all comments for a post
+    POST: Add a comment to a post
+    Body: { "text": "comment text" }
+    """
+    # Allow GET for everyone, but require auth for POST
+    if request.method == 'POST' and not request.user.is_authenticated:
+        print(f"❌ Comment API - User not authenticated")
+        return Response({
+            'error': 'Authentication required',
+            'message': 'Please log in to comment on posts'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import NewsfeedPost, PostComment
+        
+        post = NewsfeedPost.objects.get(id=post_id)
+        
+        if request.method == 'GET':
+            # Get all comments for this post
+            comments = PostComment.objects.filter(post=post).order_by('created_at')
+            comments_data = [{
+                'id': comment.id,
+                'user': comment.user.username,
+                'text': comment.text,
+                'created_at': comment.created_at.isoformat(),
+                'timestamp': get_time_ago(comment.created_at)
+            } for comment in comments]
+            
+            return Response(comments_data)
+        
+        elif request.method == 'POST':
+            # Add new comment
+            text = request.data.get('text', '').strip()
+            
+            if not text:
+                return Response({'error': 'Comment text is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            comment = PostComment.objects.create(
+                post=post,
+                user=request.user,
+                text=text
+            )
+            
+            return Response({
+                'success': True,
+                'message': 'Comment added',
+                'comment': {
+                    'id': comment.id,
+                    'user': comment.user.username,
+                    'text': comment.text,
+                    'created_at': comment.created_at.isoformat(),
+                    'timestamp': 'Just now'
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+    except NewsfeedPost.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error with comments: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def get_time_ago(datetime_obj):
+    """Helper function to get relative time"""
+    from django.utils import timezone
+    now = timezone.now()
+    diff = now - datetime_obj
+    
+    seconds = diff.total_seconds()
+    if seconds < 60:
+        return 'Just now'
+    minutes = int(seconds / 60)
+    if minutes < 60:
+        return f'{minutes} minute{"s" if minutes > 1 else ""} ago'
+    hours = int(minutes / 60)
+    if hours < 24:
+        return f'{hours} hour{"s" if hours > 1 else ""} ago'
+    days = int(hours / 24)
+    if days < 7:
+        return f'{days} day{"s" if days > 1 else ""} ago'
+    return datetime_obj.strftime('%b %d, %Y')
 
 
 @csrf_exempt
@@ -1837,6 +2017,35 @@ def submission_detail_api(request, submission_id):
             if 'status' in data:
                 old_status = submission.status
                 new_status = data['status']
+                
+                # Handle resubmit logic - converting back to draft
+                if old_status in ['unscored', 'scored'] and new_status == 'draft':
+                    from django.utils import timezone
+                    
+                    # Check if already scored - cannot resubmit if scored
+                    if submission.score is not None:
+                        return Response({
+                            'error': 'Cannot resubmit work that has already been scored',
+                            'can_resubmit': False,
+                            'reason': 'already_scored'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    # Check resubmit count limit (max 3 resubmissions)
+                    MAX_RESUBMITS = 3
+                    if submission.resubmit_count >= MAX_RESUBMITS:
+                        return Response({
+                            'error': f'Maximum resubmit limit ({MAX_RESUBMITS}) reached',
+                            'can_resubmit': False,
+                            'reason': 'max_limit_reached',
+                            'resubmit_count': submission.resubmit_count,
+                            'max_resubmits': MAX_RESUBMITS
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    # Increment resubmit count and track time
+                    submission.resubmit_count += 1
+                    submission.last_resubmit_at = timezone.now()
+                    print(f"🔄 Resubmit #{submission.resubmit_count} for submission {submission.id}")
+                
                 submission.status = new_status
                 
                 # If changing from draft to final submission, ALWAYS update submitted_at to current time
@@ -1990,7 +2199,7 @@ def request_post_approval_api(request, submission_id):
             
             create_notification(
                 recipient=teacher,
-                notification_type='post_approval_request',
+                notification_type='approval_requested',
                 title='Post Approval Request',
                 message=notification_message,
                 submission=submission,
@@ -3670,4 +3879,244 @@ def check_activity_edit_deadlines_api(request):
         error_trace = traceback.format_exc()
         print(f"❌ Error checking edit deadlines: {str(e)}")
         print(error_trace)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================
+# PROFILE AND SETTINGS APIs
+# ============================================
+
+@csrf_exempt
+@api_view(['GET', 'PUT'])
+def user_profile_api(request):
+    """
+    GET: Get user profile
+    PUT: Update user profile
+    """
+    print(f"🔍 Profile API - User: {request.user}, Authenticated: {request.user.is_authenticated}")
+    if not request.user.is_authenticated:
+        print(f"❌ Profile API - User not authenticated")
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        try:
+            from .serializer import UserProfileSerializer
+            serializer = UserProfileSerializer(request.user, context={'request': request})
+            profile_data = serializer.data
+            
+            print(f"✅ Profile loaded for {request.user.username} (Role: {request.user.role})")
+            print(f"   Fields returned: {list(profile_data.keys())}")
+            
+            return Response(profile_data)
+        except Exception as e:
+            print(f"❌ Error fetching profile: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'PUT':
+        try:
+            from .serializer import UserProfileSerializer
+            
+            # Handle profile picture upload
+            profile_picture = request.FILES.get('profile_picture')
+            if profile_picture:
+                # Validate file size (5MB limit)
+                if profile_picture.size > 5 * 1024 * 1024:
+                    return Response({'error': 'File size must be less than 5MB'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Validate file type
+                allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+                if profile_picture.content_type not in allowed_types:
+                    return Response({'error': 'Invalid file type. Only images are allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            serializer = UserProfileSerializer(
+                request.user, 
+                data=request.data, 
+                partial=True,
+                context={'request': request}
+            )
+            
+            if serializer.is_valid():
+                serializer.save()
+                print(f"✅ Profile updated for user: {request.user.username}")
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            print(f"❌ Error updating profile: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT'])
+def user_settings_api(request):
+    """
+    GET: Get user settings
+    PUT: Update user settings
+    """
+    print(f"🔍 Settings API - User: {request.user}, Authenticated: {request.user.is_authenticated}")
+    if not request.user.is_authenticated:
+        print(f"❌ Settings API - User not authenticated")
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        try:
+            from .models import UserSettings
+            from .serializer import UserSettingsSerializer
+            
+            # Get or create settings for the user
+            settings, created = UserSettings.objects.get_or_create(user=request.user)
+            
+            if created:
+                print(f"📝 Created new settings for user: {request.user.username}")
+            
+            serializer = UserSettingsSerializer(settings)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            print(f"❌ Error fetching settings: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'PUT':
+        try:
+            from .models import UserSettings
+            from .serializer import UserSettingsSerializer
+            
+            # Get or create settings for the user
+            settings, created = UserSettings.objects.get_or_create(user=request.user)
+            
+            serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+            
+            if serializer.is_valid():
+                serializer.save()
+                print(f"✅ Settings updated for user: {request.user.username}")
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            print(f"❌ Error updating settings: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def change_password_api(request):
+    """Change user password"""
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from django.contrib.auth import authenticate
+        
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+        
+        if not current_password or not new_password:
+            return Response({'error': 'Both current and new passwords are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verify current password
+        user = authenticate(username=request.user.username, password=current_password)
+        if not user:
+            return Response({'error': 'Current password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate new password length
+        if len(new_password) < 8:
+            return Response({'error': 'Password must be at least 8 characters long'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Set new password
+        request.user.set_password(new_password)
+        request.user.save()
+        
+        print(f"✅ Password changed for user: {request.user.username}")
+        
+        # Update session to prevent logout
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(request, request.user)
+        
+        return Response({'success': True, 'message': 'Password changed successfully'})
+        
+    except Exception as e:
+        print(f"❌ Error changing password: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def export_user_data_api(request):
+    """Export user data"""
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        import json
+        from django.core import serializers
+        from django.http import HttpResponse
+        
+        # Collect user data
+        user_data = {
+            'profile': {
+                'username': request.user.username,
+                'email': request.user.email,
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'role': request.user.role,
+                'phone_number': request.user.phone_number,
+                'bio': request.user.bio,
+                'date_joined': request.user.date_joined.isoformat() if request.user.date_joined else None
+            }
+        }
+        
+        # Add role-specific data
+        if request.user.role == 'teacher':
+            user_data['profile']['department'] = request.user.department
+            user_data['profile']['years_of_experience'] = request.user.years_of_experience
+            
+            # Get teacher's activities
+            from .models import PortfolioActivity
+            activities = PortfolioActivity.objects.filter(folder__teacher=request.user)
+            user_data['activities'] = [{
+                'title': a.title,
+                'description': a.description,
+                'activity_type': a.activity_type,
+                'max_score': a.max_score,
+                'created_at': a.created_at.isoformat() if a.created_at else None
+            } for a in activities]
+            
+        elif request.user.role == 'student':
+            user_data['profile']['grade_level'] = request.user.grade_level
+            user_data['profile']['section'] = request.user.section
+            user_data['profile']['id_number'] = request.user.id_number
+            
+            # Get student's submissions
+            from .models import StudentSubmission
+            submissions = StudentSubmission.objects.filter(student=request.user)
+            user_data['submissions'] = [{
+                'activity': s.activity.title if s.activity else 'Sketch',
+                'status': s.status,
+                'score': s.score,
+                'submitted_at': s.submitted_at.isoformat() if s.submitted_at else None
+            } for s in submissions]
+        
+        # Get user settings
+        from .models import UserSettings
+        settings = UserSettings.objects.filter(user=request.user).first()
+        if settings:
+            from .serializer import UserSettingsSerializer
+            user_data['settings'] = UserSettingsSerializer(settings).data
+        
+        # Create JSON response
+        response = HttpResponse(
+            json.dumps(user_data, indent=2),
+            content_type='application/json'
+        )
+        response['Content-Disposition'] = f'attachment; filename="user_data_{request.user.username}.json"'
+        
+        print(f"✅ Data exported for user: {request.user.username}")
+        return response
+        
+    except Exception as e:
+        print(f"❌ Error exporting data: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

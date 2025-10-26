@@ -248,7 +248,7 @@
                                         <!-- Draft Activities Table -->
                                         <div v-if="draftActivities.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                             <!-- Section Header -->
-                                            <div class="bg-gradient-to-r from-gray-700 to-gray-600 px-6 py-4 border-b border-gray-300">
+                                            <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 px-6 py-4 border-b border-indigo-300">
                                                 <div class="flex items-center justify-between">
                                                     <div class="flex items-center gap-3">
                                                         <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -267,23 +267,20 @@
 
                                             <!-- Table Header -->
                                             <div class="bg-gray-50 border-b border-gray-200">
-                                                <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div class="grid grid-cols-11 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                                     <div class="col-span-1">
                                                         <span>Type</span>
                                                     </div>
                                                     <div class="col-span-2">
                                                         <span>Title</span>
                                                     </div>
-                                                    <div class="col-span-3">
+                                                    <div class="col-span-4">
                                                         <span>Instructions</span>
-                                                    </div>
-                                                    <div class="col-span-1 text-center">
-                                                        <span>Status</span>
                                                     </div>
                                                     <div class="col-span-1 text-center">
                                                         <span>Due Time</span>
                                                     </div>
-                                                    <div class="col-span-2 text-center">
+                                                    <div class="col-span-1 text-center">
                                                         <span>Due Date</span>
                                                     </div>
                                                     <div class="col-span-2 text-center">
@@ -297,7 +294,7 @@
                                                 <div v-for="(activity, index) in draftActivities" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
 
-                                                    <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center cursor-pointer"
+                                                    <div class="grid grid-cols-11 gap-3 px-6 py-4 items-center cursor-pointer"
                                                         @click="navigateToActivityOutputs(activity, index)">
                                                         <!-- Activity Type with Icon -->
                                                         <div class="col-span-1">
@@ -328,7 +325,7 @@
                                                         </div>
 
                                                         <!-- Instructions -->
-                                                        <div class="col-span-3">
+                                                        <div class="col-span-4">
                                                             <div 
                                                                 class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
                                                                 :title="activity.description"
@@ -338,14 +335,6 @@
                                                             </div>
                                                         </div>
 
-                                                        <!-- Status Badge -->
-                                                        <div class="col-span-1 text-center">
-                                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-gray-500"></i>
-                                                                Draft
-                                                            </span>
-                                                        </div>
-
                                                         <!-- Due Time -->
                                                         <div class="col-span-1 text-center">
                                                             <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
@@ -353,7 +342,7 @@
                                                         </div>
 
                                                         <!-- Due Date -->
-                                                        <div class="col-span-2 text-center">
+                                                        <div class="col-span-1 text-center">
                                                             <div class="text-sm text-gray-700">
                                                                 {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
                                                                 <div v-if="activity.daysLeft" class="text-xs text-gray-500">{{ activity.daysLeft }}</div>
@@ -421,23 +410,20 @@
 
                                             <!-- Table Header -->
                                             <div class="bg-gray-50 border-b border-gray-200">
-                                                <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div class="grid grid-cols-11 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                                     <div class="col-span-1">
                                                         <span>Type</span>
                                                     </div>
                                                     <div class="col-span-2">
                                                         <span>Title</span>
                                                     </div>
-                                                    <div class="col-span-3">
+                                                    <div class="col-span-4">
                                                         <span>Instructions</span>
-                                                    </div>
-                                                    <div class="col-span-1 text-center">
-                                                        <span>Status</span>
                                                     </div>
                                                     <div class="col-span-1 text-center">
                                                         <span>Due Time</span>
                                                     </div>
-                                                    <div class="col-span-2 text-center">
+                                                    <div class="col-span-1 text-center">
                                                         <span>Due Date</span>
                                                     </div>
                                                     <div class="col-span-2 text-center">
@@ -451,7 +437,7 @@
                                                 <div v-for="(activity, index) in publishedActivities" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
                                                     
-                                                    <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center cursor-pointer"
+                                                    <div class="grid grid-cols-11 gap-3 px-6 py-4 items-center cursor-pointer"
                                                         @click="navigateToActivityOutputs(activity, index)">
                                                         <!-- Activity Type with Icon -->
                                                         <div class="col-span-1">
@@ -482,7 +468,7 @@
                                                         </div>
 
                                                         <!-- Instructions -->
-                                                        <div class="col-span-3">
+                                                        <div class="col-span-4">
                                                             <div 
                                                                 class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
                                                                 :title="activity.description"
@@ -492,14 +478,6 @@
                                                             </div>
                                                         </div>
 
-                                                        <!-- Status Badge -->
-                                                        <div class="col-span-1 text-center">
-                                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-green-500"></i>
-                                                                Published
-                                                            </span>
-                                                        </div>
-
                                                         <!-- Due Time -->
                                                         <div class="col-span-1 text-center">
                                                             <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
@@ -507,7 +485,7 @@
                                                         </div>
 
                                                         <!-- Due Date -->
-                                                        <div class="col-span-2 text-center">
+                                                        <div class="col-span-1 text-center">
                                                             <div class="text-sm text-gray-700">
                                                                 {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
                                                                 <div v-if="activity.daysLeft" class="text-xs text-gray-500">{{ activity.daysLeft }}</div>
@@ -516,23 +494,7 @@
 
                                                         <!-- Actions -->
                                                         <div class="col-span-2 flex items-center justify-center gap-2">
-                                                            <!-- Edit Button -->
-                                                            <button 
-                                                                @click.stop="editActivity(activity, index)"
-                                                                :disabled="isActivityPastDue(activity)"
-                                                                :class="[
-                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
-                                                                    isActivityPastDue(activity)
-                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
-                                                                ]"
-                                                                :title="isActivityPastDue(activity) ? 'Cannot edit past due activities' : 'Edit activity'"
-                                                            >
-                                                                <i class="pi pi-pencil text-xs"></i>
-                                                                <span>Edit</span>
-                                                            </button>
-                                                            
-                                                            <!-- Retract Button -->
+                                                            <!-- Retract Button (First) -->
                                                             <button 
                                                                 @click.stop="retractActivity(activity, index)"
                                                                 :disabled="!activity.is_published"
@@ -546,6 +508,22 @@
                                                             >
                                                                 <i class="pi pi-undo text-xs"></i>
                                                                 <span>Retract</span>
+                                                            </button>
+                                                            
+                                                            <!-- Edit Button (Second) -->
+                                                            <button 
+                                                                @click.stop="editActivity(activity, index)"
+                                                                :disabled="isActivityPastDue(activity)"
+                                                                :class="[
+                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
+                                                                    isActivityPastDue(activity)
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
+                                                                ]"
+                                                                :title="isActivityPastDue(activity) ? 'Cannot edit past due activities' : 'Edit activity'"
+                                                            >
+                                                                <i class="pi pi-pencil text-xs"></i>
+                                                                <span>Edit</span>
                                                             </button>
                                                         </div>
                                                     </div>

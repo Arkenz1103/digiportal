@@ -15,12 +15,21 @@ const isLoadingPending = ref(false);
 const loadPendingApprovals = async () => {
     isLoadingPending.value = true;
     try {
+        console.log('🔄 Loading pending approvals...');
         const response = await axios.get('/api/submissions/pending-approvals/');
+        console.log('📥 API Response:', response.data);
+        
         if (response.data) {
             pendingOutputs.value = response.data.map(submission => {
                 // Get image URL from multiple possible sources
                 const imageUrl = submission.file_url || submission.file_path || submission.file || '';
-                console.log('Submission image URL:', imageUrl, 'for submission:', submission.id);
+                console.log('Submission:', {
+                    id: submission.id,
+                    student: submission.student_name,
+                    activity: submission.activity_title,
+                    imageUrl: imageUrl,
+                    approval_status: submission.approval_status
+                });
                 
                 return {
                     id: submission.id,
@@ -28,6 +37,7 @@ const loadPendingApprovals = async () => {
                     title: submission.activity_title || 'Untitled',
                     subject: submission.activity_type || 'Unknown',
                     description: submission.caption || 'No description provided',
+                    submittedDate: submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : 'N/A',
                     rank: 0,
                     sampleImages: imageUrl ? [imageUrl] : [],
                     file_path: imageUrl,
@@ -35,10 +45,12 @@ const loadPendingApprovals = async () => {
                     status: 'Pending'
                 };
             });
-            console.log('Loaded pending approvals:', pendingOutputs.value);
+            console.log('✅ Loaded pending approvals:', pendingOutputs.value.length, 'items');
         }
     } catch (error) {
-        console.error('Error loading pending approvals:', error);
+        console.error('❌ Error loading pending approvals:', error);
+        console.error('   Error response:', error.response?.data);
+        console.error('   Error status:', error.response?.status);
         pendingOutputs.value = [];
     } finally {
         isLoadingPending.value = false;
@@ -155,11 +167,41 @@ const submitFeedback = async (isApproved) => {
                 rejectionDetails: ''
             };
             
-            showSuccess('Notice sent successfully!', 'Sent');
+            const message = isApproved 
+                ? 'Output approved and posted to class feed!' 
+                : 'Output rejected. Student has been notified.';
+            showSuccess(message, isApproved ? 'Approved' : 'Rejected');
         }
     } catch (error) {
         console.error('Error submitting feedback:', error);
         showError(error.response?.data?.error || error.message, 'Send Failed');
+    }
+};
+
+// Cancel/Remove pending request
+const cancelRequest = async (output) => {
+    if (!confirm(`Are you sure you want to cancel this post request from ${output.studentName}?`)) {
+        return;
+    }
+    
+    try {
+        // Cancel by rejecting with a specific reason
+        const response = await axios.put(`/api/submissions/${output.id}/approve/`, {
+            action: 'cancel'
+        });
+        
+        if (response.data) {
+            // Remove from pending list
+            const index = pendingOutputs.value.findIndex(o => o.id === output.id);
+            if (index !== -1) {
+                pendingOutputs.value.splice(index, 1);
+            }
+            
+            showInfo('Post request cancelled', 'Cancelled');
+        }
+    } catch (error) {
+        console.error('Error cancelling request:', error);
+        showError(error.response?.data?.error || 'Failed to cancel request', 'Error');
     }
 };
 
@@ -218,8 +260,21 @@ const cancelRejection = () => {
                 </span>
             </div>
 
+            <!-- Loading State -->
+            <div v-if="isLoadingPending" class="p-12 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading pending approvals...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="pendingOutputs.length === 0" class="p-12 text-center">
+                <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600 text-lg font-medium">No pending approvals</p>
+                <p class="text-gray-500 text-sm mt-2">Students' post requests will appear here</p>
+            </div>
+
             <!-- Outputs List -->
-            <div class="divide-y divide-indigo-100">
+            <div v-else class="divide-y divide-indigo-100">
                 <div v-for="output in pendingOutputs" :key="output.id" 
                     class="p-6 hover:bg-indigo-50/50 transition-colors duration-200">
                     <div class="flex justify-between items-start">
@@ -265,12 +320,20 @@ const cancelRejection = () => {
                                 </div>
                             </div>
                         </div>
-                        <Button 
-                            label="Review" 
-                            class="p-button-sm"
-                            style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none;" 
-                            @click="previewOutput(output)"
-                        />
+                        <div class="flex flex-col gap-2">
+                            <Button 
+                                label="Review" 
+                                class="p-button-sm"
+                                style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none;" 
+                                @click="previewOutput(output)"
+                            />
+                            <Button 
+                                label="Cancel" 
+                                class="p-button-sm p-button-secondary"
+                                style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;" 
+                                @click="cancelRequest(output)"
+                            />
+                        </div>
                     </div>
                 </div>
                 </div>

@@ -14,7 +14,7 @@
     <AuthLogin v-if="currentPage === 'Login'" @navigate="handleNavigation" />
     
     <!-- Teacher Pages with MainLayout -->
-    <MainLayout v-if="currentPage.startsWith('Teacher')" @navigate="handleNavigation">
+    <MainLayout v-if="currentPage.startsWith('Teacher') || (currentPage === 'Profile' && userRole === 'teacher') || (currentPage === 'Settings' && userRole === 'teacher')" @navigate="handleNavigation">
       <TeacherHome v-if="currentPage === 'TeacherHome'" @navigate="handleNavigation" />
       <TeacherRoom v-if="currentPage === 'TeacherRoom'" @navigate="handleNavigation" />
       <TeacherOutputs v-if="currentPage === 'TeacherOutputs'" @navigate="handleNavigation" />
@@ -24,16 +24,20 @@
       <TeacherNotice v-if="currentPage === 'TeacherNotice'" @navigate="handleNavigation" />
       <TeacherNotify v-if="currentPage === 'TeacherNotify'" @navigate="handleNavigation" />
       <TeacherArchived v-if="currentPage === 'TeacherArchived'" @navigate="handleNavigation" />
+      <TeacherProfile v-if="currentPage === 'Profile' && userRole === 'teacher'" @navigate="handleNavigation" />
+      <TeacherSettings v-if="currentPage === 'Settings' && userRole === 'teacher'" @navigate="handleNavigation" />
     </MainLayout>
     
     <!-- Student Pages with MainLayout -->
-    <MainLayout v-if="currentPage.startsWith('Student')" @navigate="handleNavigation">
+    <MainLayout v-if="currentPage.startsWith('Student') || (currentPage === 'Profile' && userRole === 'student') || (currentPage === 'Settings' && userRole === 'student')" @navigate="handleNavigation">
       <StudentNewsfeed v-if="currentPage === 'StudentNewsfeed'" @navigate="handleNavigation" />
       <StudentRoom v-if="currentPage === 'StudentRoom'" @navigate="handleNavigation" />
       <StudentSketch v-if="currentPage === 'StudentSketch'" @navigate="handleNavigation" />
       <StudentRemarked v-if="currentPage === 'StudentRemarked'" @navigate="handleNavigation" />
       <StudentNotify v-if="currentPage === 'StudentNotify'" @navigate="handleNavigation" />
       <StudentArchived v-if="currentPage === 'StudentArchived'" @navigate="handleNavigation" />
+      <StudentProfile v-if="currentPage === 'Profile' && userRole === 'student'" @navigate="handleNavigation" />
+      <StudentSettings v-if="currentPage === 'Settings' && userRole === 'student'" @navigate="handleNavigation" />
     </MainLayout>
   </div>
 </template>
@@ -55,6 +59,8 @@ import TeacherRemarks from './Pages/Teacher/Remarks.vue'
 import TeacherNotice from './Pages/Teacher/Notice.vue'
 import TeacherNotify from './Pages/Teacher/Notify.vue'
 import TeacherArchived from './Pages/Teacher/Archived.vue'
+import TeacherProfile from './Pages/Teacher/Profile.vue'
+import TeacherSettings from './Pages/Teacher/Settings.vue'
 
 // Student components
 import StudentNewsfeed from './Pages/Student/Newsfeed.vue'
@@ -63,6 +69,8 @@ import StudentSketch from './Pages/Student/Sketch.vue'
 import StudentRemarked from './Pages/Student/Sremarked.vue'
 import StudentNotify from './Pages/Student/Snotify.vue'
 import StudentArchived from './Pages/Student/Sarchived.vue'
+import StudentProfile from './Pages/Student/Profile.vue'
+import StudentSettings from './Pages/Student/Settings.vue'
 
 // Current page state - using route names from routes.js
 const currentPage = ref('Landing')
@@ -72,6 +80,24 @@ const userRole = ref(null)
 // Handle navigation between pages
 const handleNavigation = (page) => {
   console.log('Navigating to:', page);
+  
+  // 🔒 SECURITY: Prevent role-based unauthorized access
+  const currentRole = userRole.value || localStorage.getItem('digiportal_user_role');
+  
+  // Block students from accessing teacher pages
+  if (currentRole === 'student' && page.startsWith('Teacher')) {
+    console.warn('🚫 Access Denied: Students cannot access teacher pages');
+    alert('Access Denied: You do not have permission to view this page.');
+    return; // Don't navigate
+  }
+  
+  // Block teachers from accessing student pages
+  if (currentRole === 'teacher' && page.startsWith('Student')) {
+    console.warn('🚫 Access Denied: Teachers cannot access student pages');
+    alert('Access Denied: You do not have permission to view this page.');
+    return; // Don't navigate
+  }
+  
   currentPage.value = page
   
   // Save current page and login state to localStorage
@@ -105,6 +131,8 @@ const handleNavigation = (page) => {
     'TeacherNotice': 'Notices - DigiPortal',
     'TeacherNotify': 'Notifications - DigiPortal',
     'TeacherArchived': 'Archived - DigiPortal',
+    'Profile': 'My Profile - DigiPortal',
+    'Settings': 'Settings - DigiPortal',
     'StudentNewsfeed': 'Student Home - DigiPortal',
     'StudentRoom': 'Class Room - DigiPortal',
     'StudentSketch': 'Sketch - DigiPortal',
@@ -115,7 +143,7 @@ const handleNavigation = (page) => {
   
   document.title = titles[page] || 'DigiPortal'
   
-  // Update URL to match current page
+  // Update URL to match current page (role-based for Profile/Settings)
   const urlMap = {
     'Landing': '/',
     'Login': '/login',
@@ -136,7 +164,15 @@ const handleNavigation = (page) => {
     'StudentArchived': '/student/archived'
   }
   
-  const newUrl = urlMap[page] || '/'
+  // Handle Profile and Settings based on role
+  let newUrl = urlMap[page]
+  if (page === 'Profile') {
+    newUrl = userRole.value === 'teacher' ? '/teacher/profile' : '/student/profile'
+  } else if (page === 'Settings') {
+    newUrl = userRole.value === 'teacher' ? '/teacher/settings' : '/student/settings'
+  }
+  
+  newUrl = newUrl || '/'
   if (window.location.pathname !== newUrl) {
     window.history.pushState({}, '', newUrl)
   }
@@ -147,8 +183,28 @@ onMounted(() => {
   const savedLoggedIn = localStorage.getItem('digiportal_logged_in')
   const savedUserRole = localStorage.getItem('digiportal_user_role')
   const savedCurrentPage = localStorage.getItem('digiportal_current_page')
+  const currentPath = window.location.pathname
   
-  console.log('App mounted - saved data:', { savedLoggedIn, savedUserRole, savedCurrentPage });
+  console.log('App mounted - saved data:', { savedLoggedIn, savedUserRole, savedCurrentPage, currentPath });
+  
+  // 🔒 SECURITY: Check if user is trying to access unauthorized URL
+  if (savedLoggedIn === 'true' && savedUserRole) {
+    // Block students from accessing teacher URLs
+    if (savedUserRole === 'student' && currentPath.startsWith('/teacher')) {
+      console.warn('🚫 Access Denied: Student trying to access teacher URL:', currentPath);
+      alert('Access Denied: You do not have permission to view this page.');
+      window.location.href = '/student/newsfeed';
+      return;
+    }
+    
+    // Block teachers from accessing student URLs  
+    if (savedUserRole === 'teacher' && currentPath.startsWith('/student')) {
+      console.warn('🚫 Access Denied: Teacher trying to access student URL:', currentPath);
+      alert('Access Denied: You do not have permission to view this page.');
+      window.location.href = '/teacher/home';
+      return;
+    }
+  }
   
   if (savedLoggedIn === 'true' && savedUserRole && savedCurrentPage) {
     isLoggedIn.value = true
@@ -167,6 +223,8 @@ onMounted(() => {
       'TeacherNotice': 'Notices - DigiPortal',
       'TeacherNotify': 'Notifications - DigiPortal',
       'TeacherArchived': 'Archived - DigiPortal',
+      'Profile': 'My Profile - DigiPortal',
+      'Settings': 'Settings - DigiPortal',
       'StudentNewsfeed': 'Student Home - DigiPortal',
       'StudentRoom': 'Class Room - DigiPortal',
       'StudentSketch': 'Sketch - DigiPortal',

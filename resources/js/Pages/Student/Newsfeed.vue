@@ -1,62 +1,337 @@
 <template>
-    <div class="p-6 max-w-4xl mx-auto">
-        <!-- Loading State -->
-        <div v-if="isLoading" class="flex justify-center items-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        </div>
-
-        <!-- Empty State -->
-        <div v-else-if="posts.length === 0" class="text-center py-12">
-            <i class="pi pi-inbox text-6xl text-gray-400 mb-4"></i>
-            <p class="text-gray-500 text-lg">No posts yet</p>
-            <p class="text-gray-400 text-sm">Approved student work will appear here</p>
-        </div>
-
-        <!-- Posts Feed -->
-        <div v-else class="space-y-6">
-            <!-- Dynamic Post -->
-            <div v-for="post in posts" :key="post.id" class="bg-white p-6 rounded-2xl shadow-lg">
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="bg-indigo-500 text-white font-bold w-12 h-12 flex items-center justify-center rounded-full">
-                        {{ post.user.charAt(0).toUpperCase() }}
-                    </div>
+    <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <!-- Hero Header -->
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="font-semibold">{{ post.user }}</h3>
-                        <p class="text-sm text-gray-500">{{ post.timestamp }}</p>
-                        <p v-if="post.activityTitle" class="text-xs text-indigo-600">{{ post.activityType }} - {{ post.activityTitle }}</p>
+                        <h1 class="text-3xl font-bold flex items-center gap-3">
+                            <i class="pi pi-sparkles text-yellow-300"></i>
+                            Student Creative Hub
+                        </h1>
+                        <p class="text-indigo-100 mt-2">Discover amazing work from talented students</p>
+                    </div>
+                    <div class="hidden md:flex items-center gap-4">
+                        <div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
+                            <i class="pi pi-trophy text-yellow-300"></i>
+                            <span class="font-semibold">{{ posts.length }} Creations</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left Sidebar - Minimalist Design -->
+                <div class="lg:col-span-1 space-y-4">
+                    <!-- Collapsible Sidebar Toggle (Mobile) -->
+                    <button @click="sidebarCollapsed = !sidebarCollapsed" 
+                        class="lg:hidden flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors mb-4">
+                        <i class="pi" :class="sidebarCollapsed ? 'pi-chevron-right' : 'pi-chevron-left'"></i>
+                        <span class="text-sm font-medium">{{ sidebarCollapsed ? 'Show' : 'Hide' }} Info</span>
+                    </button>
+
+                    <!-- Sidebar Content -->
+                    <div :class="{'hidden': sidebarCollapsed, 'block': !sidebarCollapsed}" class="lg:block space-y-4">
+                        <!-- Minimalist Stats Bar -->
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 shadow-sm">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-semibold text-gray-700">Today's Activity</h3>
+                                <button @click="statsExpanded = !statsExpanded" 
+                                    class="text-gray-400 hover:text-gray-600 transition-colors">
+                                    <i class="pi text-xs" :class="statsExpanded ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Compact Stats -->
+                            <div v-if="!statsExpanded" class="flex items-center gap-4">
+                                <div class="flex items-center gap-1.5">
+                                    <i class="pi pi-heart-fill text-red-400 text-sm"></i>
+                                    <span class="text-lg font-bold text-gray-800">{{ totalLikes }}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <i class="pi pi-comments text-blue-400 text-sm"></i>
+                                    <span class="text-lg font-bold text-gray-800">{{ totalComments }}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <i class="pi pi-eye text-green-400 text-sm"></i>
+                                    <span class="text-lg font-bold text-gray-800">{{ posts.length }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Expanded Stats -->
+                            <div v-else class="space-y-3">
+                                <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                                    <span class="flex items-center gap-2 text-sm text-gray-600">
+                                        <i class="pi pi-heart-fill text-red-400"></i>
+                                        Total Likes
+                                    </span>
+                                    <span class="font-bold text-gray-800">{{ totalLikes }}</span>
+                                </div>
+                                <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                                    <span class="flex items-center gap-2 text-sm text-gray-600">
+                                        <i class="pi pi-comments text-blue-400"></i>
+                                        Comments
+                                    </span>
+                                    <span class="font-bold text-gray-800">{{ totalComments }}</span>
+                                </div>
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="flex items-center gap-2 text-sm text-gray-600">
+                                        <i class="pi pi-eye text-green-400"></i>
+                                        Posts Viewed
+                                    </span>
+                                    <span class="font-bold text-gray-800">{{ posts.length }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Filters (Replaces Trending Topics) -->
+                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 shadow-sm">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-3">Quick Filters</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <button @click="filterByTopic('all')"
+                                    :class="currentFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
+                                    All Posts
+                                </button>
+                                <button @click="filterByTopic('arts')"
+                                    :class="currentFilter === 'arts' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
+                                    Arts
+                                </button>
+                                <button @click="filterByTopic('math')"
+                                    :class="currentFilter === 'math' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
+                                    Math
+                                </button>
+                                <button @click="filterByTopic('science')"
+                                    :class="currentFilter === 'science' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
+                                    Science
+                                </button>
+                                <button @click="filterByTopic('recent')"
+                                    :class="currentFilter === 'recent' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
+                                    <i class="pi pi-clock text-xs mr-1"></i>
+                                    Recent
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Optional: Floating Action Button for Mobile -->
+                        <div class="lg:hidden fixed bottom-20 right-4 z-40">
+                            <button @click="showMobileStats = !showMobileStats"
+                                class="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 transition-colors">
+                                <i class="pi pi-chart-bar text-xl"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <p class="mb-4">{{ post.content }}</p>
-
-                <img v-if="post.image" 
-                    :src="post.image" 
-                    :alt="post.content"
-                    class="w-full h-auto max-h-96 object-contain rounded-xl mb-4">
-
-                <div class="flex items-center gap-4 pt-4 border-t">
-                    <button @click="toggleLike(post)" 
-                        class="flex items-center gap-2 px-4 py-2 rounded-xl transition-colors"
-                        :class="post.isLiked ? 'bg-red-50 text-red-500' : 'bg-gray-100 hover:bg-gray-200'">
-                        <i class="pi" :class="post.isLiked ? 'pi-heart-fill' : 'pi-heart'"></i>
-                        <span>{{ post.likes }} Likes</span>
-                    </button>
-
-                    <button class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl">
-                        <i class="pi pi-comments"></i>
-                        <span>{{ post.comments.length }} Comments</span>
-                    </button>
-                </div>
-
-                <!-- Comments Section -->
-                <div v-if="post.comments.length > 0" class="mt-4 space-y-3">
-                    <div v-for="comment in post.comments" :key="comment.id" class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl">
-                        <div class="bg-green-500 text-white font-bold w-8 h-8 flex items-center justify-center rounded-full text-sm">
-                            {{ comment.user.charAt(0).toUpperCase() }}
+                <!-- Main Feed -->
+                <div class="lg:col-span-2">
+                    <!-- Loading State -->
+                    <div v-if="isLoading" class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl shadow-xl">
+                        <div class="relative">
+                            <div class="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200"></div>
+                            <div class="absolute top-0 animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-600"></div>
                         </div>
-                        <div>
-                            <p class="font-medium">{{ comment.user }}</p>
-                            <p class="text-gray-700">{{ comment.text }}</p>
+                        <p class="mt-4 text-gray-500 font-medium">Loading amazing content...</p>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-else-if="posts.length === 0" class="text-center py-16 bg-white rounded-2xl shadow-xl border-2 border-dashed border-gray-200">
+                        <div class="max-w-sm mx-auto">
+                            <div class="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <i class="pi pi-palette text-4xl text-indigo-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">No Posts Yet</h3>
+                            <p class="text-gray-500 mb-6">Be the first to share your amazing work with the community!</p>
+                            <button class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                                <i class="pi pi-plus-circle mr-2"></i>
+                                Create First Post
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Posts Feed -->
+                    <div v-else class="space-y-6">
+                        <div v-for="post in posts" :key="post.id" 
+                            class="bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
+                            
+                            <!-- Post Header -->
+                            <div class="p-6 pb-4">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <div class="relative">
+                                            <div class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                                                {{ post.user.charAt(0).toUpperCase() }}
+                                            </div>
+                                            <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-lg text-gray-800">{{ post.user }}</h3>
+                                            <div class="flex items-center gap-2 text-sm">
+                                                <span class="text-gray-500">{{ post.timestamp }}</span>
+                                                <span v-if="post.activityTitle" class="text-indigo-600 font-medium">
+                                                    <i class="pi pi-bookmark-fill text-xs"></i>
+                                                    {{ post.activityType }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 3-Dot Menu -->
+                                    <div class="relative">
+                                        <button @click="togglePostMenu(post)" 
+                                            class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
+                                            <i class="pi pi-ellipsis-v text-xl"></i>
+                                        </button>
+                                        
+                                        <!-- Dropdown Menu -->
+                                        <div v-if="post.showMenu" 
+                                            class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+                                            <div class="py-2">
+                                                <button @click="bookmarkPost(post)" 
+                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                                    <i class="pi pi-bookmark text-indigo-600"></i>
+                                                    <span class="text-sm font-medium text-gray-700">Save Post</span>
+                                                </button>
+                                                <button @click="reportPost(post)" 
+                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                                    <i class="pi pi-flag text-orange-600"></i>
+                                                    <span class="text-sm font-medium text-gray-700">Report Content</span>
+                                                </button>
+                                                <button @click="hidePost(post)" 
+                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                                    <i class="pi pi-eye-slash text-gray-600"></i>
+                                                    <span class="text-sm font-medium text-gray-700">Hide Post</span>
+                                                </button>
+                                                <div class="border-t border-gray-100 my-1"></div>
+                                                <button @click="copyLink(post)" 
+                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                                    <i class="pi pi-link text-blue-600"></i>
+                                                    <span class="text-sm font-medium text-gray-700">Copy Link</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Post Content -->
+                            <div class="px-6 pb-4">
+                                <p class="text-gray-700 leading-relaxed">{{ post.content }}</p>
+                                <div v-if="post.activityTitle" class="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-full">
+                                    <i class="pi pi-tag text-indigo-600 text-sm"></i>
+                                    <span class="text-sm font-medium text-indigo-700">{{ post.activityTitle }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Post Image -->
+                            <div v-if="post.image" class="px-6 pb-4">
+                                <div class="relative group cursor-pointer">
+                                    <img :src="post.image" 
+                                        :alt="post.content"
+                                        class="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-lg">
+                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 rounded-2xl"></div>
+                                </div>
+                            </div>
+
+                            <!-- Interaction Bar -->
+                            <div class="px-6 py-4 border-t border-gray-100">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <!-- Like Button -->
+                                        <button @click="toggleLike(post)" 
+                                            class="flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 group"
+                                            :class="post.isLiked 
+                                                ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg' 
+                                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'">
+                                            <i class="pi text-lg transition-transform group-hover:scale-110" 
+                                                :class="post.isLiked ? 'pi-heart-fill animate-pulse' : 'pi-heart'"></i>
+                                            <span class="font-semibold">{{ post.likes }}</span>
+                                        </button>
+
+                                        <!-- Comment Button -->
+                                        <button @click="toggleComments(post)"
+                                            :class="post.showComments 
+                                                ? 'bg-indigo-100 text-indigo-700' 
+                                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'"
+                                            class="flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 group">
+                                            <i class="pi pi-comments text-lg transition-transform group-hover:scale-110"></i>
+                                            <span class="font-semibold">{{ post.comments.length }}</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Bookmark Button -->
+                                    <button @click="bookmarkPost(post)" 
+                                        :class="post.isBookmarked ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'"
+                                        class="transition-colors p-2 hover:bg-gray-100 rounded-full">
+                                        <i class="pi text-xl" :class="post.isBookmarked ? 'pi-bookmark-fill' : 'pi-bookmark'"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Comments Section -->
+                            <div v-if="post.showComments" 
+                                class="px-6 pb-6 border-t border-gray-100 bg-gray-50">
+                                <h4 class="font-semibold text-gray-700 mb-4 mt-4 flex items-center gap-2">
+                                    <i class="pi pi-comments text-indigo-600"></i>
+                                    Comments ({{ post.comments.length }})
+                                </h4>
+                                
+                                <!-- Comment Input -->
+                                <div class="mb-4">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                                            S
+                                        </div>
+                                        <div class="flex-1">
+                                            <textarea 
+                                                v-model="post.newComment"
+                                                @keydown.enter.ctrl="addComment(post)"
+                                                placeholder="Write a comment... (Ctrl+Enter to post)"
+                                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                                rows="2"></textarea>
+                                            <div class="flex items-center justify-between mt-2">
+                                                <span class="text-xs text-gray-500">Press Ctrl+Enter to post</span>
+                                                <button @click="addComment(post)"
+                                                    :disabled="!post.newComment || post.newComment.trim() === ''"
+                                                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium">
+                                                    <i class="pi pi-send mr-2"></i>
+                                                    Post Comment
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Comments List -->
+                                <div v-if="post.comments.length > 0" class="space-y-3">
+                                    <div v-for="comment in post.comments" :key="comment.id" 
+                                        class="flex items-start gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                        <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                                            {{ comment.user.charAt(0).toUpperCase() }}
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between">
+                                                <p class="font-semibold text-gray-800">{{ comment.user }}</p>
+                                                <span class="text-xs text-gray-400">{{ comment.timestamp || 'Just now' }}</span>
+                                            </div>
+                                            <p class="text-gray-600 mt-1">{{ comment.text }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Empty State -->
+                                <div v-else class="text-center py-8">
+                                    <i class="pi pi-comments text-4xl text-gray-300 mb-2"></i>
+                                    <p class="text-gray-400 text-sm">No comments yet. Be the first to comment!</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -66,7 +341,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 
 // Define emits
@@ -74,6 +349,19 @@ const emit = defineEmits(['navigate']);
 
 const isLoading = ref(false);
 const posts = ref([]);
+const sidebarCollapsed = ref(false);
+const statsExpanded = ref(false);
+const currentFilter = ref('all');
+const showMobileStats = ref(false);
+
+// Computed values for stats
+const totalLikes = computed(() => {
+  return posts.value.reduce((sum, post) => sum + (post.likes || 0), 0);
+});
+
+const totalComments = computed(() => {
+  return posts.value.reduce((sum, post) => sum + (post.comments?.length || 0), 0);
+});
 
 // Load newsfeed from API
 const loadNewsfeed = async () => {
@@ -86,121 +374,210 @@ const loadNewsfeed = async () => {
         user: post.student_name,
         content: post.caption || 'No description provided',
         image: post.file_type === 'image' ? post.file_path : null,
-        likes: 0,
-        isLiked: false,
+        likes: post.likes || 0,
+        isLiked: post.is_liked || false,
         timestamp: getTimeAgo(post.posted_at),
         activityTitle: post.activity_title,
         activityType: post.activity_type,
-        comments: []
+        comments: [],
+        showComments: false,
+        showMenu: false,
+        isBookmarked: false,
+        newComment: ''
       }));
-      console.log('Loaded newsfeed:', posts.value);
+      console.log('✅ Loaded newsfeed:', posts.value);
     } else {
       posts.value = [];
     }
   } catch (error) {
-    console.error('Error loading newsfeed:', error);
-    // Check if it's an authentication error
-    if (error.response?.status === 403) {
-      console.warn('Authentication required for newsfeed. User may not be logged in.');
-    }
+    console.error('❌ Error loading newsfeed:', error);
     posts.value = [];
   } finally {
     isLoading.value = false;
   }
 };
 
-// Helper function to get time ago
+// Load comments for each post
+const loadComments = async () => {
+  for (const post of posts.value) {
+    try {
+      const response = await axios.get(`/api/posts/${post.id}/comments/`);
+      if (response.data && Array.isArray(response.data)) {
+        post.comments = response.data.map(comment => ({
+          id: comment.id,
+          user: comment.user,
+          text: comment.text,
+          timestamp: comment.timestamp || getTimeAgo(comment.created_at)
+        }));
+      }
+    } catch (error) {
+      console.error(`Error loading comments for post ${post.id}:`, error);
+    }
+  }
+};
+
+// Toggle like
+const toggleLike = async (post) => {
+  try {
+    const newLikedState = !post.isLiked;
+    const response = await axios.post(`/api/posts/${post.id}/like/`, {
+      liked: newLikedState
+    });
+    
+    if (response.data.success) {
+      post.isLiked = newLikedState;
+      post.likes = response.data.likes_count;
+      console.log('✅ Like toggled successfully');
+    }
+  } catch (error) {
+    console.error('❌ Error toggling like:', error);
+    if (error.response?.status === 403) {
+      const message = error.response?.data?.message || 'Please log in to like posts';
+      if (confirm(`${message}\n\nWould you like to log in now?`)) {
+        emit('navigate', 'Login');
+      }
+    } else {
+      alert('Failed to like post. Please try again.');
+    }
+  }
+};
+
+// Toggle comments visibility
+const toggleComments = (post) => {
+  post.showComments = !post.showComments;
+};
+
+// Filter by topic
+const filterByTopic = (topic) => {
+  currentFilter.value = topic;
+  // You can implement actual filtering logic here
+  // For now, just setting the active filter
+  console.log('Filtering by:', topic);
+};
+
+// Add comment
+const addComment = async (post) => {
+  if (!post.newComment || post.newComment.trim() === '') return;
+  
+  try {
+    const response = await axios.post(`/api/posts/${post.id}/comments/`, {
+      text: post.newComment.trim()
+    });
+    
+    if (response.data.success) {
+      // Add comment to the list
+      post.comments.push({
+        id: response.data.comment.id,
+        user: response.data.comment.user,
+        text: response.data.comment.text,
+        timestamp: response.data.comment.timestamp || 'Just now'
+      });
+      
+      // Clear input
+      post.newComment = '';
+      
+      console.log('✅ Comment added successfully');
+    }
+  } catch (error) {
+    console.error('❌ Error adding comment:', error);
+    if (error.response?.status === 403) {
+      const message = error.response?.data?.message || 'Please log in to comment on posts';
+      if (confirm(`${message}\n\nWould you like to log in now?`)) {
+        emit('navigate', 'Login');
+      }
+    } else {
+      const errorMsg = error.response?.data?.error || 'Failed to add comment. Please try again.';
+      alert(errorMsg);
+    }
+  }
+};
+
+// Toggle post menu
+const togglePostMenu = (post) => {
+  // Close all other menus
+  posts.value.forEach(p => {
+    if (p.id !== post.id) p.showMenu = false;
+  });
+  post.showMenu = !post.showMenu;
+};
+
+// Bookmark post
+const bookmarkPost = (post) => {
+  post.isBookmarked = !post.isBookmarked;
+  post.showMenu = false;
+  
+  const message = post.isBookmarked ? 'Post saved!' : 'Post removed from saved';
+  console.log(`📌 ${message}`);
+  
+  // You can add API call here to persist bookmark
+  // await axios.post(`/api/posts/${post.id}/bookmark/`, { bookmarked: post.isBookmarked });
+};
+
+// Report post
+const reportPost = (post) => {
+  post.showMenu = false;
+  
+  const reason = prompt('Please tell us why you\'re reporting this post:\n\n1. Inappropriate content\n2. Spam\n3. Harassment\n4. Other\n\nEnter reason:');
+  
+  if (reason) {
+    console.log(`🚩 Post ${post.id} reported: ${reason}`);
+    alert('Thank you for your report. We will review this content.');
+    
+    // Add API call here
+    // await axios.post(`/api/posts/${post.id}/report/`, { reason });
+  }
+};
+
+// Hide post
+const hidePost = (post) => {
+  post.showMenu = false;
+  
+  if (confirm('Hide this post? You won\'t see it in your feed anymore.')) {
+    const index = posts.value.findIndex(p => p.id === post.id);
+    if (index > -1) {
+      posts.value.splice(index, 1);
+      console.log(`👁️‍🗨️ Post ${post.id} hidden`);
+      
+      // Add API call here
+      // await axios.post(`/api/posts/${post.id}/hide/`);
+    }
+  }
+};
+
+// Copy link
+const copyLink = (post) => {
+  post.showMenu = false;
+  
+  const link = `${window.location.origin}/post/${post.id}`;
+  navigator.clipboard.writeText(link).then(() => {
+    alert('Link copied to clipboard!');
+    console.log(`🔗 Link copied: ${link}`);
+  }).catch(err => {
+    console.error('Failed to copy link:', err);
+  });
+};
+
+// Get time ago
 const getTimeAgo = (dateString) => {
+  if (!dateString) return 'Just now';
+  
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now - date) / 1000);
   
   if (seconds < 60) return 'Just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+  
   return date.toLocaleDateString();
 };
 
-// Load on mount
-onMounted(() => {
-  loadNewsfeed();
+// Load data on mount
+onMounted(async () => {
+  await loadNewsfeed();
+  await loadComments();
 });
-
-// Old hardcoded data for reference
-const oldPosts = ref([
-  {
-    id: 1,
-    user: "Emma Garcia",
-    content: "My watercolor landscape inspired by our field trip to the mountains last week. Used techniques we learned in class about wet-on-wet blending. 🏔️🎨",
-    image: "https://images.unsplash.com/photo-1579762715118-a6f1d4b934f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
-    likes: 24,
-    isLiked: false,
-    timestamp: "15 minutes ago",
-    comments: [
-      {
-        id: 1,
-        user: "Ms. Parker",
-        text: "Beautiful color blending, Emma! You've really mastered the technique we practiced."
-      },
-      {
-        id: 2,
-        user: "Lucas Thompson",
-        text: "The way you did the sky is amazing! Can you show me how you did that?"
-      }
-    ]
-  },
-  {
-    id: 2,
-    user: "Sophie Chen",
-    content: "Finished my clay sculpture of an owl! It took three art classes to complete. The hardest part was the feather details. 🦉",
-    image: "https://images.unsplash.com/photo-1605000797499-95a51c5269ae?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
-    likes: 32,
-    isLiked: false,
-    timestamp: "2 hours ago",
-    comments: [
-      {
-        id: 1,
-        user: "Alex Kim",
-        text: "The texture looks so real! How did you make the feathers?"
-      },
-      {
-        id: 2,
-        user: "Mr. Rodriguez",
-        text: "Excellent craftsmanship, Sophie! Your attention to detail is impressive."
-      }
-    ]
-  },
-  {
-    id: 3,
-    user: "Noah Martinez",
-    content: "My mixed media collage about ocean conservation. Used recycled magazines, acrylic paint, and beach sand. 🌊♻️",
-    image: "https://images.unsplash.com/photo-1534945773093-9c5332a4a9a3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
-    likes: 41,
-    isLiked: false,
-    timestamp: "1 day ago",
-    comments: [
-      {
-        id: 1,
-        user: "Emma Garcia",
-        text: "This is so creative! I love how you incorporated real sand."
-      },
-      {
-        id: 2,
-        user: "Teacher Sarah",
-        text: "Powerful message and excellent execution! Would you like to display this in the school gallery?"
-      }
-    ]
-  }
-]);
-
-const toggleLike = (post) => {
-    post.isLiked = !post.isLiked;
-    post.likes += post.isLiked ? 1 : -1;
-};
 </script>
 
 <style scoped>

@@ -55,6 +55,10 @@ urlpatterns = [
     # Newsfeed route
     path('api/newsfeed/', views.newsfeed_api, name='newsfeed_api'),
     
+    # Post interaction routes (likes and comments)
+    path('api/posts/<int:post_id>/like/', views.post_like_api, name='post_like_api'),
+    path('api/posts/<int:post_id>/comments/', views.post_comments_api, name='post_comments_api'),
+    
     # Sketch submission route
     path('api/sketch/submit/', views.sketch_submission_api, name='sketch_submission_api'),
     
@@ -93,4 +97,10 @@ urlpatterns = [
     path('api/portfolio-envelope/teacher-activities/<str:class_name>/<int:student_id>/', views.get_teacher_student_activities_api, name='get_teacher_student_activities_api'),
     path('api/portfolio-envelope/submit-missing/<int:activity_id>/', views.submit_missing_activity_api, name='submit_missing_activity_api'),
     path('api/portfolio-envelope/submit/<str:class_name>/', views.submit_portfolio_api, name='submit_portfolio_api'),
+    
+    # Profile and Settings API routes
+    path('api/user/profile/', views.user_profile_api, name='user_profile_api'),
+    path('api/user/settings/', views.user_settings_api, name='user_settings_api'),
+    path('api/user/change-password/', views.change_password_api, name='change_password_api'),
+    path('api/user/export-data/', views.export_user_data_api, name='export_user_data_api'),
 ]

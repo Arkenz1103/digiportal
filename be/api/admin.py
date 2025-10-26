@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, UserSettings
 
 
 @admin.register(User)
@@ -37,3 +37,10 @@ class PortfolioActivityAdmin(admin.ModelAdmin):
     list_filter = ['created_at']
     search_fields = ['title', 'description', 'folder__name']
     date_hierarchy = 'created_at'
+
+
+@admin.register(UserSettings)
+class UserSettingsAdmin(admin.ModelAdmin):
+    list_display = ['user', 'language', 'theme', 'profile_visibility']
+    list_filter = ['language', 'theme', 'profile_visibility']
+    search_fields = ['user__username', 'user__email']

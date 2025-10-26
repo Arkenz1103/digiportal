@@ -1,12 +1,60 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'date_joined']
-        read_only_fields = ['id', 'date_joined']
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for user profile with role-specific fields"""
+    profile_picture_url = serializers.SerializerMethodField()
+    student_id = serializers.CharField(source='id_number', read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'role', 'first_name', 'last_name',
+            'phone_number', 'bio', 'profile_picture', 'profile_picture_url',
+            'id_number', 'department', 'years_of_experience', 'subject_specialization',
+            'grade_level', 'section', 'student_id'
+        ]
+        read_only_fields = ['id', 'username', 'role', 'id_number']
+    
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+        return None
+    
+    def to_representation(self, instance):
+        """Return only role-appropriate fields"""
+        data = super().to_representation(instance)
+        
+        # Remove fields based on role
+        if instance.role == 'student':
+            # Remove teacher-specific fields for students
+            fields_to_remove = ['department', 'years_of_experience', 'subject_specialization']
+            for field in fields_to_remove:
+                data.pop(field, None)
+        elif instance.role == 'teacher':
+            # Remove student-specific fields for teachers
+            fields_to_remove = ['grade_level', 'section', 'student_id']
+            for field in fields_to_remove:
+                data.pop(field, None)
+        
+        return data
+
+
+class UserSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for user settings"""
+    class Meta:
+        model = UserSettings
+        exclude = ['user', 'created_at', 'updated_at']
+        read_only_fields = ['id']
 
 
 class LessonPlanSerializer(serializers.ModelSerializer):
@@ -108,7 +156,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentSubmission
         fields = '__all__'
-        read_only_fields = ['id', 'submitted_at', 'scored_at']
+        read_only_fields = ['id', 'submitted_at', 'scored_at', 'resubmit_count', 'last_resubmit_at']
 
 
 class StudentSubmissionListSerializer(serializers.ModelSerializer):

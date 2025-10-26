@@ -324,6 +324,18 @@ const logout = () => {
     emit('navigate', 'Landing');
 };
 
+// Navigate to Profile
+const navigateToProfile = () => {
+    isDropdownOpen.value = false; // Close dropdown
+    emit('navigate', 'Profile');
+};
+
+// Navigate to Settings
+const navigateToSettings = () => {
+    isDropdownOpen.value = false; // Close dropdown
+    emit('navigate', 'Settings');
+};
+
 // Theme options
 const themeOptions = [
     { id: 'indigo', color: 'bg-indigo-600', name: 'Indigo' },
@@ -775,13 +787,15 @@ const auth = computed(() => ({
                                         <!-- Menu Items -->
                                         <div class="py-1">
                                             <button
-                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
+                                                @click="navigateToProfile"
+                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg transition-colors"
                                             >
                                                 <i class="pi pi-user text-gray-400"></i>
                                                 Profile
                                             </button>
                                             <button
-                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg"
+                                                @click="navigateToSettings"
+                                                class="flex items-center justify-between w-full text-left text-sm font-medium text-indigo-900 hover:bg-indigo-50 px-4 py-2.5 rounded-lg transition-colors"
                                             >
                                                 <i class="pi pi-cog text-gray-400"></i>
                                                 Settings
