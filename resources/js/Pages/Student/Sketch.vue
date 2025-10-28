@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useToast } from '../../composables/useToast';
+import Dialog from 'primevue/dialog';
 
 // Initialize toast
 const { showSuccess, showError, showInfo, showWarning } = useToast();
@@ -25,6 +26,7 @@ const currentSketch = ref(null);
 const showPostToFeedModal = ref(false);
 const selectedSketchForPost = ref(null);
 const postCaption = ref('');
+const showDeleteConfirmDialog = ref(false);
 const attachedImage = ref(null);
 const imagePosition = ref({ x: 0, y: 0 });
 const imageSize = ref({ width: 0, height: 0 });
@@ -415,6 +417,46 @@ const openPostToFeedModal = () => {
 // Select sketch for posting
 const selectSketchForPost = (sketch) => {
     selectedSketchForPost.value = sketch;
+};
+
+// Show delete confirmation dialog
+const showDeleteConfirmation = () => {
+    if (!selectedSketchForPost.value) {
+        showWarning('Please select a sketch to delete', 'No Selection');
+        return;
+    }
+    showDeleteConfirmDialog.value = true;
+};
+
+// Delete selected sketch from post modal
+const deleteSelectedSketch = async () => {
+    try {
+        const sketchId = selectedSketchForPost.value.id;
+        
+        // Delete from backend
+        await axios.delete(`/api/sketches/${sketchId}/`);
+        
+        // Remove from local list
+        mySketches.value = mySketches.value.filter(sketch => sketch.id !== sketchId);
+        
+        // Clear selection
+        selectedSketchForPost.value = null;
+        postCaption.value = '';
+        
+        // Close confirmation dialog
+        showDeleteConfirmDialog.value = false;
+        
+        showSuccess('Sketch deleted successfully!', 'Deleted');
+        
+        // Close modal if no more sketches
+        if (mySketches.value.length === 0) {
+            showPostToFeedModal.value = false;
+        }
+    } catch (error) {
+        console.error('Error deleting sketch:', error);
+        showError('Failed to delete sketch. Please try again.', 'Delete Failed');
+        showDeleteConfirmDialog.value = false;
+    }
 };
 
 // Post sketch to newsfeed
@@ -900,21 +942,73 @@ const applyCrop = () => {
                 </div>
             </div>
             
-            <div class="px-6 py-4 border-t border-indigo-100 bg-gray-50 flex justify-end gap-3">
-                <button @click="showPostToFeedModal = false" 
-                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                    Cancel
+            <div class="px-6 py-4 border-t border-indigo-100 bg-gray-50 flex justify-between items-center">
+                <!-- Left side - Delete button -->
+                <button 
+                    @click="showDeleteConfirmation"
+                    class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                    :disabled="!selectedSketchForPost"
+                    :class="!selectedSketchForPost ? 'opacity-50 cursor-not-allowed' : ''">
+                    <i class="pi pi-trash"></i>
+                    <span>Delete</span>
                 </button>
-                <button @click="postToNewsfeed"
-                        :disabled="!selectedSketchForPost || !postCaption.trim()"
-                        :class="!selectedSketchForPost || !postCaption.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
-                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2">
-                    <i class="pi pi-send"></i>
-                    <span>Post to Newsfeed</span>
-                </button>
+                
+                <!-- Right side - Cancel and Post buttons -->
+                <div class="flex gap-3">
+                    <button @click="showPostToFeedModal = false" 
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button @click="postToNewsfeed"
+                            :disabled="!selectedSketchForPost || !postCaption.trim()"
+                            :class="!selectedSketchForPost || !postCaption.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
+                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                        <i class="pi pi-send"></i>
+                        <span>Post to Newsfeed</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <Dialog v-model:visible="showDeleteConfirmDialog" modal :style="{ width: '90vw', maxWidth: '450px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-exclamation-triangle text-red-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Delete Sketch</h3>
+        </div>
+      </template>
+
+      <div class="py-4">
+        <p class="text-gray-700 mb-4">
+          Are you sure you want to delete this sketch? This action cannot be undone.
+        </p>
+        <div v-if="selectedSketchForPost" class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+          <img :src="selectedSketchForPost.dataURL" 
+               class="w-full max-h-32 object-contain mb-2 rounded">
+          <p class="text-xs text-gray-500 text-center">{{ selectedSketchForPost.date }}</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showDeleteConfirmDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="deleteSelectedSketch"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center gap-2"
+          >
+            <i class="pi pi-trash"></i>
+            <span>Delete</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
 </template>
 
 <style scoped>

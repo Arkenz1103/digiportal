@@ -1,7 +1,7 @@
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+    <div class="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
         <!-- Header Section -->
-        <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 shadow-lg">
+        <div class="bg-gradient-to-r from-teal-600 via-cyan-700 to-blue-700 shadow-xl">
             <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6">
                 <div class="flex items-center justify-between">
                     <div>
@@ -9,11 +9,11 @@
                             <i class="pi pi-home"></i>
                             Student Showcase
                         </h1>
-                        <p class="text-white/80 text-sm mt-1">Celebrating student creativity and achievements</p>
+                        <p class="text-white/90 text-sm mt-1">Celebrating student creativity and achievements</p>
                     </div>
-                    <div class="hidden md:flex items-center gap-2 bg-white/20 px-4 py-2 rounded-lg">
-                        <i class="pi pi-star-fill text-yellow-300"></i>
-                        <span class="text-white font-medium">{{ posts.length }} Posts</span>
+                    <div class="hidden md:flex items-center gap-2 bg-amber-400/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-amber-300/30">
+                        <i class="pi pi-star-fill text-amber-300"></i>
+                        <span class="text-white font-semibold">{{ posts.length }} Posts</span>
                     </div>
                 </div>
             </div>
@@ -31,13 +31,13 @@
 
             <!-- Empty State -->
             <div v-else-if="posts.length === 0" class="text-center py-20">
-                <div class="bg-white rounded-2xl shadow-lg p-12 max-w-md mx-auto">
-                    <div class="w-20 h-20 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <i class="pi pi-image text-4xl text-indigo-600"></i>
+                <div class="bg-white rounded-2xl shadow-xl p-12 max-w-md mx-auto border-2 border-teal-100">
+                    <div class="w-20 h-20 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="pi pi-image text-4xl text-teal-600"></i>
                     </div>
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">No Posts Yet</h3>
-                    <p class="text-gray-500">Approved student artwork will appear here</p>
-                    <p class="text-sm text-gray-400 mt-2">Check back soon for creative submissions!</p>
+                    <p class="text-gray-600">Approved student artwork will appear here</p>
+                    <p class="text-sm text-gray-500 mt-2">Check back soon for creative submissions!</p>
                 </div>
             </div>
 
@@ -45,7 +45,7 @@
             <div v-else class="space-y-6">
                 <!-- Post Card -->
                 <div v-for="post in posts" :key="post.id" 
-                    class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+                    class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-teal-100 hover:border-teal-300">
                     
                     <!-- Post Header -->
                     <div class="p-6 pb-4">
@@ -54,10 +54,10 @@
                                 <!-- Avatar -->
                                 <div class="relative">
                                     <div :class="getAvatarColor(post.user)" 
-                                        class="w-14 h-14 flex items-center justify-center rounded-full text-white font-bold text-lg shadow-md">
+                                        class="w-14 h-14 flex items-center justify-center rounded-full text-white font-bold text-lg shadow-lg ring-2 ring-teal-200">
                                         {{ post.user.charAt(0).toUpperCase() }}
                                     </div>
-                                    <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
+                                    <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-teal-500 rounded-full border-2 border-white"></div>
                                 </div>
                                 
                                 <!-- User Info -->
@@ -68,11 +68,11 @@
                                         <span>{{ post.timestamp }}</span>
                                     </div>
                                     <div v-if="post.activityTitle" class="flex items-center gap-2 mt-1">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r from-teal-100 to-cyan-100 text-teal-800 border border-teal-200">
                                             <i class="pi pi-bookmark text-[10px] mr-1"></i>
                                             {{ post.activityType }}
                                         </span>
-                                        <span class="text-xs text-gray-600">{{ post.activityTitle }}</span>
+                                        <span class="text-xs text-gray-600 font-medium">{{ post.activityTitle }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -96,57 +96,57 @@
                     </div>
 
                     <!-- Engagement Stats -->
-                    <div class="px-6 py-3 border-t border-gray-100">
-                        <div class="flex items-center justify-between text-sm text-gray-600">
-                            <span class="flex items-center gap-1">
-                                <i class="pi pi-heart-fill text-red-500 text-xs"></i>
+                    <div class="px-6 py-3 border-t-2 border-teal-50 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">
+                        <div class="flex items-center justify-between text-sm font-medium">
+                            <span class="flex items-center gap-1.5 text-teal-700">
+                                <i class="pi pi-heart-fill text-red-500 text-sm"></i>
                                 {{ post.likes }} {{ post.likes === 1 ? 'like' : 'likes' }}
                             </span>
-                            <span>{{ post.comments.length }} {{ post.comments.length === 1 ? 'comment' : 'comments' }}</span>
+                            <span class="text-cyan-700">{{ post.comments.length }} {{ post.comments.length === 1 ? 'comment' : 'comments' }}</span>
                         </div>
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="px-6 py-3 border-t border-gray-100 flex items-center gap-2">
+                    <div class="px-6 py-3 border-t-2 border-teal-50 flex items-center gap-2">
                         <button @click="toggleLike(post)" 
-                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-200"
                             :class="post.isLiked 
-                                ? 'bg-red-50 text-red-600 hover:bg-red-100' 
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'">
+                                ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 hover:from-red-100 hover:to-pink-100 border border-red-200' 
+                                : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 hover:from-teal-100 hover:to-cyan-100 border border-teal-200'">
                             <i class="pi text-lg" :class="post.isLiked ? 'pi-heart-fill' : 'pi-heart'"></i>
                             <span>{{ post.isLiked ? 'Liked' : 'Like' }}</span>
                         </button>
 
                         <button @click="toggleComments(post)" 
-                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium bg-gray-50 text-gray-700 hover:bg-gray-100 transition-all duration-200">
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 hover:from-cyan-100 hover:to-blue-100 border border-cyan-200 transition-all duration-200">
                             <i class="pi pi-comment text-lg"></i>
                             <span>Comment</span>
                         </button>
 
-                        <button class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium bg-gray-50 text-gray-700 hover:bg-gray-100 transition-all duration-200">
+                        <button class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 hover:from-amber-100 hover:to-yellow-100 border border-amber-200 transition-all duration-200">
                             <i class="pi pi-share-alt text-lg"></i>
                         </button>
                     </div>
 
                     <!-- Comments Section -->
-                    <div v-if="post.showComments" class="px-6 pb-6 border-t border-gray-100">
+                    <div v-if="post.showComments" class="px-6 pb-6 border-t-2 border-teal-50 bg-gradient-to-b from-teal-50/30 to-transparent">
                         <!-- Existing Comments -->
                         <div v-if="post.comments.length > 0" class="mt-4 space-y-3 max-h-96 overflow-y-auto">
                             <div v-for="comment in post.comments" :key="comment.id" 
-                                class="flex items-start gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                                class="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-white to-teal-50/50 hover:from-teal-50 hover:to-cyan-50 transition-colors border border-teal-100">
                                 <div :class="getAvatarColor(comment.user)" 
-                                    class="w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0">
+                                    class="w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0 ring-2 ring-teal-200">
                                     {{ comment.user.charAt(0).toUpperCase() }}
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                                    <div class="bg-white rounded-lg p-3 shadow-md border border-teal-100">
                                         <p class="font-semibold text-gray-900 text-sm">{{ comment.user }}</p>
                                         <p class="text-gray-700 mt-1">{{ comment.text }}</p>
                                     </div>
-                                    <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                    <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
                                         <span>{{ comment.timestamp }}</span>
-                                        <button class="hover:text-indigo-600 font-medium">Like</button>
-                                        <button class="hover:text-indigo-600 font-medium">Reply</button>
+                                        <button class="hover:text-teal-600 font-semibold">Like</button>
+                                        <button class="hover:text-cyan-600 font-semibold">Reply</button>
                                     </div>
                                 </div>
                             </div>
@@ -154,7 +154,7 @@
 
                         <!-- Add Comment Input -->
                         <div class="mt-4 flex items-start gap-3">
-                            <div class="bg-indigo-600 w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0">
+                            <div class="bg-gradient-to-br from-teal-600 to-cyan-600 w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0 ring-2 ring-teal-200 shadow-lg">
                                 T
                             </div>
                             <div class="flex-1">
@@ -163,21 +163,21 @@
                                     @keydown.enter.prevent="addComment(post)"
                                     placeholder="Write a comment..."
                                     rows="2"
-                                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                    class="w-full px-4 py-3 border-2 border-teal-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
                                 ></textarea>
                                 <div class="flex items-center justify-between mt-2">
                                     <div class="flex items-center gap-2">
-                                        <button class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                                        <button class="p-2 text-gray-400 hover:text-teal-600 transition-colors">
                                             <i class="pi pi-image"></i>
                                         </button>
-                                        <button class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                                        <button class="p-2 text-gray-400 hover:text-amber-600 transition-colors">
                                             <i class="pi pi-face-smile"></i>
                                         </button>
                                     </div>
                                     <button 
                                         @click="addComment(post)"
                                         :disabled="!post.newComment || post.newComment.trim() === ''"
-                                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+                                        class="px-5 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md">
                                         Post
                                     </button>
                                 </div>
@@ -214,16 +214,16 @@ const isLoading = ref(false);
 const posts = ref([]);
 const selectedImage = ref(null);
 
-// Avatar colors
+// Avatar colors - Modern Blue-Green Theme
 const avatarColors = [
-  'bg-indigo-500',
-  'bg-purple-500',
-  'bg-blue-500',
-  'bg-green-500',
-  'bg-yellow-500',
-  'bg-red-500',
-  'bg-pink-500',
-  'bg-teal-500'
+  'bg-gradient-to-br from-teal-500 to-cyan-600',
+  'bg-gradient-to-br from-cyan-500 to-blue-600',
+  'bg-gradient-to-br from-blue-500 to-indigo-600',
+  'bg-gradient-to-br from-teal-600 to-emerald-600',
+  'bg-gradient-to-br from-amber-500 to-orange-500',
+  'bg-gradient-to-br from-cyan-600 to-teal-700',
+  'bg-gradient-to-br from-blue-600 to-cyan-700',
+  'bg-gradient-to-br from-emerald-500 to-teal-600'
 ];
 
 // Get consistent avatar color based on username

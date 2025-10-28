@@ -183,13 +183,14 @@ const loadUnscoredSubmissions = async () => {
                     activityType: submission.activity_type,
                     caption: submission.caption,
                     score: submission.score,
-                    status: 'Submitted',
+                    status: submission.display_status || 'Submitted',  // Use display_status from backend
                     date: dateStr,
                     time: timeStr,
                     file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
                     file_type: submission.file_type,
                     submitted_at: submission.submitted_at,
-                    is_late: submission.is_late || false
+                    is_late: submission.is_late || false,
+                    resubmit_count: submission.resubmit_count || 0
                 };
             });
             console.log('Loaded unscored submissions for activity:', activity.value.id, submissions.value);
@@ -237,13 +238,14 @@ const loadScoredSubmissions = async () => {
                     activityType: submission.activity_type,
                     caption: submission.caption,
                     score: submission.score,
-                    status: 'Scored',
+                    status: submission.display_status || 'Scored',  // Use display_status from backend
                     date: dateStr,
                     time: timeStr,
                     file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
                     file_type: submission.file_type,
                     submitted_at: submission.submitted_at,
-                    is_late: submission.is_late || false
+                    is_late: submission.is_late || false,
+                    resubmit_count: submission.resubmit_count || 0
                 };
             });
             console.log('Loaded scored submissions for activity:', activity.value.id, scoredSubmissionsData.value);
@@ -1163,11 +1165,19 @@ const getMedalDetails = (rank) => {
                                         <span>Submitted late</span>
                                     </span>
                                     <span 
+                                        v-else-if="submission.status === 'Resubmitted'"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
+                                    >
+                                        <i class="pi pi-refresh text-xs"></i>
+                                        <span>{{ submission.status }}</span>
+                                        <span v-if="submission.resubmit_count > 0" class="text-xs">({{ submission.resubmit_count }}x)</span>
+                                    </span>
+                                    <span 
                                         v-else
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
                                     >
                                         <i class="pi pi-check-circle text-xs"></i>
-                                        <span>Submitted</span>
+                                        <span>{{ submission.status || 'Submitted' }}</span>
                                     </span>
                                 </div>
 
@@ -1231,10 +1241,13 @@ const getMedalDetails = (rank) => {
                                     <span :class="[
                                         'px-3 py-1.5 text-xs font-medium rounded-full shadow-sm',
                                         submission.status === 'Submitted' ? 'bg-green-400/90 text-white' :
+                                        submission.status === 'Resubmitted' ? 'bg-blue-400/90 text-white' :
                                         submission.status === 'Late' ? 'bg-yellow-400/90 text-white' :
+                                        submission.status === 'Scored' ? 'bg-purple-400/90 text-white' :
                                         'bg-red-400/90 text-white'
                                     ]">
                                         {{ submission.status }}
+                                        <span v-if="submission.resubmit_count > 0" class="ml-1">({{ submission.resubmit_count }})</span>
                                     </span>
                                 </div>
                             </div>
@@ -1366,11 +1379,19 @@ const getMedalDetails = (rank) => {
                                             <span>Submitted late</span>
                                         </span>
                                         <span 
+                                            v-else-if="submission.status === 'Resubmitted'"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
+                                        >
+                                            <i class="pi pi-refresh text-xs"></i>
+                                            <span>{{ submission.status }}</span>
+                                            <span v-if="submission.resubmit_count > 0" class="text-xs">({{ submission.resubmit_count }}x)</span>
+                                        </span>
+                                        <span 
                                             v-else
                                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
                                         >
                                             <i class="pi pi-check-circle text-xs"></i>
-                                            <span>Submitted</span>
+                                            <span>{{ submission.status || 'Submitted' }}</span>
                                         </span>
                                     </div>
 
@@ -1443,11 +1464,19 @@ const getMedalDetails = (rank) => {
                                             <span>Submitted late</span>
                                         </span>
                                         <span 
+                                            v-else-if="submission.status === 'Resubmitted'"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-blue-400/90 text-white flex items-center gap-1.5"
+                                        >
+                                            <i class="pi pi-refresh text-xs"></i>
+                                            <span>{{ submission.status }}</span>
+                                            <span v-if="submission.resubmit_count > 0" class="text-xs">({{ submission.resubmit_count }})</span>
+                                        </span>
+                                        <span 
                                             v-else
                                             class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-green-400/90 text-white flex items-center gap-1.5"
                                         >
                                             <i class="pi pi-check-circle text-xs"></i>
-                                            <span>Submitted</span>
+                                            <span>{{ submission.status || 'Submitted' }}</span>
                                         </span>
                                     </div>
                                 </div>
@@ -1614,13 +1643,18 @@ const getMedalDetails = (rank) => {
                                             <div class="flex justify-between text-sm">
                                                 <span class="text-gray-500">Status:</span>
                                                 <span :class="[
-                                                    'px-3 py-1 rounded-full text-xs font-medium',
+                                                    'px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5',
                                                     selectedSubmission.is_late ? 'bg-orange-100 text-orange-800' :
+                                                    selectedSubmission.status === 'Resubmitted' ? 'bg-blue-100 text-blue-800' :
                                                     selectedSubmission.status === 'Submitted' || selectedSubmission.status === 'Scored' ? 'bg-green-100 text-green-800' :
                                                     selectedSubmission.status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
                                                     'bg-red-100 text-red-800'
                                                 ]">
-                                                    {{ selectedSubmission.is_late ? 'Late Submitted' : (selectedSubmission.status || 'Unknown') }}
+                                                    <i v-if="selectedSubmission.status === 'Resubmitted'" class="pi pi-refresh text-xs"></i>
+                                                    <i v-else-if="selectedSubmission.is_late" class="pi pi-clock text-xs"></i>
+                                                    <i v-else class="pi pi-check-circle text-xs"></i>
+                                                    <span>{{ selectedSubmission.is_late ? 'Late Submitted' : (selectedSubmission.status || 'Unknown') }}</span>
+                                                    <span v-if="selectedSubmission.resubmit_count > 0" class="text-xs">({{ selectedSubmission.resubmit_count }}x)</span>
                                                 </span>
                                             </div>
                                             <div class="flex justify-between text-sm">

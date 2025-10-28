@@ -191,7 +191,7 @@ class StudentSubmission(models.Model):
     criteria_scores = models.TextField(null=True, blank=True)  # JSON string of criteria scores
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='unscored')
     post_to_feed = models.BooleanField(default=False)
-    approval_status = models.CharField(max_length=50, choices=APPROVAL_CHOICES, default='pending')
+    approval_status = models.CharField(max_length=50, choices=APPROVAL_CHOICES, default='approved')
     is_active = models.BooleanField(default=True)  # Track if submission is active
     is_late = models.BooleanField(default=False)  # Track if submission was submitted after due date
     submission_version = models.IntegerField(default=1)  # Track version for resubmissions
@@ -434,3 +434,88 @@ class PortfolioEnvelope(models.Model):
     
     def __str__(self):
         return f"{self.student.username} - {self.title} ({self.class_name})"
+
+
+class Student(models.Model):
+    """Comprehensive Student model for managing student data"""
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+    ]
+    
+    GRADE_CHOICES = [
+        (1, 'Grade 1'),
+        (2, 'Grade 2'),
+        (3, 'Grade 3'),
+        (4, 'Grade 4'),
+        (5, 'Grade 5'),
+        (6, 'Grade 6'),
+    ]
+    
+    SECTION_CHOICES = [
+        ('A', 'Section A'),
+        ('B', 'Section B'),
+    ]
+    
+    # Link to User model
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile', null=True, blank=True)
+    
+    # Student Information
+    student_id = models.CharField(max_length=20, unique=True, db_index=True)
+    first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True, null=True)
+    last_name = models.CharField(max_length=100)
+    
+    # Academic Information
+    grade_level = models.IntegerField(choices=GRADE_CHOICES)
+    section = models.CharField(max_length=1, choices=SECTION_CHOICES)
+    
+    # Personal Information
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    date_of_birth = models.DateField(null=True, blank=True)
+    
+    # Contact Information
+    email = models.EmailField(blank=True, null=True)
+    contact_number = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    
+    # Guardian Information
+    guardian_name = models.CharField(max_length=200, blank=True, null=True)
+    guardian_contact = models.CharField(max_length=20, blank=True, null=True)
+    guardian_email = models.EmailField(blank=True, null=True)
+    
+    # Academic Performance
+    current_average = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    attendance_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    enrollment_date = models.DateField(default=timezone.now)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'students'
+        ordering = ['grade_level', 'section', 'last_name', 'first_name']
+        unique_together = [['student_id', 'grade_level', 'section']]
+        indexes = [
+            models.Index(fields=['grade_level', 'section']),
+            models.Index(fields=['last_name', 'first_name']),
+        ]
+    
+    @property
+    def full_name(self):
+        """Returns the full name of the student"""
+        if self.middle_name:
+            return f"{self.first_name} {self.middle_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}"
+    
+    @property
+    def grade_section(self):
+        """Returns grade and section combined"""
+        return f"Grade {self.grade_level} - Section {self.section}"
+    
+    def __str__(self):
+        return f"{self.student_id} - {self.full_name} ({self.grade_section})"

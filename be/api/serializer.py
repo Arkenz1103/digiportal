@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings, Student
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -111,6 +111,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     total_score = serializers.SerializerMethodField()
     max_score = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
+    display_status = serializers.SerializerMethodField()
     
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
@@ -153,6 +154,16 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
         # Fallback to file_path (base64 or old data)
         return obj.file_path
     
+    def get_display_status(self, obj):
+        """Return display status - shows 'Resubmitted' if student has resubmitted"""
+        if obj.resubmit_count > 0 and obj.status == 'unscored':
+            return 'Resubmitted'
+        elif obj.status == 'unscored':
+            return 'Submitted'
+        elif obj.status == 'scored':
+            return 'Scored'
+        return obj.status.title()
+    
     class Meta:
         model = StudentSubmission
         fields = '__all__'
@@ -168,6 +179,7 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     total_score = serializers.SerializerMethodField()
     max_score = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
+    display_status = serializers.SerializerMethodField()
     
     def get_file_url(self, obj):
         """Return file URL if file exists, otherwise return file_path (base64)"""
@@ -226,6 +238,16 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
         
         return 10  # Default max score
     
+    def get_display_status(self, obj):
+        """Return display status - shows 'Resubmitted' if student has resubmitted"""
+        if obj.resubmit_count > 0 and obj.status == 'unscored':
+            return 'Resubmitted'
+        elif obj.status == 'unscored':
+            return 'Submitted'
+        elif obj.status == 'scored':
+            return 'Scored'
+        return obj.status.title()
+    
     class Meta:
         model = StudentSubmission
         fields = '__all__'  # Include all fields including file_path
@@ -280,3 +302,37 @@ class RemarkSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user'):
             return obj.is_read_by(request.user)
         return False
+
+
+class StudentSerializer(serializers.ModelSerializer):
+    """Serializer for Student model"""
+    full_name = serializers.ReadOnlyField()
+    grade_section = serializers.ReadOnlyField()
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    
+    class Meta:
+        model = Student
+        fields = [
+            'id', 'student_id', 'first_name', 'middle_name', 'last_name', 'full_name',
+            'grade_level', 'section', 'grade_section', 'gender', 'date_of_birth',
+            'email', 'contact_number', 'address',
+            'guardian_name', 'guardian_contact', 'guardian_email',
+            'current_average', 'attendance_percentage',
+            'is_active', 'enrollment_date',
+            'user', 'user_username',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'full_name', 'grade_section']
+
+
+class StudentListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing students"""
+    full_name = serializers.ReadOnlyField()
+    grade_section = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Student
+        fields = [
+            'id', 'student_id', 'full_name', 'grade_section', 
+            'gender', 'current_average', 'attendance_percentage', 'is_active'
+        ]

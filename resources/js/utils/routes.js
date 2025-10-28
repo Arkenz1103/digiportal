@@ -17,6 +17,7 @@ import TeacherSprogress from '../Pages/Teacher/Sprogress.vue'
 import TeacherRemarks from '../Pages/Teacher/Remarks.vue'
 import TeacherNotice from '../Pages/Teacher/Notice.vue'
 import TeacherArchived from '../Pages/Teacher/Archived.vue'
+import TeacherStudents from '../Pages/Teacher/Students.vue'
 
 // Student pages
 import StudentNewsfeed from '../Pages/Student/Newsfeed.vue'
@@ -93,6 +94,12 @@ export const routes = [
         name: 'TeacherArchived',
         component: TeacherArchived,
         meta: { title: 'Archived', requiresAuth: true, role: 'teacher' }
+    },
+    {
+        path: '/teacher/students',
+        name: 'TeacherStudents',
+        component: TeacherStudents,
+        meta: { title: 'Student Directory', requiresAuth: true, role: 'teacher' }
     },
     // Student Routes
     {

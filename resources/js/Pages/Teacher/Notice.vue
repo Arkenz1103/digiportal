@@ -36,12 +36,12 @@ const loadPendingApprovals = async () => {
                     studentName: submission.student_name || submission.student?.username || 'Unknown',
                     title: submission.activity_title || 'Untitled',
                     subject: submission.activity_type || 'Unknown',
-                    description: submission.caption || 'No description provided',
+                    description: submission.caption || 'No caption provided',
                     submittedDate: submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : 'N/A',
                     rank: 0,
                     sampleImages: imageUrl ? [imageUrl] : [],
                     file_path: imageUrl,
-                    file_type: submission.file_type,
+                    file_type: submission.file_type || 'image',
                     status: 'Pending'
                 };
             });
@@ -289,19 +289,26 @@ const cancelRejection = () => {
                             <div class="ml-11">
                                 <p class="text-indigo-900/80">{{ output.description }}</p>
                                 <div class="mt-2">
-                                    <div class="text-sm font-medium text-indigo-900 mb-2">Output:</div>
+                                    <div class="text-sm font-medium text-indigo-900 mb-2">Student Work:</div>
                                     <div class="flex gap-2 overflow-x-auto pb-2">
-                                        <img 
-                                            :src="output.sampleImages[0]"
-                                            class="h-24 w-auto rounded-md border border-indigo-200 cursor-pointer hover:opacity-90 transition-opacity"
-                                            @click="previewOutput(output)"
-                                            :alt="`Sample of ${output.title}`"
-                                        />
+                                        <div v-if="output.sampleImages && output.sampleImages.length > 0 && output.sampleImages[0]" class="relative">
+                                            <img 
+                                                :src="output.sampleImages[0]"
+                                                class="h-24 w-auto rounded-md border border-indigo-200 cursor-pointer hover:opacity-90 transition-opacity"
+                                                @click="previewOutput(output)"
+                                                @error="(e) => { console.error('Image failed to load:', output.sampleImages[0]); e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23ddd\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\'%3ENo Image%3C/text%3E%3C/svg%3E'; }"
+                                                :alt="`${output.studentName}'s work for ${output.title}`"
+                                            />
+                                        </div>
+                                        <div v-else class="h-24 w-24 rounded-md border border-indigo-200 bg-gray-100 flex items-center justify-center">
+                                            <i class="pi pi-image text-2xl text-gray-400"></i>
+                                        </div>
                                     </div>
                                     <button
+                                        @click="previewOutput(output)"
                                         class="text-sm text-indigo-600 hover:text-indigo-900 font-medium"
                                     >
-                                        View All
+                                        View Full Work
                                     </button>
                                 </div>
                                 <div class="mt-2 flex items-center space-x-4 text-sm">
@@ -398,24 +405,32 @@ const cancelRejection = () => {
                         <p class="mt-1 text-[#0E1836]">{{ selectedOutput.description }}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#0E1836] mb-2">Sample Image</label>
-                        <div class="border border-[#B6CFFF] rounded-lg overflow-hidden bg-gray-50">
-                            <div class="flex items-center justify-center" style="min-height: 250px;">
+                        <label class="block text-sm font-medium text-indigo-900 mb-2">Student Work</label>
+                        <div class="border-2 border-indigo-200 rounded-lg overflow-hidden bg-gray-50">
+                            <div class="flex items-center justify-center p-4" style="min-height: 300px;">
                                 <img 
                                     v-if="selectedOutput.sampleImages && selectedOutput.sampleImages.length > 0 && selectedOutput.sampleImages[0]"
                                     :src="selectedOutput.sampleImages[0]" 
-                                    class="w-full h-auto max-h-96 object-contain"
-                                    :alt="`Sample of ${selectedOutput.title}`"
-                                    @error="(e) => { console.error('Image load error:', e.target.src); e.target.style.display = 'none'; }"
+                                    class="w-full h-auto max-h-[500px] object-contain rounded"
+                                    :alt="`${selectedOutput.studentName}'s work for ${selectedOutput.title}`"
+                                    @error="(e) => { 
+                                        console.error('Image load error:', e.target.src); 
+                                        console.error('File type:', selectedOutput.file_type);
+                                        console.error('File path:', selectedOutput.file_path);
+                                    }"
                                 />
-                                <div v-else class="text-center py-8">
-                                    <i class="pi pi-image text-4xl text-gray-400 mb-2"></i>
-                                    <p class="text-gray-600 text-sm">No image available</p>
-                                    <p class="text-xs text-gray-500 mt-1">{{ selectedOutput.file_type || 'Unknown type' }}</p>
+                                <div v-else class="text-center py-12">
+                                    <i class="pi pi-image text-6xl text-gray-400 mb-4"></i>
+                                    <p class="text-gray-600 text-lg font-medium">No image available</p>
+                                    <p class="text-sm text-gray-500 mt-2">File type: {{ selectedOutput.file_type || 'Unknown' }}</p>
+                                    <p class="text-xs text-gray-400 mt-1">The student's work could not be displayed</p>
                                 </div>
                             </div>
-                            <div class="p-2 bg-[#F2FDFF] text-center text-sm text-[#0E1836]/80">
-                                Student Artwork
+                            <div class="p-3 bg-indigo-50 border-t border-indigo-200 text-center">
+                                <p class="text-sm font-medium text-indigo-900">
+                                    <i class="pi pi-user mr-2"></i>
+                                    {{ selectedOutput.studentName }}'s Work
+                                </p>
                             </div>
                         </div>
                     </div>

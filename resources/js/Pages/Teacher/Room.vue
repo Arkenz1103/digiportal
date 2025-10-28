@@ -1113,6 +1113,71 @@
             </template>
         </Dialog>
 
+        <!-- Delete Activity Dialog -->
+        <Dialog v-model:visible="showDeleteActivityDialog"
+            modal
+            header="Delete Activity"
+            :style="{ width: '90%', maxWidth: '35rem' }">
+            <div class="space-y-4">
+                <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <i class="pi pi-exclamation-triangle text-red-600 text-xl mt-0.5"></i>
+                    <div>
+                        <h4 class="font-semibold text-red-900 mb-1">Warning: Permanent Action</h4>
+                        <p class="text-sm text-red-700">
+                            Deleting this activity will permanently remove it along with all student submissions and scores.
+                        </p>
+                        <p class="text-sm text-red-700 mt-2 font-medium">
+                            This action cannot be undone!
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between py-2 border-b border-gray-200">
+                        <span class="text-sm font-medium text-gray-700">Activity Title:</span>
+                        <span class="text-sm text-gray-900 font-semibold">{{ deleteActivityData.title }}</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-200">
+                        <span class="text-sm font-medium text-gray-700">Activity Type:</span>
+                        <span class="text-sm text-gray-900 capitalize">{{ deleteActivityData.type }}</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <span class="text-sm font-medium text-gray-700">Status:</span>
+                        <span :class="[
+                            'text-sm font-medium px-2 py-1 rounded',
+                            deleteActivityData.is_published 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-800'
+                        ]">
+                            {{ deleteActivityData.is_published ? 'Published' : 'Draft' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-2">
+                    <button @click="showDeleteActivityDialog = false"
+                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button 
+                        @click="confirmDeleteActivity"
+                        :disabled="isDeletingActivity"
+                        :class="[
+                            'px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2',
+                            isDeletingActivity 
+                                ? 'bg-gray-400 cursor-not-allowed' 
+                                : 'bg-red-600 hover:bg-red-700'
+                        ]"
+                    >
+                        <i v-if="isDeletingActivity" class="pi pi-spin pi-spinner"></i>
+                        <i v-else class="pi pi-trash"></i>
+                        {{ isDeletingActivity ? 'Deleting...' : 'Delete Activity' }}
+                    </button>
+                </div>
+            </template>
+        </Dialog>
+
         <!-- Archive Class Dialog -->
         <Dialog v-model:visible="showArchiveDialog"
             modal
@@ -1921,6 +1986,11 @@ const updateFolderData = ref({ id: null, title: '', description: '' });
 const showDropFolderDialog = ref(false);
 const dropFolderData = ref({ id: null, name: '', items: 0 });
 
+// Delete Activity Dialog State
+const showDeleteActivityDialog = ref(false);
+const deleteActivityData = ref({ id: null, title: '', type: '', is_published: false, index: null });
+const isDeletingActivity = ref(false);
+
 // Folder Menu State
 const activeFolderMenuIndex = ref(null);
 
@@ -2149,6 +2219,50 @@ const dropFolder = async () => {
         
         // Close the dialog
         showDropFolderDialog.value = false;
+    }
+};
+
+// Open delete activity dialog
+const openDeleteActivityDialog = (activity, index) => {
+    deleteActivityData.value = {
+        id: activity.id,
+        title: activity.title,
+        type: activity.type,
+        is_published: activity.is_published,
+        index: index
+    };
+    showDeleteActivityDialog.value = true;
+};
+
+// Confirm delete activity
+const confirmDeleteActivity = async () => {
+    try {
+        isDeletingActivity.value = true;
+        console.log('Deleting activity:', deleteActivityData.value);
+        
+        // Delete activity from database
+        const response = await axios.delete(`/api/activities/${deleteActivityData.value.id}/`);
+        
+        console.log('Activity deleted successfully:', response.data);
+        
+        // Remove the activity from the list
+        activities.value = activities.value.filter(a => a.id !== deleteActivityData.value.id);
+        
+        // Close dialog and reset data
+        showDeleteActivityDialog.value = false;
+        deleteActivityData.value = { id: null, title: '', type: '', is_published: false, index: null };
+        
+        showSuccess('Activity and all related submissions have been permanently deleted.', 'Activity Deleted');
+    } catch (error) {
+        console.error('Error deleting activity:', error);
+        console.error('Error details:', error.response?.data);
+        
+        // Get error message from backend
+        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
+        
+        showError(errorMsg, 'Failed to Delete Activity');
+    } finally {
+        isDeletingActivity.value = false;
     }
 };
 

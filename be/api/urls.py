@@ -103,4 +103,15 @@ urlpatterns = [
     path('api/user/settings/', views.user_settings_api, name='user_settings_api'),
     path('api/user/change-password/', views.change_password_api, name='change_password_api'),
     path('api/user/export-data/', views.export_user_data_api, name='export_user_data_api'),
+    
+    # Student Management API routes
+    path('api/students/', views.student_list_api, name='student_list_api'),
+    path('api/students/<int:pk>/', views.student_detail_api, name='student_detail_api'),
+    path('api/students/by-grade-section/', views.students_by_grade_section_api, name='students_by_grade_section_api'),
+    path('api/students/statistics/', views.student_statistics_api, name='student_statistics_api'),
+    path('api/students/search/', views.student_search_api, name='student_search_api'),
+    path('api/students/<int:pk>/update-grades/', views.update_student_grades_api, name='update_student_grades_api'),
+    path('api/students/<int:pk>/update-attendance/', views.update_student_attendance_api, name='update_student_attendance_api'),
+    path('api/students/bulk-update-section/', views.bulk_update_section_api, name='bulk_update_section_api'),
+    path('api/students/export/', views.export_students_api, name='export_students_api'),
 ]

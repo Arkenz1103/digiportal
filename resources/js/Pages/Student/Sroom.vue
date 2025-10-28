@@ -450,6 +450,26 @@
                               <i class="pi pi-refresh"></i>
                               <span>{{ hasScore ? 'Already Scored' : 'Resubmit' }}</span>
                             </button>
+                            
+                            <!-- Post to Feed Button -->
+                            <button
+                              v-if="existingSubmission && !existingSubmission.post_to_feed"
+                              @click="requestPostToFeed"
+                              :disabled="hasScore || isRequestingPost"
+                              class="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              :title="hasScore ? 'Cannot post scored work' : 'Request to post this work to class feed'"
+                            >
+                              <i class="pi pi-send"></i>
+                              <span>{{ isRequestingPost ? 'Requesting...' : 'Post to Feed' }}</span>
+                            </button>
+                            
+                            <!-- Already Posted/Pending Status -->
+                            <div v-else-if="existingSubmission && existingSubmission.post_to_feed" class="w-full px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                              <i class="pi pi-check-circle"></i>
+                              <span v-if="existingSubmission.approval_status === 'pending'">Post Request Pending</span>
+                              <span v-else-if="existingSubmission.approval_status === 'approved'">Posted to Feed</span>
+                              <span v-else>Post Request Sent</span>
+                            </div>
                           </div>
                         </div>
                           </div>
@@ -592,11 +612,13 @@
                         <!-- Thumbnail/Icon -->
                         <div class="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl flex items-center justify-center overflow-hidden shadow-sm border border-indigo-100">
                           <img
-                            v-if="item.file_type === 'image'"
+                            v-if="item.file_path && (item.file_type === 'image' || item.file_path.startsWith('data:image'))"
                             :src="item.file_path"
                             :alt="item.activity_title"
                             class="w-full h-full object-cover"
+                            @error="(e) => e.target.style.display = 'none'"
                           />
+                          <i v-else-if="item.file_type === 'pdf'" class="pi pi-file-pdf text-3xl text-red-500"></i>
                           <i v-else class="pi pi-file text-3xl text-indigo-400"></i>
                         </div>
 
@@ -1830,16 +1852,72 @@
       <div v-if="selectedPreviewItem" class="space-y-4">
         <!-- Submission Image/File -->
         <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-center" style="min-height: 250px;">
+          <!-- Image Preview -->
           <img
-            v-if="selectedPreviewItem.file_type === 'image'"
+            v-if="selectedPreviewItem.file_path && (selectedPreviewItem.file_type === 'image' || selectedPreviewItem.file_path.startsWith('data:image'))"
             :src="selectedPreviewItem.file_path"
             :alt="selectedPreviewItem.activity_title"
             class="max-w-full max-h-[300px] object-contain rounded-lg shadow-md"
+            @error="handlePreviewImageError"
           />
+          
+          <!-- PDF Preview -->
+          <div v-else-if="selectedPreviewItem.file_path && (selectedPreviewItem.file_type === 'pdf' || selectedPreviewItem.file_path.startsWith('data:application/pdf'))" class="w-full">
+            <iframe
+              :src="selectedPreviewItem.file_path"
+              class="w-full h-[400px] rounded-lg border-2 border-gray-300"
+              frameborder="0"
+            ></iframe>
+            <div class="mt-3 text-center">
+              <a
+                :href="selectedPreviewItem.file_path"
+                target="_blank"
+                download="document.pdf"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <i class="pi pi-download"></i>
+                <span>Download PDF</span>
+              </a>
+            </div>
+          </div>
+          
+          <!-- Document/Other File Types -->
+          <div v-else-if="selectedPreviewItem.file_path && selectedPreviewItem.file_path.startsWith('data:')" class="text-center">
+            <div class="mb-4">
+              <i v-if="selectedPreviewItem.file_type === 'document'" class="pi pi-file-word text-6xl text-blue-500"></i>
+              <i v-else class="pi pi-file text-6xl text-gray-500"></i>
+            </div>
+            <p class="text-gray-700 font-semibold mb-2">{{ selectedPreviewItem.file_type === 'document' ? 'Document' : 'File' }} Uploaded</p>
+            <p class="text-sm text-gray-500 mb-4">Type: {{ selectedPreviewItem.file_type || 'Unknown' }}</p>
+            
+            <!-- Download button for base64 files -->
+            <a
+              :href="selectedPreviewItem.file_path"
+              :download="`${selectedPreviewItem.activity_title || 'file'}.${getFileExtension(selectedPreviewItem.file_path)}`"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <i class="pi pi-download"></i>
+              <span>Download File</span>
+            </a>
+            
+            <div v-if="selectedPreviewItem.caption" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p class="text-xs text-blue-700 font-semibold mb-1">Caption:</p>
+              <p class="text-sm text-gray-700">{{ selectedPreviewItem.caption }}</p>
+            </div>
+          </div>
+          
+          <!-- No File Available -->
           <div v-else class="text-center">
             <i class="pi pi-file text-4xl text-gray-400 mb-3"></i>
-            <p class="text-gray-600">File preview not available</p>
-            <p class="text-sm text-gray-500 mt-2">{{ selectedPreviewItem.file_type }}</p>
+            <p class="text-gray-600 font-semibold">File not available</p>
+            <p class="text-sm text-gray-500 mt-2">Type: {{ selectedPreviewItem.file_type || 'Unknown' }}</p>
+            <p class="text-xs text-gray-400 mt-2">
+              {{ selectedPreviewItem.file_path ? 'File path exists but cannot be displayed' : 'No file was uploaded with this submission' }}
+            </p>
+            <div v-if="selectedPreviewItem.caption" class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-xs text-yellow-700 font-semibold mb-1">Caption/Text Submission:</p>
+              <p class="text-sm text-gray-700">{{ selectedPreviewItem.caption }}</p>
+            </div>
           </div>
         </div>
 
@@ -2652,6 +2730,7 @@ const showProductUploadModal = ref(false);
 const newProductCaption = ref('');
 const postOutputOption = ref(false);
 const isSubmitting = ref(false);
+const isRequestingPost = ref(false);
 const isCompilingMissing = ref(false); // Flag for missing activity compilation
 
 // Check if student has already submitted (reactive state)
@@ -2934,6 +3013,23 @@ const openPreviewDialog = (item) => {
   selectedPreviewItem.value = item;
   showPreviewDialog.value = true;
   console.log('📸 Opening preview for submission:', item.id);
+  console.log('   File path:', item.file_path ? `${item.file_path.substring(0, 50)}...` : 'No file path');
+  console.log('   File path starts with data:', item.file_path?.startsWith('data:'));
+  console.log('   File type:', item.file_type);
+  console.log('   Activity title:', item.activity_title);
+  console.log('   Caption:', item.caption);
+  
+  // Debug file type detection
+  if (item.file_path && item.file_path.startsWith('data:')) {
+    const mimeMatch = item.file_path.match(/data:([^;]+);/);
+    console.log('   Detected MIME type:', mimeMatch ? mimeMatch[1] : 'Unknown');
+  }
+};
+
+// Handle preview image load error
+const handlePreviewImageError = (event) => {
+  console.error('❌ Preview image failed to load:', event.target.src);
+  console.error('   Selected item:', selectedPreviewItem.value);
 };
 
 // Close preview dialog
@@ -3120,6 +3216,31 @@ const calculateTotalPoints = (criteria) => {
   return criteria.reduce((total, criterion) => {
     return total + (parseInt(criterion.maxScore) || 0);
   }, 0);
+};
+
+// Get file extension from base64 data URL
+const getFileExtension = (dataUrl) => {
+  if (!dataUrl || !dataUrl.startsWith('data:')) return 'file';
+  
+  const mimeMatch = dataUrl.match(/data:([^;]+);/);
+  if (!mimeMatch) return 'file';
+  
+  const mimeType = mimeMatch[1];
+  const mimeToExt = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'text/plain': 'txt'
+  };
+  
+  return mimeToExt[mimeType] || 'file';
 };
 
 // Format submitted date and time (Philippine Time)
@@ -3959,6 +4080,54 @@ const handleResubmit = async () => {
     } else {
       showError('Failed to prepare resubmission', 'Error');
     }
+  }
+};
+
+// Request to post existing submission to feed
+const requestPostToFeed = async () => {
+  if (!existingSubmission.value) {
+    showError('No submission found', 'Error');
+    return;
+  }
+  
+  try {
+    isRequestingPost.value = true;
+    console.log('📢 Requesting to post submission to feed:', existingSubmission.value.id);
+    
+    // Update the submission to request posting to feed
+    const response = await axios.put(`/api/submissions/${existingSubmission.value.id}/`, {
+      post_to_feed: true
+    });
+    
+    if (response.data) {
+      console.log('✅ Post request sent:', response.data);
+      
+      // Update local state
+      existingSubmission.value = response.data;
+      
+      // Update the submission in the list
+      const submissionIndex = studentSubmissions.value.findIndex(s => s.id === response.data.id);
+      if (submissionIndex !== -1) {
+        studentSubmissions.value[submissionIndex] = {
+          ...studentSubmissions.value[submissionIndex],
+          post_to_feed: true,
+          approval_status: response.data.approval_status
+        };
+      }
+      
+      showSuccess(
+        'Your post request has been sent to your teacher for approval!',
+        'Request Sent'
+      );
+    }
+  } catch (error) {
+    console.error('❌ Error requesting post to feed:', error);
+    showError(
+      error.response?.data?.error || 'Failed to send post request',
+      'Request Failed'
+    );
+  } finally {
+    isRequestingPost.value = false;
   }
 };
 

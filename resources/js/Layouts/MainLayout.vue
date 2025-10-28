@@ -504,15 +504,15 @@ const auth = computed(() => ({
     <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
         <div class="flex">
             <!-- Sidebar -->
-            <div :class="['bg-white/90 backdrop-blur-sm shadow-lg sticky top-0 flex flex-col transition-all duration-300 border-r border-indigo-100 z-10', isCollapsed ? 'w-20' : 'w-64']">
+            <div :class="['bg-gradient-to-b from-indigo-600 via-indigo-700 to-blue-800 shadow-2xl sticky top-0 flex flex-col transition-all duration-300 z-10', isCollapsed ? 'w-20' : 'w-64']">
                 <!-- Sidebar Header -->
-                <div class="p-4 border-b h-[52px] flex items-center relative overflow-hidden">
+                <div class="p-4 border-b border-white/10 h-[52px] flex items-center relative overflow-hidden">
                     <button 
                         @click="toggleSidebar" 
-                        class="p-2 rounded-lg hover:bg-blue-500 transition-all duration-300 ease-in-out focus:outline-none"
+                        class="p-2 rounded-lg hover:bg-white/20 transition-all duration-300 ease-in-out focus:outline-none backdrop-blur-sm"
                         :style="{ transform: isCollapsed ? 'translateX(0)' : 'translateX(192px)' }"
                     >
-                        <i class="pi pi-bars text-gray-600"></i>
+                        <i class="pi pi-bars text-white"></i>
                     </button>
                 </div>
 
@@ -526,20 +526,19 @@ const auth = computed(() => ({
                             @click="navigateToPage(item.route)"
                             class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left"
                             :class="{
-                                'bg-indigo-50 text-indigo-600 shadow-sm': isRouteActive(item.route),
-                                'hover:bg-indigo-50 hover:text-indigo-600': !isRouteActive(item.route),
-                                'active:bg-indigo-100 active:scale-[0.98]': true
+                                'bg-white/20 text-white shadow-lg backdrop-blur-sm': isRouteActive(item.route),
+                                'text-white/80 hover:bg-white/10 hover:text-white': !isRouteActive(item.route),
+                                'active:bg-white/25 active:scale-[0.98]': true
                             }"
-                            :style="isRouteActive(item.route) ? 'background-color: rgba(99, 102, 241, 0.1);' : ''"
                             :title="isCollapsed ? item.label : ''"
                         >
-                            <div v-if="isRouteActive(item.route)" class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600"></div>
+                            <div v-if="isRouteActive(item.route)" class="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>
                             <div class="flex items-center gap-3 w-full">
-                                <i :class="[item.icon, 'text-lg', isRouteActive(item.route) ? 'text-indigo-600' : 'text-gray-600']"></i>
-                                <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', isRouteActive(item.route) ? 'text-indigo-600' : 'text-gray-600']">{{ item.label }}</span>
+                                <i :class="[item.icon, 'text-lg', isRouteActive(item.route) ? 'text-white' : 'text-white/70']"></i>
+                                <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', isRouteActive(item.route) ? 'text-white' : 'text-white/80']">{{ item.label }}</span>
                                 <div
                                     v-if="isRouteActive(item.route) && !isCollapsed"
-                                    class="ml-auto w-1.5 h-5 rounded-sm bg-indigo-600 transition-all duration-200"
+                                    class="ml-auto w-1.5 h-5 rounded-sm bg-white transition-all duration-200"
                                 ></div>
                             </div>
                             <span v-if="isCollapsed && item.badge" class="absolute top-1 right-1 flex items-center justify-center h-4 w-4 text-xs font-medium text-white bg-red-500 rounded-full">{{ item.badge }}</span>
@@ -548,13 +547,13 @@ const auth = computed(() => ({
 
                     <!-- Horizontal Line -->
                     <div :class="['my-4', isCollapsed ? 'mx-2' : 'mx-3']">
-                        <div class="border-t border-gray-200"></div>
+                        <div class="border-t border-white/20"></div>
                     </div>
 
                     <!-- My Classes Section -->
                     <div v-if="auth?.user?.role === 'teacher' || auth?.user?.role === 'student'" class="mb-4">
                         <div class="flex items-center justify-between px-4 mb-2">
-                            <div v-if="!isCollapsed" class="text-xs uppercase font-semibold text-gray-500 tracking-wider">My Classes</div>
+                            <div v-if="!isCollapsed" class="text-xs uppercase font-semibold text-white/60 tracking-wider">My Classes</div>
                         </div>
 
                         <!-- Classes List -->
@@ -565,30 +564,29 @@ const auth = computed(() => ({
                                 @click="navigateToClass(class_)"
                                 class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left"
                                 :class="{
-                                    'bg-indigo-50 text-indigo-600 shadow-sm': isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'),
-                                    'hover:bg-indigo-50 hover:text-indigo-600': !isRouteActive('TeacherRoom') && !isRouteActive('StudentRoom'),
-                                    'active:bg-indigo-100 active:scale-[0.98]': true
+                                    'bg-white/20 text-white shadow-lg backdrop-blur-sm': isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'),
+                                    'text-white/80 hover:bg-white/10 hover:text-white': !isRouteActive('TeacherRoom') && !isRouteActive('StudentRoom'),
+                                    'active:bg-white/25 active:scale-[0.98]': true
                                 }"
-                                :style="(isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')) ? 'background-color: rgba(99, 102, 241, 0.1);' : ''"
                                 :title="isCollapsed ? class_.name : ''"
                             >
-                                <div v-if="isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')" class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600"></div>
+                                <div v-if="isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')" class="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>
                                 <div class="flex items-center gap-3 w-full">
                                     <div
                                         :class="[
-                                            'w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm transition-all duration-200',
-                                            getClassColor(class_.theme),
+                                            'w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg transition-all duration-200',
+                                            'bg-white/30 backdrop-blur-sm',
                                             (isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'))
-                                                ? 'scale-110 ring-2 ring-offset-2 ring-indigo-600'
-                                                : 'group-hover:scale-105 group-hover:ring-2 group-hover:ring-offset-2 group-hover:ring-indigo-600/50'
+                                                ? 'scale-110 ring-2 ring-white/50'
+                                                : 'group-hover:scale-105 group-hover:ring-2 group-hover:ring-white/30'
                                         ]"
                                     >
                                         <span class="text-xs font-semibold">{{ class_.name.split(' ')[1] }}</span>
                                     </div>
-                                    <span v-if="!isCollapsed" class="text-sm font-medium truncate">{{ class_.name }}</span>
+                                    <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', (isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')) ? 'text-white' : 'text-white/80']">{{ class_.name }}</span>
                                     <div
                                         v-if="(isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')) && !isCollapsed"
-                                        class="ml-auto w-1.5 h-5 rounded-sm bg-indigo-600 transition-all duration-200"
+                                        class="ml-auto w-1.5 h-5 rounded-sm bg-white transition-all duration-200"
                                     ></div>
                                 </div>
                             </button>
@@ -603,13 +601,33 @@ const auth = computed(() => ({
                     <div class="w-full h-full">
                         <div class="flex justify-between items-center px-4 h-full">
                             <!-- Logo -->
-                            <div class="flex items-center">
-                                <img
-                                    :src="logoUrl"
-                                    class="w-auto h-8 mr-2"
-                                    alt="DigiPort Logo"
-                                />
-                                <span class="text-xl font-bold text-gray-800">DigiPort</span>
+                            <div class="flex items-center gap-2">
+                                <!-- Modern Logo SVG -->
+                                <div class="w-10 h-10">
+                                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                                        <defs>
+                                            <linearGradient id="headerLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+                                                <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+                                            </linearGradient>
+                                        </defs>
+                                        <g transform="translate(50, 50)">
+                                            <!-- D Shape -->
+                                            <path d="M -20 -25 L -20 25 Q -20 25, -10 25 L -10 25 Q 5 25, 5 10 L 5 -10 Q 5 -25, -10 -25 Z" 
+                                                  fill="url(#headerLogoGrad)" opacity="0.9"/>
+                                            <!-- P Shape -->
+                                            <path d="M 0 -25 L 0 25 M 0 -25 L 15 -25 Q 25 -25, 25 -15 L 25 -5 Q 25 5, 15 5 L 0 5" 
+                                                  fill="none" stroke="url(#headerLogoGrad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <!-- Digital Dot -->
+                                            <circle cx="0" cy="0" r="3" fill="#06B6D4"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="flex flex-col leading-tight">
+                                    <span class="text-lg font-bold">
+                                        <span class="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Digi</span><span class="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Portal</span>
+                                    </span>
+                                </div>
                             </div>
 
                             <!-- Bell and User Profile -->

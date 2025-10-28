@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest, NewsfeedPost, PostLike, PostComment
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest, NewsfeedPost, PostLike, PostComment, Student
 from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer, RemarkSerializer
 import json
 
@@ -1316,7 +1316,7 @@ def activity_submissions_api(request, activity_id):
                 ).exclude(status='draft').order_by('-submitted_at')
             # Use lightweight serializer for teachers (excludes large file_path)
             from .serializer import StudentSubmissionListSerializer
-            serializer = StudentSubmissionListSerializer(submissions, many=True)
+            serializer = StudentSubmissionListSerializer(submissions, many=True, context={'request': request})
         else:
             # Students can request all submissions including drafts
             if include_drafts:
@@ -1351,14 +1351,29 @@ def activity_submissions_api(request, activity_id):
             ).first()
             
             if existing_submission:
+                # This is a resubmission
+                from django.utils import timezone
+                
                 # Update existing submission
                 existing_submission.caption = data.get('caption', '')
                 existing_submission.file_path = data.get('file_path', '')
                 existing_submission.file_type = data.get('file_type', '')
                 
+                # If the submission was previously scored, reset to unscored
+                if existing_submission.status == 'scored':
+                    existing_submission.status = 'unscored'
+                    existing_submission.score = None
+                    existing_submission.feedback = None
+                    existing_submission.criteria_scores = None
+                    existing_submission.scored_at = None
+                
+                # Increment resubmit count and update resubmit timestamp
+                existing_submission.resubmit_count += 1
+                existing_submission.last_resubmit_at = timezone.now()
+                existing_submission.submission_version += 1
+                
                 # Check if this update is late (if not already marked as late)
                 if not existing_submission.is_late and activity.due_date:
-                    from django.utils import timezone
                     from datetime import datetime, time as dt_time
                     
                     now = timezone.now()
@@ -1375,7 +1390,10 @@ def activity_submissions_api(request, activity_id):
                         existing_submission.is_late = True
                 
                 existing_submission.save()
-                serializer = StudentSubmissionSerializer(existing_submission)
+                
+                print(f"✅ Resubmission #{existing_submission.resubmit_count} for student {request.user.username}")
+                
+                serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 # Create new submission
@@ -1454,6 +1472,9 @@ def activity_submissions_api(request, activity_id):
                 )
                 
                 print(f"✅ Submission created: ID={submission.id}, status={submission_status}, file_type={file_type}, is_late={is_late}, is_draft={is_draft}")
+                print(f"📢 POST TO FEED: {post_to_feed}, APPROVAL STATUS: {submission.approval_status}")
+                if post_to_feed:
+                    print(f"🔔 This submission should appear in teacher's Notice page!")
                 
                 # Only notify teacher if this is a final submission (not draft)
                 if not is_draft:
@@ -1670,11 +1691,24 @@ def pending_approvals_api(request):
             activity__folder__teacher=request.user
         ).select_related('student', 'activity', 'activity__folder').order_by('-submitted_at')
         
-        print(f"📝 Found {submissions.count()} pending approvals for teacher {request.user.username}")
+        print(f"\n{'='*60}")
+        print(f"📝 PENDING APPROVALS CHECK for teacher: {request.user.username}")
+        print(f"{'='*60}")
+        print(f"Found {submissions.count()} pending approvals")
         
-        # Debug: Print each submission
+        # Debug: Print each submission with full details
         for sub in submissions:
-            print(f"   - ID: {sub.id}, Student: {sub.student.username}, Activity: {sub.activity.title if sub.activity else 'N/A'}, Status: {sub.approval_status}")
+            print(f"\n   📋 Submission #{sub.id}:")
+            print(f"      Student: {sub.student.username}")
+            print(f"      Activity: {sub.activity.title if sub.activity else 'N/A'}")
+            print(f"      Caption: {sub.caption[:50] if sub.caption else 'No caption'}...")
+            print(f"      Status: {sub.status}")
+            print(f"      Approval Status: {sub.approval_status}")
+            print(f"      Post to Feed: {sub.post_to_feed}")
+            print(f"      File Type: {sub.file_type}")
+            print(f"      Submitted At: {sub.submitted_at}")
+        
+        print(f"{'='*60}\n")
         
         serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
         return Response(serializer.data)
@@ -2012,6 +2046,23 @@ def submission_detail_api(request, submission_id):
                     submission.post_to_feed = post_to_feed_raw.lower() in ('true', '1', 'yes')
                 else:
                     submission.post_to_feed = bool(post_to_feed_raw)
+                
+                # If requesting to post to feed, set approval status to pending
+                if submission.post_to_feed:
+                    submission.approval_status = 'pending'
+                    print(f"📢 Submission {submission.id} requesting post to feed - approval_status set to pending")
+                    
+                    # Notify teacher about the post request
+                    if submission.activity:
+                        teacher = submission.activity.folder.teacher
+                        create_notification(
+                            recipient=teacher,
+                            notification_type='approval_requested',
+                            title='Post Approval Requested',
+                            message=f'{request.user.username} requested to post "{submission.activity.title}" to the class feed',
+                            submission=submission,
+                            activity=submission.activity
+                        )
             
             # Check if status is being changed (turning in work)
             if 'status' in data:
@@ -2433,11 +2484,26 @@ def sketch_submission_api(request):
     """
     POST: Submit a sketch to newsfeed (creates a submission without activity)
     """
+    print(f"\n{'='*60}")
+    print(f"🎨 SKETCH SUBMISSION REQUEST")
+    print(f"{'='*60}")
+    print(f"User authenticated: {request.user.is_authenticated}")
+    print(f"User: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+    print(f"User role: {request.user.role if request.user.is_authenticated else 'N/A'}")
+    
     if not request.user.is_authenticated:
+        print(f"❌ Authentication failed!")
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.user.role != 'student':
+        print(f"❌ User is not a student!")
+        return Response({'error': 'Only students can submit sketches'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
         data = request.data
+        print(f"📝 Data received: caption={data.get('caption', '')[:50]}...")
+        print(f"📝 File path length: {len(data.get('file_path', ''))}")
+        print(f"📝 File type: {data.get('file_type', 'N/A')}")
         
         # Create a sketch submission (activity_id can be null or use a special "Sketch" activity)
         # For now, we'll create it without an activity or you can create a default "Sketch Pad" activity
@@ -2452,10 +2518,18 @@ def sketch_submission_api(request):
             approval_status='pending'
         )
         
+        print(f"✅ Sketch submission created: ID={submission.id}")
+        print(f"📢 POST TO FEED: True, APPROVAL STATUS: pending")
+        print(f"{'='*60}\n")
+        
         serializer = StudentSubmissionSerializer(submission)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as e:
-        print(f"Error creating sketch submission: {str(e)}")
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Error creating sketch submission: {str(e)}")
+        print(f"Stack trace:\n{error_trace}")
+        print(f"{'='*60}\n")
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -2467,7 +2541,12 @@ def sketches_api(request):
     POST: Save a new sketch
     """
     if not request.user.is_authenticated:
+        print(f"❌ Sketches API: User not authenticated")
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.user.role != 'student':
+        print(f"❌ Sketches API: User is not a student")
+        return Response({'error': 'Only students can manage sketches'}, status=status.HTTP_403_FORBIDDEN)
     
     if request.method == 'GET':
         try:
@@ -2476,10 +2555,11 @@ def sketches_api(request):
             
             # Get all sketches for the current student
             sketches = Sketch.objects.filter(student=request.user).order_by('-created_at')
+            print(f"📚 Loaded {sketches.count()} sketches for {request.user.username}")
             serializer = SketchSerializer(sketches, many=True)
             return Response(serializer.data)
         except Exception as e:
-            print(f"Error fetching sketches: {str(e)}")
+            print(f"❌ Error fetching sketches: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     elif request.method == 'POST':
@@ -2488,6 +2568,9 @@ def sketches_api(request):
             from .serializer import SketchSerializer
             
             data = request.data
+            print(f"💾 Saving sketch for {request.user.username}")
+            print(f"   Title: {data.get('title', 'Untitled Sketch')}")
+            print(f"   Image data length: {len(data.get('image_data', ''))}")
             
             # Create new sketch
             sketch = Sketch.objects.create(
@@ -2496,10 +2579,14 @@ def sketches_api(request):
                 image_data=data.get('image_data', '')
             )
             
+            print(f"✅ Sketch saved: ID={sketch.id}")
             serializer = SketchSerializer(sketch)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
-            print(f"Error saving sketch: {str(e)}")
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"❌ Error saving sketch: {str(e)}")
+            print(f"Stack trace:\n{error_trace}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -4120,3 +4207,364 @@ def export_user_data_api(request):
     except Exception as e:
         print(f"❌ Error exporting data: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================
+# Student Management API Views
+# ============================================
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def student_list_api(request):
+    """List all students or create a new student"""
+    if request.method == 'GET':
+        # Get query parameters
+        grade_level = request.query_params.get('grade_level')
+        section = request.query_params.get('section')
+        is_active = request.query_params.get('is_active')
+        search = request.query_params.get('search')
+        
+        # Start with all students
+        students = Student.objects.all()
+        
+        # Apply filters
+        if grade_level:
+            students = students.filter(grade_level=grade_level)
+        if section:
+            students = students.filter(section=section)
+        if is_active is not None:
+            students = students.filter(is_active=is_active.lower() == 'true')
+        if search:
+            students = students.filter(
+                Q(student_id__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+        
+        # Order by grade, section, then name
+        students = students.order_by('grade_level', 'section', 'last_name', 'first_name')
+        
+        # Serialize the data
+        from .serializer import StudentListSerializer
+        serializer = StudentListSerializer(students, many=True)
+        
+        return Response({
+            'count': students.count(),
+            'students': serializer.data
+        })
+    
+    elif request.method == 'POST':
+        # Only admin and teachers can create students
+        if request.user.role not in ['admin', 'teacher']:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from .serializer import StudentSerializer
+        serializer = StudentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def student_detail_api(request, pk):
+    """Retrieve, update or delete a student"""
+    try:
+        student = Student.objects.get(pk=pk)
+    except Student.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        from .serializer import StudentSerializer
+        serializer = StudentSerializer(student)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        # Only admin and teachers can update students
+        if request.user.role not in ['admin', 'teacher']:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from .serializer import StudentSerializer
+        serializer = StudentSerializer(student, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        # Only admin can delete students
+        if request.user.role != 'admin':
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student.delete()
+        return Response({'message': 'Student deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def students_by_grade_section_api(request):
+    """Get students by grade level and section"""
+    grade_level = request.query_params.get('grade_level')
+    section = request.query_params.get('section')
+    
+    if not grade_level or not section:
+        return Response(
+            {'error': 'Both grade_level and section are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    students = Student.objects.filter(
+        grade_level=grade_level,
+        section=section,
+        is_active=True
+    ).order_by('last_name', 'first_name')
+    
+    from .serializer import StudentListSerializer
+    serializer = StudentListSerializer(students, many=True)
+    
+    return Response({
+        'grade_level': grade_level,
+        'section': section,
+        'total_students': students.count(),
+        'male_count': students.filter(gender='M').count(),
+        'female_count': students.filter(gender='F').count(),
+        'students': serializer.data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_statistics_api(request):
+    """Get comprehensive student statistics"""
+    from django.db.models import Avg, Count
+    
+    # Overall statistics
+    total_students = Student.objects.count()
+    active_students = Student.objects.filter(is_active=True).count()
+    
+    # Gender distribution
+    gender_stats = Student.objects.values('gender').annotate(count=Count('id'))
+    gender_distribution = {stat['gender']: stat['count'] for stat in gender_stats}
+    
+    # Grade level distribution
+    grade_distribution = []
+    for grade in range(1, 7):
+        students_in_grade = Student.objects.filter(grade_level=grade)
+        grade_data = {
+            'grade': grade,
+            'total': students_in_grade.count(),
+            'section_a': students_in_grade.filter(section='A').count(),
+            'section_b': students_in_grade.filter(section='B').count(),
+            'male': students_in_grade.filter(gender='M').count(),
+            'female': students_in_grade.filter(gender='F').count(),
+        }
+        grade_distribution.append(grade_data)
+    
+    # Academic performance
+    performance = Student.objects.aggregate(
+        avg_grade=Avg('current_average'),
+        avg_attendance=Avg('attendance_percentage')
+    )
+    
+    # Top performers (top 10)
+    top_performers = Student.objects.filter(
+        current_average__isnull=False
+    ).order_by('-current_average')[:10]
+    
+    from .serializer import StudentListSerializer
+    top_performers_data = StudentListSerializer(top_performers, many=True).data
+    
+    # Students with low attendance (< 80%)
+    low_attendance = Student.objects.filter(
+        attendance_percentage__lt=80
+    ).count()
+    
+    return Response({
+        'overview': {
+            'total_students': total_students,
+            'active_students': active_students,
+            'inactive_students': total_students - active_students,
+        },
+        'gender_distribution': gender_distribution,
+        'grade_distribution': grade_distribution,
+        'academic_performance': {
+            'average_grade': round(performance['avg_grade'], 2) if performance['avg_grade'] else 0,
+            'average_attendance': round(performance['avg_attendance'], 2) if performance['avg_attendance'] else 0,
+            'low_attendance_count': low_attendance,
+        },
+        'top_performers': top_performers_data
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_search_api(request):
+    """Advanced search for students"""
+    query = request.query_params.get('q', '')
+    
+    if not query:
+        return Response(
+            {'error': 'Search query is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Search in multiple fields
+    students = Student.objects.filter(
+        Q(student_id__icontains=query) |
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query) |
+        Q(email__icontains=query) |
+        Q(guardian_name__icontains=query)
+    ).order_by('grade_level', 'section', 'last_name')
+    
+    from .serializer import StudentListSerializer
+    serializer = StudentListSerializer(students, many=True)
+    
+    return Response({
+        'query': query,
+        'count': students.count(),
+        'results': serializer.data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_student_grades_api(request, pk):
+    """Update student's current average"""
+    if request.user.role not in ['admin', 'teacher']:
+        return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        student = Student.objects.get(pk=pk)
+    except Student.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    new_average = request.data.get('current_average')
+    if new_average is None:
+        return Response(
+            {'error': 'current_average is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        new_average = float(new_average)
+        if new_average < 0 or new_average > 100:
+            raise ValueError("Average must be between 0 and 100")
+    except ValueError as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    student.current_average = new_average
+    student.save()
+    
+    from .serializer import StudentSerializer
+    serializer = StudentSerializer(student)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_student_attendance_api(request, pk):
+    """Update student's attendance percentage"""
+    if request.user.role not in ['admin', 'teacher']:
+        return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        student = Student.objects.get(pk=pk)
+    except Student.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    new_attendance = request.data.get('attendance_percentage')
+    if new_attendance is None:
+        return Response(
+            {'error': 'attendance_percentage is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        new_attendance = float(new_attendance)
+        if new_attendance < 0 or new_attendance > 100:
+            raise ValueError("Attendance must be between 0 and 100")
+    except ValueError as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    student.attendance_percentage = new_attendance
+    student.save()
+    
+    from .serializer import StudentSerializer
+    serializer = StudentSerializer(student)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bulk_update_section_api(request):
+    """Bulk update section for multiple students"""
+    if request.user.role not in ['admin', 'teacher']:
+        return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    
+    student_ids = request.data.get('student_ids', [])
+    new_section = request.data.get('section')
+    
+    if not student_ids or not new_section:
+        return Response(
+            {'error': 'student_ids and section are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if new_section not in ['A', 'B']:
+        return Response(
+            {'error': 'Section must be either A or B'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    updated_count = Student.objects.filter(
+        id__in=student_ids
+    ).update(section=new_section)
+    
+    return Response({
+        'message': f'Successfully updated {updated_count} students',
+        'updated_count': updated_count
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_students_api(request):
+    """Export student data as JSON (can be extended to CSV/Excel)"""
+    if request.user.role not in ['admin', 'teacher']:
+        return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # Get filter parameters
+    grade_level = request.query_params.get('grade_level')
+    section = request.query_params.get('section')
+    
+    students = Student.objects.all()
+    
+    if grade_level:
+        students = students.filter(grade_level=grade_level)
+    if section:
+        students = students.filter(section=section)
+    
+    students = students.order_by('grade_level', 'section', 'last_name', 'first_name')
+    
+    from .serializer import StudentSerializer
+    serializer = StudentSerializer(students, many=True)
+    
+    # Create JSON response with download headers
+    response = HttpResponse(
+        json.dumps(serializer.data, indent=2),
+        content_type='application/json'
+    )
+    
+    filename = f"students_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
