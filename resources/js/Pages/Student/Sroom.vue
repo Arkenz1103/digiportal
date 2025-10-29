@@ -240,9 +240,18 @@
                                 
                                 <!-- Status Badge (Main Design) -->
                                 <div class="flex flex-col items-end gap-1">
+                                  <!-- Resubmitted: Has been resubmitted (takes priority) -->
+                                  <span
+                                    v-if="hasSubmittedWork && existingSubmission?.resubmit_count > 0"
+                                    class="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-800 flex items-center gap-1.5 text-xs font-medium"
+                                  >
+                                    <i class="pi pi-refresh text-xs"></i>
+                                    <span>Resubmitted</span>
+                                    <span class="text-xs">({{ existingSubmission.resubmit_count }}x)</span>
+                                  </span>
                                   <!-- Submitted Late: Was missing but then turned in -->
                                   <span
-                                    v-if="hasSubmittedWork && existingSubmission?.is_late"
+                                    v-else-if="hasSubmittedWork && existingSubmission?.is_late"
                                     class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
                                   >
                                     <i class="pi pi-clock text-xs"></i>
@@ -294,17 +303,6 @@
                                 <i class="pi pi-star-fill"></i>
                                 <span>View Score</span>
                               </button>
-                              
-                              <!-- Post Output Button (Shows if not posted to feed yet) -->
-                              <button
-                                v-if="hasSubmittedWork && existingSubmission && !existingSubmission.post_to_feed"
-                                @click="openPostOutputDialog"
-                                class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors duration-200 font-medium"
-                                title="Post your work to class feed"
-                              >
-                                <i class="pi pi-send"></i>
-                                <span>Post Output</span>
-                              </button>
                             </div>
                         
                             <!-- Files Display (Draft or Submitted) -->
@@ -313,7 +311,7 @@
                           <div
                             v-if="!hasSubmittedWork"
                             v-for="file in draftFiles"
-                            :key="file.id"
+                            :key="`${file.id}-${file.path}`"
                             class="flex items-center gap-2 p-2 bg-white rounded-lg border border-indigo-200 hover:border-indigo-300 transition-all group"
                           >
                             <!-- Thumbnail (Clickable) -->
@@ -324,10 +322,12 @@
                             >
                               <img
                                 v-if="file.type === 'image' && file.path"
+                                :key="file.path"
                                 :src="file.path"
                                 :alt="file.name"
                                 class="w-full h-full object-cover"
-                                @error="(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                                @load="() => console.log('✅ Image loaded successfully:', file.path)"
+                                @error="(e) => { console.error('❌ Image load error:', file.path); e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
                               />
                               <div 
                                 class="w-full h-full flex items-center justify-center"
@@ -400,7 +400,7 @@
                         
                         <!-- Action Buttons (Always visible) -->
                         <div class="space-y-2">
-                          <!-- Hidden File Input -->
+                          <!-- Hidden File Input - Single file only -->
                           <input
                             type="file"
                             ref="autoSaveFileInput"
@@ -409,22 +409,25 @@
                             class="hidden"
                           />
                           
-                          <!-- Add Button (Only show if not submitted) -->
+                          <!-- Add/Edit Button (Only show if not submitted) -->
                           <button
                             v-if="!hasSubmittedWork"
-                            @click="showUploadDialog = true"
+                            @click="draftFiles.length > 0 ? viewDraftFile(draftFiles[0]) : (isReplacingFile = false, showUploadDialog = true)"
                             :disabled="isSubmitting"
                             class="w-full px-4 py-2 bg-white border-2 border-indigo-200 rounded-lg text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <i v-if="!isSubmitting" class="pi pi-plus"></i>
-                            <i v-else class="pi pi-spin pi-spinner"></i>
-                            <span>{{ isSubmitting ? 'Uploading...' : 'Add or create' }}</span>
+                            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+                            <i v-else-if="draftFiles.length > 0" class="pi pi-pencil"></i>
+                            <i v-else class="pi pi-plus"></i>
+                            <span v-if="isSubmitting">Uploading...</span>
+                            <span v-else-if="draftFiles.length > 0">Edit Output</span>
+                            <span v-else>Add or create</span>
                           </button>
                           
                           <!-- Turn In / Resubmit Button -->
                           <button
                             v-if="!hasSubmittedWork"
-                            @click="showTurnInDialog = true"
+                            @click="openTurnInDialog"
                             :disabled="draftFiles.length === 0"
                             class="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -454,10 +457,10 @@
                             <!-- Post to Feed Button -->
                             <button
                               v-if="existingSubmission && !existingSubmission.post_to_feed"
-                              @click="requestPostToFeed"
-                              :disabled="hasScore || isRequestingPost"
+                              @click="showPostToFeedConfirmDialog = true"
+                              :disabled="isRequestingPost"
                               class="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                              :title="hasScore ? 'Cannot post scored work' : 'Request to post this work to class feed'"
+                              title="Request to post this work to class feed"
                             >
                               <i class="pi pi-send"></i>
                               <span>{{ isRequestingPost ? 'Requesting...' : 'Post to Feed' }}</span>
@@ -751,7 +754,13 @@
 
                             <!-- Status Badge -->
                             <div class="col-span-2 text-center">
-                              <span v-if="getActivityStatus(activity) === 'submitted' && activity.isLate" 
+                              <span v-if="getActivityStatus(activity) === 'resubmitted'" 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                <i class="pi pi-refresh text-[10px] mr-1.5 text-blue-500"></i>
+                                Resubmitted
+                                <span v-if="activity.resubmit_count" class="ml-1">({{ activity.resubmit_count }}x)</span>
+                              </span>
+                              <span v-else-if="getActivityStatus(activity) === 'submitted' && activity.isLate" 
                                     class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                                 <i class="pi pi-circle-fill text-[6px] mr-1.5 text-orange-500"></i>
                                 Submitted Late
@@ -1840,6 +1849,56 @@
       </template>
     </Dialog>
 
+    <!-- Post to Feed Confirmation Dialog -->
+    <Dialog v-model:visible="showPostToFeedConfirmDialog" modal :style="{ width: '90vw', maxWidth: '500px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-send text-blue-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Post to Feed</h3>
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <p class="text-gray-700">
+          Are you sure you want to request to post this work to the class feed? 
+          Your teacher will review and approve your request.
+        </p>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-lg mt-0.5"></i>
+            <div class="text-sm text-blue-800">
+              <p class="font-semibold mb-1">What happens next?</p>
+              <ul class="list-disc list-inside space-y-1 text-blue-700">
+                <li>Your teacher will be notified of your request</li>
+                <li>Your work will be visible to the class once approved</li>
+                <li>You cannot undo this action after approval</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button
+            @click="showPostToFeedConfirmDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="confirmPostToFeed"
+            :disabled="isRequestingPost"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i class="pi pi-send"></i>
+            <span>{{ isRequestingPost ? 'Sending...' : 'Confirm' }}</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Preview Collection Dialog -->
     <Dialog v-model:visible="showPreviewDialog" modal :style="{ width: '90vw', maxWidth: '900px' }" :dismissableMask="true">
       <template #header>
@@ -2516,18 +2575,41 @@
             <div v-if="draftFiles.length > 0" class="space-y-2">
               <div
                 v-for="file in draftFiles"
-                :key="file.id"
+                :key="`turn-in-${file.id}-${file.path}`"
                 class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200"
               >
-                <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <i v-if="file.type === 'image'" class="pi pi-image text-indigo-600"></i>
-                  <i v-else-if="file.type === 'pdf'" class="pi pi-file-pdf text-red-600"></i>
-                  <i v-else class="pi pi-file text-gray-600"></i>
+                <!-- Thumbnail with actual image -->
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                     :class="file.type === 'image' ? 'bg-gray-100' : 'bg-indigo-100'">
+                  <img
+                    v-if="file.type === 'image' && file.path"
+                    :key="file.path"
+                    :src="file.path"
+                    :alt="file.name"
+                    class="w-full h-full object-cover"
+                    @load="() => console.log('✅ Turn-in dialog image loaded:', file.path)"
+                    @error="(e) => { console.error('❌ Turn-in dialog image error:', file.path); e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                  />
+                  <div 
+                    class="w-full h-full flex items-center justify-center"
+                    :style="file.type === 'image' && file.path ? 'display: none;' : ''">
+                    <i v-if="file.type === 'image'" class="pi pi-image text-indigo-600"></i>
+                    <i v-else-if="file.type === 'pdf'" class="pi pi-file-pdf text-red-600"></i>
+                    <i v-else class="pi pi-file text-gray-600"></i>
+                  </div>
                 </div>
                 <div class="flex-1 text-left">
                   <p class="text-sm font-medium text-gray-900 truncate">{{ file.name }}</p>
                   <p class="text-xs text-gray-500 capitalize">{{ file.type }}</p>
                 </div>
+                <!-- Remove Button -->
+                <button
+                  @click.stop="confirmRemoveFile(file)"
+                  class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-100 transition-colors"
+                  title="Remove file"
+                >
+                  <i class="pi pi-times text-red-600"></i>
+                </button>
               </div>
             </div>
             <div v-else class="text-gray-500">
@@ -2573,6 +2655,90 @@
       </template>
     </Dialog>
 
+    <!-- Resubmit Confirmation Dialog -->
+    <Dialog v-model:visible="showResubmitConfirmDialog" modal :style="{ width: '90vw', maxWidth: '500px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-exclamation-triangle text-orange-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Confirm Resubmission</h3>
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <!-- Warning Message -->
+        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div class="flex gap-3">
+            <i class="pi pi-info-circle text-orange-600 text-lg flex-shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-gray-800 font-medium mb-2">You are about to resubmit your work</p>
+              <p class="text-sm text-gray-600">
+                This will count as resubmission #<strong>{{ (draftSubmission?.resubmit_count || 0) + 1 }}</strong> of 3 maximum allowed.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resubmit Info -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-gray-600">Current resubmissions:</span>
+            <span class="font-semibold text-gray-900">{{ draftSubmission?.resubmit_count || 0 }} / 3</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-gray-600">Remaining resubmissions:</span>
+            <span class="font-semibold" :class="(3 - (draftSubmission?.resubmit_count || 0)) <= 1 ? 'text-red-600' : 'text-green-600'">
+              {{ 3 - (draftSubmission?.resubmit_count || 0) }} left
+            </span>
+          </div>
+        </div>
+
+        <!-- File Preview -->
+        <div v-if="draftFiles.length > 0" class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+          <p class="text-xs text-gray-500 mb-2">File to submit:</p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                 :class="draftFiles[0].type === 'image' ? 'bg-gray-100' : 'bg-indigo-100'">
+              <img
+                v-if="draftFiles[0].type === 'image' && draftFiles[0].path"
+                :src="draftFiles[0].path"
+                :alt="draftFiles[0].name"
+                class="w-full h-full object-cover"
+              />
+              <i v-else-if="draftFiles[0].type === 'pdf'" class="pi pi-file-pdf text-red-600"></i>
+              <i v-else class="pi pi-file text-gray-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">{{ draftFiles[0].name }}</p>
+              <p class="text-xs text-gray-500 capitalize">{{ draftFiles[0].type }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirmation Question -->
+        <p class="text-sm text-gray-700 font-medium">
+          Are you sure you want to proceed with this resubmission?
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showResubmitConfirmDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="confirmResubmit"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center gap-2"
+          >
+            <i class="pi pi-check"></i>
+            <span>Confirm Resubmit</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
     <!-- File Preview Dialog -->
     <Dialog v-model:visible="showFilePreview" modal :style="{ width: '90vw', maxWidth: '1200px' }" :dismissableMask="true">
       <template #header>
@@ -2583,18 +2749,29 @@
       </template>
 
       <div v-if="previewFile" class="space-y-4">
-        <!-- File Info -->
-        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+        <!-- File Info with Edit Caption -->
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
               <i v-if="previewFile.type === 'image'" class="pi pi-image text-indigo-600 text-xl"></i>
               <i v-else-if="previewFile.type === 'pdf'" class="pi pi-file-pdf text-red-600 text-xl"></i>
               <i v-else class="pi pi-file text-gray-600 text-xl"></i>
             </div>
-            <div>
+            <div class="flex-1">
               <p class="font-semibold text-gray-900">{{ previewFile.name }}</p>
               <p class="text-sm text-gray-500 capitalize">{{ previewFile.type }}</p>
             </div>
+          </div>
+          
+          <!-- Caption Editor -->
+          <div v-if="!hasSubmittedWork">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Caption</label>
+            <textarea
+              v-model="previewFileCaption"
+              rows="2"
+              placeholder="Add a caption for your work..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
+            ></textarea>
           </div>
         </div>
 
@@ -2632,19 +2809,42 @@
       </div>
 
       <template #footer>
-        <button
-          @click="showFilePreview = false"
-          class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
-        >
-          Close
-        </button>
+        <div class="flex items-center justify-between w-full gap-3">
+          <!-- Left side: Replace File button (only if draft) -->
+          <div v-if="!hasSubmittedWork" class="flex gap-2">
+            <button
+              @click="openReplaceFileDialog"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
+            >
+              <i class="pi pi-refresh"></i>
+              <span>Replace File</span>
+            </button>
+            <button
+              @click="savePreviewCaption"
+              :disabled="!previewFileCaption || previewFileCaption === previewFile.name"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i class="pi pi-save"></i>
+              <span>Save Caption</span>
+            </button>
+          </div>
+          <div v-else></div>
+          
+          <!-- Right side: Close button -->
+          <button
+            @click="showFilePreview = false"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Close
+          </button>
+        </div>
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, inject, watch, nextTick } from 'vue';
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import { useToast } from '../../composables/useToast';
@@ -2750,11 +2950,15 @@ const draftSubmission = ref(null);
 const draftFiles = ref([]);
 const showFilePreview = ref(false);
 const previewFile = ref(null);
+const previewFileCaption = ref('');
+const replaceFileInput = ref(null);
 const showTurnInDialog = ref(false);
+const showResubmitConfirmDialog = ref(false);
 const submissionCaption = ref('');
 const postToFeed = ref(false);
 const showRemoveConfirmDialog = ref(false);
 const fileToRemove = ref(null);
+const showPostToFeedConfirmDialog = ref(false);
 
 // Portfolio submission state
 const showSubmitPortfolioDialog = ref(false);
@@ -2835,11 +3039,17 @@ const loadFolderActivities = async (folderId) => {
           // Check if student has submitted for this activity
           let hasSubmitted = false;
           let isLate = false;
+          let resubmitCount = 0;
           try {
             const submissionResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
             if (submissionResponse.data && submissionResponse.data.length > 0) {
-              hasSubmitted = true;
-              isLate = submissionResponse.data[0].is_late || false;
+              // Filter out draft submissions
+              const actualSubmissions = submissionResponse.data.filter(sub => sub.status !== 'draft');
+              if (actualSubmissions.length > 0) {
+                hasSubmitted = true;
+                isLate = actualSubmissions[0].is_late || false;
+                resubmitCount = actualSubmissions[0].resubmit_count || 0;
+              }
             }
           } catch (error) {
             console.error(`Error checking submission for activity ${activity.id}:`, error);
@@ -2885,6 +3095,7 @@ const loadFolderActivities = async (folderId) => {
             formattedTime: formattedTime,
             hasSubmitted: hasSubmitted,
             isLate: isLate,
+            resubmit_count: resubmitCount,
             scoringCriteria: scoringCriteria
           };
         })
@@ -3198,6 +3409,12 @@ const getActivityStatus = (activity) => {
     if (activity.isLate || (isPastDue && activity.submittedAt)) {
       activity.isLate = true; // Set the flag for the template
     }
+    
+    // Check if it has been resubmitted
+    if (activity.resubmit_count > 0) {
+      return 'resubmitted';
+    }
+    
     return 'submitted';
   }
   
@@ -3353,17 +3570,20 @@ const loadDraftSubmissions = async (activityId) => {
       const latestDraft = drafts[0];
       draftSubmission.value = latestDraft;
       
-      // Use file_url from backend (already formatted correctly)
+      // Use file_url from backend (already formatted correctly) with cache busting
       let filePath = latestDraft.file_url || latestDraft.file_path || latestDraft.file;
+      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
       
       draftFiles.value = [{
         id: latestDraft.id,
         name: latestDraft.caption || 'Uploaded file',
         type: latestDraft.file_type,
-        path: filePath
+        path: cacheBustedPath,
+        resubmit_count: latestDraft.resubmit_count || 0  // Preserve resubmit count
       }];
       console.log('✅ Loaded draft submission:', draftSubmission.value);
-      console.log('📎 File path:', filePath);
+      console.log('📎 File path:', cacheBustedPath);
+      console.log('📊 Resubmit count:', latestDraft.resubmit_count);
     } else {
       draftSubmission.value = null;
       draftFiles.value = [];
@@ -3438,9 +3658,18 @@ const loadActivitySubmissions = async (activityId) => {
 const checkSubmissionStatus = async (activityId) => {
   try {
     const response = await axios.get(`/api/activities/${activityId}/submissions/`);
-    if (response.data && response.data.length > 0) {
+    // Filter out draft submissions - only count actual submissions
+    const actualSubmissions = response.data.filter(sub => sub.status !== 'draft');
+    if (actualSubmissions.length > 0) {
       hasSubmittedWork.value = true;
-      existingSubmission.value = response.data[0];
+      // Get the LATEST submission (most recent submitted_at)
+      const latestSubmission = actualSubmissions.reduce((latest, current) => {
+        const latestDate = new Date(latest.submitted_at || 0);
+        const currentDate = new Date(current.submitted_at || 0);
+        return currentDate > latestDate ? current : latest;
+      });
+      existingSubmission.value = latestSubmission;
+      console.log('📌 Using LATEST submission:', latestSubmission.id, 'submitted at:', latestSubmission.submitted_at);
       
       // Check if submission has been scored
       if (existingSubmission.value.status === 'scored' && existingSubmission.value.score !== null && existingSubmission.value.score !== undefined) {
@@ -3465,6 +3694,7 @@ const checkSubmissionStatus = async (activityId) => {
       existingSubmission.value = null;
       hasScore.value = false;
       submissionScore.value = null;
+      console.log('ℹ️ No actual submissions found (drafts excluded)');
     }
   } catch (error) {
     console.error('Error checking submission status:', error);
@@ -3747,6 +3977,7 @@ const addSampleProduct = () => {
 // Upload dialog state
 const showUploadDialog = ref(false);
 const activeUploadTab = ref('device');
+const isReplacingFile = ref(false); // Flag to track if we're replacing a file
 const uploadTabs = [
   { id: 'device', name: 'From Device', icon: 'pi pi-desktop' },
   { id: 'sketch', name: 'My Sketch', icon: 'pi pi-palette' },
@@ -3838,34 +4069,73 @@ const useSelectedSketch = async () => {
     formData.append('post_to_feed', false);
     formData.append('is_draft', true);
 
-    // Upload the file as draft
-    const uploadResponse = await axios.post(
-      `/api/activities/${selectedActivity.value.id}/submissions/`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+    // Check if there's already a draft or resubmission in progress - if yes, update it; if no, create new
+    const existingDraftId = draftFiles.value.length > 0 ? draftFiles.value[0].id : draftSubmission.value?.id;
+    let uploadResponse;
+    
+    if (existingDraftId) {
+      console.log('📝 Updating existing draft with sketch:', existingDraftId);
+      uploadResponse = await axios.put(
+        `/api/submissions/${existingDraftId}/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    } else {
+      console.log('📝 Creating new draft with sketch');
+      uploadResponse = await axios.post(
+        `/api/activities/${selectedActivity.value.id}/submissions/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    }
 
     console.log('✅ Sketch saved as draft:', uploadResponse.data);
     
-    // Store draft submission
+    // Store draft submission (includes resubmit_count)
     draftSubmission.value = uploadResponse.data;
-    draftFiles.value.push({
+    
+    // Use file_url from backend (already formatted correctly) with cache busting
+    const filePath = uploadResponse.data.file_url || uploadResponse.data.file_path || uploadResponse.data.file;
+    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+    
+    // Replace the draft files array (only one draft at a time)
+    draftFiles.value = [{
       id: uploadResponse.data.id,
       name: selectedSketch.title,
       type: uploadResponse.data.file_type,
-      path: uploadResponse.data.file_path
-    });
+      path: cacheBustedPath,
+      resubmit_count: uploadResponse.data.resubmit_count || 0  // Preserve resubmit count
+    }];
     
-    // Show success message
-    showSuccess('Sketch added as draft!', 'Saved');
-
-    // Close dialog and reset
-    showUploadDialog.value = false;
-    selectedSketchId.value = null;
+    console.log('📝 Draft sketch replaced. This does NOT count as a resubmission.');
+    console.log('📊 Resubmit count:', uploadResponse.data.resubmit_count);
+    
+    // If we're replacing a file, close upload dialog and reopen preview
+    if (isReplacingFile.value) {
+      showUploadDialog.value = false;
+      isReplacingFile.value = false;
+      selectedSketchId.value = null;
+      
+      // Reopen preview with the new file
+      await viewDraftFile(draftFiles.value[0]);
+      
+      showSuccess('File replaced successfully!', 'Updated');
+    } else {
+      // Show success message for new upload
+      showSuccess('Sketch added as draft!', 'Saved');
+      
+      // Close dialog and reset
+      showUploadDialog.value = false;
+      selectedSketchId.value = null;
+    }
   } catch (error) {
     console.error('❌ Error using sketch:', error);
     showError(
@@ -3888,48 +4158,103 @@ const triggerAutoSaveFileUpload = () => {
 };
 
 const handleAutoSaveFileUpload = async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
+  const files = Array.from(event.target.files);
+  if (!files || files.length === 0) return;
 
   isSubmitting.value = true;
 
   try {
-    // Create FormData for file upload as DRAFT
+    console.log(`📤 Uploading ${files.length} file(s) as ONE draft submission...`);
+    
+    // IMPORTANT: Only upload the FIRST file as a draft
+    // Multiple files are not supported - only one submission per activity
+    const file = files[0];
+    
+    if (files.length > 1) {
+      showWarning('Only one file can be uploaded at a time. Uploading the first file only.', 'Single File Only');
+    }
+    
     const formData = new FormData();
     formData.append('file', file);
     formData.append('caption', file.name);
     formData.append('post_to_feed', false);
-    formData.append('is_draft', true);  // Mark as draft
+    formData.append('is_draft', true);
 
-    console.log('📤 Saving file as draft:', file.name);
+    console.log('📤 Uploading file:', file.name);
 
-    // Upload the file as draft
-    const response = await axios.post(
-      `/api/activities/${selectedActivity.value.id}/submissions/`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-
-    console.log('✅ File saved as draft:', response.data);
+    // Check if there's already a draft or resubmission in progress - if yes, update it; if no, create new
+    let response;
+    const existingDraftId = draftFiles.value.length > 0 ? draftFiles.value[0].id : draftSubmission.value?.id;
     
-    // Store draft submission
+    if (existingDraftId) {
+      console.log('📝 Updating existing draft:', existingDraftId);
+      
+      response = await axios.put(
+        `/api/submissions/${existingDraftId}/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    } else {
+      console.log('📝 Creating new draft');
+      
+      response = await axios.post(
+        `/api/activities/${selectedActivity.value.id}/submissions/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    }
+
+    console.log('✅ File saved:', file.name);
+    
+    // IMPORTANT: Store the full draft submission data (includes resubmit_count)
     draftSubmission.value = response.data;
-    draftFiles.value.push({
+    
+    // Use file_url from backend with cache busting
+    const filePath = response.data.file_url || response.data.file_path || response.data.file;
+    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+    
+    // Replace draft files (only ONE draft at a time)
+    draftFiles.value = [{
       id: response.data.id,
       name: file.name,
       type: response.data.file_type,
-      path: response.data.file_path
-    });
+      path: cacheBustedPath,
+      resubmit_count: response.data.resubmit_count || 0  // Preserve resubmit count
+    }];
     
-    // Show success message
-    showSuccess('File added as draft!', 'Saved');
+    console.log('✅ File uploaded successfully');
+    console.log('📋 Draft file:', draftFiles.value[0]);
+    console.log('📊 Resubmit count:', response.data.resubmit_count);
+    
+    // Force Vue to update the DOM
+    await nextTick();
+    
+    // If we're replacing a file, close upload dialog and reopen preview
+    if (isReplacingFile.value) {
+      showUploadDialog.value = false;
+      isReplacingFile.value = false;
+      
+      // Reopen preview with the new file
+      await viewDraftFile(draftFiles.value[0]);
+      
+      showSuccess('File replaced successfully!', 'Updated');
+    } else {
+      // Show success message for new upload
+      showSuccess('File added as draft!', 'Saved');
+    }
 
-    // Reset file input
-    event.target.value = '';
+    // Reset file input completely
+    if (autoSaveFileInput.value) {
+      autoSaveFileInput.value.value = '';
+    }
   } catch (error) {
     console.error('❌ Error saving draft:', error);
     showError(
@@ -3941,9 +4266,86 @@ const handleAutoSaveFileUpload = async (event) => {
   }
 };
 
+// Open Turn In Dialog and pre-populate caption from draft
+const openTurnInDialog = () => {
+  // Check if we're in resubmission mode
+  const isResubmitting = draftSubmission.value && draftSubmission.value.resubmit_count >= 0 && draftSubmission.value.last_resubmit_at;
+  
+  if (isResubmitting) {
+    // Show resubmit confirmation dialog instead
+    showResubmitConfirmDialog.value = true;
+    console.log('🔄 Resubmission mode detected - showing confirmation');
+  } else {
+    // Normal turn in flow
+    // Pre-populate caption from draft submission if it exists
+    if (draftSubmission.value && draftSubmission.value.caption) {
+      submissionCaption.value = draftSubmission.value.caption;
+      console.log('📝 Pre-populated caption from draft:', submissionCaption.value);
+    } else {
+      submissionCaption.value = '';
+    }
+    
+    // Reset post to feed checkbox
+    postToFeed.value = false;
+    
+    // Show the dialog
+    showTurnInDialog.value = true;
+  }
+};
+
+// Confirm resubmission and turn in the work
+const confirmResubmit = async () => {
+  if (draftFiles.value.length === 0) {
+    showWarning('Please add a file first', 'No File');
+    return;
+  }
+
+  isSubmitting.value = true;
+  showResubmitConfirmDialog.value = false;
+
+  try {
+    console.log('🔄 Confirming resubmission...');
+    
+    // Get the draft submission ID
+    const draftId = draftFiles.value[0].id;
+    
+    // Turn in by changing status from draft to unscored
+    const response = await axios.put(`/api/submissions/${draftId}/`, {
+      status: 'unscored'
+    });
+
+    console.log('✅ Resubmission successful:', response.data);
+    console.log('📊 New resubmit count:', response.data.resubmit_count);
+
+    // Update state
+    hasSubmittedWork.value = true;
+    existingSubmission.value = response.data;
+    draftSubmission.value = null;
+    draftFiles.value = [];
+    submissionCaption.value = '';
+    postToFeed.value = false;
+
+    // Reload submissions
+    await loadActivitySubmissions(selectedActivity.value.id);
+
+    showSuccess(
+      `Work resubmitted successfully! (Resubmission #${response.data.resubmit_count})`,
+      'Resubmitted'
+    );
+  } catch (error) {
+    console.error('❌ Error resubmitting work:', error);
+    showError(
+      error.response?.data?.error || 'Failed to resubmit work',
+      'Resubmit Failed'
+    );
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
 // Turn in the draft submission
 const turnInDraft = async () => {
-  if (!draftSubmission.value) {
+  if (draftFiles.value.length === 0) {
     showWarning('Please add a file first', 'No File');
     return;
   }
@@ -3951,20 +4353,21 @@ const turnInDraft = async () => {
   isSubmitting.value = true;
 
   try {
-    console.log('📤 Turning in draft submission:', draftSubmission.value.id);
+    const draftFile = draftFiles.value[0]; // Only one file
+    console.log('📤 Turning in draft submission:', draftFile.id);
 
-    // Update the draft to final submission with caption
+    // Turn in the draft
     const response = await axios.put(
-      `/api/submissions/${draftSubmission.value.id}/`,
+      `/api/submissions/${draftFile.id}/`,
       {
         status: 'unscored',
         is_draft: false,
-        caption: submissionCaption.value || draftSubmission.value.caption,
+        caption: submissionCaption.value || draftFile.name,
         post_to_feed: postToFeed.value
       }
     );
 
-    console.log('✅ Submission turned in successfully:', response.data);
+    console.log('✅ Submission turned in successfully');
     
     // Show success message
     showSuccess('Work submitted successfully!', 'Submitted');
@@ -3977,7 +4380,7 @@ const turnInDraft = async () => {
     postToFeed.value = false;
     showTurnInDialog.value = false;
 
-    // Keep draftFiles empty since we'll show submitted files instead
+    // Clear draft files since they're now submitted
     draftFiles.value = [];
 
     // Reload submissions to populate studentSubmissions array
@@ -3994,8 +4397,8 @@ const turnInDraft = async () => {
   } catch (error) {
     console.error('❌ Error turning in submission:', error);
     showError(
-      error.response?.data?.error || 'Failed to submit work',
-      'Submit Failed'
+      error.response?.data?.error || 'Failed to turn in submission',
+      'Turn In Failed'
     );
   } finally {
     isSubmitting.value = false;
@@ -4037,19 +4440,23 @@ const handleResubmit = async () => {
     existingSubmission.value = null;
     studentSubmissions.value = [];
     
-    // Set as draft submission with the file
+    // Set as draft submission with the file (includes resubmit_count)
     draftSubmission.value = response.data;
     
-    // Load the file into draftFiles so it can be viewed/removed
+    // Load the file into draftFiles so it can be viewed/removed with cache busting
     const filePath = response.data.file_url || response.data.file_path || response.data.file;
+    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+    
     draftFiles.value = [{
       id: response.data.id,
       name: response.data.caption || 'Submitted file',
       type: response.data.file_type,
-      path: filePath
+      path: cacheBustedPath,
+      resubmit_count: response.data.resubmit_count || 0  // Preserve resubmit count
     }];
     
     console.log('✅ Draft file loaded:', draftFiles.value);
+    console.log('📊 Resubmit count preserved:', response.data.resubmit_count);
     
     // Show resubmit count info
     const resubmitCount = response.data.resubmit_count || 0;
@@ -4083,8 +4490,8 @@ const handleResubmit = async () => {
   }
 };
 
-// Request to post existing submission to feed
-const requestPostToFeed = async () => {
+// Confirm and request to post existing submission to feed
+const confirmPostToFeed = async () => {
   if (!existingSubmission.value) {
     showError('No submission found', 'Error');
     return;
@@ -4115,6 +4522,9 @@ const requestPostToFeed = async () => {
         };
       }
       
+      // Close confirmation dialog
+      showPostToFeedConfirmDialog.value = false;
+      
       showSuccess(
         'Your post request has been sent to your teacher for approval!',
         'Request Sent'
@@ -4143,23 +4553,47 @@ const removeDraftFile = async () => {
   
   try {
     console.log('🗑️ Removing draft file:', fileToRemove.value.id);
-    await axios.delete(`/api/submissions/${fileToRemove.value.id}/`);
     
-    // Remove from local state
-    draftFiles.value = draftFiles.value.filter(f => f.id !== fileToRemove.value.id);
-    if (draftFiles.value.length === 0) {
-      draftSubmission.value = null;
+    // Check if we're in resubmission mode
+    const isResubmitting = draftSubmission.value && draftSubmission.value.last_resubmit_at;
+    
+    if (isResubmitting) {
+      // In resubmission mode: Just clear the UI, keep the submission record in database
+      // This preserves last_resubmit_at and resubmit_count
+      // When user uploads a new file, it will UPDATE this submission (not create new)
+      console.log('🔄 Resubmission mode: Clearing UI but keeping submission record for resubmission');
+      
+      // Remove from local state but keep draftSubmission to preserve resubmission mode
+      draftFiles.value = [];
+      // draftSubmission stays intact with last_resubmit_at preserved
+      
+      showSuccess('File removed. You can attach a new file to resubmit.', 'Removed');
+    } else {
+      // Normal mode: Delete the entire submission from database
+      console.log('📝 Normal mode: Deleting submission from database');
+      
+      const response = await axios.delete(`/api/submissions/${fileToRemove.value.id}/`);
+      console.log('✅ Delete API response:', response);
+      
+      // Remove from local state
+      draftFiles.value = draftFiles.value.filter(f => f.id !== fileToRemove.value.id);
+      if (draftFiles.value.length === 0) {
+        draftSubmission.value = null;
+      }
+      
+      showSuccess('File removed successfully', 'Removed');
     }
     
-    showSuccess('File removed', 'Removed');
-    console.log('✅ File removed successfully');
+    console.log('✅ File removed from state. Remaining files:', draftFiles.value.length);
+    console.log('📊 Draft submission preserved:', draftSubmission.value ? 'Yes' : 'No');
     
     // Close dialog and reset
     showRemoveConfirmDialog.value = false;
     fileToRemove.value = null;
   } catch (error) {
     console.error('❌ Error removing file:', error);
-    const errorMsg = error.response?.data?.error || 'Failed to remove file';
+    console.error('❌ Error details:', error.response?.data);
+    const errorMsg = error.response?.data?.error || error.response?.data?.detail || 'Failed to remove file';
     showError(errorMsg, 'Error');
   }
 };
@@ -4179,12 +4613,63 @@ const viewDraftFile = async (file) => {
       path: filePath,
       fullData: response.data
     };
+    
+    // Initialize caption with existing caption or file name
+    previewFileCaption.value = response.data.caption || file.name;
+    
     showFilePreview.value = true;
     console.log('👁️ Viewing file:', previewFile.value);
     console.log('📎 Preview path:', filePath);
   } catch (error) {
     console.error('❌ Error loading file:', error);
     showError('Failed to load file preview', 'Error');
+  }
+};
+
+// Open replace file dialog
+const openReplaceFileDialog = () => {
+  isReplacingFile.value = true;
+  showFilePreview.value = false; // Close preview dialog
+  showUploadDialog.value = true; // Open upload dialog
+  activeUploadTab.value = 'device'; // Default to device tab
+  console.log('🔄 Opening replace file dialog');
+};
+
+// Save caption from preview dialog
+const savePreviewCaption = async () => {
+  if (!previewFile.value || !previewFileCaption.value) return;
+  
+  try {
+    console.log('💾 Saving caption:', previewFileCaption.value);
+    
+    // Update the draft with new caption
+    const response = await axios.put(
+      `/api/submissions/${previewFile.value.id}/`,
+      {
+        caption: previewFileCaption.value,
+        is_draft: true
+      }
+    );
+    
+    console.log('✅ Caption saved successfully');
+    
+    // Update draftSubmission (preserves resubmit_count)
+    draftSubmission.value = response.data;
+    
+    // Update draftFiles array
+    if (draftFiles.value.length > 0) {
+      draftFiles.value[0].name = previewFileCaption.value;
+    }
+    
+    // Update preview
+    previewFile.value.name = previewFileCaption.value;
+    previewFile.value.fullData = response.data;
+    
+    showSuccess('Caption saved successfully!', 'Saved');
+    console.log('📊 Resubmit count preserved:', response.data.resubmit_count);
+  } catch (error) {
+    console.error('❌ Error saving caption:', error);
+    showError('Failed to save caption', 'Error');
   }
 };
 

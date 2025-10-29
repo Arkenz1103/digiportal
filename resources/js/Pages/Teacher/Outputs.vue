@@ -99,7 +99,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-    // Clean up event listener
+    // Clean up event listeners
     window.removeEventListener('classChanged', handleClassChange);
 });
 
@@ -277,8 +277,10 @@ const loadSubmissionDetail = async (submissionId) => {
                 filePath: response.data.file_path,
                 fileType: response.data.file_type,
                 score: response.data.score,
-                status: response.data.status === 'scored' ? 'Scored' : 'Submitted',
+                status: response.data.display_status || (response.data.status === 'scored' ? 'Scored' : 'Submitted'),
                 submitted_at: response.data.submitted_at,  // Raw datetime for formatting
+                resubmit_count: response.data.resubmit_count || 0,
+                submission_version: response.data.submission_version || 1,
                 date: new Date(response.data.submitted_at).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
@@ -1158,19 +1160,19 @@ const getMedalDetails = (rank) => {
                                 <!-- Status -->
                                 <div class="col-span-2">
                                     <span 
-                                        v-if="submission.is_late"
+                                        v-if="submission.resubmit_count > 0"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
+                                    >
+                                        <i class="pi pi-refresh text-xs"></i>
+                                        <span>Resubmitted</span>
+                                        <span class="text-xs">({{ submission.resubmit_count }}x)</span>
+                                    </span>
+                                    <span 
+                                        v-else-if="submission.is_late"
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
                                     >
                                         <i class="pi pi-clock text-xs"></i>
                                         <span>Submitted late</span>
-                                    </span>
-                                    <span 
-                                        v-else-if="submission.status === 'Resubmitted'"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
-                                    >
-                                        <i class="pi pi-refresh text-xs"></i>
-                                        <span>{{ submission.status }}</span>
-                                        <span v-if="submission.resubmit_count > 0" class="text-xs">({{ submission.resubmit_count }}x)</span>
                                     </span>
                                     <span 
                                         v-else
@@ -1240,14 +1242,14 @@ const getMedalDetails = (rank) => {
                                 <div class="absolute top-3 left-3">
                                     <span :class="[
                                         'px-3 py-1.5 text-xs font-medium rounded-full shadow-sm',
+                                        submission.resubmit_count > 0 ? 'bg-blue-400/90 text-white' :
+                                        submission.is_late ? 'bg-orange-400/90 text-white' :
                                         submission.status === 'Submitted' ? 'bg-green-400/90 text-white' :
-                                        submission.status === 'Resubmitted' ? 'bg-blue-400/90 text-white' :
-                                        submission.status === 'Late' ? 'bg-yellow-400/90 text-white' :
                                         submission.status === 'Scored' ? 'bg-purple-400/90 text-white' :
-                                        'bg-red-400/90 text-white'
+                                        'bg-gray-400/90 text-white'
                                     ]">
-                                        {{ submission.status }}
-                                        <span v-if="submission.resubmit_count > 0" class="ml-1">({{ submission.resubmit_count }})</span>
+                                        <span v-if="submission.resubmit_count > 0">Resubmitted ({{ submission.resubmit_count }}x)</span>
+                                        <span v-else>{{ submission.status }}</span>
                                     </span>
                                 </div>
                             </div>
@@ -1263,7 +1265,10 @@ const getMedalDetails = (rank) => {
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-center gap-2">
                                             <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
-                                            <span v-if="submission.is_late" class="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium flex-shrink-0">
+                                            <span v-if="submission.resubmit_count > 0" class="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-medium flex-shrink-0">
+                                                Resubmitted ({{ submission.resubmit_count }}x)
+                                            </span>
+                                            <span v-else-if="submission.is_late" class="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium flex-shrink-0">
                                                 Late Submitted
                                             </span>
                                         </div>
@@ -1372,19 +1377,19 @@ const getMedalDetails = (rank) => {
                                     <!-- Status -->
                                     <div class="col-span-2">
                                         <span 
-                                            v-if="submission.is_late"
+                                            v-if="submission.resubmit_count > 0"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
+                                        >
+                                            <i class="pi pi-refresh text-xs"></i>
+                                            <span>Resubmitted</span>
+                                            <span class="text-xs">({{ submission.resubmit_count }}x)</span>
+                                        </span>
+                                        <span 
+                                            v-else-if="submission.is_late"
                                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
                                         >
                                             <i class="pi pi-clock text-xs"></i>
                                             <span>Submitted late</span>
-                                        </span>
-                                        <span 
-                                            v-else-if="submission.status === 'Resubmitted'"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
-                                        >
-                                            <i class="pi pi-refresh text-xs"></i>
-                                            <span>{{ submission.status }}</span>
-                                            <span v-if="submission.resubmit_count > 0" class="text-xs">({{ submission.resubmit_count }}x)</span>
                                         </span>
                                         <span 
                                             v-else
@@ -1457,19 +1462,19 @@ const getMedalDetails = (rank) => {
                                     <!-- Status Badge -->
                                     <div class="absolute top-3 left-3">
                                         <span 
-                                            v-if="submission.is_late"
+                                            v-if="submission.resubmit_count > 0"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-blue-400/90 text-white flex items-center gap-1.5"
+                                        >
+                                            <i class="pi pi-refresh text-xs"></i>
+                                            <span>Resubmitted</span>
+                                            <span class="text-xs">({{ submission.resubmit_count }}x)</span>
+                                        </span>
+                                        <span 
+                                            v-else-if="submission.is_late"
                                             class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-orange-400/90 text-white flex items-center gap-1.5"
                                         >
                                             <i class="pi pi-clock text-xs"></i>
                                             <span>Submitted late</span>
-                                        </span>
-                                        <span 
-                                            v-else-if="submission.status === 'Resubmitted'"
-                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-blue-400/90 text-white flex items-center gap-1.5"
-                                        >
-                                            <i class="pi pi-refresh text-xs"></i>
-                                            <span>{{ submission.status }}</span>
-                                            <span v-if="submission.resubmit_count > 0" class="text-xs">({{ submission.resubmit_count }})</span>
                                         </span>
                                         <span 
                                             v-else
@@ -1529,10 +1534,13 @@ const getMedalDetails = (rank) => {
             <!-- Show submission details when a submission is selected -->
             <div v-if="selectedSubmission" class="bg-white rounded-3xl shadow-lg overflow-hidden border border-indigo-100">
                 <div class="px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
-                    <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                        <i class="pi pi-user-edit text-indigo-700"></i>
-                        Submission Details
-                    </h2>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <i class="pi pi-user-edit text-indigo-700"></i>
+                            Submission Details
+                        </h2>
+                    </div>
+                    
                     <button
                         @click="selectedSubmission = null"
                         class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg"
@@ -1548,9 +1556,22 @@ const getMedalDetails = (rank) => {
                             {{ selectedSubmission.caption || selectedSubmission.activityTitle || 'Submission Details' }}
                         </h3>
 
-                        <!-- Add Score Button -->
-                        <button @click="addScore" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200">
-                            <span>Add score</span>
+                        <!-- Add Score Button (replaced with badge if already scored) -->
+                        <button 
+                            v-if="selectedSubmission.score !== null && selectedSubmission.score !== undefined"
+                            disabled
+                            class="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium flex items-center gap-2 border border-green-300 cursor-default"
+                        >
+                            <i class="pi pi-check-circle"></i>
+                            <span>Already Scored</span>
+                        </button>
+                        <button 
+                            v-else
+                            @click="addScore" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <i class="pi pi-plus-circle"></i>
+                            <span>Add Score</span>
                         </button>
 
 
@@ -1644,17 +1665,17 @@ const getMedalDetails = (rank) => {
                                                 <span class="text-gray-500">Status:</span>
                                                 <span :class="[
                                                     'px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5',
+                                                    selectedSubmission.resubmit_count > 0 ? 'bg-blue-100 text-blue-800' :
                                                     selectedSubmission.is_late ? 'bg-orange-100 text-orange-800' :
-                                                    selectedSubmission.status === 'Resubmitted' ? 'bg-blue-100 text-blue-800' :
                                                     selectedSubmission.status === 'Submitted' || selectedSubmission.status === 'Scored' ? 'bg-green-100 text-green-800' :
-                                                    selectedSubmission.status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
                                                     'bg-red-100 text-red-800'
                                                 ]">
-                                                    <i v-if="selectedSubmission.status === 'Resubmitted'" class="pi pi-refresh text-xs"></i>
+                                                    <i v-if="selectedSubmission.resubmit_count > 0" class="pi pi-refresh text-xs"></i>
                                                     <i v-else-if="selectedSubmission.is_late" class="pi pi-clock text-xs"></i>
                                                     <i v-else class="pi pi-check-circle text-xs"></i>
-                                                    <span>{{ selectedSubmission.is_late ? 'Late Submitted' : (selectedSubmission.status || 'Unknown') }}</span>
-                                                    <span v-if="selectedSubmission.resubmit_count > 0" class="text-xs">({{ selectedSubmission.resubmit_count }}x)</span>
+                                                    <span v-if="selectedSubmission.resubmit_count > 0">Resubmitted ({{ selectedSubmission.resubmit_count }}x)</span>
+                                                    <span v-else-if="selectedSubmission.is_late">Late Submitted</span>
+                                                    <span v-else>{{ selectedSubmission.status || 'Submitted' }}</span>
                                                 </span>
                                             </div>
                                             <div class="flex justify-between text-sm">

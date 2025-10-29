@@ -1322,13 +1322,15 @@ def activity_submissions_api(request, activity_id):
             if include_drafts:
                 submissions = StudentSubmission.objects.filter(
                     activity=activity, 
-                    student=request.user
+                    student=request.user,
+                    is_active=True  # Only show active submissions
                 ).order_by('-submitted_at')
             else:
                 # By default, exclude drafts
                 submissions = StudentSubmission.objects.filter(
                     activity=activity, 
-                    student=request.user
+                    student=request.user,
+                    is_active=True  # Only show active submissions
                 ).exclude(status='draft').order_by('-submitted_at')
             # Use full serializer for students (includes file_path for their own submissions)
             serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
@@ -1345,19 +1347,81 @@ def activity_submissions_api(request, activity_id):
             print(f"Received submission data: {data}")
             
             # Check if student already submitted
-            existing_submission = StudentSubmission.objects.filter(
+            existing_submissions = StudentSubmission.objects.filter(
                 activity=activity,
-                student=request.user
-            ).first()
+                student=request.user,
+                is_active=True  # Only check active submissions
+            ).order_by('-submitted_at')
+            
+            # Clean up duplicate drafts - keep only the most recent one
+            if existing_submissions.count() > 1:
+                draft_submissions = existing_submissions.filter(status='draft')
+                if draft_submissions.count() > 1:
+                    # Keep the most recent draft, delete the rest
+                    drafts_to_delete = draft_submissions[1:]
+                    for draft in drafts_to_delete:
+                        print(f"🗑️ Deleting duplicate draft submission {draft.id}")
+                        draft.delete()
+                    print(f"✅ Cleaned up {len(drafts_to_delete)} duplicate draft(s)")
+            
+            existing_submission = existing_submissions.first()
             
             if existing_submission:
-                # This is a resubmission
                 from django.utils import timezone
                 
-                # Update existing submission
+                # Check if this is a draft being updated
+                is_draft = data.get('is_draft', True)
+                if isinstance(is_draft, str):
+                    is_draft = is_draft.lower() in ('true', '1', 'yes')
+                else:
+                    is_draft = bool(is_draft)
+                
+                # If existing submission is a draft and new one is also a draft,
+                # just update it WITHOUT incrementing resubmit count
+                if existing_submission.status == 'draft' and is_draft:
+                    print(f"📝 Updating existing draft submission {existing_submission.id}")
+                    print(f"📊 Current resubmit_count: {existing_submission.resubmit_count}, last_resubmit_at: {existing_submission.last_resubmit_at}")
+                    
+                    # Update the draft with new file
+                    file_obj = request.FILES.get('file')
+                    if file_obj:
+                        existing_submission.file = file_obj
+                        # Auto-detect file type
+                        content_type = file_obj.content_type
+                        if content_type.startswith('image/'):
+                            existing_submission.file_type = 'image'
+                        elif content_type == 'application/pdf':
+                            existing_submission.file_type = 'pdf'
+                        elif content_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                            existing_submission.file_type = 'document'
+                        else:
+                            existing_submission.file_type = 'file'
+                    
+                    if 'caption' in data:
+                        existing_submission.caption = data.get('caption', '')
+                    if 'file_path' in data:
+                        existing_submission.file_path = data.get('file_path', '')
+                    
+                    # IMPORTANT: Preserve resubmit_count and last_resubmit_at when updating draft
+                    existing_submission.save()
+                    print(f"✅ Draft updated - resubmit_count preserved: {existing_submission.resubmit_count}")
+                    print(f"📎 File saved: {existing_submission.file.url if existing_submission.file else 'No file'}")
+                    
+                    serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
+                    print(f"📤 Returning file_url: {serializer.data.get('file_url')}")
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                
+                # This is a direct file upload to an existing submission
+                # This should not happen in the new draft-based flow, but handle it gracefully
+                # Do NOT increment resubmit_count here - only increment when converting draft to final
+                print(f"⚠️ Direct update to existing submission {existing_submission.id} (not using draft flow)")
+                
+                # Update existing submission with new data
                 existing_submission.caption = data.get('caption', '')
                 existing_submission.file_path = data.get('file_path', '')
                 existing_submission.file_type = data.get('file_type', '')
+                existing_submission.last_resubmit_at = timezone.now()
+                existing_submission.submitted_at = timezone.now()  # Update submission time
                 
                 # If the submission was previously scored, reset to unscored
                 if existing_submission.status == 'scored':
@@ -1366,11 +1430,6 @@ def activity_submissions_api(request, activity_id):
                     existing_submission.feedback = None
                     existing_submission.criteria_scores = None
                     existing_submission.scored_at = None
-                
-                # Increment resubmit count and update resubmit timestamp
-                existing_submission.resubmit_count += 1
-                existing_submission.last_resubmit_at = timezone.now()
-                existing_submission.submission_version += 1
                 
                 # Check if this update is late (if not already marked as late)
                 if not existing_submission.is_late and activity.due_date:
@@ -1391,7 +1450,7 @@ def activity_submissions_api(request, activity_id):
                 
                 existing_submission.save()
                 
-                print(f"✅ Resubmission #{existing_submission.resubmit_count} for student {request.user.username}")
+                print(f"✅ Resubmission #{existing_submission.resubmit_count} (Version {existing_submission.submission_version}) for student {request.user.username}")
                 
                 serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1472,6 +1531,7 @@ def activity_submissions_api(request, activity_id):
                 )
                 
                 print(f"✅ Submission created: ID={submission.id}, status={submission_status}, file_type={file_type}, is_late={is_late}, is_draft={is_draft}")
+                print(f"📎 File saved: {submission.file.url if submission.file else 'No file'}")
                 print(f"📢 POST TO FEED: {post_to_feed}, APPROVAL STATUS: {submission.approval_status}")
                 if post_to_feed:
                     print(f"🔔 This submission should appear in teacher's Notice page!")
@@ -1499,7 +1559,9 @@ def activity_submissions_api(request, activity_id):
                         activity=activity
                     )
                 
-                serializer = StudentSubmissionSerializer(submission)
+                # IMPORTANT: Include request context so file_url is properly generated
+                serializer = StudentSubmissionSerializer(submission, context={'request': request})
+                print(f"📤 Returning file_url: {serializer.data.get('file_url')}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             import traceback
@@ -1519,20 +1581,62 @@ def unscored_submissions_api(request):
         return Response({'error': 'Only teachers can view unscored submissions'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
+        # Clean up duplicate drafts first
+        from django.db.models import Count
+        
+        # Find students with multiple draft submissions for the same activity
+        duplicate_drafts = StudentSubmission.objects.filter(
+            status='draft',
+            is_active=True
+        ).values('student', 'activity').annotate(
+            count=Count('id')
+        ).filter(count__gt=1)
+        
+        # Delete older duplicate drafts
+        for dup in duplicate_drafts:
+            drafts = StudentSubmission.objects.filter(
+                student_id=dup['student'],
+                activity_id=dup['activity'],
+                status='draft',
+                is_active=True
+            ).order_by('-submitted_at')
+            
+            # Keep the most recent, delete the rest
+            drafts_to_delete = drafts[1:]
+            deleted_count = 0
+            for draft in drafts_to_delete:
+                print(f"🗑️ Cleaning up duplicate draft: {draft.id}")
+                draft.delete()
+                deleted_count += 1
+            
+            if deleted_count > 0:
+                print(f"✅ Cleaned up {deleted_count} duplicate draft(s) for student {dup['student']}")
+        
         # Get all unscored submissions - explicitly filter by status='unscored' 
         # AND exclude any that have scores (double safety check)
-        # AND exclude drafts
-        submissions = StudentSubmission.objects.filter(
-            status='unscored'
+        # ALSO include drafts that have resubmit_count > 0 (student is resubmitting)
+        from django.db.models import Q, Max
+        
+        # First, get the latest submission ID for each student-activity pair
+        latest_submissions = StudentSubmission.objects.filter(
+            Q(status='unscored') | Q(status='draft', resubmit_count__gt=0)
         ).exclude(
             status='scored'
         ).exclude(
-            status='draft'
-        ).exclude(
-            score__isnull=False  # Exclude any submission that has a score, regardless of status
-        ).distinct().order_by('-submitted_at')
+            score__isnull=False
+        ).values('student', 'activity').annotate(
+            latest_id=Max('id')
+        )
         
-        print(f"📊 Unscored submissions query: Found {submissions.count()} submissions")
+        # Extract the IDs
+        latest_ids = [item['latest_id'] for item in latest_submissions]
+        
+        # Get only the latest submissions (one per student per activity)
+        submissions = StudentSubmission.objects.filter(
+            id__in=latest_ids
+        ).order_by('-submitted_at')
+        
+        print(f"📊 Unscored submissions query: Found {submissions.count()} unique submissions (one per student)")
         
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -1760,18 +1864,29 @@ def approve_submission_api(request, submission_id):
                 existing_post = NewsfeedPost.objects.filter(original_submission=submission).first()
                 
                 if not existing_post:
+                    # Get the file path - prioritize file field over file_path
+                    file_data = None
+                    if submission.file:
+                        # If file is a FileField, get its URL
+                        file_data = submission.file.url if hasattr(submission.file, 'url') else str(submission.file)
+                    elif submission.file_path:
+                        # Use file_path if file field is empty (for base64 or legacy data)
+                        file_data = submission.file_path
+                    
+                    print(f"📁 Creating newsfeed post with file: {file_data}")
+                    
                     # Create new newsfeed post
                     NewsfeedPost.objects.create(
                         student=submission.student,
                         student_name=submission.student.username,
                         caption=submission.caption or '',
-                        file_path=submission.file_path,
+                        file_path=file_data,
                         file_type=submission.file_type,
                         activity_title=submission.activity.title if submission.activity else 'Sketch Pad',
                         activity_type=submission.activity.activity_type if submission.activity else 'Sketch',
                         original_submission=submission
                     )
-                    print(f"Created newsfeed post for submission {submission_id}")
+                    print(f"✅ Created newsfeed post for submission {submission_id} with file: {file_data}")
         elif action == 'cancel':
             # Cancel/remove the post request - reset to approved without posting
             submission.approval_status = 'approved'
@@ -1859,11 +1974,20 @@ def newsfeed_api(request):
                 likes_count = 0
                 is_liked = False
             
+            # Build full URL for file_path if it's a media file
+            file_url = post.file_path
+            if post.file_path and not post.file_path.startswith(('http://', 'https://', 'data:')):
+                # If it's a relative path, build full URL
+                if post.file_path.startswith('/media/'):
+                    file_url = request.build_absolute_uri(post.file_path)
+                elif not post.file_path.startswith('/'):
+                    file_url = request.build_absolute_uri(f'/media/{post.file_path}')
+            
             post_dict = {
                 'id': post.id,
                 'student_name': post.student_name,
                 'caption': post.caption,
-                'file_path': post.file_path,
+                'file_path': file_url,
                 'file_type': post.file_type,
                 'activity_title': post.activity_title,
                 'activity_type': post.activity_type,
@@ -1871,6 +1995,7 @@ def newsfeed_api(request):
                 'likes': likes_count,
                 'is_liked': is_liked,
             }
+            print(f"📸 Post {post.id}: file_path = {file_url}")
             posts_data.append(post_dict)
         
         return Response(posts_data)
@@ -2031,12 +2156,29 @@ def submission_detail_api(request, submission_id):
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         
         if request.method == 'GET':
+            # Return the current submission
             serializer = StudentSubmissionSerializer(submission, context={'request': request})
             return Response(serializer.data)
         
         elif request.method == 'PUT':
             # Update submission
             data = request.data
+            
+            # Handle file upload (for replacing file)
+            file_obj = request.FILES.get('file')
+            if file_obj:
+                submission.file = file_obj
+                # Auto-detect file type
+                content_type = file_obj.content_type
+                if content_type.startswith('image/'):
+                    submission.file_type = 'image'
+                elif content_type == 'application/pdf':
+                    submission.file_type = 'pdf'
+                elif content_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                    submission.file_type = 'document'
+                else:
+                    submission.file_type = 'file'
+                print(f"📎 File replaced: {file_obj.name} (type: {submission.file_type})")
             
             if 'caption' in data:
                 submission.caption = data['caption']
@@ -2092,10 +2234,9 @@ def submission_detail_api(request, submission_id):
                             'max_resubmits': MAX_RESUBMITS
                         }, status=status.HTTP_400_BAD_REQUEST)
                     
-                    # Increment resubmit count and track time
-                    submission.resubmit_count += 1
+                    # Mark that this is a resubmission in progress (don't increment yet)
                     submission.last_resubmit_at = timezone.now()
-                    print(f"🔄 Resubmit #{submission.resubmit_count} for submission {submission.id}")
+                    print(f"🔄 Converting to draft for resubmission (current count: {submission.resubmit_count})")
                 
                 submission.status = new_status
                 
@@ -2103,6 +2244,23 @@ def submission_detail_api(request, submission_id):
                 if old_status == 'draft' and new_status in ['unscored', 'scored']:
                     from django.utils import timezone
                     from datetime import datetime, time as dt_time
+                    
+                    # Check if this is a resubmission (draft created from existing submission)
+                    # Increment resubmit count only if last_resubmit_at is set (indicates it was converted to draft)
+                    if submission.last_resubmit_at is not None:
+                        # Check if we're about to exceed the limit
+                        MAX_RESUBMITS = 3
+                        if submission.resubmit_count >= MAX_RESUBMITS:
+                            return Response({
+                                'error': f'Maximum resubmit limit ({MAX_RESUBMITS}) reached',
+                                'detail': 'You have already resubmitted the maximum number of times.',
+                                'resubmit_count': submission.resubmit_count,
+                                'max_resubmits': MAX_RESUBMITS
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                        
+                        # Increment the count NOW (when turning in)
+                        submission.resubmit_count += 1
+                        print(f"✅ Resubmission #{submission.resubmit_count} being turned in")
                     
                     # ALWAYS update submitted_at to current time (when student turned in)
                     now = timezone.now()
@@ -2198,6 +2356,7 @@ def submission_detail_api(request, submission_id):
         print(f"❌ Error in submission_detail_api: {str(e)}")
         print(error_trace)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @csrf_exempt

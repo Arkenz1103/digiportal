@@ -525,6 +525,16 @@
                                                                 <i class="pi pi-pencil text-xs"></i>
                                                                 <span>Edit</span>
                                                             </button>
+                                                            
+                                                            <!-- Delete Button (Third) -->
+                                                            <button 
+                                                                @click.stop="confirmDelete(activity, index)"
+                                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow"
+                                                                title="Delete activity"
+                                                            >
+                                                                <i class="pi pi-trash text-xs"></i>
+                                                                <span>Delete</span>
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1848,10 +1858,10 @@
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-medium text-gray-900">Delete Activity</h3>
+                        <h3 class="text-lg font-medium text-gray-900">Delete Activity Permanently</h3>
                         <p class="mt-1 text-gray-600">
                             Are you sure you want to delete "<span class="font-medium">{{ activityToDelete.activity?.title }}</span>"? 
-                            This action cannot be undone.
+                            This will permanently delete the activity and all associated student submissions. This action cannot be undone.
                         </p>
                     </div>
                 </div>
@@ -1865,7 +1875,7 @@
                     <button @click="handleDelete"
                         class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 flex items-center gap-2">
                         <i class="pi pi-trash"></i>
-                        Delete
+                        Confirm & Delete
                     </button>
                 </div>
             </template>

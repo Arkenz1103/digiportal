@@ -230,13 +230,28 @@
                                 </div>
                             </div>
 
-                            <!-- Post Image -->
+                            <!-- Post Image with Placeholder -->
                             <div v-if="post.image" class="px-6 pb-4">
-                                <div class="relative group cursor-pointer">
-                                    <img :src="post.image" 
-                                        :alt="post.content"
-                                        class="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-lg">
-                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 rounded-2xl"></div>
+                                <div class="relative group cursor-pointer bg-gray-100 rounded-2xl overflow-hidden">
+                                    <!-- Aspect ratio container for uniform sizing -->
+                                    <div class="relative w-full" style="padding-bottom: 75%; min-height: 300px; max-height: 500px;">
+                                        <img :src="post.image" 
+                                            :alt="post.content"
+                                            class="absolute inset-0 w-full h-full object-contain bg-gray-50"
+                                            @error="handleImageError"
+                                            loading="lazy">
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Placeholder for missing image -->
+                            <div v-else-if="post.activityType" class="px-6 pb-4">
+                                <div class="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center" style="min-height: 300px;">
+                                    <div class="text-center text-gray-400">
+                                        <i class="pi pi-image text-6xl mb-3"></i>
+                                        <p class="text-sm font-medium">No image available</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -414,6 +429,12 @@ const loadComments = async () => {
       console.error(`Error loading comments for post ${post.id}:`, error);
     }
   }
+};
+
+// Handle image load error
+const handleImageError = (event) => {
+  console.error('Failed to load image:', event.target.src);
+  event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not found%3C/text%3E%3C/svg%3E';
 };
 
 // Toggle like

@@ -155,8 +155,12 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
         return obj.file_path
     
     def get_display_status(self, obj):
-        """Return display status - shows 'Resubmitted' if student has resubmitted"""
-        if obj.resubmit_count > 0 and obj.status == 'unscored':
+        """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""
+        # For teachers, always show 'Submitted' for the original submission
+        # even if student is resubmitting (status = draft with resubmit_count > 0)
+        if obj.status == 'draft' and obj.resubmit_count > 0:
+            return 'Submitted'  # Show as submitted to teacher
+        elif obj.resubmit_count > 0 and obj.status == 'unscored':
             return 'Resubmitted'
         elif obj.status == 'unscored':
             return 'Submitted'
@@ -167,7 +171,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentSubmission
         fields = '__all__'
-        read_only_fields = ['id', 'submitted_at', 'scored_at', 'resubmit_count', 'last_resubmit_at']
+        read_only_fields = ['id', 'submitted_at', 'scored_at', 'resubmit_count', 'last_resubmit_at', 'file_url']
 
 
 class StudentSubmissionListSerializer(serializers.ModelSerializer):
@@ -239,8 +243,12 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
         return 10  # Default max score
     
     def get_display_status(self, obj):
-        """Return display status - shows 'Resubmitted' if student has resubmitted"""
-        if obj.resubmit_count > 0 and obj.status == 'unscored':
+        """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""
+        # For teachers, always show 'Submitted' for the original submission
+        # even if student is resubmitting (status = draft with resubmit_count > 0)
+        if obj.status == 'draft' and obj.resubmit_count > 0:
+            return 'Submitted'  # Show as submitted to teacher
+        elif obj.resubmit_count > 0 and obj.status == 'unscored':
             return 'Resubmitted'
         elif obj.status == 'unscored':
             return 'Submitted'
