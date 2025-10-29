@@ -217,6 +217,9 @@
 import { ref, computed, onMounted } from "vue";
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
+import { useToast } from '../../composables/useToast';
+
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 const remarks = ref([]);
 const outputRemarks = ref([]);
@@ -274,10 +277,12 @@ const loadRemarks = async () => {
       }
     } catch (error) {
       console.error('Error loading output remarks:', error);
+      showError('Failed to load output remarks', 'Error');
       outputRemarks.value = [];
     }
   } catch (error) {
     console.error('Error loading remarks:', error);
+    showError('Failed to load remarks', 'Error');
   } finally {
     isLoading.value = false;
   }
@@ -347,6 +352,7 @@ const openRemarkDetail = async (remark) => {
     } catch (error) {
       console.error('Error marking remark as read:', error);
       console.error('Error response:', error.response?.data);
+      showError('Failed to mark remark as read', 'Error');
     }
   } else {
     console.log('Remark already read:', remark.id);

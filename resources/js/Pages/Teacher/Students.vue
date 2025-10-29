@@ -227,6 +227,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useToast } from '../../composables/useToast';
+
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 const students = ref([]);
 const loading = ref(true);
@@ -240,17 +243,20 @@ const fetchStudents = async () => {
   try {
     loading.value = true;
     error.value = null;
-    const response = await window.axios.get('http://localhost:8000/api/students/');
+    const response = await window.axios.get('/api/students/');
     students.value = response.data;
     console.log('✓ Loaded students:', students.value.length);
   } catch (err) {
     console.error('❌ Error fetching students:', err);
     if (err.response) {
       error.value = `Server error: ${err.response.status} - ${err.response.statusText}`;
+      showError(error.value, 'Failed to Load Students');
     } else if (err.request) {
-      error.value = 'Cannot connect to server. Make sure Django is running on http://localhost:8000';
+      error.value = 'Cannot connect to server. Please check your connection.';
+      showError(error.value, 'Connection Error');
     } else {
       error.value = err.message;
+      showError(error.value, 'Error');
     }
   } finally {
     loading.value = false;

@@ -18,7 +18,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'role', 'first_name', 'last_name',
             'phone_number', 'bio', 'profile_picture', 'profile_picture_url',
-            'id_number', 'department', 'years_of_experience', 'subject_specialization',
+            'id_number', 'department', 'years_of_experience',
             'grade_level', 'section', 'student_id'
         ]
         read_only_fields = ['id', 'username', 'role', 'id_number']
@@ -37,7 +37,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         # Remove fields based on role
         if instance.role == 'student':
             # Remove teacher-specific fields for students
-            fields_to_remove = ['department', 'years_of_experience', 'subject_specialization']
+            fields_to_remove = ['department', 'years_of_experience']
             for field in fields_to_remove:
                 data.pop(field, None)
         elif instance.role == 'teacher':

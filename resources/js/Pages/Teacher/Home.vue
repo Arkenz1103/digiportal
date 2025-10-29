@@ -1,24 +1,5 @@
 <template>
     <div class="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
-        <!-- Header Section -->
-        <div class="bg-gradient-to-r from-teal-600 via-cyan-700 to-blue-700 shadow-xl">
-            <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
-                            <i class="pi pi-home"></i>
-                            Student Showcase
-                        </h1>
-                        <p class="text-white/90 text-sm mt-1">Celebrating student creativity and achievements</p>
-                    </div>
-                    <div class="hidden md:flex items-center gap-2 bg-amber-400/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-amber-300/30">
-                        <i class="pi pi-star-fill text-amber-300"></i>
-                        <span class="text-white font-semibold">{{ posts.length }} Posts</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Main Content -->
         <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
             <!-- Loading State -->
@@ -86,8 +67,8 @@
 
                     <!-- Post Image with Placeholder -->
                     <div v-if="post.image" class="relative group bg-gray-100">
-                        <!-- Aspect ratio container for uniform sizing -->
-                        <div class="relative w-full" style="padding-bottom: 75%; min-height: 300px; max-height: 600px;">
+                        <!-- Smaller aspect ratio container -->
+                        <div class="relative w-full" style="padding-bottom: 50%; min-height: 200px; max-height: 400px;">
                             <img :src="post.image" 
                                 :alt="post.content"
                                 class="absolute inset-0 w-full h-full object-contain cursor-pointer bg-gray-50"
@@ -100,11 +81,11 @@
                         </div>
                     </div>
                     
-                    <!-- Placeholder for missing image -->
-                    <div v-else-if="post.activityType" class="relative bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center" style="min-height: 300px;">
+                    <!-- Smaller placeholder for missing image -->
+                    <div v-else-if="post.activityType" class="relative bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center" style="min-height: 200px;">
                         <div class="text-center text-gray-400">
-                            <i class="pi pi-image text-6xl mb-3"></i>
-                            <p class="text-sm font-medium">No image available</p>
+                            <i class="pi pi-image text-4xl mb-2"></i>
+                            <p class="text-xs font-medium">No image available</p>
                         </div>
                     </div>
 

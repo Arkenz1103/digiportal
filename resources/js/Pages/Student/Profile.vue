@@ -267,9 +267,16 @@ onMounted(() => {
                                 <h3 class="text-xl font-bold text-gray-900">{{ user.first_name }} {{ user.last_name }}</h3>
                                 <p class="text-gray-600">{{ user.email }}</p>
                                 <div class="flex items-center gap-3 mt-1">
-                                    <span class="text-sm text-indigo-600">Student ID: {{ user.student_id }}</span>
-                                    <span class="text-sm text-gray-500">•</span>
-                                    <span class="text-sm text-gray-600">{{ user.grade_level }} - {{ user.section }}</span>
+                                    <span class="text-sm text-indigo-600">
+                                        Student ID: {{ user.student_id || 'Not assigned' }}
+                                    </span>
+                                    <span v-if="user.grade_level && user.section" class="text-sm text-gray-500">•</span>
+                                    <span v-if="user.grade_level && user.section" class="text-sm text-gray-600">
+                                        {{ user.grade_level }} - {{ user.section }}
+                                    </span>
+                                    <span v-else class="text-sm text-gray-400 italic">
+                                        Grade & Section: Not assigned
+                                    </span>
                                 </div>
                             </div>
                             
@@ -372,10 +379,13 @@ onMounted(() => {
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Student ID</label>
                                 <input
-                                    v-model="user.student_id"
+                                    :value="user.student_id || 'Not assigned'"
                                     disabled
                                     type="text"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                                    :class="[
+                                        'w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50',
+                                        user.student_id ? 'text-gray-700' : 'text-gray-400 italic'
+                                    ]"
                                 />
                             </div>
                             
@@ -383,10 +393,13 @@ onMounted(() => {
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Grade & Section</label>
                                 <input
-                                    :value="`${user.grade_level} - ${user.section}`"
+                                    :value="user.grade_level && user.section ? `${user.grade_level} - ${user.section}` : 'Not assigned'"
                                     disabled
                                     type="text"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                                    :class="[
+                                        'w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50',
+                                        user.grade_level && user.section ? 'text-gray-700' : 'text-gray-400 italic'
+                                    ]"
                                 />
                             </div>
                             
@@ -555,7 +568,12 @@ onMounted(() => {
                     </div>
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <span class="text-sm text-gray-700">Student ID</span>
-                        <span class="text-sm font-medium text-gray-900">{{ user.student_id }}</span>
+                        <span :class="[
+                            'text-sm font-medium',
+                            user.student_id ? 'text-gray-900' : 'text-gray-400 italic'
+                        ]">
+                            {{ user.student_id || 'Not assigned' }}
+                        </span>
                     </div>
                 </div>
             </div>

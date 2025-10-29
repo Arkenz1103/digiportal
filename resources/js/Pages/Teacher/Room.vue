@@ -525,16 +525,6 @@
                                                                 <i class="pi pi-pencil text-xs"></i>
                                                                 <span>Edit</span>
                                                             </button>
-                                                            
-                                                            <!-- Delete Button (Third) -->
-                                                            <button 
-                                                                @click.stop="confirmDelete(activity, index)"
-                                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow"
-                                                                title="Delete activity"
-                                                            >
-                                                                <i class="pi pi-trash text-xs"></i>
-                                                                <span>Delete</span>
-                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -600,41 +590,140 @@
                                 </div>
 
                                 <div class="max-w-5xl mx-auto p-8 relative z-10">
-                                    <!-- Tab Header with Back Button -->
-                                    <div class="flex justify-between items-center mb-6 animate-slideDown">
-                                        <!-- Tab on the left -->
-                                        <div class="flex gap-2">
-                                            <button
-                                                class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 bg-indigo-600 text-white shadow-lg"
-                                            >
-                                                <i class="pi pi-list"></i>
-                                                Student Activity Compilation
-                                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/20">
-                                                    {{ studentActivities.length }}
-                                                </span>
-                                            </button>
-                                        </div>
-
-                                        <!-- Back Button on the right -->
+                                    <!-- Show Closed Envelope (Front Cover) -->
+                                    <div v-if="!isEnvelopeOpen" class="text-center py-12 animate-fadeIn">
+                                        <!-- Back Button -->
                                         <button
-                                            @click="selectedEnvelope = null; isEnvelopeOpen = false; studentActivities = []; currentActivityIndex = 0"
-                                            class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                            @click="selectedEnvelope = null; studentActivities = []; currentActivityIndex = 0"
+                                            class="absolute top-4 right-4 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
                                         >
                                             <i class="pi pi-arrow-left text-sm"></i>
                                             Back to List
                                         </button>
+
+                                        <!-- Envelope Front Cover - Matching Student Design -->
+                                        <div class="max-w-3xl mx-auto">
+                                            <!-- Envelope Top Flap -->
+                                            <div class="relative h-24 rounded-t-3xl overflow-hidden"
+                                                 :style="{ background: `linear-gradient(135deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)` }">
+                                                <!-- Flap Triangle Effect -->
+                                                <div class="absolute inset-0 flex items-center justify-center">
+                                                    <div class="w-0 h-0 border-l-[400px] border-l-transparent border-r-[400px] border-r-transparent border-t-[100px]"
+                                                         :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -30) }">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Envelope Body with Pattern -->
+                                            <div class="relative rounded-b-3xl overflow-hidden shadow-2xl"
+                                                 :style="{ background: `linear-gradient(135deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -10)} 100%)` }">
+                                                
+                                                <!-- Pattern Overlay -->
+                                                <div v-if="selectedEnvelope.pattern === 'dots'" 
+                                                     class="absolute inset-0 opacity-20"
+                                                     style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
+                                                </div>
+                                                <div v-else-if="selectedEnvelope.pattern === 'lines'" 
+                                                     class="absolute inset-0 opacity-20"
+                                                     style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
+                                                </div>
+                                                <div v-else-if="selectedEnvelope.pattern === 'grid'" 
+                                                     class="absolute inset-0 opacity-20"
+                                                     style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
+                                                </div>
+
+                                                <!-- Front Cover Content -->
+                                                <div class="relative z-10 p-16 text-center">
+                                                    <!-- Portfolio Label Card -->
+                                                    <div class="inline-block bg-white/20 backdrop-blur-md rounded-2xl px-12 py-10 shadow-xl border-2 border-white/30">
+                                                        <h2 class="text-5xl font-bold text-white mb-4 tracking-wide">My Portfolio</h2>
+                                                        <p class="text-2xl text-white/90 mb-2 font-medium">{{ selectedEnvelope.name }}</p>
+                                                        <p class="text-lg text-white/80">{{ selectedEnvelope.class_name }}</p>
+                                                        <div class="mt-6 pt-6 border-t border-white/30">
+                                                            <p class="text-sm text-white/70 mb-1">Submitted</p>
+                                                            <p class="text-white/90 font-medium">{{ new Date(selectedEnvelope.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+                                                        </div>
+                                                        <div class="mt-4 flex items-center justify-center gap-2 text-white/80">
+                                                            <i class="pi pi-book"></i>
+                                                            <span class="text-sm font-medium">{{ studentActivities.length }} Output{{ studentActivities.length !== 1 ? 's' : '' }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Open Envelope Button -->
+                                        <button
+                                            @click="openEnvelope"
+                                            class="mt-8 px-12 py-5 bg-white text-gray-900 text-xl font-bold rounded-2xl hover:bg-white/90 transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:scale-105 flex items-center gap-4 mx-auto"
+                                        >
+                                            <i class="pi pi-folder-open text-2xl"></i>
+                                            Open Portfolio Envelope
+                                        </button>
                                     </div>
 
-                                    <!-- Display Student Activities (Carousel Style like Student View) -->
-                                    <div class="relative min-h-[600px]">
+                                    <!-- Show Opened Envelope Content -->
+                                    <div v-else>
+                                        <!-- Tab Header with Back Button -->
+                                        <div class="flex justify-between items-center mb-6 animate-slideDown">
+                                            <!-- Tabs on the left -->
+                                            <div class="flex gap-2">
+                                                <button
+                                                    @click="activePortfolioTab = 'scored'"
+                                                    :class="activePortfolioTab === 'scored' 
+                                                        ? 'bg-indigo-600 text-white shadow-lg' 
+                                                        : 'bg-white/30 text-white hover:bg-white/40'"
+                                                    class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+                                                >
+                                                    <i class="pi pi-check-circle"></i>
+                                                    Scored Activities
+                                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                                                          :class="activePortfolioTab === 'scored' ? 'bg-white/20' : 'bg-white/30'">
+                                                        {{ scoredActivities.length }}
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    @click="activePortfolioTab = 'missing'"
+                                                    :class="activePortfolioTab === 'missing' 
+                                                        ? 'bg-indigo-600 text-white shadow-lg' 
+                                                        : 'bg-white/30 text-white hover:bg-white/40'"
+                                                    class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
+                                                >
+                                                    <i class="pi pi-inbox"></i>
+                                                    Missing Compiled
+                                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                                                          :class="activePortfolioTab === 'missing' ? 'bg-white/20' : 'bg-white/30'">
+                                                        {{ missingCompiledActivities.length }}
+                                                    </span>
+                                                </button>
+                                            </div>
+
+                                            <!-- Back Button on the right -->
+                                            <button
+                                                @click="selectedEnvelope = null; isEnvelopeOpen = false; studentActivities = []; currentActivityIndex = 0; activePortfolioTab = 'scored'"
+                                                class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                            >
+                                                <i class="pi pi-arrow-left text-sm"></i>
+                                                Back to List
+                                            </button>
+                                        </div>
+
+                                        <!-- Display Student Activities (Carousel Style like Student View) -->
+                                        <div class="relative min-h-[600px]">
                                     
                                     <!-- Loading state -->
-                                    <div v-if="studentActivities.length === 0" class="text-center py-20 relative z-10">
+                                    <div v-if="currentTabActivities.length === 0" class="text-center py-20 relative z-10">
                                         <div class="inline-block p-8 rounded-full mb-6 bg-white/30">
                                             <i class="pi pi-inbox text-6xl text-white"></i>
                                         </div>
-                                        <p class="text-xl font-semibold text-white">No submitted activities found</p>
-                                        <p class="text-sm text-white/80 mt-2">This student hasn't submitted any activities yet</p>
+                                        <p class="text-xl font-semibold text-white">
+                                            {{ activePortfolioTab === 'scored' ? 'No scored activities found' : 'No missing compiled activities' }}
+                                        </p>
+                                        <p class="text-sm text-white/80 mt-2">
+                                            {{ activePortfolioTab === 'scored' 
+                                                ? 'This student hasn\'t submitted any scored activities yet' 
+                                                : 'This student has compiled all missing activities' }}
+                                        </p>
                                     </div>
                                     
                                     <!-- Activity Carousel -->
@@ -647,7 +736,7 @@
                                              }">
                                           <span class="relative z-10 flex items-center gap-2">
                                             <i class="pi pi-book"></i>
-                                            {{ currentActivityIndex + 1 }} / {{ studentActivities.length }}
+                                            {{ currentActivityIndex + 1 }} / {{ currentTabActivities.length }}
                                           </span>
                                           <div class="absolute inset-0 rounded-full animate-ping opacity-20"
                                                :style="{ backgroundColor: selectedEnvelope.color }">
@@ -655,7 +744,7 @@
                                         </div>
 
                                         <!-- Activity Content -->
-                                        <div v-if="studentActivities[currentActivityIndex]" 
+                                        <div v-if="currentTabActivities[currentActivityIndex]" 
                                              :key="currentActivityIndex"
                                              class="animate-fadeIn">
                                           <!-- Content Card with Glass Effect -->
@@ -663,8 +752,8 @@
                                             <!-- Activity Image/Preview -->
                                             <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
                                                  :style="{ borderColor: `${selectedEnvelope.color}40` }">
-                                              <img v-if="studentActivities[currentActivityIndex].submission_file" 
-                                                   :src="studentActivities[currentActivityIndex].submission_file"
+                                              <img v-if="currentTabActivities[currentActivityIndex].submission_file" 
+                                                   :src="currentTabActivities[currentActivityIndex].submission_file"
                                                    alt="Activity submission"
                                                    class="w-full h-full object-contain"
                                                    @error="(e) => { e.target.style.display = 'none'; }"
@@ -676,22 +765,22 @@
                                             </div>
 
                                             <!-- Submission Caption -->
-                                            <div v-if="studentActivities[currentActivityIndex].submission_caption" class="mb-4 p-4 bg-gray-50 rounded-lg">
+                                            <div v-if="currentTabActivities[currentActivityIndex].submission_caption" class="mb-4 p-4 bg-gray-50 rounded-lg">
                                               <p class="text-sm text-gray-700 italic">
-                                                "{{ studentActivities[currentActivityIndex].submission_caption }}"
+                                                "{{ currentTabActivities[currentActivityIndex].submission_caption }}"
                                               </p>
                                             </div>
 
                                             <!-- Score and Feedback -->
-                                            <div v-if="studentActivities[currentActivityIndex].submission_score !== null" 
+                                            <div v-if="currentTabActivities[currentActivityIndex].submission_score !== null" 
                                                  class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                                               <div class="flex items-center justify-between mb-2">
                                                 <span class="text-sm font-medium text-gray-700">Score:</span>
-                                                <span class="text-2xl font-bold text-green-700">{{ studentActivities[currentActivityIndex].submission_score }}</span>
+                                                <span class="text-2xl font-bold text-green-700">{{ currentTabActivities[currentActivityIndex].submission_score }}</span>
                                               </div>
-                                              <div v-if="studentActivities[currentActivityIndex].submission_feedback" class="mt-2 pt-2 border-t border-green-200">
+                                              <div v-if="currentTabActivities[currentActivityIndex].submission_feedback" class="mt-2 pt-2 border-t border-green-200">
                                                 <p class="text-sm text-gray-600">
-                                                  <span class="font-medium">Feedback:</span> {{ studentActivities[currentActivityIndex].submission_feedback }}
+                                                  <span class="font-medium">Feedback:</span> {{ currentTabActivities[currentActivityIndex].submission_feedback }}
                                                 </p>
                                               </div>
                                             </div>
@@ -701,17 +790,17 @@
                                               <div>
                                                 <div class="flex items-center gap-3 mb-3">
                                                   <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold uppercase">
-                                                    {{ studentActivities[currentActivityIndex].activity_type || 'Activity' }}
+                                                    {{ currentTabActivities[currentActivityIndex].activity_type || 'Activity' }}
                                                   </span>
                                                   <span class="text-sm text-gray-500">
-                                                    {{ studentActivities[currentActivityIndex].folder_name }}
+                                                    {{ currentTabActivities[currentActivityIndex].folder_name }}
                                                   </span>
                                                 </div>
                                                 <h3 class="text-2xl font-bold text-gray-900 mb-2">
-                                                  {{ studentActivities[currentActivityIndex].title }}
+                                                  {{ currentTabActivities[currentActivityIndex].title }}
                                                 </h3>
                                                 <p class="text-gray-600">
-                                                  {{ studentActivities[currentActivityIndex].description }}
+                                                  {{ currentTabActivities[currentActivityIndex].description }}
                                                 </p>
                                               </div>
 
@@ -722,16 +811,16 @@
                                                     Submitted
                                                   </span>
                                                 </div>
-                                                <div v-if="studentActivities[currentActivityIndex].submitted_date">
+                                                <div v-if="currentTabActivities[currentActivityIndex].submitted_date">
                                                   <span class="text-sm text-gray-500 block mb-1">Submitted:</span>
                                                   <span class="text-sm font-medium text-gray-900">
-                                                    {{ studentActivities[currentActivityIndex].submitted_date }}
+                                                    {{ currentTabActivities[currentActivityIndex].submitted_date }}
                                                   </span>
                                                 </div>
-                                                <div v-if="studentActivities[currentActivityIndex].submitted_time">
+                                                <div v-if="currentTabActivities[currentActivityIndex].submitted_time">
                                                   <span class="text-sm text-gray-500 block mb-1">Time:</span>
                                                   <span class="text-sm font-medium text-gray-900">
-                                                    {{ studentActivities[currentActivityIndex].submitted_time }}
+                                                    {{ currentTabActivities[currentActivityIndex].submitted_time }}
                                                   </span>
                                                 </div>
                                               </div>
@@ -761,7 +850,7 @@
                                         </button>
                                         <button
                                           @click="nextActivity"
-                                          :disabled="currentActivityIndex >= studentActivities.length - 1"
+                                          :disabled="currentActivityIndex >= currentTabActivities.length - 1"
                                           class="absolute right-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
                                           :style="{ 
                                             borderColor: selectedEnvelope.color, 
@@ -778,6 +867,7 @@
                                                }">
                                           </div>
                                         </button>
+                                    </div>
                                     </div>
                                     </div>
                                 </div>
@@ -2302,6 +2392,7 @@ const loadPortfolioFolders = async () => {
         }
     } catch (error) {
         console.error('Error loading folders:', error);
+        showError('Failed to load portfolio folders', 'Error');
         subjectFolders.value = [];
     } finally {
         isLoadingFolders.value = false;
@@ -2745,12 +2836,37 @@ const selectedEnvelope = ref(null);
 const isEnvelopeOpen = ref(false);
 const studentActivities = ref([]); // Store student's submitted activities
 const currentActivityIndex = ref(0); // Current activity index for carousel
+const activePortfolioTab = ref('scored'); // 'scored' or 'missing'
+
+// Computed properties for filtered activities
+const scoredActivities = computed(() => {
+    return studentActivities.value.filter(activity => 
+        activity.submission_status === 'scored' || 
+        activity.submission_status === 'scored_late' || 
+        activity.submission_status === 'scored_resubmitted'
+    );
+});
+
+const missingCompiledActivities = computed(() => {
+    return studentActivities.value.filter(activity => 
+        activity.submission_status === 'submitted_compilation'
+    );
+});
+
+const currentTabActivities = computed(() => {
+    return activePortfolioTab.value === 'scored' ? scoredActivities.value : missingCompiledActivities.value;
+});
 
 const isSidebarCollapsed = inject('isSidebarCollapsed', ref(false));
 const activeMenuIndex = ref(null);
 const menuButtonRefs = ref({});
 const menuPosition = ref({ x: 0, y: 0 });
 const settingsRef = ref(null);
+
+// Watch for portfolio tab changes
+watch(activePortfolioTab, () => {
+    currentActivityIndex.value = 0; // Reset to first activity when switching tabs
+});
 
 // Watch for sidebar state changes
 watch(isSidebarCollapsed, (newValue) => {
@@ -2904,6 +3020,7 @@ const checkPortfolioCompilationStatus = async () => {
         }
     } catch (error) {
         console.error('❌ Error checking portfolio compilation status:', error);
+        showError('Failed to check portfolio compilation status', 'Error');
         portfolioCompilationActive.value = false;
     }
 };
@@ -2921,23 +3038,36 @@ const checkEditDeadlines = async () => {
         }
     } catch (error) {
         console.error('❌ Error checking edit deadlines:', error);
+        showError('Failed to check edit deadlines', 'Error');
     }
 };
 
 // View student envelope
 const viewStudentEnvelope = async (student) => {
     selectedEnvelope.value = student;
-    isEnvelopeOpen.value = true; // Automatically open and show activities
+    isEnvelopeOpen.value = false; // Show closed envelope first
     currentActivityIndex.value = 0; // Reset to first activity
-    console.log('Viewing activities for:', student.name);
+    activePortfolioTab.value = 'scored'; // Reset to scored tab
+    console.log('Viewing envelope for:', student.name);
     
     // Fetch student activities immediately
     await fetchStudentActivities(student.student_id);
 };
 
+// Open envelope and show activities
+const openEnvelope = () => {
+    isEnvelopeOpen.value = true;
+    currentActivityIndex.value = 0;
+    console.log('Opening envelope, showing activities');
+};
+
 // Navigate activities
 const nextActivity = () => {
-    if (currentActivityIndex.value < studentActivities.value.length - 1) {
+    const maxIndex = activePortfolioTab.value === 'scored' 
+        ? scoredActivities.value.length - 1 
+        : missingCompiledActivities.value.length - 1;
+    
+    if (currentActivityIndex.value < maxIndex) {
         currentActivityIndex.value++;
     }
 };
@@ -2969,6 +3099,7 @@ const fetchStudentActivities = async (studentId) => {
         }
     } catch (error) {
         console.error('❌ Error fetching student activities:', error);
+        showError('Failed to load student activities', 'Error');
         studentActivities.value = [];
     }
 };
@@ -3020,6 +3151,7 @@ const fetchPortfolioEnvelopes = async () => {
         }
     } catch (error) {
         console.error('❌ Error fetching portfolio envelopes:', error);
+        showError('Failed to load portfolio envelopes', 'Error');
         portfolioStudents.value = [];
     }
 };
@@ -3250,6 +3382,7 @@ const loadActivities = async (folderId) => {
         }
     } catch (error) {
         console.error('Error loading activities:', error);
+        showError('Failed to load activities', 'Error');
         activities.value = [];
     } finally {
         isLoadingActivities.value = false;
@@ -3342,8 +3475,7 @@ const deleteActivity = async (activity, index) => {
         
     } catch (error) {
         console.error('Error deleting activity:', error);
-        // Show error message
-        // toast.error('Failed to delete activity');
+        showError('Failed to delete activity', 'Error');
     }
 };
 
@@ -3524,10 +3656,10 @@ const updateActivity = async () => {
         }
         
         showEditDialog.value = false;
-        alert('Activity updated successfully!');
+        showSuccess('Activity updated successfully!', 'Activity Updated');
     } catch (error) {
         console.error('❌ Error updating activity:', error);
-        alert('Failed to update activity: ' + (error.response?.data?.error || error.message));
+        showError(error.response?.data?.error || error.message, 'Failed to Update Activity');
     }
 };
 
@@ -3609,12 +3741,12 @@ const confirmPortfolioCompilation = async () => {
         
         // Show success message with details
         const studentsNotified = response.data.students_notified || 0;
-        alert(`Portfolio compilation request sent successfully!\n${studentsNotified} student(s) have been notified.`);
+        showSuccess(`Portfolio compilation request sent successfully! ${studentsNotified} student(s) have been notified.`, 'Notification Sent');
         
     } catch (error) {
         console.error('❌ Error sending portfolio compilation notification:', error);
         const errorMsg = error.response?.data?.error || error.message;
-        alert('Failed to send notification: ' + errorMsg);
+        showError('Failed to send notification: ' + errorMsg, 'Error');
     }
 };
 
@@ -3644,12 +3776,12 @@ const confirmDropPortfolioCompilation = async () => {
         const envelopesDeleted = response.data.envelopes_deleted || 0;
         const notificationsDeleted = response.data.notifications_deleted || 0;
         const studentsNotified = response.data.students_notified || 0;
-        alert(`Portfolio compilation has been deleted successfully.\n${envelopesDeleted} portfolio envelope(s) deleted.\n${notificationsDeleted} notification(s) removed.\n${studentsNotified} student(s) notified about cancellation.`);
+        showSuccess(`Portfolio compilation deleted successfully. ${envelopesDeleted} envelope(s) deleted, ${notificationsDeleted} notification(s) removed, ${studentsNotified} student(s) notified.`, 'Compilation Deleted');
         
     } catch (error) {
         console.error('❌ Error dropping portfolio compilation:', error);
         const errorMsg = error.response?.data?.error || error.message;
-        alert('Failed to drop compilation request: ' + errorMsg);
+        showError('Failed to drop compilation request: ' + errorMsg, 'Error');
     }
 };
 

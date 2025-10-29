@@ -38,7 +38,6 @@ const loadPendingApprovals = async () => {
                     subject: submission.activity_type || 'Unknown',
                     description: submission.caption || 'No caption provided',
                     submittedDate: submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : 'N/A',
-                    rank: 0,
                     sampleImages: imageUrl ? [imageUrl] : [],
                     file_path: imageUrl,
                     file_type: submission.file_type || 'image',
@@ -219,7 +218,7 @@ const cancelApproval = () => {
 };
 
 const showRejectionReasonsDialog = () => {
-    showPreviewDialog.value = false; // Close the review dialog
+    // Keep the review dialog open so teacher can see the work
     showRejectionDialog.value = true; // Open the rejection dialog
 };
 
@@ -304,12 +303,6 @@ const cancelRejection = () => {
                                             <i class="pi pi-image text-2xl text-gray-400"></i>
                                         </div>
                                     </div>
-                                    <button
-                                        @click="previewOutput(output)"
-                                        class="text-sm text-indigo-600 hover:text-indigo-900 font-medium"
-                                    >
-                                        View Full Work
-                                    </button>
                                 </div>
                                 <div class="mt-2 flex items-center space-x-4 text-sm">
                                     <span class="text-indigo-700/80">
@@ -320,10 +313,6 @@ const cancelRejection = () => {
                                         <i class="pi pi-book mr-1"></i>
                                         {{ output.subject }}
                                     </span>
-                                    <!-- Add rank badge if available -->
-                                    <span v-if="output.rank" :class="['rank-badge', `rank-${output.rank}`]">
-                                        {{ output.rank }}
-                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -333,12 +322,6 @@ const cancelRejection = () => {
                                 class="p-button-sm"
                                 style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none;" 
                                 @click="previewOutput(output)"
-                            />
-                            <Button 
-                                label="Cancel" 
-                                class="p-button-sm p-button-secondary"
-                                style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;" 
-                                @click="cancelRequest(output)"
                             />
                         </div>
                     </div>
@@ -361,35 +344,9 @@ const cancelRejection = () => {
                         <span class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-medium text-white">
                             {{ selectedOutput.studentName.charAt(0) }}
                         </span>
-                        <div>
+                        <div class="flex items-center gap-3">
                             <h3 class="font-medium text-indigo-900">{{ selectedOutput.studentName }}</h3>
                             <p class="text-sm text-indigo-700/80">{{ selectedOutput.subject }}</p>
-                        </div>
-                        <!-- Medal for top ranked submissions -->
-                        <div v-if="selectedOutput.rank <= 3" class="ml-auto">
-                            <div :class="[
-                                    'medal-container', 
-                                    `medal-${selectedOutput.rank === 1 ? 'gold' : 
-                                            selectedOutput.rank === 2 ? 'silver' : 'bronze'}`
-                                ]"
-                            >
-                                <!-- Ribbon -->
-                                <div class="medal-ribbon">
-                                    <div class="ribbon-left"></div>
-                                    <div class="ribbon-right"></div>
-                                    <div class="ribbon-connector"></div>
-                                </div>
-                                
-                                <!-- Medal -->
-                                <div class="medal-star">
-                                    <div class="medal-star-shape"></div>
-                                    <div class="medal-rays"></div>
-                                    <div class="medal-inner">
-                                        {{ selectedOutput.rank }}
-                                    </div>
-                                    <div class="medal-shine"></div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -467,83 +424,95 @@ const cancelRejection = () => {
             </template>
         </Dialog>
 
-        <!-- Rejection Reasons Dialog - Custom Modal -->
-        <div v-if="showRejectionDialog" class="fixed inset-0 z-50 overflow-y-auto" @click.self="cancelRejection">
-            <div class="flex items-center justify-center min-h-screen px-4">
-                <!-- Backdrop -->
-                <div class="fixed inset-0 bg-black opacity-50"></div>
-                
-                <!-- Modal -->
-                <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 z-10">
-                    <!-- Header -->
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-xl font-bold text-gray-900">Rejection Reasons</h2>
-                        <button @click="cancelRejection" class="text-gray-400 hover:text-gray-600">
-                            <i class="pi pi-times text-xl"></i>
-                        </button>
+        <!-- Rejection Confirmation Dialog -->
+        <Dialog 
+            v-model:visible="showRejectionDialog"
+            modal
+            header="Confirm Rejection"
+            :style="{ width: '90vw', maxWidth: '500px' }"
+            :dismissableMask="true"
+        >
+            <div class="p-6">
+                <div class="mb-6 text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                        <i class="pi pi-times-circle text-3xl text-red-600"></i>
                     </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Reject this submission?</h3>
+                    <p class="text-sm text-gray-600">
+                        This will reject <strong>{{ selectedOutput?.studentName }}'s</strong> work 
+                        "<strong>{{ selectedOutput?.title }}</strong>".
+                    </p>
+                </div>
 
-                    <div v-if="selectedOutput" class="space-y-4">
-                        <!-- Student Info Summary -->
-                        <div class="bg-red-50 p-4 rounded-lg border border-red-100">
-                            <h3 class="font-semibold text-red-900 mb-2">Student Output</h3>
-                            <p class="text-red-800"><strong>{{ selectedOutput.studentName }}</strong> - {{ selectedOutput.title }}</p>
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-start gap-3">
+                        <i class="pi pi-info-circle text-red-600 mt-0.5"></i>
+                        <div class="text-sm text-red-800">
+                            <p class="font-medium mb-1">What happens next:</p>
+                            <ul class="list-disc list-inside space-y-1 text-red-700">
+                                <li>The submission will NOT be posted to the class feed</li>
+                                <li>The student will be notified of the rejection</li>
+                                <li>The student can resubmit their work</li>
+                            </ul>
                         </div>
-
-                        <!-- Rejection Reason Selection -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Select Reason for Rejection <span class="text-red-500">*</span>
-                            </label>
-                            <div class="space-y-2">
-                                <div v-for="reason in rejectionReasons" :key="reason.id" class="flex items-center">
-                                    <input
-                                        type="radio"
-                                        :id="reason.id"
-                                        :value="reason.id"
-                                        v-model="feedbackForm.rejectionReason"
-                                        class="w-4 h-4 text-red-600 focus:ring-red-500"
-                                    />
-                                    <label :for="reason.id" class="ml-2 text-sm text-gray-700">
-                                        {{ reason.label }}
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Additional Details -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Additional Details (Optional)
-                            </label>
-                            <textarea
-                                v-model="feedbackForm.rejectionDetails"
-                                rows="3"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                placeholder="Provide additional context for the rejection..."
-                            ></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button 
-                            @click="cancelRejection"
-                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            @click="confirmRejection"
-                            :disabled="!feedbackForm.rejectionReason"
-                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Confirm Rejection
-                        </button>
                     </div>
                 </div>
+
+                <!-- Rejection Reason Selection -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Select Reason for Rejection <span class="text-red-500">*</span>
+                    </label>
+                    <div class="space-y-2">
+                        <div v-for="reason in rejectionReasons" :key="reason.id" class="flex items-center">
+                            <input
+                                type="radio"
+                                :id="reason.id"
+                                :value="reason.id"
+                                v-model="feedbackForm.rejectionReason"
+                                class="w-4 h-4 text-red-600 focus:ring-red-500"
+                            />
+                            <label :for="reason.id" class="ml-2 text-sm text-gray-700">
+                                {{ reason.label }}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Details -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Additional Details (Optional)
+                    </label>
+                    <textarea
+                        v-model="feedbackForm.rejectionDetails"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        placeholder="Provide additional context for the rejection..."
+                    ></textarea>
+                </div>
             </div>
-        </div>
+
+            <template #footer>
+                <div class="flex justify-end gap-3 px-6 pb-6">
+                    <Button 
+                        label="Cancel"
+                        class="p-button-secondary"
+                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;" 
+                        @click="cancelRejection"
+                    />
+                    <Button 
+                        label="Yes, Reject"
+                        :disabled="!feedbackForm.rejectionReason"
+                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;" 
+                        @click="confirmRejection"
+                    >
+                        <i class="pi pi-times mr-2"></i>
+                        Yes, Reject
+                    </Button>
+                </div>
+            </template>
+        </Dialog>
 
         <!-- Approval Confirmation Dialog -->
         <Dialog 
@@ -646,291 +615,4 @@ const cancelRejection = () => {
     background: #7BBBFE;
 }
 
-/* Rank badge styles */
-.rank-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    font-weight: bold;
-    font-size: 12px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.rank-badge::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-        transparent, 
-        transparent, 
-        transparent, 
-        rgba(255, 255, 255, 0.3)
-    );
-    transform: rotate(45deg);
-    animation: shine-effect 3s infinite;
-}
-
-@keyframes shine-effect {
-    0% { transform: rotate(45deg) translateY(0%); }
-    100% { transform: rotate(45deg) translateY(100%); }
-}
-
-.rank-1 {
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    color: white;
-}
-
-.rank-2 {
-    background: linear-gradient(135deg, #E0E0E0, #A0A0A0);
-    color: white;
-}
-
-.rank-3 {
-    background: linear-gradient(135deg, #CD7F32, #8B4513);
-    color: white;
-}
-
-.rank-other {
-    background: linear-gradient(135deg, #7BBBFE, #B8AAFF);
-    color: white;
-}
-
-/* Enhanced Medal Styles */
-.medal-container {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    transform-style: preserve-3d;
-    perspective: 1000px;
-}
-
-.medal-container:hover {
-    transform: translateY(-5px) rotate(5deg);
-}
-
-.medal-ribbon {
-    position: absolute;
-    top: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 40px;
-    height: 60px;
-    z-index: -1;
-    filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.3));
-}
-
-.ribbon-left, .ribbon-right {
-    position: absolute;
-    width: 20px;
-    height: 60px;
-    top: 0;
-}
-
-.ribbon-left {
-    left: 0;
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 85%);
-}
-
-.ribbon-right {
-    right: 0;
-    clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
-}
-
-.ribbon-connector {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 40px;
-    height: 10px;
-    border-radius: 5px 5px 0 0;
-}
-
-.medal-star {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, white, transparent);
-    box-shadow: 
-        0 10px 20px rgba(0, 0, 0, 0.2),
-        0 6px 6px rgba(0, 0, 0, 0.1),
-        inset 0 -5px 15px rgba(0, 0, 0, 0.2);
-    transform-style: preserve-3d;
-    transition: transform 0.3s ease;
-}
-
-.medal-star::before {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    border-radius: inherit;
-    filter: blur(5px);
-    opacity: 0.7;
-    z-index: -1;
-}
-
-.medal-star-shape {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    clip-path: polygon(
-        50% 0%, 61% 35%, 98% 35%, 68% 57%,
-        79% 91%, 50% 70%, 21% 91%, 32% 57%,
-        2% 35%, 39% 35%
-    );
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(0, 0, 0, 0.2));
-    z-index: 1;
-}
-
-.medal-inner {
-    position: relative;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 18px;
-    color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    z-index: 2;
-    box-shadow: 
-        inset 0 2px 5px rgba(255, 255, 255, 0.5),
-        inset 0 -2px 5px rgba(0, 0, 0, 0.3);
-}
-
-.medal-rays {
-    position: absolute;
-    width: 120%;
-    height: 120%;
-    background: conic-gradient(
-        transparent 0deg,
-        rgba(255, 255, 255, 0.8) 10deg,
-        transparent 20deg,
-        rgba(255, 255, 255, 0.8) 30deg,
-        transparent 40deg,
-        rgba(255, 255, 255, 0.8) 50deg,
-        transparent 60deg,
-        rgba(255, 255, 255, 0.8) 70deg,
-        transparent 80deg,
-        rgba(255, 255, 255, 0.8) 90deg,
-        transparent 100deg,
-        rgba(255, 255, 255, 0.8) 110deg,
-        transparent 120deg,
-        rgba(255, 255, 255, 0.8) 130deg,
-        transparent 140deg,
-        rgba(255, 255, 255, 0.8) 150deg,
-        transparent 160deg,
-        rgba(255, 255, 255, 0.8) 170deg,
-        transparent 180deg,
-        rgba(255, 255, 255, 0.8) 190deg,
-        transparent 200deg,
-        rgba(255, 255, 255, 0.8) 210deg,
-        transparent 220deg,
-        rgba(255, 255, 255, 0.8) 230deg,
-        transparent 240deg,
-        rgba(255, 255, 255, 0.8) 250deg,
-        transparent 260deg,
-        rgba(255, 255, 255, 0.8) 270deg,
-        transparent 280deg,
-        rgba(255, 255, 255, 0.8) 290deg,
-        transparent 300deg,
-        rgba(255, 255, 255, 0.8) 310deg,
-        transparent 320deg,
-        rgba(255, 255, 255, 0.8) 330deg,
-        transparent 340deg,
-        rgba(255, 255, 255, 0.8) 350deg,
-        transparent 360deg
-    );
-    border-radius: 50%;
-    animation: rotate 20s linear infinite;
-    opacity: 0.7;
-    z-index: 0;
-}
-
-@keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-@keyframes shine {
-    0% { opacity: 0.5; }
-    50% { opacity: 1; }
-    100% { opacity: 0.5; }
-}
-
-.medal-shine {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0) 100%);
-    animation: shine 3s ease-in-out infinite;
-    z-index: 3;
-    pointer-events: none;
-}
-
-.medal-gold .medal-star {
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    border: 2px solid #FFD700;
-}
-
-.medal-silver .medal-star {
-    background: linear-gradient(135deg, #E0E0E0, #A0A0A0);
-    border: 2px solid #C0C0C0;
-}
-
-.medal-bronze .medal-star {
-    background: linear-gradient(135deg, #CD7F32, #8B4513);
-    border: 2px solid #CD7F32;
-}
-
-.medal-gold .medal-inner {
-    background: linear-gradient(135deg, #FF0000, #990000);
-    border: 2px solid #FFD700;
-}
-
-.medal-silver .medal-inner {
-    background: linear-gradient(135deg, #3366FF, #003399);
-    border: 2px solid #C0C0C0;
-}
-
-.medal-bronze .medal-inner {
-    background: linear-gradient(135deg, #009900, #006600);
-    border: 2px solid #CD7F32;
-}
-
-.medal-gold .ribbon-left, 
-.medal-gold .ribbon-right,
-.medal-gold .ribbon-connector {
-    background: linear-gradient(135deg, #FF0000, #990000);
-}
-
-.medal-silver .ribbon-left, 
-.medal-silver .ribbon-right,
-.medal-silver .ribbon-connector {
-    background: linear-gradient(135deg, #3366FF, #003399);
-}
-
-.medal-bronze .ribbon-left, 
-.medal-bronze .ribbon-right,
-.medal-bronze .ribbon-connector {
-    background: linear-gradient(135deg, #009900, #006600);
-}
 </style>

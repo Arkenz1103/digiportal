@@ -3,6 +3,9 @@ import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
+import { useToast } from '../composables/useToast';
+
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
@@ -42,6 +45,7 @@ const displayLimit = ref(5);
 const isLoadingMore = ref(false);
 const lastOpenedCount = ref(parseInt(localStorage.getItem('notifications_last_opened') || '0'));
 const newNotificationsCount = ref(0);
+const showDeleteAllDialog = ref(false);
 
 // Load notifications from backend
 const loadNotifications = async () => {
@@ -99,13 +103,16 @@ const loadNotifications = async () => {
             try {
                 const errorData = await response.json();
                 console.error('❌ Failed to load notifications:', response.status, errorData);
+                showError('Failed to load notifications', 'Error');
             } catch (e) {
                 console.error('❌ Failed to load notifications:', response.status, response.statusText);
+                showError('Failed to load notifications', 'Error');
             }
         }
     } catch (error) {
         console.error('❌ Error loading notifications:', error);
         console.error('Error details:', error.message);
+        showError('Failed to load notifications. Please check your connection.', 'Connection Error');
     }
 };
 
@@ -199,15 +206,16 @@ const markAsRead = async (id) => {
         }
     } catch (error) {
         console.error('Error marking notification as read:', error);
+        showError('Failed to mark notification as read', 'Error');
     }
 };
 
 // Delete all notifications
-const deleteAllNotifications = async () => {
-    if (!confirm('Are you sure you want to delete all notifications?')) {
-        return;
-    }
-    
+const deleteAllNotifications = () => {
+    showDeleteAllDialog.value = true;
+};
+
+const confirmDeleteAllNotifications = async () => {
     try {
         // Delete all notifications via API
         const deletePromises = allNotifications.value.map(notif => 
@@ -224,11 +232,13 @@ const deleteAllNotifications = async () => {
         notifications.value = [];
         unreadCount.value = 0;
         newNotificationsCount.value = 0;
+        showDeleteAllDialog.value = false;
         
         console.log('✅ All notifications deleted');
+        showSuccess('All notifications deleted successfully', 'Deleted');
     } catch (error) {
         console.error('❌ Error deleting notifications:', error);
-        alert('Failed to delete notifications. Please try again.');
+        showError('Failed to delete notifications. Please try again.', 'Error');
     }
 };
 
@@ -245,16 +255,65 @@ const toggleClassDropdown = () => {
     isClassDropdownOpen.value = !isClassDropdownOpen.value;
 };
 
-// User data loaded from localStorage
+// User data loaded from localStorage and API
 const currentUser = ref({
     name: 'User Name',
     email: 'user@example.com',
     role: 'student', // Default to student
-    avatar: null
+    student_id: null,
+    grade_level: null,
+    section: null,
+    department: null,
+    id_number: null,
+    profile_picture_url: null
 });
 
-// Load user data from localStorage
-const loadUserData = () => {
+// Load user profile from API
+const loadUserProfile = async () => {
+    try {
+        const response = await fetch('/api/user/profile/', {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Construct name and remove "Teacher" or "Student" suffix for teachers
+            let displayName = `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'User';
+            if (data.role === 'teacher') {
+                // Remove "Teacher" or "Student" from the end of the name
+                displayName = displayName.replace(/\s+(Teacher|Student)$/i, '').trim();
+            }
+            
+            currentUser.value = {
+                name: displayName,
+                email: data.email || '',
+                role: data.role || 'student',
+                student_id: data.student_id || data.id_number,
+                grade_level: data.grade_level,
+                section: data.section,
+                department: data.department,
+                id_number: data.id_number,
+                profile_picture_url: data.profile_picture_url
+            };
+            
+            // Save to localStorage
+            localStorage.setItem('digiportal_user_name', currentUser.value.name);
+            localStorage.setItem('digiportal_user_email', currentUser.value.email);
+            localStorage.setItem('digiportal_user_role', currentUser.value.role);
+            
+            console.log('✅ User profile loaded:', currentUser.value);
+        }
+    } catch (error) {
+        console.error('❌ Error loading user profile:', error);
+        // Fallback to localStorage
+        loadUserDataFromLocalStorage();
+    }
+};
+
+// Load user data from localStorage (fallback)
+const loadUserDataFromLocalStorage = () => {
     const savedRole = localStorage.getItem('digiportal_user_role');
     const savedEmail = localStorage.getItem('digiportal_user_email');
     const savedName = localStorage.getItem('digiportal_user_name');
@@ -462,26 +521,22 @@ const closeDropdowns = () => {
 // Listen for storage changes (when user logs in/out in another tab or page refreshes)
 const handleStorageChange = (e) => {
     if (e.key === 'digiportal_user_role' || e.key === 'digiportal_user_email' || e.key === 'digiportal_user_name') {
-        loadUserData();
+        loadUserProfile();
         console.log('User data refreshed from storage change');
     }
 };
 
 // Custom event listener for same-tab localStorage changes
 const handleUserDataChange = () => {
-    loadUserData();
+    loadUserProfile();
     console.log('User data refreshed from custom event');
 };
 
 onMounted(() => {
-    document.addEventListener('click', closeDropdowns);
-    loadUserData(); // Load user data when component mounts
-    loadNotifications(); // Load notifications
+    loadUserProfile(); // Load from API first
+    loadNotifications();
     
-    // Listen for storage changes from other tabs
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for custom event for same-tab changes
+    // Listen for user data changes
     window.addEventListener('userDataChanged', handleUserDataChange);
     
     // Debug: Log user data
@@ -774,11 +829,18 @@ const auth = computed(() => ({
                                         @click.stop="toggleDropdown"
                                         class="flex items-center gap-3 hover:bg-gray-100 rounded-full py-1.5 px-2 transition-all duration-200"
                                     >
-                                        <img
-                                            :src="auth?.user?.avatar || `https://ui-avatars.com/api/?name=${auth?.user?.name}`"
-                                            class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
-                                            :alt="auth?.user?.name"
-                                        />
+                                        <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                                            <img
+                                                v-if="auth?.user?.profile_picture_url"
+                                                :src="auth?.user?.profile_picture_url"
+                                                class="w-full h-full object-cover"
+                                                :alt="auth?.user?.name"
+                                                @error="$event.target.style.display='none'"
+                                            />
+                                            <span v-if="!auth?.user?.profile_picture_url" class="text-xs font-bold text-white">
+                                                {{ (auth?.user?.name || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() }}
+                                            </span>
+                                        </div>
                                         <div class="hidden md:block text-left">
                                             <p class="text-sm font-medium text-gray-700 line-clamp-1">
                                                 {{ auth?.user?.name }}
@@ -800,6 +862,27 @@ const auth = computed(() => ({
                                         <div class="px-4 py-3 border-b border-gray-100">
                                             <p class="text-sm font-medium text-gray-900">{{ auth?.user?.name }}</p>
                                             <p class="text-xs text-gray-500">{{ auth?.user?.email }}</p>
+                                            <!-- Student/Teacher ID and Grade/Department -->
+                                            <div v-if="auth?.user?.role === 'student'" class="mt-2 space-y-1">
+                                                <p class="text-xs text-indigo-600">
+                                                    <i class="pi pi-id-card mr-1"></i>
+                                                    ID: {{ auth?.user?.student_id || auth?.user?.id_number || 'Not assigned' }}
+                                                </p>
+                                                <p v-if="auth?.user?.grade_level && auth?.user?.section" class="text-xs text-gray-600">
+                                                    <i class="pi pi-book mr-1"></i>
+                                                    {{ auth?.user?.grade_level }} - {{ auth?.user?.section }}
+                                                </p>
+                                            </div>
+                                            <div v-else-if="auth?.user?.role === 'teacher'" class="mt-2 space-y-1">
+                                                <p class="text-xs text-indigo-600">
+                                                    <i class="pi pi-id-card mr-1"></i>
+                                                    ID: {{ auth?.user?.id_number || 'Not assigned' }}
+                                                </p>
+                                                <p v-if="auth?.user?.department" class="text-xs text-gray-600">
+                                                    <i class="pi pi-briefcase mr-1"></i>
+                                                    {{ auth?.user?.department }}
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <!-- Menu Items -->
@@ -948,6 +1031,39 @@ const auth = computed(() => ({
                     :disabled="!joinClassForm.code"
                     class="bg-[#B8AAFF] border-[#B8AAFF] hover:bg-[#A799EE] hover:border-[#A799EE]"
                 />
+            </div>
+        </template>
+    </Dialog>
+
+    <!-- Delete All Notifications Confirmation Dialog -->
+    <Dialog v-model:visible="showDeleteAllDialog" 
+            modal 
+            header="Delete All Notifications" 
+            :style="{ width: '90%', maxWidth: '28rem' }">
+        <div class="space-y-4">
+            <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div class="flex-shrink-0">
+                    <i class="pi pi-exclamation-triangle text-2xl text-red-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900">Delete All Notifications?</h3>
+                    <p class="mt-1 text-gray-600">
+                        Are you sure you want to delete all notifications? This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <template #footer>
+            <div class="flex justify-end gap-3">
+                <button @click="showDeleteAllDialog = false"
+                    class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button @click="confirmDeleteAllNotifications"
+                    class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+                    <i class="pi pi-trash"></i>
+                    Delete All
+                </button>
             </div>
         </template>
     </Dialog>

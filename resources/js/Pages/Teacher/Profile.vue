@@ -15,6 +15,7 @@ const user = ref({
     first_name: '',
     last_name: '',
     phone_number: '',
+    id_number: '',
     department: '',
     years_of_experience: '',
     bio: '',
@@ -363,27 +364,31 @@ onMounted(() => {
                                 />
                             </div>
                             
+                            <!-- Teacher ID (Read-only) -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Teacher ID</label>
+                                <input
+                                    :value="user.id_number || 'Not assigned'"
+                                    disabled
+                                    type="text"
+                                    :class="[
+                                        'w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50',
+                                        user.id_number ? 'text-gray-700' : 'text-gray-400 italic'
+                                    ]"
+                                />
+                            </div>
+                            
                             <!-- Department -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Department</label>
                                 <input
-                                    v-model="user.department"
-                                    :disabled="!isEditingProfile"
+                                    :value="user.department || 'Not assigned'"
+                                    disabled
                                     type="text"
-                                    placeholder="Arts Department"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
-                                />
-                            </div>
-                            
-                            <!-- Subject Specialization -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Subject Specialization</label>
-                                <input
-                                    v-model="user.username"
-                                    :disabled="!isEditingProfile"
-                                    type="text"
-                                    placeholder="Mathematics"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                                    :class="[
+                                        'w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50',
+                                        user.department ? 'text-gray-700' : 'text-gray-400 italic'
+                                    ]"
                                 />
                             </div>
                             

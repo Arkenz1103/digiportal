@@ -200,6 +200,19 @@
                                                     <p class="text-xs opacity-75">{{ output.subject ? output.subject.charAt(0).toUpperCase() + output.subject.slice(1) : selectedSubject }}</p>
                                                 </div>
                                             </div>
+                                            <!-- Status badges -->
+                                            <div class="absolute top-2 left-2 flex flex-col gap-1">
+                                                <!-- Resubmitted badge -->
+                                                <div v-if="output.resubmit_count > 0" class="bg-blue-500 text-white px-2 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-1">
+                                                    <i class="pi pi-refresh text-xs"></i>
+                                                    <span>Resubmitted</span>
+                                                </div>
+                                                <!-- Late badge -->
+                                                <div v-if="output.is_late" class="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-1">
+                                                    <i class="pi pi-clock text-xs"></i>
+                                                    <span>Late</span>
+                                                </div>
+                                            </div>
                                             <!-- Date badge -->
                                             <div class="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-medium text-gray-700">
                                                 {{ output.date ? new Date(output.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '' }}
@@ -215,8 +228,22 @@
                                                 :alt="currentImage.title || 'Student output'" 
                                                 class="max-w-full h-auto max-h-[380px] rounded-xl shadow-2xl border-4 border-white"
                                             >
+                                            <!-- Counter badge -->
                                             <div class="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
                                                 {{ currentImageIndex + 1 }} / {{ getCurrentSubjectOutputs().length }}
+                                            </div>
+                                            <!-- Status badges on expanded view -->
+                                            <div class="absolute top-4 left-4 flex flex-col gap-2">
+                                                <!-- Resubmitted badge -->
+                                                <div v-if="currentImage.resubmit_count > 0" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2">
+                                                    <i class="pi pi-refresh"></i>
+                                                    <span>Resubmitted ({{ currentImage.resubmit_count }}x)</span>
+                                                </div>
+                                                <!-- Late badge -->
+                                                <div v-if="currentImage.is_late" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2">
+                                                    <i class="pi pi-clock"></i>
+                                                    <span>Late Submission</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -283,12 +310,16 @@
                                             <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
                                                 <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
                                                     <i class="pi pi-calendar text-xs"></i>
-                                                    Submitted
+                                                    {{ currentImage.resubmit_count > 0 ? 'Last Resubmitted' : 'Submitted' }}
                                                 </p>
                                                 <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().date }}</p>
                                                 <p class="text-sm text-gray-600 mt-1 flex items-center gap-1">
                                                     <i class="pi pi-clock text-xs"></i>
                                                     {{ getCurrentAssignment().time }}
+                                                </p>
+                                                <!-- Show original submission date if resubmitted -->
+                                                <p v-if="currentImage.resubmit_count > 0 && currentImage.submitted_at" class="text-xs text-gray-500 mt-2 italic">
+                                                    Originally: {{ new Date(currentImage.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }}
                                                 </p>
                                             </div>
                                             
@@ -307,15 +338,28 @@
                                                     <i class="pi pi-check-circle text-xs"></i>
                                                     Status
                                                 </p>
-                                                <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm" 
-                                                      :class="{
-                                                          'bg-green-100 text-green-800 border-2 border-green-300': getCurrentAssignment().status === 'Scored',
-                                                          'bg-blue-100 text-blue-800 border-2 border-blue-300': getCurrentAssignment().status === 'Submitted',
-                                                          'bg-yellow-100 text-yellow-800 border-2 border-yellow-300': getCurrentAssignment().status !== 'Scored' && getCurrentAssignment().status !== 'Submitted'
-                                                      }">
-                                                    <i class="pi pi-circle-fill text-xs mr-2"></i>
-                                                    {{ getCurrentAssignment().status }}
-                                                </span>
+                                                <div class="flex flex-wrap gap-2">
+                                                    <!-- Main status -->
+                                                    <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm" 
+                                                          :class="{
+                                                              'bg-green-100 text-green-800 border-2 border-green-300': getCurrentAssignment().status === 'Scored',
+                                                              'bg-blue-100 text-blue-800 border-2 border-blue-300': getCurrentAssignment().status === 'Submitted',
+                                                              'bg-yellow-100 text-yellow-800 border-2 border-yellow-300': getCurrentAssignment().status !== 'Scored' && getCurrentAssignment().status !== 'Submitted'
+                                                          }">
+                                                        <i class="pi pi-circle-fill text-xs mr-2"></i>
+                                                        {{ getCurrentAssignment().status }}
+                                                    </span>
+                                                    <!-- Resubmitted badge -->
+                                                    <span v-if="currentImage.resubmit_count > 0" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm bg-blue-100 text-blue-800 border-2 border-blue-300">
+                                                        <i class="pi pi-refresh text-xs mr-2"></i>
+                                                        Resubmitted ({{ currentImage.resubmit_count }}x)
+                                                    </span>
+                                                    <!-- Late badge -->
+                                                    <span v-if="currentImage.is_late" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm bg-orange-100 text-orange-800 border-2 border-orange-300">
+                                                        <i class="pi pi-clock text-xs mr-2"></i>
+                                                        Late Submission
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -332,6 +376,9 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import { useToast } from '../../composables/useToast';
+
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 // Define props
 const props = defineProps({
@@ -712,6 +759,7 @@ const calculateTotalOutputs = async (studentId) => {
                     }
                 } catch (error) {
                     console.error(`Error checking submissions for activity ${activity.id}:`, error);
+                    showError(`Failed to check submissions for activity ${activity.id}`, 'Error');
                 }
             }
         }
@@ -719,6 +767,7 @@ const calculateTotalOutputs = async (studentId) => {
         return totalOutputs;
     } catch (error) {
         console.error('Error calculating total outputs:', error);
+        showError('Failed to calculate student outputs', 'Error');
         return 0;
     }
 };
@@ -743,12 +792,14 @@ const calculateCompletedActivities = async (studentId) => {
                     }
                 } catch (error) {
                     console.error(`Error checking submissions for activity ${activity.id}:`, error);
+                    showError(`Failed to check submissions for activity ${activity.id}`, 'Error');
                 }
             }
         }
         return completedCount;
     } catch (error) {
         console.error('Error calculating completed activities:', error);
+        showError('Failed to calculate completed activities', 'Error');
         return 0;
     }
 };
@@ -789,6 +840,7 @@ const loadPortfolioFolders = async () => {
         }
     } catch (error) {
         console.error('Error loading portfolio folders:', error);
+        showError('Failed to load portfolio folders', 'Error');
     }
 };
 
@@ -811,13 +863,16 @@ const loadStudentSubmissions = async (studentId) => {
                 
                 // Get submissions for each activity
                 const folderOutputs = [];
+                console.log(`📁 Folder "${folder.name}" has ${activities.length} activities`);
+                
                 for (const activity of activities) {
                     try {
+                        // Request ALL submissions (submitted, late, resubmitted - with or without score)
                         const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                         const submissions = submissionsResponse.data || [];
                         
                         console.log(`📝 Activity ${activity.id} - ${activity.title}:`);
-                        console.log(`   Total submissions: ${submissions.length}`);
+                        console.log(`   Total submissions returned by API: ${submissions.length}`);
                         console.log(`   Looking for student ID: ${studentId}`);
                         
                         // Debug: Show all submission student IDs
@@ -867,16 +922,24 @@ const loadStudentSubmissions = async (studentId) => {
                         console.log(`   ✅ Filtered: ${studentSubmissions.length} submissions for student ${studentId}`);
                         
                         // Add only this student's submissions to outputs
-                        studentSubmissions.forEach(submission => {
-                            console.log('   📄 Processing submission:', {
+                        studentSubmissions.forEach((submission, idx) => {
+                            // Get file URL - check both file_url and file_path
+                            const fileUrl = submission.file_url || submission.file_path;
+                            
+                            console.log(`   📄 Processing submission ${idx + 1}/${studentSubmissions.length}:`, {
+                                id: submission.id,
                                 file_type: submission.file_type,
-                                file_path: submission.file_path,
-                                has_path: !!submission.file_path
+                                has_file_url: !!submission.file_url,
+                                has_file_path: !!submission.file_path,
+                                file_url_length: fileUrl?.length || 0,
+                                status: submission.status,
+                                resubmit_count: submission.resubmit_count,
+                                is_late: submission.is_late
                             });
                             
-                            if (submission.file_type === 'image' && submission.file_path) {
+                            if (submission.file_type === 'image' && fileUrl) {
                                 folderOutputs.push({
-                                    url: submission.file_path,
+                                    url: fileUrl,
                                     date: new Date(submission.submitted_at),
                                     title: submission.activity_title || activity.title,
                                     activity_type: submission.activity_type || activity.activity_type,
@@ -886,7 +949,11 @@ const loadStudentSubmissions = async (studentId) => {
                                     max_score: submission.max_score,
                                     criteria_scores: submission.criteria_scores,
                                     status: submission.status,
-                                    studentName: submission.student_name || submission.student?.username
+                                    studentName: submission.student_name || submission.student?.username,
+                                    resubmit_count: submission.resubmit_count || 0,
+                                    is_late: submission.is_late || false,
+                                    last_resubmit_at: submission.last_resubmit_at,
+                                    submitted_at: submission.submitted_at
                                 });
                                 console.log('   ✅ Added to outputs:', {
                                     title: submission.activity_title,
@@ -894,30 +961,42 @@ const loadStudentSubmissions = async (studentId) => {
                                     score: submission.score,
                                     total_score: submission.total_score,
                                     max_score: submission.max_score,
-                                    criteria_scores: submission.criteria_scores
+                                    criteria_scores: submission.criteria_scores,
+                                    resubmit_count: submission.resubmit_count,
+                                    is_late: submission.is_late
                                 });
                             } else {
-                                console.log('   ⚠️ Skipped (not image or no path)');
+                                console.log('   ⚠️ Skipped:', {
+                                    reason: !fileUrl ? 'No file URL/path' : 'Not an image',
+                                    file_type: submission.file_type,
+                                    has_url: !!fileUrl
+                                });
                             }
                         });
                     } catch (error) {
                         console.error(`Error loading submissions for activity ${activity.id}:`, error);
+                        showError(`Failed to load submissions for activity ${activity.id}`, 'Error');
                     }
                 }
                 
                 // Store outputs by folder id
+                console.log(`📊 Folder "${folder.name}" summary: ${folderOutputs.length} total outputs collected`);
                 if (folderOutputs.length > 0) {
                     studentOutputs.value[folder.id.toString()] = folderOutputs;
-                    console.log(`✅ Folder ${folder.name}: ${folderOutputs.length} outputs`);
+                    console.log(`✅ Stored ${folderOutputs.length} outputs for folder ${folder.name} (ID: ${folder.id})`);
+                } else {
+                    console.log(`⚠️ No outputs found for folder ${folder.name}`);
                 }
             } catch (error) {
                 console.error(`Error loading activities for folder ${folder.id}:`, error);
+                showError(`Failed to load activities for folder ${folder.id}`, 'Error');
             }
         }
         
         console.log('📦 Total loaded student outputs:', studentOutputs.value);
     } catch (error) {
         console.error('❌ Error loading student submissions:', error);
+        showError('Failed to load student submissions', 'Error');
     } finally {
         isLoadingOutputs.value = false;
     }
@@ -979,6 +1058,7 @@ const loadStudents = async () => {
         }
     } catch (error) {
         console.error('Error loading students:', error);
+        showError('Failed to load students', 'Error');
     }
 };
 

@@ -1120,7 +1120,7 @@ const getMedalDetails = (rank) => {
                                 <span>Status</span>
                             </div>
                             <div class="col-span-3">
-                                <span>Date & Time</span>
+                                <span>Submitted At (Date & Time)</span>
                             </div>
                             <div class="col-span-2 text-center">
                                 <span>Score</span>
@@ -1337,7 +1337,7 @@ const getMedalDetails = (rank) => {
                                     <span>Status</span>
                                 </div>
                                 <div class="col-span-3">
-                                    <span>Date & Time</span>
+                                    <span>Scored At (Date & Time)</span>
                                 </div>
                                 <div class="col-span-2 text-center">
                                     <span>Score</span>

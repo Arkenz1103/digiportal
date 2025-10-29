@@ -619,7 +619,7 @@
                             :src="item.file_path"
                             :alt="item.activity_title"
                             class="w-full h-full object-cover"
-                            @error="(e) => e.target.style.display = 'none'"
+                            @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<i class=\'pi pi-image text-3xl text-gray-400\'></i>'; }"
                           />
                           <i v-else-if="item.file_type === 'pdf'" class="pi pi-file-pdf text-3xl text-red-500"></i>
                           <i v-else class="pi pi-file text-3xl text-indigo-400"></i>
@@ -1147,7 +1147,7 @@
                       <!-- Activity Image/Preview -->
                       <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
                            :style="{ borderColor: `${envelopeDesign.color}40` }">
-                        <img v-if="portfolioActivities[currentActivityIndex].submission_file && portfolioActivities[currentActivityIndex].submission_status === 'submitted'" 
+                        <img v-if="portfolioActivities[currentActivityIndex].submission_file && portfolioActivities[currentActivityIndex].submission_status !== 'missing'" 
                              :src="portfolioActivities[currentActivityIndex].submission_file"
                              alt="Activity submission"
                              class="w-full h-full object-contain"
@@ -1168,8 +1168,8 @@
                         </p>
                       </div>
 
-                      <!-- Score and Feedback -->
-                      <div v-if="portfolioActivities[currentActivityIndex].submission_score !== null && portfolioActivities[currentActivityIndex].submission_score !== undefined" 
+                      <!-- Score and Feedback (hidden for compilation submissions) -->
+                      <div v-if="!portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score !== null && portfolioActivities[currentActivityIndex].submission_score !== undefined" 
                            class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div class="flex items-center justify-between mb-2">
                           <span class="text-sm font-medium text-gray-700">Score:</span>
@@ -1204,29 +1204,41 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
                           <div>
                             <span class="text-sm text-gray-500 block mb-1">Status:</span>
-                            <span class="px-3 py-1 rounded-full text-sm font-medium inline-block"
-                                  :class="portfolioActivities[currentActivityIndex].submission_status === 'submitted' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'">
-                              {{ portfolioActivities[currentActivityIndex].submission_status === 'submitted' ? 'Submitted' : 'Missing' }}
+                            <span class="px-3 py-1 rounded-full text-sm font-medium inline-block capitalize"
+                                  :class="{
+                                    'bg-green-100 text-green-800': portfolioActivities[currentActivityIndex].submission_status === 'scored',
+                                    'bg-purple-100 text-purple-800': portfolioActivities[currentActivityIndex].submission_status === 'submitted_compilation',
+                                    'bg-blue-100 text-blue-800': portfolioActivities[currentActivityIndex].submission_status === 'scored_resubmitted',
+                                    'bg-orange-100 text-orange-800': portfolioActivities[currentActivityIndex].submission_status === 'scored_late',
+                                    'bg-red-100 text-red-800': portfolioActivities[currentActivityIndex].submission_status === 'missing'
+                                  }">
+                              {{ portfolioActivities[currentActivityIndex].submission_status === 'submitted_compilation' ? 'Submitted Compilation' : portfolioActivities[currentActivityIndex].submission_status }}
+                              <span v-if="portfolioActivities[currentActivityIndex].is_resubmitted" class="ml-1 text-xs">({{ portfolioActivities[currentActivityIndex].resubmit_count }}x)</span>
                             </span>
                           </div>
-                          <div v-if="portfolioActivities[currentActivityIndex].submission_date">
-                            <span class="text-sm text-gray-500 block mb-1">Submitted:</span>
+                          <div v-if="portfolioActivities[currentActivityIndex].submitted_date">
+                            <span class="text-sm text-gray-500 block mb-1">Date Submitted:</span>
                             <span class="text-sm font-medium text-gray-900">
-                              {{ new Date(portfolioActivities[currentActivityIndex].submission_date).toLocaleDateString() }}
+                              {{ portfolioActivities[currentActivityIndex].submitted_date }}
                             </span>
                           </div>
-                          <div v-if="portfolioActivities[currentActivityIndex].due_date">
-                            <span class="text-sm text-gray-500 block mb-1">Due Date:</span>
+                          <div v-if="portfolioActivities[currentActivityIndex].submitted_time">
+                            <span class="text-sm text-gray-500 block mb-1">Time Submitted:</span>
                             <span class="text-sm font-medium text-gray-900">
-                              {{ new Date(portfolioActivities[currentActivityIndex].due_date).toLocaleDateString() }}
+                              {{ portfolioActivities[currentActivityIndex].submitted_time }}
                             </span>
                           </div>
-                          <div v-if="portfolioActivities[currentActivityIndex].due_time">
-                            <span class="text-sm text-gray-500 block mb-1">Due Time:</span>
-                            <span class="text-sm font-medium text-gray-900">
-                              {{ portfolioActivities[currentActivityIndex].due_time }}
+                          <div v-if="portfolioActivities[currentActivityIndex].scored_at">
+                            <span class="text-sm text-gray-500 block mb-1">Scored At:</span>
+                            <span class="text-sm font-medium text-green-600">
+                              {{ new Date(portfolioActivities[currentActivityIndex].scored_at).toLocaleString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              }) }}
                             </span>
                           </div>
                         </div>
@@ -1313,7 +1325,25 @@
                               </span>
                             </div>
                           </div>
+                          <!-- Show different buttons based on draft status -->
+                          <div v-if="compilationDrafts[activity.id]" class="ml-4 flex gap-2">
+                            <button
+                              @click="editCompilation(activity)"
+                              class="px-6 py-3 bg-white text-indigo-600 font-semibold rounded-lg border-2 border-indigo-600 hover:bg-indigo-50 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                            >
+                              <i class="pi pi-pencil"></i>
+                              Edit Compilation
+                            </button>
+                            <button
+                              @click="openSubmitCompilationDialog(activity)"
+                              class="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                            >
+                              <i class="pi pi-send"></i>
+                              Submit Now
+                            </button>
+                          </div>
                           <button
+                            v-else
                             @click="compileActivity(activity)"
                             class="ml-4 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
                           >
@@ -2571,7 +2601,16 @@
         <!-- Upload Your Work Section -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Upload Your Work</label>
-          <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+          <div 
+            @click="triggerCompilationFileUpload"
+            class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors">
+            <input
+              ref="compilationFileInput"
+              type="file"
+              @change="handleCompilationFileUpload"
+              accept="image/*,.pdf,.doc,.docx"
+              class="hidden"
+            />
             <div v-if="draftFiles.length > 0" class="space-y-2">
               <div
                 v-for="file in draftFiles"
@@ -2620,18 +2659,7 @@
           </div>
         </div>
 
-        <!-- Post to Feed Checkbox -->
-        <div class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="postToFeed"
-            v-model="postToFeed"
-            class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-          />
-          <label for="postToFeed" class="text-sm text-gray-700">
-            Post this output to feeds (visible to class)
-          </label>
-        </div>
+        <!-- Removed: Post to Feed Checkbox -->
       </div>
 
       <template #footer>
@@ -2643,13 +2671,47 @@
             Cancel
           </button>
           <button
-            @click="turnInDraft"
+            @click="saveAsDraft"
             :disabled="isSubmitting || draftFiles.length === 0"
             class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
-            <i v-else class="pi pi-check"></i>
-            <span>{{ isSubmitting ? 'Submitting...' : 'Submit Work' }}</span>
+            <i v-else class="pi pi-save"></i>
+            <span>{{ isSubmitting ? 'Saving...' : 'Compile Activity' }}</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Submit Compilation Confirmation Dialog -->
+    <Dialog v-model:visible="showSubmitCompilationDialog" modal :style="{ width: '90vw', maxWidth: '450px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-send text-indigo-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Submit Compilation</h3>
+        </div>
+      </template>
+
+      <div class="py-4">
+        <p class="text-gray-700">Are you sure you want to submit this compilation? Once submitted, it will be sent to your teacher for review.</p>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showSubmitCompilationDialog = false"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="submitCompilation"
+            :disabled="isSubmitting"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+            <i v-else class="pi pi-send"></i>
+            <span>{{ isSubmitting ? 'Submitting...' : 'Submit Now' }}</span>
           </button>
         </div>
       </template>
@@ -2958,7 +3020,11 @@ const submissionCaption = ref('');
 const postToFeed = ref(false);
 const showRemoveConfirmDialog = ref(false);
 const fileToRemove = ref(null);
+const showSubmitCompilationDialog = ref(false);
+const compilationDrafts = ref({}); // Store drafts by activity ID
+const selectedMissingActivity = ref(null);
 const showPostToFeedConfirmDialog = ref(false);
+const compilationFileInput = ref(null);
 
 // Portfolio submission state
 const showSubmitPortfolioDialog = ref(false);
@@ -2967,23 +3033,28 @@ const portfolioEnvelope = ref(null);
 
 // Check if activity is past due date/time
 const isPastDue = computed(() => {
-  if (!selectedActivity.value || !selectedActivity.value.due_date) {
+  try {
+    if (!selectedActivity.value || !selectedActivity.value.due_date) {
+      return false;
+    }
+    
+    const now = new Date();
+    let dueDateTime;
+    
+    if (selectedActivity.value.due_time) {
+      // Combine date and time
+      dueDateTime = new Date(`${selectedActivity.value.due_date}T${selectedActivity.value.due_time}`);
+    } else {
+      // If no time specified, use end of day (23:59:59)
+      dueDateTime = new Date(selectedActivity.value.due_date);
+      dueDateTime.setHours(23, 59, 59, 999);
+    }
+    
+    return now > dueDateTime;
+  } catch (error) {
+    console.error('Error in isPastDue computed:', error);
     return false;
   }
-  
-  const now = new Date();
-  let dueDateTime;
-  
-  if (selectedActivity.value.due_time) {
-    // Combine date and time
-    dueDateTime = new Date(`${selectedActivity.value.due_date}T${selectedActivity.value.due_time}`);
-  } else {
-    // If no time specified, use end of day (23:59:59)
-    dueDateTime = new Date(selectedActivity.value.due_date);
-    dueDateTime.setHours(23, 59, 59, 999);
-  }
-  
-  return now > dueDateTime;
 });
 
 // Computed property to safely parse criteria scores
@@ -3053,6 +3124,7 @@ const loadFolderActivities = async (folderId) => {
             }
           } catch (error) {
             console.error(`Error checking submission for activity ${activity.id}:`, error);
+            showError(`Failed to check submission for activity ${activity.id}`, 'Error');
           }
 
           // Parse scoring criteria if it exists
@@ -3106,6 +3178,7 @@ const loadFolderActivities = async (folderId) => {
     }
   } catch (error) {
     console.error('Error loading activities:', error);
+    showError('Failed to load activities', 'Error');
     folderActivities.value = [];
   } finally {
     isLoadingActivities.value = false;
@@ -3133,6 +3206,7 @@ const loadPortfolioFolders = async () => {
     }
   } catch (error) {
     console.error('Error loading folders:', error);
+    showError('Failed to load portfolio folders', 'Error');
     portfolioFolders.value = [];
   } finally {
     isLoadingFolders.value = false;
@@ -3241,6 +3315,10 @@ const openPreviewDialog = (item) => {
 const handlePreviewImageError = (event) => {
   console.error('❌ Preview image failed to load:', event.target.src);
   console.error('   Selected item:', selectedPreviewItem.value);
+  // Hide the broken image and show placeholder
+  event.target.style.display = 'none';
+  // Set a fallback placeholder SVG
+  event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not available%3C/text%3E%3C/svg%3E';
 };
 
 // Close preview dialog
@@ -3591,6 +3669,7 @@ const loadDraftSubmissions = async (activityId) => {
     }
   } catch (error) {
     console.error('❌ Error loading draft submissions:', error);
+    showError('Failed to load draft submissions', 'Error');
   }
 };
 
@@ -3651,6 +3730,7 @@ const loadActivitySubmissions = async (activityId) => {
     }
   } catch (error) {
     console.error('❌ Error loading submissions:', error);
+    showError('Failed to load submissions', 'Error');
     studentSubmissions.value = [];
   }
 };
@@ -3698,6 +3778,7 @@ const checkSubmissionStatus = async (activityId) => {
     }
   } catch (error) {
     console.error('Error checking submission status:', error);
+    showError('Failed to check submission status', 'Error');
     hasSubmittedWork.value = false;
     hasScore.value = false;
   }
@@ -3792,6 +3873,7 @@ const checkPortfolioCompilationStatus = async () => {
     }
   } catch (error) {
     console.error('❌ Error checking portfolio compilation status:', error);
+    showError('Failed to check portfolio compilation status', 'Error');
     // Default to false if there's an error
     portfolioCompilationRequested.value = false;
   }
@@ -4823,15 +4905,24 @@ const fetchPortfolioActivities = async () => {
     const response = await axios.get(`/api/portfolio-envelope/activities/${encodeURIComponent(classNameValue)}/`);
     
     if (response.data) {
-      portfolioActivities.value = response.data.all_activities || [];
-      missingActivities.value = response.data.missing_activities || [];
+      // Clone the data to prevent circular reference issues
+      // Use submitted_activities which contains ONLY SCORED submissions
+      const scoredActivities = JSON.parse(JSON.stringify(response.data.submitted_activities || []));
+      const missingActivitiesData = JSON.parse(JSON.stringify(response.data.missing_activities || []));
+      
+      portfolioActivities.value = scoredActivities;
+      missingActivities.value = missingActivitiesData;
       currentActivityIndex.value = 0;
-      console.log(`✅ Loaded ${portfolioActivities.value.length} activities (${missingActivities.value.length} missing)`);
-      console.log('📋 Activities data:', portfolioActivities.value);
-      console.log('🎯 Current activity:', portfolioActivities.value[currentActivityIndex.value]);
+      
+      console.log(`✅ Loaded ${portfolioActivities.value.length} SCORED activities (${missingActivities.value.length} missing)`);
+      console.log(`   - Submitted: ${response.data.submitted_count || 0}`);
+      console.log(`   - Resubmitted: ${response.data.resubmitted_count || 0}`);
+      console.log(`   - Late: ${response.data.late_count || 0}`);
+      console.log(`   - Missing: ${response.data.missing_count || 0}`);
     }
   } catch (error) {
     console.error('❌ Error fetching portfolio activities:', error);
+    console.error('Error details:', error.response?.data || error.message);
   }
 };
 
@@ -4898,15 +4989,180 @@ const showMissingActivities = () => {
 // Compile missing activity
 const compileActivity = (activity) => {
   console.log('Compiling activity:', activity.title);
-  // Close the missing activities dialog
-  showMissingActivitiesDialog.value = false;
-  // Set the selected activity and open submission dialog
-  selectedActivity.value = activity;
-  showProductUploadModal.value = true;
-  selectedFile.value = null;
-  newProductCaption.value = '';
-  postOutputOption.value = false;
-  isCompilingMissing.value = true; // Flag to indicate this is a missing activity submission
+  selectedMissingActivity.value = activity;
+  
+  // Check if there's an existing draft for this activity
+  if (compilationDrafts.value[activity.id]) {
+    const draft = compilationDrafts.value[activity.id];
+    submissionCaption.value = draft.caption || '';
+    draftFiles.value = draft.files || [];
+  } else {
+    submissionCaption.value = '';
+    draftFiles.value = [];
+  }
+  
+  // Open the Turn In Dialog
+  showTurnInDialog.value = true;
+};
+
+// Edit existing compilation draft
+const editCompilation = (activity) => {
+  console.log('Editing compilation for:', activity.title);
+  compileActivity(activity); // Reuse the same function
+};
+
+// Save as draft
+const saveAsDraft = async () => {
+  if (!selectedMissingActivity.value) {
+    showWarning('No activity selected', 'Error');
+    return;
+  }
+  
+  if (draftFiles.length === 0 && !submissionCaption.value) {
+    showWarning('Please add a file or caption', 'Missing Content');
+    return;
+  }
+  
+  isSubmitting.value = true;
+  
+  try {
+    // Save draft locally (will be sent to backend when submitted)
+    compilationDrafts.value[selectedMissingActivity.value.id] = {
+      activityId: selectedMissingActivity.value.id,
+      caption: submissionCaption.value,
+      files: [...draftFiles.value],
+      savedAt: new Date().toISOString()
+    };
+    
+    console.log('✅ Draft saved for activity:', selectedMissingActivity.value.id);
+    showSuccess('Compilation saved as draft', 'Draft Saved');
+    
+    // Close dialog
+    showTurnInDialog.value = false;
+    
+    // Clear form
+    submissionCaption.value = '';
+    draftFiles.value = [];
+    selectedMissingActivity.value = null;
+  } catch (error) {
+    console.error('❌ Error saving draft:', error);
+    showError('Failed to save draft', 'Error');
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Open submit compilation confirmation dialog
+const openSubmitCompilationDialog = (activity) => {
+  selectedMissingActivity.value = activity;
+  showSubmitCompilationDialog.value = true;
+};
+
+// Submit compilation
+const submitCompilation = async () => {
+  if (!selectedMissingActivity.value) {
+    showError('No activity selected', 'Error');
+    return;
+  }
+  
+  const activityId = selectedMissingActivity.value.id;
+  const draft = compilationDrafts.value[activityId];
+  
+  if (!draft || !draft.files || draft.files.length === 0) {
+    showError('No draft found or no file attached', 'Error');
+    return;
+  }
+  
+  isSubmitting.value = true;
+  
+  try {
+    console.log('📤 Submitting compilation for activity:', activityId);
+    
+    const file = draft.files[0]; // Get the first file
+    
+    // Submit to backend
+    const response = await axios.post(
+      `/api/portfolio-envelope/submit-compilation/${activityId}/`,
+      {
+        file: file.path, // Base64 data
+        caption: draft.caption || ''
+      }
+    );
+    
+    console.log('✅ Compilation submitted successfully:', response.data);
+    
+    // Remove draft from local storage
+    delete compilationDrafts.value[activityId];
+    
+    // Close dialog
+    showSubmitCompilationDialog.value = false;
+    
+    // Show success message
+    showSuccess('Compilation submitted successfully! It will appear in your Activity Compilation.', 'Success');
+    
+    // Refresh portfolio activities to show the new submission
+    await fetchPortfolioActivities();
+    
+    // Clear selected activity
+    selectedMissingActivity.value = null;
+  } catch (error) {
+    console.error('❌ Error submitting compilation:', error);
+    showError(
+      error.response?.data?.error || 'Failed to submit compilation',
+      'Submission Failed'
+    );
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Trigger file upload for compilation
+const triggerCompilationFileUpload = () => {
+  if (compilationFileInput.value) {
+    compilationFileInput.value.click();
+  }
+};
+
+// Handle file upload for compilation
+const handleCompilationFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  try {
+    // Convert file to base64
+    const reader = new FileReader();
+    const filePath = await new Promise((resolve, reject) => {
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    
+    // Determine file type
+    let fileType = 'file';
+    if (file.type.startsWith('image/')) {
+      fileType = 'image';
+    } else if (file.type === 'application/pdf') {
+      fileType = 'pdf';
+    }
+    
+    // Add to draft files
+    const fileData = {
+      id: Date.now(),
+      name: file.name,
+      type: fileType,
+      path: filePath,
+      size: file.size
+    };
+    
+    draftFiles.value = [fileData]; // Only one file allowed
+    console.log('✅ File added to compilation:', fileData.name);
+  } catch (error) {
+    console.error('❌ Error uploading file:', error);
+    showError('Failed to upload file', 'Upload Error');
+  }
+  
+  // Reset input
+  event.target.value = '';
 };
 
 // Submit missing activity from portfolio compilation

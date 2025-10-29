@@ -1,352 +1,221 @@
 <template>
     <div class="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
-        <!-- Hero Header -->
-        <div class="bg-gradient-to-r from-teal-600 via-cyan-700 to-blue-700 text-white shadow-xl">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-3xl font-bold flex items-center gap-3">
-                            <i class="pi pi-sparkles text-amber-300"></i>
-                            Student Creative Hub
-                        </h1>
-                        <p class="text-white/90 mt-2">Discover amazing work from talented students</p>
+        <!-- Main Content -->
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+            <!-- Loading State -->
+            <div v-if="isLoading" class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl shadow-xl border-2 border-teal-100">
+                <div class="relative">
+                    <div class="animate-spin rounded-full h-16 w-16 border-4 border-teal-200"></div>
+                    <div class="absolute top-0 animate-spin rounded-full h-16 w-16 border-t-4 border-teal-600"></div>
+                </div>
+                <p class="mt-4 text-gray-600 font-medium">Loading amazing content...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="posts.length === 0" class="text-center py-16 bg-white rounded-2xl shadow-xl border-2 border-teal-100">
+                <div class="max-w-sm mx-auto">
+                    <div class="w-24 h-24 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="pi pi-palette text-4xl text-teal-600"></i>
                     </div>
-                    <div class="hidden md:flex items-center gap-4">
-                        <div class="bg-amber-400/20 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 border border-amber-300/30">
-                            <i class="pi pi-trophy text-amber-300"></i>
-                            <span class="font-semibold">{{ posts.length }} Creations</span>
-                        </div>
-                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Posts Yet</h3>
+                    <p class="text-gray-600 mb-6">Be the first to share your amazing work with the community!</p>
+                    <button class="px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                        <i class="pi pi-plus-circle mr-2"></i>
+                        Create First Post
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Main Content Area -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Left Sidebar - Minimalist Design -->
-                <div class="lg:col-span-1 space-y-4">
-                    <!-- Collapsible Sidebar Toggle (Mobile) -->
-                    <button @click="sidebarCollapsed = !sidebarCollapsed" 
-                        class="lg:hidden flex items-center gap-2 text-gray-600 hover:text-teal-600 transition-colors mb-4">
-                        <i class="pi" :class="sidebarCollapsed ? 'pi-chevron-right' : 'pi-chevron-left'"></i>
-                        <span class="text-sm font-medium">{{ sidebarCollapsed ? 'Show' : 'Hide' }} Info</span>
-                    </button>
-
-                    <!-- Sidebar Content -->
-                    <div :class="{'hidden': sidebarCollapsed, 'block': !sidebarCollapsed}" class="lg:block space-y-4">
-                        <!-- Minimalist Stats Bar -->
-                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-4 border-2 border-teal-100 shadow-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-sm font-semibold text-gray-700">Today's Activity</h3>
-                                <button @click="statsExpanded = !statsExpanded" 
-                                    class="text-gray-400 hover:text-gray-600 transition-colors">
-                                    <i class="pi text-xs" :class="statsExpanded ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
-                                </button>
+            <!-- Posts Feed -->
+            <div v-else class="space-y-6">
+                <div v-for="post in posts" :key="post.id" 
+                    class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-teal-100 hover:border-teal-300">
+                    
+                    <!-- Post Header -->
+                    <div class="p-6 pb-4">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="relative">
+                                    <div class="w-14 h-14 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-2 ring-teal-200">
+                                        {{ post.user.charAt(0).toUpperCase() }}
+                                    </div>
+                                    <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-teal-500 rounded-full border-2 border-white"></div>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg text-gray-800">{{ post.user }}</h3>
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <span class="text-gray-500">{{ post.timestamp }}</span>
+                                        <span v-if="post.activityTitle" class="text-teal-700 font-semibold">
+                                            <i class="pi pi-bookmark-fill text-xs"></i>
+                                            {{ post.activityType }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                             
-                            <!-- Compact Stats -->
-                            <div v-if="!statsExpanded" class="flex items-center gap-4">
-                                <div class="flex items-center gap-1.5">
-                                    <i class="pi pi-heart-fill text-red-500 text-sm"></i>
-                                    <span class="text-lg font-bold text-teal-700">{{ totalLikes }}</span>
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    <i class="pi pi-comments text-cyan-500 text-sm"></i>
-                                    <span class="text-lg font-bold text-cyan-700">{{ totalComments }}</span>
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    <i class="pi pi-eye text-teal-500 text-sm"></i>
-                                    <span class="text-lg font-bold text-teal-700">{{ posts.length }}</span>
-                                </div>
-                            </div>
-
-                            <!-- Expanded Stats -->
-                            <div v-else class="space-y-3">
-                                <div class="flex items-center justify-between py-2 border-b border-teal-100">
-                                    <span class="flex items-center gap-2 text-sm text-gray-600">
-                                        <i class="pi pi-heart-fill text-red-500"></i>
-                                        Total Likes
-                                    </span>
-                                    <span class="font-bold text-teal-700">{{ totalLikes }}</span>
-                                </div>
-                                <div class="flex items-center justify-between py-2 border-b border-teal-100">
-                                    <span class="flex items-center gap-2 text-sm text-gray-600">
-                                        <i class="pi pi-comments text-cyan-500"></i>
-                                        Comments
-                                    </span>
-                                    <span class="font-bold text-cyan-700">{{ totalComments }}</span>
-                                </div>
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="flex items-center gap-2 text-sm text-gray-600">
-                                        <i class="pi pi-eye text-teal-500"></i>
-                                        Posts Viewed
-                                    </span>
-                                    <span class="font-bold text-teal-700">{{ posts.length }}</span>
+                            <!-- 3-Dot Menu -->
+                            <div class="relative">
+                                <button @click="togglePostMenu(post)" 
+                                    class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
+                                    <i class="pi pi-ellipsis-v text-xl"></i>
+                                </button>
+                                
+                                <!-- Dropdown Menu -->
+                                <div v-if="post.showMenu" 
+                                    class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+                                    <div class="py-2">
+                                        <button @click="bookmarkPost(post)" 
+                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                            <i class="pi pi-bookmark text-indigo-600"></i>
+                                            <span class="text-sm font-medium text-gray-700">Save Post</span>
+                                        </button>
+                                        <button @click="reportPost(post)" 
+                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                            <i class="pi pi-flag text-orange-600"></i>
+                                            <span class="text-sm font-medium text-gray-700">Report Content</span>
+                                        </button>
+                                        <button @click="hidePost(post)" 
+                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                            <i class="pi pi-eye-slash text-gray-600"></i>
+                                            <span class="text-sm font-medium text-gray-700">Hide Post</span>
+                                        </button>
+                                        <div class="border-t border-gray-100 my-1"></div>
+                                        <button @click="copyLink(post)" 
+                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                                            <i class="pi pi-link text-blue-600"></i>
+                                            <span class="text-sm font-medium text-gray-700">Copy Link</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Quick Filters (Replaces Trending Topics) -->
-                        <div class="bg-white/80 backdrop-blur-sm rounded-xl p-4 border-2 border-teal-100 shadow-lg">
-                            <h3 class="text-sm font-semibold text-gray-700 mb-3">Quick Filters</h3>
-                            <div class="flex flex-wrap gap-2">
-                                <button @click="filterByTopic('all')"
-                                    :class="currentFilter === 'all' ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'"
-                                    class="px-3 py-1.5 rounded-full text-xs font-semibold transition-all">
-                                    All Posts
-                                </button>
-                                <button @click="filterByTopic('arts')"
-                                    :class="currentFilter === 'arts' ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'"
-                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
-                                    Arts
-                                </button>
-                                <button @click="filterByTopic('math')"
-                                    :class="currentFilter === 'math' ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'"
-                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
-                                    Math
-                                </button>
-                                <button @click="filterByTopic('science')"
-                                    :class="currentFilter === 'science' ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'"
-                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
-                                    Science
-                                </button>
-                                <button @click="filterByTopic('recent')"
-                                    :class="currentFilter === 'recent' ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'"
-                                    class="px-3 py-1.5 rounded-full text-xs font-medium transition-all">
-                                    <i class="pi pi-clock text-xs mr-1"></i>
-                                    Recent
-                                </button>
+                    <!-- Post Content -->
+                    <div class="px-6 pb-4">
+                        <p class="text-gray-700 leading-relaxed">{{ post.content }}</p>
+                        <div v-if="post.activityTitle" class="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-teal-100 to-cyan-100 rounded-full border border-teal-200">
+                            <i class="pi pi-tag text-teal-600 text-sm"></i>
+                            <span class="text-sm font-semibold text-teal-800">{{ post.activityTitle }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Post Image with Placeholder -->
+                    <div v-if="post.image" class="px-6 pb-4">
+                        <div class="relative group cursor-pointer bg-gray-100 rounded-2xl overflow-hidden">
+                            <!-- Smaller aspect ratio container -->
+                            <div class="relative w-full" style="padding-bottom: 50%; min-height: 200px; max-height: 400px;">
+                                <img :src="post.image" 
+                                    :alt="post.content"
+                                    class="absolute inset-0 w-full h-full object-contain bg-gray-50"
+                                    @error="handleImageError"
+                                    loading="lazy">
+                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Smaller placeholder for missing image -->
+                    <div v-else-if="post.activityType" class="px-6 pb-4">
+                        <div class="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center" style="min-height: 200px;">
+                            <div class="text-center text-gray-400">
+                                <i class="pi pi-image text-4xl mb-2"></i>
+                                <p class="text-xs font-medium">No image available</p>
+                            </div>
+                        </div>
+                    </div>
 
-                        <!-- Optional: Floating Action Button for Mobile -->
-                        <div class="lg:hidden fixed bottom-20 right-4 z-40">
-                            <button @click="showMobileStats = !showMobileStats"
-                                class="w-14 h-14 bg-gradient-to-br from-teal-600 to-cyan-600 text-white rounded-full shadow-lg flex items-center justify-center hover:from-teal-700 hover:to-cyan-700 transition-colors">
-                                <i class="pi pi-chart-bar text-xl"></i>
+                    <!-- Interaction Bar -->
+                    <div class="px-6 py-4 border-t-2 border-teal-50 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <!-- Like Button -->
+                                <button @click="toggleLike(post)" 
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 group"
+                                    :class="post.isLiked 
+                                        ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 border border-red-200 shadow-md' 
+                                        : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 border border-teal-200 hover:from-teal-100 hover:to-cyan-100'">
+                                    <i class="pi text-lg transition-transform group-hover:scale-110" 
+                                        :class="post.isLiked ? 'pi-heart-fill animate-pulse' : 'pi-heart'"></i>
+                                    <span class="font-semibold">{{ post.likes }}</span>
+                                </button>
+
+                                <!-- Comment Button -->
+                                <button @click="toggleComments(post)"
+                                    :class="post.showComments 
+                                        ? 'bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-700 border border-cyan-200' 
+                                        : 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-200 hover:from-cyan-100 hover:to-blue-100'"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 group">
+                                    <i class="pi pi-comments text-lg transition-transform group-hover:scale-110"></i>
+                                    <span class="font-semibold">{{ post.comments.length }}</span>
+                                </button>
+                            </div>
+
+                            <!-- Bookmark Button -->
+                            <button @click="bookmarkPost(post)" 
+                                :class="post.isBookmarked ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'"
+                                class="transition-colors p-2 hover:bg-amber-50 rounded-full">
+                                <i class="pi text-xl" :class="post.isBookmarked ? 'pi-bookmark-fill' : 'pi-bookmark'"></i>
                             </button>
                         </div>
                     </div>
-                </div>
 
-                <!-- Main Feed -->
-                <div class="lg:col-span-2">
-                    <!-- Loading State -->
-                    <div v-if="isLoading" class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl shadow-xl border-2 border-teal-100">
-                        <div class="relative">
-                            <div class="animate-spin rounded-full h-16 w-16 border-4 border-teal-200"></div>
-                            <div class="absolute top-0 animate-spin rounded-full h-16 w-16 border-t-4 border-teal-600"></div>
+                    <!-- Comments Section -->
+                    <div v-if="post.showComments" 
+                        class="px-6 pb-6 border-t-2 border-teal-50 bg-gradient-to-b from-teal-50/30 to-transparent">
+                        <h4 class="font-semibold text-gray-700 mb-4 mt-4 flex items-center gap-2">
+                            <i class="pi pi-comments text-cyan-600"></i>
+                            Comments ({{ post.comments.length }})
+                        </h4>
+                        
+                        <!-- Comment Input -->
+                        <div class="mb-4">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-teal-600 to-cyan-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-teal-200 shadow-lg">
+                                    S
+                                </div>
+                                <div class="flex-1">
+                                    <textarea 
+                                        v-model="post.newComment"
+                                        @keydown.enter.ctrl="addComment(post)"
+                                        placeholder="Write a comment... (Ctrl+Enter to post)"
+                                        class="w-full px-4 py-3 border-2 border-teal-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+                                        rows="2"></textarea>
+                                    <div class="flex items-center justify-between mt-2">
+                                        <span class="text-xs text-gray-500">Press Ctrl+Enter to post</span>
+                                        <button @click="addComment(post)"
+                                            :disabled="!post.newComment || post.newComment.trim() === ''"
+                                            class="px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all text-sm font-semibold shadow-md">
+                                            <i class="pi pi-send mr-2"></i>
+                                            Post Comment
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <p class="mt-4 text-gray-600 font-medium">Loading amazing content...</p>
-                    </div>
 
-                    <!-- Empty State -->
-                    <div v-else-if="posts.length === 0" class="text-center py-16 bg-white rounded-2xl shadow-xl border-2 border-teal-100">
-                        <div class="max-w-sm mx-auto">
-                            <div class="w-24 h-24 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <i class="pi pi-palette text-4xl text-teal-600"></i>
+                        <!-- Comments List -->
+                        <div v-if="post.comments.length > 0" class="space-y-3">
+                            <div v-for="comment in post.comments" :key="comment.id" 
+                                class="flex items-start gap-3 bg-gradient-to-r from-white to-teal-50/50 hover:from-teal-50 hover:to-cyan-50 p-4 rounded-xl border border-teal-100 transition-colors">
+                                <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-teal-200">
+                                    {{ comment.user.charAt(0).toUpperCase() }}
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <p class="font-semibold text-gray-800">{{ comment.user }}</p>
+                                        <span class="text-xs text-gray-400">{{ comment.timestamp || 'Just now' }}</span>
+                                    </div>
+                                    <p class="text-gray-600 mt-1">{{ comment.text }}</p>
+                                </div>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800 mb-2">No Posts Yet</h3>
-                            <p class="text-gray-600 mb-6">Be the first to share your amazing work with the community!</p>
-                            <button class="px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300">
-                                <i class="pi pi-plus-circle mr-2"></i>
-                                Create First Post
-                            </button>
                         </div>
-                    </div>
-
-                    <!-- Posts Feed -->
-                    <div v-else class="space-y-6">
-                        <div v-for="post in posts" :key="post.id" 
-                            class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-teal-100 hover:border-teal-300">
-                            
-                            <!-- Post Header -->
-                            <div class="p-6 pb-4">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-center gap-4">
-                                        <div class="relative">
-                                            <div class="w-14 h-14 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-2 ring-teal-200">
-                                                {{ post.user.charAt(0).toUpperCase() }}
-                                            </div>
-                                            <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-teal-500 rounded-full border-2 border-white"></div>
-                                        </div>
-                                        <div>
-                                            <h3 class="font-bold text-lg text-gray-800">{{ post.user }}</h3>
-                                            <div class="flex items-center gap-2 text-sm">
-                                                <span class="text-gray-500">{{ post.timestamp }}</span>
-                                                <span v-if="post.activityTitle" class="text-teal-700 font-semibold">
-                                                    <i class="pi pi-bookmark-fill text-xs"></i>
-                                                    {{ post.activityType }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 3-Dot Menu -->
-                                    <div class="relative">
-                                        <button @click="togglePostMenu(post)" 
-                                            class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
-                                            <i class="pi pi-ellipsis-v text-xl"></i>
-                                        </button>
-                                        
-                                        <!-- Dropdown Menu -->
-                                        <div v-if="post.showMenu" 
-                                            class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-                                            <div class="py-2">
-                                                <button @click="bookmarkPost(post)" 
-                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                                    <i class="pi pi-bookmark text-indigo-600"></i>
-                                                    <span class="text-sm font-medium text-gray-700">Save Post</span>
-                                                </button>
-                                                <button @click="reportPost(post)" 
-                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                                    <i class="pi pi-flag text-orange-600"></i>
-                                                    <span class="text-sm font-medium text-gray-700">Report Content</span>
-                                                </button>
-                                                <button @click="hidePost(post)" 
-                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                                    <i class="pi pi-eye-slash text-gray-600"></i>
-                                                    <span class="text-sm font-medium text-gray-700">Hide Post</span>
-                                                </button>
-                                                <div class="border-t border-gray-100 my-1"></div>
-                                                <button @click="copyLink(post)" 
-                                                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                                    <i class="pi pi-link text-blue-600"></i>
-                                                    <span class="text-sm font-medium text-gray-700">Copy Link</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Post Content -->
-                            <div class="px-6 pb-4">
-                                <p class="text-gray-700 leading-relaxed">{{ post.content }}</p>
-                                <div v-if="post.activityTitle" class="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-teal-100 to-cyan-100 rounded-full border border-teal-200">
-                                    <i class="pi pi-tag text-teal-600 text-sm"></i>
-                                    <span class="text-sm font-semibold text-teal-800">{{ post.activityTitle }}</span>
-                                </div>
-                            </div>
-
-                            <!-- Post Image with Placeholder -->
-                            <div v-if="post.image" class="px-6 pb-4">
-                                <div class="relative group cursor-pointer bg-gray-100 rounded-2xl overflow-hidden">
-                                    <!-- Aspect ratio container for uniform sizing -->
-                                    <div class="relative w-full" style="padding-bottom: 75%; min-height: 300px; max-height: 500px;">
-                                        <img :src="post.image" 
-                                            :alt="post.content"
-                                            class="absolute inset-0 w-full h-full object-contain bg-gray-50"
-                                            @error="handleImageError"
-                                            loading="lazy">
-                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Placeholder for missing image -->
-                            <div v-else-if="post.activityType" class="px-6 pb-4">
-                                <div class="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center" style="min-height: 300px;">
-                                    <div class="text-center text-gray-400">
-                                        <i class="pi pi-image text-6xl mb-3"></i>
-                                        <p class="text-sm font-medium">No image available</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Interaction Bar -->
-                            <div class="px-6 py-4 border-t-2 border-teal-50 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                        <!-- Like Button -->
-                                        <button @click="toggleLike(post)" 
-                                            class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 group"
-                                            :class="post.isLiked 
-                                                ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 border border-red-200 shadow-md' 
-                                                : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 border border-teal-200 hover:from-teal-100 hover:to-cyan-100'">
-                                            <i class="pi text-lg transition-transform group-hover:scale-110" 
-                                                :class="post.isLiked ? 'pi-heart-fill animate-pulse' : 'pi-heart'"></i>
-                                            <span class="font-semibold">{{ post.likes }}</span>
-                                        </button>
-
-                                        <!-- Comment Button -->
-                                        <button @click="toggleComments(post)"
-                                            :class="post.showComments 
-                                                ? 'bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-700 border border-cyan-200' 
-                                                : 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-200 hover:from-cyan-100 hover:to-blue-100'"
-                                            class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 group">
-                                            <i class="pi pi-comments text-lg transition-transform group-hover:scale-110"></i>
-                                            <span class="font-semibold">{{ post.comments.length }}</span>
-                                        </button>
-                                    </div>
-
-                                    <!-- Bookmark Button -->
-                                    <button @click="bookmarkPost(post)" 
-                                        :class="post.isBookmarked ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'"
-                                        class="transition-colors p-2 hover:bg-amber-50 rounded-full">
-                                        <i class="pi text-xl" :class="post.isBookmarked ? 'pi-bookmark-fill' : 'pi-bookmark'"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Comments Section -->
-                            <div v-if="post.showComments" 
-                                class="px-6 pb-6 border-t-2 border-teal-50 bg-gradient-to-b from-teal-50/30 to-transparent">
-                                <h4 class="font-semibold text-gray-700 mb-4 mt-4 flex items-center gap-2">
-                                    <i class="pi pi-comments text-cyan-600"></i>
-                                    Comments ({{ post.comments.length }})
-                                </h4>
-                                
-                                <!-- Comment Input -->
-                                <div class="mb-4">
-                                    <div class="flex items-start gap-3">
-                                        <div class="w-10 h-10 bg-gradient-to-br from-teal-600 to-cyan-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-teal-200 shadow-lg">
-                                            S
-                                        </div>
-                                        <div class="flex-1">
-                                            <textarea 
-                                                v-model="post.newComment"
-                                                @keydown.enter.ctrl="addComment(post)"
-                                                placeholder="Write a comment... (Ctrl+Enter to post)"
-                                                class="w-full px-4 py-3 border-2 border-teal-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
-                                                rows="2"></textarea>
-                                            <div class="flex items-center justify-between mt-2">
-                                                <span class="text-xs text-gray-500">Press Ctrl+Enter to post</span>
-                                                <button @click="addComment(post)"
-                                                    :disabled="!post.newComment || post.newComment.trim() === ''"
-                                                    class="px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all text-sm font-semibold shadow-md">
-                                                    <i class="pi pi-send mr-2"></i>
-                                                    Post Comment
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Comments List -->
-                                <div v-if="post.comments.length > 0" class="space-y-3">
-                                    <div v-for="comment in post.comments" :key="comment.id" 
-                                        class="flex items-start gap-3 bg-gradient-to-r from-white to-teal-50/50 hover:from-teal-50 hover:to-cyan-50 p-4 rounded-xl border border-teal-100 transition-colors">
-                                        <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-teal-200">
-                                            {{ comment.user.charAt(0).toUpperCase() }}
-                                        </div>
-                                        <div class="flex-1">
-                                            <div class="flex items-center justify-between">
-                                                <p class="font-semibold text-gray-800">{{ comment.user }}</p>
-                                                <span class="text-xs text-gray-400">{{ comment.timestamp || 'Just now' }}</span>
-                                            </div>
-                                            <p class="text-gray-600 mt-1">{{ comment.text }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Empty State -->
-                                <div v-else class="text-center py-8">
-                                    <i class="pi pi-comments text-4xl text-gray-300 mb-2"></i>
-                                    <p class="text-gray-400 text-sm">No comments yet. Be the first to comment!</p>
-                                </div>
-                            </div>
+                        
+                        <!-- Empty State -->
+                        <div v-else class="text-center py-8">
+                            <i class="pi pi-comments text-4xl text-gray-300 mb-2"></i>
+                            <p class="text-gray-400 text-sm">No comments yet. Be the first to comment!</p>
                         </div>
                     </div>
                 </div>
@@ -358,6 +227,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
+import { useToast } from '../../composables/useToast';
+
+const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 // Define emits
 const emit = defineEmits(['navigate']);
@@ -406,6 +278,7 @@ const loadNewsfeed = async () => {
     }
   } catch (error) {
     console.error('❌ Error loading newsfeed:', error);
+    showError('Failed to load newsfeed posts', 'Error');
     posts.value = [];
   } finally {
     isLoading.value = false;
@@ -427,6 +300,7 @@ const loadComments = async () => {
       }
     } catch (error) {
       console.error(`Error loading comments for post ${post.id}:`, error);
+      showError('Failed to load comments', 'Error');
     }
   }
 };
@@ -454,6 +328,7 @@ const toggleLike = async (post) => {
     console.error('❌ Error toggling like:', error);
     if (error.response?.status === 403) {
       const message = error.response?.data?.message || 'Please log in to like posts';
+      showError(message, 'Authentication Required');
       if (confirm(`${message}\n\nWould you like to log in now?`)) {
         emit('navigate', 'Login');
       }
@@ -503,6 +378,7 @@ const addComment = async (post) => {
     console.error('❌ Error adding comment:', error);
     if (error.response?.status === 403) {
       const message = error.response?.data?.message || 'Please log in to comment on posts';
+      showError(message, 'Authentication Required');
       if (confirm(`${message}\n\nWould you like to log in now?`)) {
         emit('navigate', 'Login');
       }

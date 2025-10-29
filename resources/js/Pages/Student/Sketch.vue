@@ -27,6 +27,9 @@ const showPostToFeedModal = ref(false);
 const selectedSketchForPost = ref(null);
 const postCaption = ref('');
 const showDeleteConfirmDialog = ref(false);
+const showClearCanvasDialog = ref(false);
+const sketchToDelete = ref(null);
+const isPostingToFeed = ref(false);
 const attachedImage = ref(null);
 const imagePosition = ref({ x: 0, y: 0 });
 const imageSize = ref({ width: 0, height: 0 });
@@ -304,11 +307,15 @@ const redrawCanvas = () => {
 };
 
 const clearCanvas = () => {
-    if (confirm('Are you sure you want to clear the canvas?')) {
-        const canvasElement = canvas.value;
-        ctx.value.fillStyle = '#ffffff';
-        ctx.value.fillRect(0, 0, canvasElement.width, canvasElement.height);
-    }
+    showClearCanvasDialog.value = true;
+};
+
+const confirmClearCanvas = () => {
+    const canvasElement = canvas.value;
+    ctx.value.fillStyle = '#ffffff';
+    ctx.value.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    showClearCanvasDialog.value = false;
+    showInfo('Canvas cleared', 'Cleared');
 };
 
 const setTool = (toolId) => {
@@ -380,16 +387,22 @@ const loadSketchToCanvas = (dataURL) => {
     img.src = dataURL;
 };
 
-const deleteSketch = async (id, e) => {
+const deleteSketch = (id, e) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this sketch?')) {
-        try {
-            await axios.delete(`/api/sketches/${id}/`);
-            mySketches.value = mySketches.value.filter(sketch => sketch.id !== id);
-        } catch (error) {
-            console.error('Error deleting sketch:', error);
-            showError('Failed to delete sketch. Please try again.', 'Delete Failed');
-        }
+    sketchToDelete.value = id;
+    showDeleteConfirmDialog.value = true;
+};
+
+const confirmDeleteSketch = async () => {
+    try {
+        await axios.delete(`/api/sketches/${sketchToDelete.value}/`);
+        mySketches.value = mySketches.value.filter(sketch => sketch.id !== sketchToDelete.value);
+        showDeleteConfirmDialog.value = false;
+        sketchToDelete.value = null;
+        showSuccess('Sketch deleted successfully', 'Deleted');
+    } catch (error) {
+        console.error('Error deleting sketch:', error);
+        showError('Failed to delete sketch. Please try again.', 'Delete Failed');
     }
 };
 
@@ -466,15 +479,18 @@ const postToNewsfeed = async () => {
         return;
     }
     
-    if (!postCaption.value.trim()) {
-        showWarning('Please add a caption for your post', 'Caption Required');
+    // Prevent double submission
+    if (isPostingToFeed.value) {
+        console.log('Already posting, please wait...');
         return;
     }
     
     try {
-        // Submit sketch to API
+        isPostingToFeed.value = true;
+        
+        // Submit sketch to API (caption is optional)
         const response = await axios.post('/api/sketch/submit/', {
-            caption: postCaption.value,
+            caption: postCaption.value.trim() || 'No caption',
             file_path: selectedSketchForPost.value.dataURL,
             file_type: 'image'
         });
@@ -491,6 +507,8 @@ const postToNewsfeed = async () => {
     } catch (error) {
         console.error('Error posting to newsfeed:', error);
         showError(error.response?.data?.error || error.message, 'Post Failed');
+    } finally {
+        isPostingToFeed.value = false;
     }
 };
 
@@ -924,9 +942,11 @@ const applyCrop = () => {
                 
                 <!-- Caption Section -->
                 <div class="mb-4">
-                    <label class="block text-md font-semibold text-indigo-900 mb-2">Add a Caption</label>
+                    <label class="block text-md font-semibold text-indigo-900 mb-2">
+                        Add a Caption <span class="text-sm font-normal text-gray-500">(Optional)</span>
+                    </label>
                     <textarea v-model="postCaption"
-                              placeholder="Write something about your sketch..."
+                              placeholder="Write something about your sketch... (optional)"
                               class="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                               rows="4"></textarea>
                 </div>
@@ -937,7 +957,7 @@ const applyCrop = () => {
                     <div class="bg-white rounded-lg p-3 border border-indigo-200">
                         <img :src="selectedSketchForPost.dataURL" 
                              class="w-full max-h-48 object-contain mb-2 rounded">
-                        <p class="text-sm text-gray-700">{{ postCaption || 'No caption' }}</p>
+                        <p class="text-sm text-gray-700" :class="!postCaption.trim() ? 'italic text-gray-400' : ''">{{ postCaption.trim() || 'No caption' }}</p>
                     </div>
                 </div>
             </div>
@@ -960,11 +980,11 @@ const applyCrop = () => {
                         Cancel
                     </button>
                     <button @click="postToNewsfeed"
-                            :disabled="!selectedSketchForPost || !postCaption.trim()"
-                            :class="!selectedSketchForPost || !postCaption.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
+                            :disabled="!selectedSketchForPost || isPostingToFeed"
+                            :class="(!selectedSketchForPost || isPostingToFeed) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
                             class="px-6 py-2 bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2">
-                        <i class="pi pi-send"></i>
-                        <span>Post to Newsfeed</span>
+                        <i class="pi" :class="isPostingToFeed ? 'pi-spin pi-spinner' : 'pi-send'"></i>
+                        <span>{{ isPostingToFeed ? 'Posting...' : 'Post to Newsfeed' }}</span>
                     </button>
                 </div>
             </div>
@@ -1005,6 +1025,72 @@ const applyCrop = () => {
           >
             <i class="pi pi-trash"></i>
             <span>Delete</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Clear Canvas Confirmation Dialog -->
+    <Dialog v-model:visible="showClearCanvasDialog" 
+            modal 
+            header="Clear Canvas" 
+            :style="{ width: '90%', maxWidth: '28rem' }">
+      <div class="space-y-4">
+        <div class="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div class="flex-shrink-0">
+            <i class="pi pi-exclamation-triangle text-2xl text-yellow-600"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-medium text-gray-900">Clear Canvas?</h3>
+            <p class="mt-1 text-gray-600">
+              Are you sure you want to clear the canvas? This will erase all your current work. This action cannot be undone.
+            </p>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button @click="showClearCanvasDialog = false"
+            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button @click="confirmClearCanvas"
+            class="px-4 py-2 text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2">
+            <i class="pi pi-trash"></i>
+            Clear Canvas
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Delete Sketch Confirmation Dialog -->
+    <Dialog v-model:visible="showDeleteConfirmDialog" 
+            modal 
+            header="Delete Sketch" 
+            :style="{ width: '90%', maxWidth: '28rem' }">
+      <div class="space-y-4">
+        <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div class="flex-shrink-0">
+            <i class="pi pi-exclamation-triangle text-2xl text-red-600"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-medium text-gray-900">Delete Sketch Permanently?</h3>
+            <p class="mt-1 text-gray-600">
+              Are you sure you want to delete this sketch? This action cannot be undone.
+            </p>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button @click="showDeleteConfirmDialog = false; sketchToDelete = null;"
+            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button @click="confirmDeleteSketch"
+            class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+            <i class="pi pi-trash"></i>
+            Delete Sketch
           </button>
         </div>
       </template>
