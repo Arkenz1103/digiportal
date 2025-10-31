@@ -1021,66 +1021,79 @@
         <Dialog v-model:visible="showNewFolderDialog"
             modal
             header="Create New Folder"
-            :style="{ width: '90%', maxWidth: '40rem' }">
-            <div class="p-6">
-                <div class="grid grid-cols-2 gap-6">
-                    <!-- Form Fields -->
-                    <div class="space-y-4">
-                        <div>
-                            <label for="folderTitle" class="block text-sm font-medium text-gray-900 mb-1">Title</label>
-                            <input
-                                id="folderTitle"
-                                v-model="newFolder.title"
-                                type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                placeholder="Enter folder title"
-                            >
-                        </div>
-                        <div>
-                            <label for="folderDescription" class="block text-sm font-medium text-gray-900 mb-1">Description</label>
-                            <textarea
-                                id="folderDescription"
-                                v-model="newFolder.description"
-                                rows="3"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                placeholder="Enter folder description"
-                            ></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Preview -->
+            :style="{ width: '90%', maxWidth: '45rem' }">
+            <div class="p-4">
+                <!-- Form Fields Section -->
+                <div class="space-y-4 mb-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-900 mb-3">Preview</label>
-                        <div class="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden group">
-                            <!-- Folder Preview -->
-                            <div class="relative h-36 mb-4 p-4 md:p-6">
-                                <!-- Stacked Preview Images with Dynamic Animation -->
-                                <div class="absolute top-5 right-5 w-28 h-32 flex items-center justify-center">
-                                    <div class="absolute w-24 h-28 rounded-md transform rotate-[-15deg] transition-all duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
-                                    <div class="absolute w-24 h-28 rounded-md transform rotate-[-5deg] transition-all duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
-                                    <div class="absolute w-24 h-28 rounded-md transform rotate-[5deg] transition-all duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
-                                </div>
-                                <!-- Folder Title -->
-                                <div class="relative z-10 pr-32">
-                                    <h3 class="text-xl md:text-2xl font-bold mb-1 text-gray-900 group-hover:text-indigo-700 transition-colors break-words overflow-hidden">
-                                        {{ newFolder.title || 'Folder Title' }}
+                        <label for="folderTitle" class="block text-sm font-medium text-gray-900 mb-2">Title</label>
+                        <input
+                            id="folderTitle"
+                            v-model="newFolder.title"
+                            type="text"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                            placeholder="Enter folder title"
+                        >
+                    </div>
+                    <div>
+                        <label for="folderDescription" class="block text-sm font-medium text-gray-900 mb-2">Description</label>
+                        <textarea
+                            id="folderDescription"
+                            v-model="newFolder.description"
+                            rows="3"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                            placeholder="Enter folder description"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- Horizontal Divider -->
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-4 bg-white text-gray-500 font-medium">Preview</span>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
+                    <div class="bg-white rounded-lg shadow-sm border border-indigo-100 overflow-hidden">
+                        <!-- Folder Card Preview -->
+                        <div class="relative p-6">
+                            <div class="flex items-start justify-between">
+                                <!-- Left: Title and Info -->
+                                <div class="flex-1 pr-4">
+                                    <h3 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
+                                        {{ newFolder.title || 'Science' }}
                                     </h3>
-                                    <div class="flex items-center space-x-2">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
+                                            <i class="pi pi-file mr-1.5 text-[10px]"></i>
                                             0 items
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- Interactive Footer -->
-                            <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center p-4 md:p-6">
-                                <div class="flex items-center space-x-2 text-sm text-indigo-700">
-                                    <i class="pi pi-folder text-indigo-700"></i>
-                                    <span>View Contents</span>
+                                
+                                <!-- Right: Stacked Folder Icon -->
+                                <div class="relative w-24 h-24 flex-shrink-0">
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <div class="absolute w-20 h-20 rounded-lg transform rotate-[-8deg] bg-gradient-to-br from-indigo-400 to-purple-500 opacity-30"></div>
+                                        <div class="absolute w-20 h-20 rounded-lg transform rotate-[-4deg] bg-gradient-to-br from-indigo-400 to-purple-500 opacity-50"></div>
+                                        <div class="absolute w-20 h-20 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg"></div>
+                                    </div>
                                 </div>
-                                <i class="pi pi-arrow-right text-indigo-700 transform group-hover:translate-x-1 transition-transform"></i>
                             </div>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div class="border-t border-gray-100 px-6 py-3 bg-gray-50 flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-sm text-indigo-600 font-medium">
+                                <i class="pi pi-folder text-indigo-600"></i>
+                                <span>View Contents</span>
+                            </div>
+                            <i class="pi pi-arrow-right text-indigo-600"></i>
                         </div>
                     </div>
                 </div>

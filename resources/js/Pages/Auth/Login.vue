@@ -112,19 +112,19 @@
                     </small>
                 </div>
 
-                <!-- Username/Email -->
+                <!-- Email -->
                 <div>
                     <label class="block text-gray-700 text-sm font-semibold mb-2">
-                        Username or Email
+                        Email Address
                     </label>
                     <div class="relative">
-                        <i class="pi pi-user absolute left-3 top-1/2 -translate-y-1/2 text-blue-500"></i>
+                        <i class="pi pi-envelope absolute left-3 top-1/2 -translate-y-1/2 text-blue-500"></i>
                         <input
-                            type="text"
+                            type="email"
                             v-model="loginForm.email"
                             class="w-full pl-10 pr-4 py-3 bg-white/70 backdrop-blur-sm border border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white/90 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 text-gray-900"
                             :class="{'border-red-500': loginForm.errors.email}"
-                            placeholder="Enter your username or email"
+                            placeholder="Enter your email address"
                         />
                     </div>
                     <small class="text-red-500 text-xs mt-1 block" v-if="loginForm.errors.email">
@@ -218,6 +218,23 @@ const goToLanding = () => {
     emit('navigate', 'Landing');
 };
 
+// Function to get CSRF token from cookie
+const getCsrfToken = () => {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+};
+
 // Login form
 const loginForm = reactive({
     role: '',
@@ -237,7 +254,7 @@ const submitLogin = async () => {
         hasError = true;
     }
     if (!loginForm.email) {
-        loginForm.errors.email = 'Username or email is required';
+        loginForm.errors.email = 'Email is required';
         hasError = true;
     }
     if (!loginForm.password) {
@@ -248,31 +265,60 @@ const submitLogin = async () => {
     if (!hasError) {
         loginForm.processing = true;
         
-        // Simulate API call - replace with actual backend call later
-        setTimeout(() => {
-            loginForm.processing = false;
+        try {
+            // Get CSRF token
+            const csrfToken = getCsrfToken();
             
-            // Use the selected role from dropdown
-            const userRole = loginForm.role;
+            // Call the actual backend login API
+            const response = await fetch('/api/auth/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken || '',
+                },
+                credentials: 'include', // Include cookies
+                body: JSON.stringify({
+                    email: loginForm.email,
+                    password: loginForm.password,
+                    role: loginForm.role
+                })
+            });
             
-            // Store user role for the session
-            localStorage.setItem('digiportal_user_role', userRole);
-            localStorage.setItem('digiportal_user_email', loginForm.email);
+            const data = await response.json();
             
-            // Set a default name based on role (you can enhance this)
-            const userName = userRole === 'teacher' ? 'Teacher User' : 'Student User';
-            localStorage.setItem('digiportal_user_name', userName);
-            
-            // Dispatch custom event to notify MainLayout of user data change
-            window.dispatchEvent(new Event('userDataChanged'));
-            
-            // Navigate based on role
-            if (userRole === 'teacher') {
-                emit('navigate', 'TeacherHome');
+            if (response.ok && data.success) {
+                // Store user data in localStorage
+                localStorage.setItem('digiportal_user_role', data.user.role);
+                localStorage.setItem('digiportal_user_email', data.user.email);
+                localStorage.setItem('digiportal_user_name', data.user.name || data.user.username);
+                localStorage.setItem('digiportal_user_id', data.user.id);
+                
+                // Store authentication token if provided
+                if (data.token) {
+                    localStorage.setItem('digiportal_auth_token', data.token);
+                }
+                
+                // Dispatch custom event to notify MainLayout of user data change
+                window.dispatchEvent(new Event('userDataChanged'));
+                
+                // Navigate based on role
+                if (data.user.role === 'teacher') {
+                    emit('navigate', 'TeacherHome');
+                } else if (data.user.role === 'student') {
+                    emit('navigate', 'StudentNewsfeed');
+                } else {
+                    emit('navigate', 'Landing');
+                }
             } else {
-                emit('navigate', 'StudentNewsfeed');
+                // Handle login error
+                loginForm.errors.email = data.error || 'Invalid email or password';
             }
-        }, 1000);
+        } catch (error) {
+            console.error('Login error:', error);
+            loginForm.errors.email = 'Login failed. Please check your credentials and try again.';
+        } finally {
+            loginForm.processing = false;
+        }
     }
 };
 </script>

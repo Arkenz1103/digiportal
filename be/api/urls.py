@@ -27,6 +27,8 @@ urlpatterns = [
     path('student/notifications/', views.student_notifications, name='student_notifications'),
     
     # API routes
+    path('api/auth/login/', views.login_api, name='login_api'),
+    path('api/auth/logout/', views.logout_api, name='logout_api'),
     path('api/validate-session/', views.validate_session, name='validate_session'),
     path('api/validate_session/', views.validate_session, name='validate_session_underscore'),  # Handle underscore variant
     path('api/validate_session/<int:id>/', views.validate_session, name='validate_session_with_id'),  # Handle incorrect calls with ID
@@ -58,6 +60,7 @@ urlpatterns = [
     # Post interaction routes (likes and comments)
     path('api/posts/<int:post_id>/like/', views.post_like_api, name='post_like_api'),
     path('api/posts/<int:post_id>/comments/', views.post_comments_api, name='post_comments_api'),
+    path('api/posts/<int:post_id>/delete/', views.delete_post_api, name='delete_post_api'),
     
     # Sketch submission route
     path('api/sketch/submit/', views.sketch_submission_api, name='sketch_submission_api'),
@@ -105,14 +108,11 @@ urlpatterns = [
     path('api/user/change-password/', views.change_password_api, name='change_password_api'),
     path('api/user/export-data/', views.export_user_data_api, name='export_user_data_api'),
     
-    # Student Management API routes
+    # Student management routes
     path('api/students/', views.student_list_api, name='student_list_api'),
-    path('api/students/<int:pk>/', views.student_detail_api, name='student_detail_api'),
-    path('api/students/by-grade-section/', views.students_by_grade_section_api, name='students_by_grade_section_api'),
-    path('api/students/statistics/', views.student_statistics_api, name='student_statistics_api'),
-    path('api/students/search/', views.student_search_api, name='student_search_api'),
-    path('api/students/<int:pk>/update-grades/', views.update_student_grades_api, name='update_student_grades_api'),
-    path('api/students/<int:pk>/update-attendance/', views.update_student_attendance_api, name='update_student_attendance_api'),
-    path('api/students/bulk-update-section/', views.bulk_update_section_api, name='bulk_update_section_api'),
     path('api/students/export/', views.export_students_api, name='export_students_api'),
+    
+    # Classroom routes
+    path('api/classrooms/', views.classroom_list_api, name='classroom_list_api'),
+    path('api/classrooms/<int:classroom_id>/', views.classroom_detail_api, name='classroom_detail_api'),
 ]

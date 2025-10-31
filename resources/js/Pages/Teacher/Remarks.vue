@@ -58,7 +58,7 @@
                         <span class="text-xs text-indigo-600">ID #: {{ student.id }}</span>
                       </div>
                     </div>
-                    <span class="text-sm font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">{{ student.remarks?.length || 0 }} remarks</span>
+                    <i class="pi pi-chevron-right text-indigo-400"></i>
                   </li>
                 </ul>
               </div>
@@ -247,39 +247,21 @@ const loadStudents = async () => {
   try {
     const response = await axios.get('/api/students/progress/');
     if (response.data) {
-      // Map students and load their remark counts
-      const studentPromises = response.data.map(async (student) => {
-        try {
-          // Load remarks count for each student
-          const remarksResponse = await axios.get(`/api/remarks/?student_id=${student.id}`);
-          return {
-            id: student.id,
-            student_id: student.student_id,
-            name: student.name,
-            initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
-            username: student.username,
-            email: student.email,
-            remarks: remarksResponse.data || []
-          };
-        } catch (error) {
-          console.error(`Error loading remarks for student ${student.id}:`, error);
-          return {
-            id: student.id,
-            student_id: student.student_id,
-            name: student.name,
-            initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
-            username: student.username,
-            email: student.email,
-            remarks: []
-          };
-        }
-      });
-      
-      students.value = await Promise.all(studentPromises);
-      console.log('Loaded students with remarks:', students.value);
+      // Map students without loading remarks initially (load on demand)
+      students.value = response.data.map((student) => ({
+        id: student.id,
+        student_id: student.student_id,
+        name: student.name,
+        initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+        username: student.username,
+        email: student.email,
+        remarks: [] // Will be loaded when student is selected
+      }));
+      console.log('Loaded students:', students.value.length);
     }
   } catch (error) {
     console.error('Error loading students:', error);
+    showError('Failed to load students', 'Error');
   } finally {
     isLoadingStudents.value = false;
   }

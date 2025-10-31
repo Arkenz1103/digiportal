@@ -352,7 +352,7 @@ const loadUserDataFromLocalStorage = () => {
 // Current page tracking - default based on role
 const currentRoute = ref('StudentNewsfeed'); // Default to student, will be updated by loadUserData
 
-// Sidebar menu items
+// Sidebar menu items (without Classroom - moved to MY CLASSES section)
 const sideBarItems = computed(() => {
     const roleBasedItems = {
         teacher: [
@@ -373,11 +373,33 @@ const sideBarItems = computed(() => {
 });
 
 // Logout Function
-const logout = () => {
-    // Clear session storage
+const logout = async () => {
+    try {
+        // Call backend logout API to clear server-side session
+        await fetch('/api/auth/logout/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    } catch (error) {
+        console.error('Logout API error:', error);
+    }
+    
+    // Clear ALL localStorage items related to user session
     localStorage.removeItem('digiportal_logged_in');
     localStorage.removeItem('digiportal_user_role');
+    localStorage.removeItem('digiportal_user_email');
+    localStorage.removeItem('digiportal_user_name');
+    localStorage.removeItem('digiportal_user_id');
+    localStorage.removeItem('digiportal_auth_token');
     localStorage.removeItem('digiportal_current_page');
+    
+    // Clear any other session data
+    sessionStorage.clear();
+    
+    // Dispatch event to notify other components
+    window.dispatchEvent(new Event('userLoggedOut'));
     
     // Navigate to landing page
     emit('navigate', 'Landing');
@@ -532,12 +554,24 @@ const handleUserDataChange = () => {
     console.log('User data refreshed from custom event');
 };
 
+// Handle user logout event
+const handleUserLogout = () => {
+    console.log('User logged out, clearing data');
+    // Reset user data to defaults
+    currentUser.value = {
+        name: '',
+        email: '',
+        role: 'student'
+    };
+};
+
 onMounted(() => {
     loadUserProfile(); // Load from API first
     loadNotifications();
     
     // Listen for user data changes
     window.addEventListener('userDataChanged', handleUserDataChange);
+    window.addEventListener('userLoggedOut', handleUserLogout);
     
     // Debug: Log user data
     console.log('MainLayout mounted, user data:', currentUser.value);
@@ -547,6 +581,7 @@ onUnmounted(() => {
     document.removeEventListener('click', closeDropdowns);
     window.removeEventListener('storage', handleStorageChange);
     window.removeEventListener('userDataChanged', handleUserDataChange);
+    window.removeEventListener('userLoggedOut', handleUserLogout);
 });
 
 // Computed auth for template compatibility
@@ -609,6 +644,30 @@ const auth = computed(() => ({
                     <div v-if="auth?.user?.role === 'teacher' || auth?.user?.role === 'student'" class="mb-4">
                         <div class="flex items-center justify-between px-4 mb-2">
                             <div v-if="!isCollapsed" class="text-xs uppercase font-semibold text-white/60 tracking-wider">My Classes</div>
+                        </div>
+
+                        <!-- Classroom Overview Button (First Item) -->
+                        <div class="space-y-1 mb-2">
+                            <button
+                                @click="navigateToPage(currentUser.role === 'teacher' ? 'TeacherClassroom' : 'StudentClassroom')"
+                                class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left border border-white/20"
+                                :class="{
+                                    'bg-white/20 text-white shadow-lg backdrop-blur-sm': isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom'),
+                                    'text-white/80 hover:bg-white/10 hover:text-white': !isRouteActive('TeacherClassroom') && !isRouteActive('StudentClassroom'),
+                                    'active:bg-white/25 active:scale-[0.98]': true
+                                }"
+                                :title="isCollapsed ? 'Classroom' : ''"
+                            >
+                                <div v-if="isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')" class="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>
+                                <div class="flex items-center gap-3 w-full">
+                                    <i :class="['pi pi-building text-lg', (isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')) ? 'text-white' : 'text-white/70']"></i>
+                                    <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', (isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')) ? 'text-white' : 'text-white/80']">Classroom</span>
+                                    <div
+                                        v-if="(isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')) && !isCollapsed"
+                                        class="ml-auto w-1.5 h-5 rounded-sm bg-white transition-all duration-200"
+                                    ></div>
+                                </div>
+                            </button>
                         </div>
 
                         <!-- Classes List -->

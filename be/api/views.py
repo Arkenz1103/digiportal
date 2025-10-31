@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest, NewsfeedPost, PostLike, PostComment, Student
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest, NewsfeedPost, PostLike, PostComment, Student, Classroom
 from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer, RemarkSerializer
 import json
 import os
@@ -85,6 +85,108 @@ def logout_view(request):
     """Logout view"""
     auth_logout(request)
     return redirect('login')
+
+
+@csrf_exempt
+@api_view(['POST'])
+def logout_api(request):
+    """
+    API endpoint for user logout
+    Clears the server-side session
+    """
+    try:
+        # Logout the user (clears server-side session)
+        auth_logout(request)
+        
+        return Response({
+            'success': True,
+            'message': 'Logged out successfully'
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        print(f"Logout API error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': 'An error occurred during logout'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([])  # Allow any user to access login endpoint
+def login_api(request):
+    """
+    API endpoint for user login with email and password
+    Returns user data and authentication status
+    """
+    try:
+        email = request.data.get('email')
+        password = request.data.get('password')
+        role = request.data.get('role')  # Optional role verification
+        
+        if not email or not password:
+            return Response({
+                'success': False,
+                'error': 'Email and password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Try to find user by email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Invalid email or password'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Authenticate user
+        authenticated_user = authenticate(request, username=user.username, password=password)
+        
+        if authenticated_user is not None:
+            # Verify role if provided
+            if role and authenticated_user.role != role:
+                return Response({
+                    'success': False,
+                    'error': f'This account is not registered as a {role}'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Log the user in
+            auth_login(request, authenticated_user)
+            
+            # Prepare user data
+            user_data = {
+                'id': authenticated_user.id,
+                'username': authenticated_user.username,
+                'email': authenticated_user.email,
+                'role': authenticated_user.role,
+                'name': f"{authenticated_user.first_name} {authenticated_user.last_name}".strip() or authenticated_user.username,
+                'first_name': authenticated_user.first_name,
+                'last_name': authenticated_user.last_name,
+            }
+            
+            # Add role-specific data
+            if authenticated_user.role == 'student':
+                user_data['student_id'] = authenticated_user.id_number
+                user_data['grade_level'] = authenticated_user.grade_level
+                user_data['section'] = authenticated_user.section
+            elif authenticated_user.role == 'teacher':
+                user_data['department'] = authenticated_user.department
+            
+            return Response({
+                'success': True,
+                'user': user_data,
+                'message': 'Login successful'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'error': 'Invalid email or password'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+            
+    except Exception as e:
+        print(f"Login API error: {str(e)}")
+        return Response({
+            'success': False,
+            'error': 'An error occurred during login'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Teacher Views
@@ -2175,6 +2277,76 @@ def post_comments_api(request, post_id):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@csrf_exempt
+@api_view(['DELETE'])
+def delete_post_api(request, post_id):
+    """
+    DELETE: Delete a newsfeed post (teacher only)
+    
+    This endpoint allows teachers to remove inappropriate or unwanted posts from the newsfeed.
+    When a post is deleted, all associated likes and comments are automatically removed (CASCADE).
+    
+    Args:
+        request: Django request object
+        post_id: ID of the newsfeed post to delete
+        
+    Returns:
+        200: Post deleted successfully
+        403: User is not authenticated or not a teacher
+        404: Post not found
+        500: Server error
+    """
+    # Authentication and authorization check
+    if not request.user.is_authenticated:
+        return Response({
+            'error': 'Authentication required'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+    
+    if request.user.role != 'teacher':
+        return Response({
+            'error': 'Only teachers can delete posts'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Get the post
+        post = NewsfeedPost.objects.get(id=post_id)
+        
+        # Store post info for logging before deletion
+        student_name = post.student_name
+        post_caption = post.caption[:50] if post.caption else 'No caption'
+        
+        # Delete the post (CASCADE will delete related likes and comments)
+        post.delete()
+        
+        # Log the deletion
+        print(f"✅ Post deleted successfully:")
+        print(f"   - Post ID: {post_id}")
+        print(f"   - Student: {student_name}")
+        print(f"   - Caption: {post_caption}...")
+        print(f"   - Deleted by: {request.user.username} (Teacher)")
+        
+        return Response({
+            'success': True,
+            'message': 'Post deleted successfully',
+            'deleted_post_id': post_id
+        }, status=status.HTTP_200_OK)
+        
+    except NewsfeedPost.DoesNotExist:
+        print(f"❌ Post deletion failed: Post {post_id} not found")
+        return Response({
+            'error': 'Post not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    except Exception as e:
+        print(f"❌ Error deleting post {post_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'error': 'An error occurred while deleting the post',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 def get_time_ago(datetime_obj):
     """Helper function to get relative time"""
     from django.utils import timezone
@@ -2830,25 +3002,35 @@ def sketch_delete_api(request, sketch_id):
 @csrf_exempt
 @api_view(['GET'])
 def student_progress_list_api(request):
-    """Get list of all students with their progress summary"""
+    """Get list of students from teacher's assigned classroom(s) with their progress summary"""
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
         from django.db.models import Count, Avg, Q
         
-        # Get class name from query parameter
+        # Get teacher's assigned classrooms
+        teacher_classrooms = Classroom.objects.filter(teacher=request.user)
+        
+        if not teacher_classrooms.exists():
+            # Teacher has no assigned classrooms
+            return Response([], status=status.HTTP_200_OK)
+        
+        # Get ONLY students from teacher's assigned classroom(s)
+        students = User.objects.filter(
+            role='student',
+            classroom__in=teacher_classrooms
+        ).exclude(username='admin').order_by('last_name', 'first_name')
+        
+        print(f"🎓 Teacher {request.user.username} has {teacher_classrooms.count()} classroom(s)")
+        print(f"👥 Found {students.count()} students in assigned classroom(s)")
+        
+        # Get class name from query parameter (optional additional filter)
         class_name = request.GET.get('class', None)
-        
-        # Get all students, exclude admin users
-        students = User.objects.filter(role='student').exclude(username='admin').order_by('username')
-        
-        # Filter by class if specified
         if class_name:
-            # Get teacher's folders for this class
+            # Further filter by class if specified
             teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
             class_folders = teacher_folders.filter(class_name=class_name)
-            # Get students who have submissions in these folders
             student_ids = StudentSubmission.objects.filter(
                 activity__folder__in=class_folders
             ).values_list('student_id', flat=True).distinct()
@@ -4692,42 +4874,74 @@ def export_user_data_api(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def student_list_api(request):
-    """List all students or create a new student"""
+    """List students - for teachers, only show students from their assigned classroom(s)"""
     if request.method == 'GET':
         # Get query parameters
         grade_level = request.query_params.get('grade_level')
         section = request.query_params.get('section')
-        is_active = request.query_params.get('is_active')
         search = request.query_params.get('search')
         
-        # Start with all students
-        students = Student.objects.all()
+        # Filter based on user role
+        if request.user.role == 'teacher':
+            # Get teacher's assigned classrooms
+            teacher_classrooms = Classroom.objects.filter(teacher=request.user)
+            
+            if teacher_classrooms.exists():
+                # Get students from teacher's classrooms
+                students = User.objects.filter(
+                    role='student',
+                    classroom__in=teacher_classrooms
+                )
+            else:
+                # Teacher has no assigned classrooms
+                students = User.objects.none()
+        elif request.user.role == 'admin':
+            # Admin can see all students
+            students = User.objects.filter(role='student')
+        else:
+            # Students can only see themselves
+            students = User.objects.filter(id=request.user.id, role='student')
         
-        # Apply filters
+        # Apply additional filters
         if grade_level:
             students = students.filter(grade_level=grade_level)
         if section:
             students = students.filter(section=section)
-        if is_active is not None:
-            students = students.filter(is_active=is_active.lower() == 'true')
         if search:
             students = students.filter(
-                Q(student_id__icontains=search) |
+                Q(id_number__icontains=search) |
                 Q(first_name__icontains=search) |
                 Q(last_name__icontains=search) |
+                Q(username__icontains=search) |
                 Q(email__icontains=search)
             )
         
         # Order by grade, section, then name
         students = students.order_by('grade_level', 'section', 'last_name', 'first_name')
         
-        # Serialize the data
-        from .serializer import StudentListSerializer
-        serializer = StudentListSerializer(students, many=True)
+        # Prepare response data
+        students_data = []
+        for student in students:
+            students_data.append({
+                'id': student.id,
+                'student_id': student.id_number,
+                'first_name': student.first_name,
+                'last_name': student.last_name,
+                'username': student.username,
+                'email': student.email,
+                'grade_level': student.grade_level,
+                'section': student.section,
+                'classroom': {
+                    'id': student.classroom.id,
+                    'name': student.classroom.name,
+                    'room_number': student.classroom.room_number
+                } if student.classroom else None,
+                'is_active': student.is_active
+            })
         
         return Response({
-            'count': students.count(),
-            'students': serializer.data
+            'count': len(students_data),
+            'students': students_data
         })
     
     elif request.method == 'POST':
@@ -5044,3 +5258,155 @@ def export_students_api(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     return response
+
+
+@api_view(['GET'])
+def classroom_list_api(request):
+    """
+    GET: List all classrooms with teacher and student information
+    For teachers: Show their assigned classroom(s)
+    For students: Show their classroom
+    """
+    try:
+        if request.user.role == 'teacher':
+            # Get classrooms taught by this teacher
+            classrooms = Classroom.objects.filter(teacher=request.user)
+        elif request.user.role == 'student':
+            # Get the student's classroom
+            if request.user.classroom:
+                classrooms = Classroom.objects.filter(id=request.user.classroom.id)
+            else:
+                return Response({
+                    'classrooms': [],
+                    'message': 'You are not assigned to any classroom yet'
+                })
+        else:
+            # Admin can see all classrooms
+            classrooms = Classroom.objects.all()
+        
+        classrooms_data = []
+        for classroom in classrooms:
+            # Get students in this classroom
+            students = User.objects.filter(classroom=classroom, role='student').order_by('last_name', 'first_name')
+            
+            classroom_data = {
+                'id': classroom.id,
+                'name': classroom.name,
+                'grade_level': classroom.grade_level,
+                'section': classroom.section,
+                'room_number': classroom.room_number,
+                'capacity': classroom.capacity,
+                'school_year': classroom.school_year,
+                'teacher': {
+                    'id': classroom.teacher.id,
+                    'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
+                    'email': classroom.teacher.email,
+                    'department': classroom.teacher.department
+                } if classroom.teacher else None,
+                'student_count': students.count(),
+                'is_full': students.count() >= classroom.capacity,
+                'students': [
+                    {
+                        'id': student.id,
+                        'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+                        'email': student.email,
+                        'id_number': student.id_number,
+                        'profile_picture': student.profile_picture.url if student.profile_picture else None
+                    } for student in students
+                ]
+            }
+            classrooms_data.append(classroom_data)
+        
+        return Response({
+            'classrooms': classrooms_data,
+            'total': len(classrooms_data)
+        })
+        
+    except Exception as e:
+        print(f"Error fetching classrooms: {str(e)}")
+        return Response({
+            'error': 'Failed to fetch classrooms',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def classroom_detail_api(request, classroom_id):
+    """
+    GET: Get detailed information about a specific classroom
+    """
+    try:
+        classroom = Classroom.objects.get(id=classroom_id)
+        
+        # Check permissions
+        if request.user.role == 'teacher' and classroom.teacher != request.user:
+            return Response({
+                'error': 'You do not have permission to view this classroom'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        if request.user.role == 'student' and request.user.classroom != classroom:
+            return Response({
+                'error': 'You do not have permission to view this classroom'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get students with more details
+        students = User.objects.filter(classroom=classroom, role='student').order_by('last_name', 'first_name')
+        
+        students_data = []
+        for student in students:
+            # Get student's recent submissions
+            recent_submissions = StudentSubmission.objects.filter(
+                student=student
+            ).order_by('-submitted_at')[:5]
+            
+            students_data.append({
+                'id': student.id,
+                'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+                'email': student.email,
+                'id_number': student.id_number,
+                'profile_picture': student.profile_picture.url if student.profile_picture else None,
+                'recent_submissions': [
+                    {
+                        'id': sub.id,
+                        'activity': sub.activity.title if sub.activity else 'Sketch',
+                        'submitted_at': sub.submitted_at.isoformat(),
+                        'status': sub.status,
+                        'score': sub.score
+                    } for sub in recent_submissions
+                ]
+            })
+        
+        classroom_data = {
+            'id': classroom.id,
+            'name': classroom.name,
+            'grade_level': classroom.grade_level,
+            'section': classroom.section,
+            'room_number': classroom.room_number,
+            'capacity': classroom.capacity,
+            'school_year': classroom.school_year,
+            'teacher': {
+                'id': classroom.teacher.id,
+                'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
+                'email': classroom.teacher.email,
+                'department': classroom.teacher.department,
+                'phone': classroom.teacher.phone_number
+            } if classroom.teacher else None,
+            'student_count': len(students_data),
+            'is_full': len(students_data) >= classroom.capacity,
+            'students': students_data,
+            'created_at': classroom.created_at.isoformat(),
+            'updated_at': classroom.updated_at.isoformat()
+        }
+        
+        return Response(classroom_data)
+        
+    except Classroom.DoesNotExist:
+        return Response({
+            'error': 'Classroom not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error fetching classroom details: {str(e)}")
+        return Response({
+            'error': 'Failed to fetch classroom details',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

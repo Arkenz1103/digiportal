@@ -16,6 +16,7 @@
     <!-- Teacher Pages with MainLayout -->
     <MainLayout v-if="currentPage.startsWith('Teacher') || (currentPage === 'Profile' && userRole === 'teacher') || (currentPage === 'Settings' && userRole === 'teacher')" @navigate="handleNavigation">
       <TeacherHome v-if="currentPage === 'TeacherHome'" @navigate="handleNavigation" />
+      <TeacherClassroom v-if="currentPage === 'TeacherClassroom'" @navigate="handleNavigation" />
       <TeacherRoom v-if="currentPage === 'TeacherRoom'" @navigate="handleNavigation" />
       <TeacherOutputs v-if="currentPage === 'TeacherOutputs'" @navigate="handleNavigation" />
       <TeacherSprogress v-if="currentPage === 'TeacherSprogress'" @navigate="handleNavigation" />
@@ -31,6 +32,7 @@
     <!-- Student Pages with MainLayout -->
     <MainLayout v-if="currentPage.startsWith('Student') || (currentPage === 'Profile' && userRole === 'student') || (currentPage === 'Settings' && userRole === 'student')" @navigate="handleNavigation">
       <StudentNewsfeed v-if="currentPage === 'StudentNewsfeed'" @navigate="handleNavigation" />
+      <StudentClassroom v-if="currentPage === 'StudentClassroom'" @navigate="handleNavigation" />
       <StudentRoom v-if="currentPage === 'StudentRoom'" @navigate="handleNavigation" />
       <StudentSketch v-if="currentPage === 'StudentSketch'" @navigate="handleNavigation" />
       <StudentRemarked v-if="currentPage === 'StudentRemarked'" @navigate="handleNavigation" />
@@ -51,6 +53,7 @@ import MainLayout from './Layouts/MainLayout.vue'
 
 // Teacher components
 import TeacherHome from './Pages/Teacher/Home.vue'
+import TeacherClassroom from './Pages/Teacher/Classroom.vue'
 import TeacherRoom from './Pages/Teacher/Room.vue'
 import TeacherOutputs from './Pages/Teacher/Outputs.vue'
 import TeacherSprogress from './Pages/Teacher/Sprogress.vue'
@@ -64,6 +67,7 @@ import TeacherSettings from './Pages/Teacher/Settings.vue'
 
 // Student components
 import StudentNewsfeed from './Pages/Student/Newsfeed.vue'
+import StudentClassroom from './Pages/Student/Classroom.vue'
 import StudentRoom from './Pages/Student/Sroom.vue'
 import StudentSketch from './Pages/Student/Sketch.vue'
 import StudentRemarked from './Pages/Student/Sremarked.vue'
@@ -123,6 +127,7 @@ const handleNavigation = (page) => {
     'Landing': 'DigiPortal - Creative Learning Platform',
     'Login': 'Login - DigiPortal',
     'TeacherHome': 'Teacher Home - DigiPortal',
+    'TeacherClassroom': 'My Classroom - DigiPortal',
     'TeacherRoom': 'Class Room - DigiPortal',
     'TeacherOutputs': 'Student Outputs - DigiPortal',
     'TeacherSprogress': 'Special Progress - DigiPortal',
@@ -134,6 +139,7 @@ const handleNavigation = (page) => {
     'Profile': 'My Profile - DigiPortal',
     'Settings': 'Settings - DigiPortal',
     'StudentNewsfeed': 'Student Home - DigiPortal',
+    'StudentClassroom': 'My Classroom - DigiPortal',
     'StudentRoom': 'Class Room - DigiPortal',
     'StudentSketch': 'Sketch - DigiPortal',
     'StudentRemarked': 'My Remarks - DigiPortal',
@@ -148,6 +154,7 @@ const handleNavigation = (page) => {
     'Landing': '/',
     'Login': '/login',
     'TeacherHome': '/teacher/home',
+    'TeacherClassroom': '/teacher/classroom',
     'TeacherRoom': '/teacher/room',
     'TeacherOutputs': '/teacher/outputs',
     'TeacherSprogress': '/teacher/sprogress',
@@ -157,6 +164,7 @@ const handleNavigation = (page) => {
     'TeacherNotify': '/teacher/notify',
     'TeacherArchived': '/teacher/archived',
     'StudentNewsfeed': '/student/newsfeed',
+    'StudentClassroom': '/student/classroom',
     'StudentRoom': '/student/room',
     'StudentSketch': '/student/sketch',
     'StudentRemarked': '/student/remarked',
