@@ -160,7 +160,8 @@ class PortfolioFolder(models.Model):
     """Portfolio folder model"""
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='portfolio_folders', db_column='teacher_id')
     name = models.CharField(max_length=255)
-    class_name = models.CharField(max_length=255, default='General')
+    class_name = models.CharField(max_length=255, default='General')  # Legacy field, kept for backwards compatibility
+    classroom = models.ForeignKey('Classroom', on_delete=models.SET_NULL, null=True, blank=True, related_name='portfolio_folders')  # New field linking to Classroom
     description = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

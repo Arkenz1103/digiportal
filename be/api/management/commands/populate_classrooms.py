@@ -60,9 +60,15 @@ class Command(BaseCommand):
             
             for classroom in classrooms:
                 if not classroom.teacher and teacher_index < len(teachers):
-                    classroom.teacher = teachers[teacher_index]
+                    teacher = teachers[teacher_index]
+                    classroom.teacher = teacher
                     classroom.save()
-                    self.stdout.write(f'✓ Assigned {teachers[teacher_index].username} to {classroom.name}')
+                    
+                    # IMPORTANT: Also update the teacher's classroom field
+                    teacher.classroom = classroom
+                    teacher.save()
+                    
+                    self.stdout.write(f'✓ Assigned {teacher.username} to {classroom.name}')
                     teacher_index += 1
                     
                     # Reset index if we run out of teachers

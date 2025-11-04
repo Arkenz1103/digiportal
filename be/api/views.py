@@ -508,7 +508,41 @@ def portfolio_folders_api(request):
     """
     if request.method == 'GET':
         try:
-            folders = PortfolioFolder.objects.all().order_by('-created_at')
+            # Filter folders based on user role and classroom
+            if request.user.is_authenticated:
+                if request.user.role == 'teacher':
+                    # Teachers only see folders from their assigned classroom
+                    teacher_classroom = request.user.classroom
+                    if teacher_classroom:
+                        folders = PortfolioFolder.objects.filter(
+                            classroom=teacher_classroom
+                        ).order_by('-created_at')
+                        print(f"📚 Teacher {request.user.username} viewing folders for classroom: {teacher_classroom.name}")
+                    else:
+                        # Fallback: show teacher's own folders if no classroom assigned
+                        folders = PortfolioFolder.objects.filter(
+                            teacher=request.user
+                        ).order_by('-created_at')
+                        print(f"⚠️ Teacher {request.user.username} has no classroom, showing own folders")
+                elif request.user.role == 'student':
+                    # Students only see folders from their assigned classroom
+                    student_classroom = request.user.classroom
+                    if student_classroom:
+                        folders = PortfolioFolder.objects.filter(
+                            classroom=student_classroom
+                        ).order_by('-created_at')
+                        print(f"📚 Student {request.user.username} viewing folders for classroom: {student_classroom.name}")
+                    else:
+                        # Fallback: show all folders if no classroom assigned
+                        folders = PortfolioFolder.objects.all().order_by('-created_at')
+                        print(f"⚠️ Student {request.user.username} has no classroom, showing all folders")
+                else:
+                    # Admin or other roles see all folders
+                    folders = PortfolioFolder.objects.all().order_by('-created_at')
+            else:
+                # Unauthenticated users see no folders
+                folders = PortfolioFolder.objects.none()
+            
             serializer = PortfolioFolderSerializer(folders, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -561,23 +595,48 @@ def portfolio_folders_api(request):
             
             print(f"Creating folder - Name: {name}, User: {request.user.username}, Class: {class_name}")
             
+            # Get teacher's classroom based on class_name
+            classroom = None
+            try:
+                # Try to find classroom by matching name (e.g., "Grade 1 - A")
+                classroom = Classroom.objects.filter(
+                    teacher=request.user,
+                    name=class_name
+                ).first()
+                
+                if classroom:
+                    print(f"✅ Found classroom: {classroom.name} (ID: {classroom.id})")
+                else:
+                    print(f"⚠️ No classroom found for class_name: {class_name}")
+            except Exception as e:
+                print(f"❌ Error finding classroom: {str(e)}")
+            
             folder = PortfolioFolder.objects.create(
                 teacher=request.user,
                 name=name,
                 class_name=class_name,
+                classroom=classroom,  # Link to actual Classroom model
                 description=description
             )
             
-            # Notify all students about new portfolio (exclude admin)
-            students = User.objects.filter(role='student').exclude(username='admin')
-            print(f"📢 Notifying {students.count()} students about new portfolio")
+            # Notify ONLY students in this specific classroom
+            if classroom:
+                students = User.objects.filter(
+                    role='student',
+                    classroom=classroom
+                ).exclude(username='admin')
+                print(f"📢 Notifying {students.count()} students in {classroom.name} about new portfolio")
+            else:
+                # Fallback: notify all students (legacy behavior)
+                students = User.objects.filter(role='student').exclude(username='admin')
+                print(f"📢 Notifying {students.count()} students (no specific classroom) about new portfolio")
             
             for student in students:
                 notification = create_notification(
                     recipient=student,
                     notification_type='portfolio_created',
                     title='New Portfolio Created',
-                    message=f'Teacher {request.user.username} created a new portfolio: {name}',
+                    message=f'Teacher {request.user.get_full_name() or request.user.username} created a new portfolio: {name}',
                     portfolio=folder
                 )
                 if notification:
@@ -1282,8 +1341,19 @@ def publish_activity_api(request, activity_id):
         action = "re-published" if not was_retracted else "published"
         print(f"✅ Activity {activity_id} {action} successfully")
         
-        # Notify all students about the new activity
-        students = User.objects.filter(role='student').exclude(username='admin')
+        # Notify ONLY students in the activity's classroom
+        activity_classroom = activity.folder.classroom
+        
+        if activity_classroom:
+            students = User.objects.filter(
+                role='student',
+                classroom=activity_classroom
+            ).exclude(username='admin')
+            print(f"📢 Notifying {students.count()} students in {activity_classroom.name} about published activity")
+        else:
+            # Fallback: notify all students if no classroom assigned (legacy behavior)
+            students = User.objects.filter(role='student').exclude(username='admin')
+            print(f"⚠️ No classroom assigned to folder, notifying all {students.count()} students")
         
         # Build detailed message with due date/time info
         due_info = ""
@@ -1365,8 +1435,19 @@ def retract_activity_api(request, activity_id):
         
         print(f"✅ Activity {activity_id} retracted successfully")
         
-        # Notify all students that the activity has been retracted
-        students = User.objects.filter(role='student').exclude(username='admin')
+        # Notify ONLY students in the activity's classroom that it has been retracted
+        activity_classroom = activity.folder.classroom
+        
+        if activity_classroom:
+            students = User.objects.filter(
+                role='student',
+                classroom=activity_classroom
+            ).exclude(username='admin')
+            print(f"📢 Notifying {students.count()} students in {activity_classroom.name} about retracted activity")
+        else:
+            # Fallback: notify all students if no classroom assigned
+            students = User.objects.filter(role='student').exclude(username='admin')
+            print(f"⚠️ No classroom assigned to folder, notifying all {students.count()} students")
         
         for student in students:
             create_notification(
@@ -1408,18 +1489,28 @@ def activity_submissions_api(request, activity_id):
         # Check if requesting drafts only
         include_drafts = request.GET.get('include_drafts', 'false').lower() == 'true'
         
-        # Teachers see all submissions, students see only their own
+        # Teachers see all submissions FROM THEIR CLASSROOM, students see only their own
         if request.user.role == 'teacher':
             # Check if we should show only scored submissions (for Special Progress view)
             show_scored_only = request.GET.get('scored_only', 'false').lower() == 'true'
             
+            # Get teacher's classroom(s) for this activity
+            activity_classroom = activity.folder.classroom
+            
             # Teachers see only final submissions (not drafts) unless specifically requested
+            # AND only from students in their assigned classroom
             if include_drafts:
-                all_submissions = StudentSubmission.objects.filter(activity=activity).order_by('-submitted_at')
+                all_submissions = StudentSubmission.objects.filter(
+                    activity=activity,
+                    student__classroom=activity_classroom  # Filter by classroom
+                ).order_by('-submitted_at')
             else:
                 all_submissions = StudentSubmission.objects.filter(
-                    activity=activity
+                    activity=activity,
+                    student__classroom=activity_classroom  # Filter by classroom
                 ).exclude(status='draft').order_by('-submitted_at')
+            
+            print(f"🎓 Activity {activity_id} - Classroom: {activity_classroom.name if activity_classroom else 'None'}")
             
             # If scored_only is requested, filter to only scored submissions
             if show_scored_only:
@@ -1942,13 +2033,23 @@ def pending_approvals_api(request):
         return Response({'error': 'Only teachers can view pending approvals'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get all submissions with pending approval for this teacher's classes
-        # Filter by teacher's folders OR sketch submissions (activity_id is None)
+        # Get all submissions with pending approval for this teacher's classroom ONLY
         from django.db.models import Q
         
+        teacher_classroom = request.user.classroom
+        
+        if not teacher_classroom:
+            print(f"⚠️ Teacher {request.user.username} has no assigned classroom")
+            return Response([], status=status.HTTP_200_OK)
+        
+        # Filter by:
+        # 1. Pending approval status
+        # 2. Student is in the SAME classroom as the teacher
+        # 3. Either has activity from teacher's folder OR is a sketch (activity_id is None)
         submissions = StudentSubmission.objects.filter(
-            Q(approval_status='pending') & 
-            (Q(activity__folder__teacher=request.user) | Q(activity__isnull=True))
+            Q(approval_status='pending') &
+            Q(student__classroom=teacher_classroom) &  # CRITICAL: Only students in teacher's classroom
+            (Q(activity__folder__classroom=teacher_classroom) | Q(activity__isnull=True))
         ).select_related('student', 'activity', 'activity__folder').order_by('-submitted_at')
         
         print(f"\n{'='*60}")
@@ -3494,11 +3595,21 @@ def request_portfolio_compilation_api(request):
             compilation_request.requested_at = timezone.now()
             compilation_request.save()
         
-        # Get all students (not just those with submissions)
-        # This ensures all students in the system get notified
-        students = User.objects.filter(role='student').exclude(username='admin')
+        # Get ONLY students in the teacher's classroom
+        teacher_classroom = request.user.classroom
         
-        print(f"📢 Found {students.count()} students to notify")
+        if not teacher_classroom:
+            return Response({
+                'error': 'You are not assigned to any classroom'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Filter students by the teacher's classroom
+        students = User.objects.filter(
+            role='student',
+            classroom=teacher_classroom
+        ).exclude(username='admin')
+        
+        print(f"📢 Found {students.count()} students in {teacher_classroom.name} to notify")
         
         # Create notifications for all students
         notifications_created = 0
@@ -3615,10 +3726,19 @@ def check_portfolio_compilation_status_api(request, class_name):
             
             print(f"🗑️ Deleted {deleted_count} old notifications")
             
-            # Get all students to notify about cancellation
-            students = User.objects.filter(role='student').exclude(username='admin')
+            # Get ONLY students in the teacher's classroom to notify about cancellation
+            teacher_classroom = request.user.classroom
             
-            print(f"📢 Notifying {students.count()} students about cancellation")
+            if teacher_classroom:
+                students = User.objects.filter(
+                    role='student',
+                    classroom=teacher_classroom
+                ).exclude(username='admin')
+                print(f"📢 Notifying {students.count()} students in {teacher_classroom.name} about cancellation")
+            else:
+                # Fallback: notify all students if no classroom assigned
+                students = User.objects.filter(role='student').exclude(username='admin')
+                print(f"⚠️ No classroom assigned, notifying all {students.count()} students about cancellation")
             
             # Notify students about cancellation
             students_notified = 0
@@ -3794,15 +3914,39 @@ def get_student_envelope_api(request, class_name):
 @csrf_exempt
 @api_view(['GET'])
 def get_student_portfolio_activities_api(request, class_name):
-    """Get all activities (submitted, resubmitted, late, and missing) for a student's portfolio"""
+    """Get all activities (submitted, resubmitted, late, and missing) for a student's portfolio - ONLY from their assigned classroom"""
     try:
         from .models import PortfolioActivity, StudentSubmission, PortfolioFolder
         from datetime import datetime, time as datetime_time
         
         print(f"📚 Fetching portfolio activities for student: {request.user.username} in class: {class_name}")
         
-        # Get all portfolio folders for this class
-        folders = PortfolioFolder.objects.filter(class_name=class_name)
+        # Get student's classroom
+        student_classroom = request.user.classroom
+        
+        if not student_classroom:
+            print(f"⚠️ Student {request.user.username} has no assigned classroom")
+            return Response({
+                'all_activities': [],
+                'submitted_activities': [],
+                'resubmitted_activities': [],
+                'late_activities': [],
+                'missing_activities': [],
+                'submitted_count': 0,
+                'resubmitted_count': 0,
+                'late_count': 0,
+                'missing_count': 0
+            }, status=status.HTTP_200_OK)
+        
+        print(f"✅ Student classroom: {student_classroom.name} (ID: {student_classroom.id})")
+        
+        # Get ONLY portfolio folders for this student's assigned classroom
+        folders = PortfolioFolder.objects.filter(
+            classroom=student_classroom,
+            class_name=class_name
+        )
+        
+        print(f"📁 Found {folders.count()} folders for classroom {student_classroom.name}")
         
         activity_list = []
         submitted_activities = []
