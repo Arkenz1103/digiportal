@@ -23,10 +23,8 @@ const isDropdownOpen = ref(false);
 // State for class dropdown
 const isClassDropdownOpen = ref(false);
 
-// Add state for classes
-const classes = ref([
-    { id: 1, name: 'Grade 1 - A', theme: 'purple' }
-]);
+// Add state for classes - will be loaded dynamically from API
+const classes = ref([]);
 
 // Add new state for the modal and form
 const showAddClassModal = ref(false);
@@ -188,6 +186,10 @@ const formatDate = (date) => {
 
 const markAsRead = async (id) => {
     try {
+        // Find the notification first to get its type
+        const notification = notifications.value.find(n => n.id === id) || 
+                           allNotifications.value.find(n => n.id === id);
+        
         const response = await fetch('/api/notifications/', {
             method: 'PUT',
             headers: {
@@ -197,16 +199,107 @@ const markAsRead = async (id) => {
         });
         
         if (response.ok) {
-            const notification = notifications.value.find(n => n.id === id);
             if (notification) {
                 notification.isUnread = false;
                 notification.isNew = false;
             }
             unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
+            
+            // Close the dropdown
+            showNotifications.value = false;
+            
+            // Navigate based on notification type
+            if (notification) {
+                handleNotificationNavigation(notification);
+            }
         }
     } catch (error) {
         console.error('Error marking notification as read:', error);
         showError('Failed to mark notification as read', 'Error');
+    }
+};
+
+// Handle navigation based on notification type
+const handleNotificationNavigation = (notification) => {
+    const type = notification.type;
+    const userRole = currentUser.value.role;
+    
+    console.log(`📍 Navigating for notification type: ${type}, user role: ${userRole}`);
+    
+    if (userRole === 'student') {
+        // Student navigation
+        if (type === 'activity_created' || type === 'activity_updated') {
+            if (window.navigateTo) {
+                window.navigateTo('StudentRoom');
+            } else {
+                window.location.href = '/student/room';
+            }
+        } else if (type === 'submission_approved') {
+            if (window.navigateTo) {
+                window.navigateTo('StudentNewsfeed');
+            } else {
+                window.location.href = '/student/newsfeed';
+            }
+        } else if (type === 'submission_rejected') {
+            if (window.navigateTo) {
+                window.navigateTo('StudentSketch');
+            } else {
+                window.location.href = '/student/sketch';
+            }
+        } else if (type === 'score_added') {
+            if (window.navigateTo) {
+                window.navigateTo('StudentRoom');
+            } else {
+                window.location.href = '/student/room';
+            }
+        } else if (type === 'portfolio_created' || type === 'portfolio_updated') {
+            if (window.navigateTo) {
+                window.navigateTo('StudentRoom');
+            } else {
+                window.location.href = '/student/room';
+            }
+        } else {
+            // Default: navigate to classroom
+            if (window.navigateTo) {
+                window.navigateTo('StudentRoom');
+            } else {
+                window.location.href = '/student/room';
+            }
+        }
+    } else if (userRole === 'teacher') {
+        // Teacher navigation
+        if (type === 'submission_received' || type === 'approval_requested') {
+            if (window.navigateTo) {
+                window.navigateTo('TeacherNotice');
+            } else {
+                window.location.href = '/teacher/notice';
+            }
+        } else if (type === 'submission_approved' || type === 'submission_rejected') {
+            if (window.navigateTo) {
+                window.navigateTo('TeacherOutputs');
+            } else {
+                window.location.href = '/teacher/outputs';
+            }
+        } else if (type === 'activity_created' || type === 'activity_updated') {
+            if (window.navigateTo) {
+                window.navigateTo('TeacherRoom');
+            } else {
+                window.location.href = '/teacher/room';
+            }
+        } else if (type === 'portfolio_created' || type === 'portfolio_updated') {
+            if (window.navigateTo) {
+                window.navigateTo('TeacherRoom');
+            } else {
+                window.location.href = '/teacher/room';
+            }
+        } else {
+            // Default: navigate to home
+            if (window.navigateTo) {
+                window.navigateTo('TeacherHome');
+            } else {
+                window.location.href = '/teacher/home';
+            }
+        }
     }
 };
 
@@ -565,9 +658,48 @@ const handleUserLogout = () => {
     };
 };
 
+// Load classrooms from API
+const loadClassrooms = async () => {
+    try {
+        console.log('🏫 Loading classrooms from API...');
+        const response = await fetch('/api/classrooms/', {
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('📚 Classrooms data:', data);
+            
+            if (data.classrooms && data.classrooms.length > 0) {
+                classes.value = data.classrooms.map(classroom => ({
+                    id: classroom.id,
+                    name: classroom.name,
+                    grade_level: classroom.grade_level,
+                    section: classroom.section,
+                    theme: 'purple'
+                }));
+                console.log('✅ Loaded classrooms:', classes.value);
+            } else {
+                console.log('⚠️ No classrooms found for this user');
+                classes.value = [];
+            }
+        } else {
+            console.error('❌ Failed to load classrooms:', response.status);
+            classes.value = [];
+        }
+    } catch (error) {
+        console.error('❌ Error loading classrooms:', error);
+        classes.value = [];
+    }
+};
+
 onMounted(() => {
     loadUserProfile(); // Load from API first
     loadNotifications();
+    loadClassrooms(); // Load classrooms dynamically
     
     // Listen for user data changes
     window.addEventListener('userDataChanged', handleUserDataChange);

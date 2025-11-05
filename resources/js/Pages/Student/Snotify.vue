@@ -117,7 +117,7 @@
                   ? 'border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50' 
                   : 'border-gray-200 hover:border-indigo-200'
               ]"
-              @click="markAsRead(notification.id)"
+              @click="handleNotificationClick(notification)"
             >
               <!-- Unread Indicator -->
               <div v-if="notification.isUnread" class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-600 to-purple-600"></div>
@@ -487,6 +487,70 @@ const markAsRead = async (id) => {
     }
   } catch (error) {
     console.error('Error marking notification as read:', error);
+  }
+};
+
+// Handle notification click - mark as read and navigate
+const handleNotificationClick = async (notification) => {
+  // Don't navigate if in select mode
+  if (isSelectMode.value) {
+    return;
+  }
+  
+  // Mark as read
+  await markAsRead(notification.id);
+  
+  // Navigate based on notification type using window.navigateTo
+  const type = notification.type;
+  
+  if (type === 'activity_created' || type === 'activity_updated') {
+    // Navigate to classroom to view the activity
+    console.log('📍 Navigating to classroom for activity notification');
+    if (window.navigateTo) {
+      window.navigateTo('StudentRoom');
+    } else {
+      window.location.href = '/student/room';
+    }
+  } else if (type === 'submission_approved') {
+    // Navigate to newsfeed to see approved post
+    console.log('📍 Navigating to newsfeed for approved submission');
+    if (window.navigateTo) {
+      window.navigateTo('StudentNewsfeed');
+    } else {
+      window.location.href = '/student/newsfeed';
+    }
+  } else if (type === 'submission_rejected') {
+    // Navigate to sketch pad to resubmit
+    console.log('📍 Navigating to sketch for rejected submission');
+    if (window.navigateTo) {
+      window.navigateTo('StudentSketch');
+    } else {
+      window.location.href = '/student/sketch';
+    }
+  } else if (type === 'score_added') {
+    // Navigate to classroom to view score
+    console.log('📍 Navigating to classroom for score notification');
+    if (window.navigateTo) {
+      window.navigateTo('StudentRoom');
+    } else {
+      window.location.href = '/student/room';
+    }
+  } else if (type === 'portfolio_created' || type === 'portfolio_updated') {
+    // Navigate to classroom
+    console.log('📍 Navigating to classroom for portfolio notification');
+    if (window.navigateTo) {
+      window.navigateTo('StudentRoom');
+    } else {
+      window.location.href = '/student/room';
+    }
+  } else {
+    // Default: navigate to classroom
+    console.log('📍 Navigating to classroom (default)');
+    if (window.navigateTo) {
+      window.navigateTo('StudentRoom');
+    } else {
+      window.location.href = '/student/room';
+    }
   }
 };
 </script>

@@ -1758,9 +1758,12 @@ def activity_submissions_api(request, activity_id):
                 if post_to_feed:
                     print(f"🔔 This submission should appear in teacher's Notice page!")
                 
+                # Get teacher for notifications
+                teacher = activity.folder.teacher
+                
                 # Only notify teacher if this is a final submission (not draft)
                 if not is_draft:
-                    teacher = activity.folder.teacher
+                    print(f"📧 Sending 'submission_received' notification to {teacher.username}")
                     create_notification(
                         recipient=teacher,
                         notification_type='submission_received',
@@ -1772,6 +1775,7 @@ def activity_submissions_api(request, activity_id):
                 
                 # If requesting approval, send additional notification
                 if post_to_feed:
+                    print(f"📧 Sending 'approval_requested' notification to {teacher.username}")
                     create_notification(
                         recipient=teacher,
                         notification_type='approval_requested',
@@ -3008,6 +3012,23 @@ def sketch_submission_api(request):
         
         print(f"✅ Sketch submission created: ID={submission.id}")
         print(f"📢 POST TO FEED: True, APPROVAL STATUS: pending")
+        
+        # Notify teacher about sketch submission
+        # Get the student's classroom teacher
+        student_classroom = request.user.classroom
+        if student_classroom and student_classroom.teacher:
+            teacher = student_classroom.teacher
+            print(f"📧 Sending 'approval_requested' notification to teacher: {teacher.username}")
+            create_notification(
+                recipient=teacher,
+                notification_type='approval_requested',
+                title='Sketch Approval Requested',
+                message=f'{request.user.username} submitted a sketch and requested approval to post to newsfeed',
+                submission=submission
+            )
+        else:
+            print(f"⚠️ No teacher found for student's classroom")
+        
         print(f"{'='*60}\n")
         
         serializer = StudentSubmissionSerializer(submission)

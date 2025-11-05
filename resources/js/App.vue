@@ -124,30 +124,30 @@ const handleNavigation = (page) => {
   
   // Update document title based on page
   const titles = {
-    'Landing': 'DigiPortal - Creative Learning Platform',
-    'Login': 'Login - DigiPortal',
-    'TeacherHome': 'Teacher Home - DigiPortal',
-    'TeacherClassroom': 'My Classroom - DigiPortal',
-    'TeacherRoom': 'Class Room - DigiPortal',
-    'TeacherOutputs': 'Student Outputs - DigiPortal',
-    'TeacherSprogress': 'Special Progress - DigiPortal',
-    'TeacherProgress': 'Student Progress - DigiPortal',
-    'TeacherRemarks': 'Remarks - DigiPortal',
-    'TeacherNotice': 'Notices - DigiPortal',
-    'TeacherNotify': 'Notifications - DigiPortal',
-    'TeacherArchived': 'Archived - DigiPortal',
-    'Profile': 'My Profile - DigiPortal',
-    'Settings': 'Settings - DigiPortal',
-    'StudentNewsfeed': 'Student Home - DigiPortal',
-    'StudentClassroom': 'My Classroom - DigiPortal',
-    'StudentRoom': 'Class Room - DigiPortal',
-    'StudentSketch': 'Sketch - DigiPortal',
-    'StudentRemarked': 'My Remarks - DigiPortal',
-    'StudentNotify': 'Notifications - DigiPortal',
-    'StudentArchived': 'Archived - DigiPortal'
+    'Landing': 'DigiPortal | Digital Portfolio & Learning Management',
+    'Login': 'Sign In | DigiPortal',
+    'TeacherHome': 'Dashboard | DigiPortal Teacher',
+    'TeacherClassroom': 'My Classroom | DigiPortal',
+    'TeacherRoom': 'Classroom Management | DigiPortal',
+    'TeacherOutputs': 'Student Submissions | DigiPortal',
+    'TeacherSprogress': 'Progress Tracking | DigiPortal',
+    'TeacherProgress': 'Student Analytics | DigiPortal',
+    'TeacherRemarks': 'Feedback & Remarks | DigiPortal',
+    'TeacherNotice': 'Announcements | DigiPortal',
+    'TeacherNotify': 'Notifications | DigiPortal',
+    'TeacherArchived': 'Archive | DigiPortal',
+    'Profile': 'My Profile | DigiPortal',
+    'Settings': 'Account Settings | DigiPortal',
+    'StudentNewsfeed': 'Home | DigiPortal Student',
+    'StudentClassroom': 'My Classes | DigiPortal',
+    'StudentRoom': 'Classroom | DigiPortal',
+    'StudentSketch': 'Creative Studio | DigiPortal',
+    'StudentRemarked': 'Teacher Feedback | DigiPortal',
+    'StudentNotify': 'Notifications | DigiPortal',
+    'StudentArchived': 'Archive | DigiPortal'
   }
   
-  document.title = titles[page] || 'DigiPortal'
+  document.title = titles[page] || 'DigiPortal | Digital Learning Platform'
   
   // Update URL to match current page (role-based for Profile/Settings)
   const urlMap = {
@@ -222,24 +222,24 @@ onMounted(() => {
     
     // Update document title
     const titles = {
-      'TeacherHome': 'Teacher Home - DigiPortal',
-      'TeacherRoom': 'Class Room - DigiPortal',
-      'TeacherOutputs': 'Student Outputs - DigiPortal',
-      'TeacherSprogress': 'Special Progress - DigiPortal',
-      'TeacherProgress': 'Student Progress - DigiPortal',
-      'TeacherRemarks': 'Remarks - DigiPortal',
-      'TeacherNotice': 'Notices - DigiPortal',
-      'TeacherNotify': 'Notifications - DigiPortal',
-      'TeacherArchived': 'Archived - DigiPortal',
-      'Profile': 'My Profile - DigiPortal',
-      'Settings': 'Settings - DigiPortal',
-      'StudentNewsfeed': 'Student Home - DigiPortal',
-      'StudentRoom': 'Class Room - DigiPortal',
-      'StudentSketch': 'Sketch - DigiPortal',
-      'StudentNotify': 'Notifications - DigiPortal',
-      'StudentArchived': 'Archived - DigiPortal'
+      'TeacherHome': 'Dashboard | DigiPortal Teacher',
+      'TeacherRoom': 'Classroom Management | DigiPortal',
+      'TeacherOutputs': 'Student Submissions | DigiPortal',
+      'TeacherSprogress': 'Progress Tracking | DigiPortal',
+      'TeacherProgress': 'Student Analytics | DigiPortal',
+      'TeacherRemarks': 'Feedback & Remarks | DigiPortal',
+      'TeacherNotice': 'Announcements | DigiPortal',
+      'TeacherNotify': 'Notifications | DigiPortal',
+      'TeacherArchived': 'Archive | DigiPortal',
+      'Profile': 'My Profile | DigiPortal',
+      'Settings': 'Account Settings | DigiPortal',
+      'StudentNewsfeed': 'Home | DigiPortal Student',
+      'StudentRoom': 'Classroom | DigiPortal',
+      'StudentSketch': 'Creative Studio | DigiPortal',
+      'StudentNotify': 'Notifications | DigiPortal',
+      'StudentArchived': 'Archive | DigiPortal'
     }
-    document.title = titles[savedCurrentPage] || 'DigiPortal'
+    document.title = titles[savedCurrentPage] || 'DigiPortal | Digital Learning Platform'
   }
 })
 
