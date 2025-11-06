@@ -1014,6 +1014,132 @@
                         </div>
                     </div>
                 </template>
+
+                <!-- Classroom Tab Content -->
+                <template v-if="activeTab === 'classroom'">
+                    <div class="p-4 md:p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+                        <!-- Classroom Header -->
+                        <div class="bg-white shadow-sm border-b border-gray-200 rounded-t-xl -mx-6 -mt-6 px-6 py-4 mb-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h1 class="text-2xl font-bold text-gray-900">My Classroom</h1>
+                                    <p class="text-sm text-gray-600 mt-1">Manage your students, track attendance, and monitor performance</p>
+                                </div>
+                                <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
+                                    <span class="text-sm text-gray-500">School Year:</span>
+                                    <span class="text-sm font-medium text-indigo-700">2024-2025</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Statistics Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gray-600">Total Students</p>
+                                        <p class="text-2xl font-bold text-gray-900">{{ totalStudents }}</p>
+                                    </div>
+                                    <i class="pi pi-users text-blue-500 text-2xl"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-500">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gray-600">Total Activities</p>
+                                        <p class="text-2xl font-bold text-gray-900">{{ totalActivities }}</p>
+                                    </div>
+                                    <i class="pi pi-book text-purple-500 text-2xl"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Classroom Card -->
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                            <!-- Classroom Header -->
+                            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-white">{{ className }}</h2>
+                                        <p class="text-indigo-100 mt-1">Room 111</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-white text-3xl font-bold">{{ totalStudents }}</p>
+                                        <p class="text-indigo-100 text-sm">Students</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Students List -->
+                            <div class="p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">Students</h3>
+                                    <button @click="showStudentList = !showStudentList"
+                                        class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+                                        {{ showStudentList ? 'Hide' : 'Show All' }}
+                                        <i class="pi ml-1" :class="showStudentList ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Search Bar -->
+                                <div v-if="showStudentList" class="mb-4">
+                                    <div class="relative">
+                                        <input
+                                            v-model="studentSearchQuery"
+                                            type="text"
+                                            placeholder="Search students by name or email..."
+                                            class="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                                        />
+                                        <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Student Grid -->
+                                <div v-if="showStudentList" class="space-y-3 max-h-96 overflow-y-auto">
+                                    <div v-for="(student, index) in filteredStudents" :key="student.id"
+                                        class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                        <span class="text-sm text-gray-500 font-medium w-8">{{ index + 1 }}.</span>
+                                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                                            {{ getInitials(student.name) }}
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="font-medium text-gray-900">{{ student.name }}</p>
+                                            <p class="text-xs text-gray-500">{{ student.email }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- No Results -->
+                                    <div v-if="filteredStudents.length === 0" class="text-center py-8">
+                                        <i class="pi pi-search text-gray-400 text-3xl mb-3"></i>
+                                        <p class="text-gray-500">No students found matching "{{ studentSearchQuery }}"</p>
+                                    </div>
+                                </div>
+
+                                <!-- Preview when collapsed -->
+                                <div v-else class="flex -space-x-2">
+                                    <div v-for="(student, index) in classroomStudents.slice(0, 5)" :key="student.id"
+                                        class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold border-2 border-white">
+                                        {{ getInitials(student.name) }}
+                                    </div>
+                                    <div v-if="classroomStudents.length > 5"
+                                        class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold border-2 border-white">
+                                        +{{ classroomStudents.length - 5 }}
+                                    </div>
+                                </div>
+
+                                <!-- Empty State -->
+                                <div v-if="classroomStudents.length === 0" class="text-center py-8">
+                                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i class="pi pi-users text-gray-400 text-2xl"></i>
+                                    </div>
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Students Yet</h3>
+                                    <p class="text-gray-500">Students will appear here once they join your classroom.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -2135,6 +2261,46 @@ const editActivityData = ref({
 });
 
 const editScoringCriteria = ref([]);
+
+// Classroom Management Data
+const classroomStudents = ref([]);
+const showStudentList = ref(false);
+const studentSearchQuery = ref('');
+const totalStudents = computed(() => classroomStudents.value.length);
+const presentToday = computed(() => classroomStudents.value.filter(s => s.is_active).length);
+const absentToday = computed(() => totalStudents.value - presentToday.value);
+const attendanceRate = computed(() => {
+    if (totalStudents.value === 0) return 0;
+    return Math.round((presentToday.value / totalStudents.value) * 100);
+});
+const totalActivities = computed(() => {
+    // Count total activities from all folders
+    return subjectFolders.value.reduce((total, folder) => total + (folder.items || 0), 0);
+});
+
+// Filtered students based on search query
+const filteredStudents = computed(() => {
+    if (!studentSearchQuery.value.trim()) {
+        return classroomStudents.value;
+    }
+    
+    const query = studentSearchQuery.value.toLowerCase().trim();
+    return classroomStudents.value.filter(student => {
+        const name = (student.name || '').toLowerCase();
+        const email = (student.email || '').toLowerCase();
+        return name.includes(query) || email.includes(query);
+    });
+});
+
+// Helper function to get initials
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
 const showEditDialog = ref(false);
 
 // Computed property to validate activity form
@@ -2180,6 +2346,25 @@ const createNewFolder = async () => {
 
             showNewFolderDialog.value = false;
             newFolder.value = { title: '', description: '' };
+            
+            // Broadcast folder creation event to other tabs/windows
+            const folderEvent = new CustomEvent('folderCreated', {
+                detail: {
+                    folderId: response.data.id,
+                    folderName: response.data.name,
+                    timestamp: Date.now()
+                }
+            });
+            window.dispatchEvent(folderEvent);
+            
+            // Also use localStorage for cross-tab communication
+            localStorage.setItem('folder_created_trigger', JSON.stringify({
+                folderId: response.data.id,
+                folderName: response.data.name,
+                timestamp: Date.now()
+            }));
+            
+            console.log('📢 Broadcasted folder creation event');
             
             // Show success message
             showSuccess('Portfolio folder created successfully!', 'Folder Created');
@@ -2253,6 +2438,25 @@ const updateFolder = async () => {
                 selectedSubject.value = response.data.name;
             }
             
+            // Broadcast folder update event to other tabs/windows
+            const folderEvent = new CustomEvent('folderUpdated', {
+                detail: {
+                    folderId: updateFolderData.value.id,
+                    folderName: response.data.name,
+                    timestamp: Date.now()
+                }
+            });
+            window.dispatchEvent(folderEvent);
+            
+            // Also use localStorage for cross-tab communication
+            localStorage.setItem('folder_updated_trigger', JSON.stringify({
+                folderId: updateFolderData.value.id,
+                folderName: response.data.name,
+                timestamp: Date.now()
+            }));
+            
+            console.log('📢 Broadcasted folder update event');
+            
             showUpdateFolderDialog.value = false;
             updateFolderData.value = { id: null, title: '', description: '' };
             showSuccess('The change is reflected in the database and for all students.', 'Folder Updated');
@@ -2310,6 +2514,25 @@ const dropFolder = async () => {
             selectedFolderId.value = null;
             activities.value = [];
         }
+        
+        // Broadcast folder deletion event to other tabs/windows
+        const folderEvent = new CustomEvent('folderDeleted', {
+            detail: {
+                folderId: dropFolderData.value.id,
+                folderName: dropFolderData.value.name,
+                timestamp: Date.now()
+            }
+        });
+        window.dispatchEvent(folderEvent);
+        
+        // Also use localStorage for cross-tab communication
+        localStorage.setItem('folder_deleted_trigger', JSON.stringify({
+            folderId: dropFolderData.value.id,
+            folderName: dropFolderData.value.name,
+            timestamp: Date.now()
+        }));
+        
+        console.log('📢 Broadcasted folder deletion event');
         
         showDropFolderDialog.value = false;
         dropFolderData.value = { id: null, name: '', items: 0 };
@@ -2800,8 +3023,9 @@ const activeTab = ref('pupil');
 
 // Tab configurations
 const tabs = [
-    { id: 'pupil', name: "Pupil's Activities", icon: 'pi-users' },
-    { id: 'portfolio', name: "Pupil's Portfolio Compilation", icon: 'pi-folder' },
+    { id: 'classroom', name: "Student's Classroom", icon: 'pi-building' },
+    { id: 'pupil', name: "Student's Activities", icon: 'pi-users' },
+    { id: 'portfolio', name: "Student's Portfolio Compilation", icon: 'pi-folder' },
     { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' }
 ];
 
@@ -3169,6 +3393,26 @@ const fetchPortfolioEnvelopes = async () => {
     }
 };
 
+// Load classroom students
+const loadClassroomStudents = async () => {
+    try {
+        const response = await axios.get('/api/classrooms/');
+        if (response.data && response.data.classrooms && response.data.classrooms.length > 0) {
+            // Get the first classroom (current class)
+            const currentClassroom = response.data.classrooms[0];
+            classroomStudents.value = currentClassroom.students || [];
+            console.log('✅ Loaded classroom students:', classroomStudents.value.length);
+            console.log('📊 Classroom data:', currentClassroom);
+        } else {
+            console.warn('⚠️ No classroom data found');
+            classroomStudents.value = [];
+        }
+    } catch (error) {
+        console.error('❌ Error loading classroom students:', error);
+        classroomStudents.value = [];
+    }
+};
+
 onMounted(async () => {
     document.addEventListener('click', handleDocumentClick, true);
     document.addEventListener('click', handleClickOutside);
@@ -3178,6 +3422,7 @@ onMounted(async () => {
     const authenticated = await authenticateWithBackend();
     if (authenticated) {
         await loadPortfolioFolders();
+        await loadClassroomStudents();
         
         // Check portfolio compilation status
         await checkPortfolioCompilationStatus();
@@ -3271,6 +3516,47 @@ onMounted(async () => {
     } else {
         console.error('Failed to authenticate with backend');
     }
+    
+    // Listen for folder created events (same tab)
+    window.addEventListener('folderCreated', async (event) => {
+        console.log('📢 Received folderCreated event in teacher view:', event.detail);
+    });
+    
+    // Listen for folder deleted events (same tab)
+    window.addEventListener('folderDeleted', async (event) => {
+        console.log('📢 Received folderDeleted event in teacher view:', event.detail);
+    });
+    
+    // Listen for folder updated events (same tab)
+    window.addEventListener('folderUpdated', async (event) => {
+        console.log('📢 Received folderUpdated event in teacher view:', event.detail);
+    });
+    
+    // Listen for storage events (cross-tab communication)
+    window.addEventListener('storage', async (event) => {
+        if (event.key === 'folder_created_trigger') {
+            console.log('📢 Folder created in another tab/window (teacher view)');
+            if (!showingActivities.value) {
+                await loadPortfolioFolders();
+            }
+            // Clear the trigger
+            localStorage.removeItem('folder_created_trigger');
+        } else if (event.key === 'folder_deleted_trigger') {
+            console.log('📢 Folder deleted in another tab/window (teacher view)');
+            if (!showingActivities.value) {
+                await loadPortfolioFolders();
+            }
+            // Clear the trigger
+            localStorage.removeItem('folder_deleted_trigger');
+        } else if (event.key === 'folder_updated_trigger') {
+            console.log('📢 Folder updated in another tab/window (teacher view)');
+            if (!showingActivities.value) {
+                await loadPortfolioFolders();
+            }
+            // Clear the trigger
+            localStorage.removeItem('folder_updated_trigger');
+        }
+    });
 });
 
 onUnmounted(() => {

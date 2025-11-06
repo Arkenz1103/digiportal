@@ -441,13 +441,22 @@ def validate_session(request, id=None):
     if request.method == 'GET':
         if request.user.is_authenticated:
             print(f"User authenticated: {request.user.username} (role: {request.user.role})")
+            
+            # Get classroom name if user has a classroom
+            classroom_name = None
+            if request.user.classroom:
+                classroom_name = f"Grade {request.user.classroom.grade_level} - {request.user.classroom.section}"
+            
             return JsonResponse({
                 'authenticated': True,
                 'user': {
                     'id': request.user.id,
                     'name': request.user.get_full_name() or request.user.username,
+                    'full_name': request.user.get_full_name() or request.user.username,
+                    'username': request.user.username,
                     'email': request.user.email,
                     'role': request.user.role,
+                    'classroom_name': classroom_name,
                 }
             })
         print("User not authenticated")
@@ -483,13 +492,21 @@ def validate_session(request, id=None):
             auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             print(f"User logged in successfully: {user.username} (role: {user.role})")
             
+            # Get classroom name if user has a classroom
+            classroom_name = None
+            if user.classroom:
+                classroom_name = f"Grade {user.classroom.grade_level} - {user.classroom.section}"
+            
             return JsonResponse({
                 'authenticated': True,
                 'user': {
                     'id': user.id,
                     'name': user.get_full_name() or user.username,
+                    'full_name': user.get_full_name() or user.username,
+                    'username': user.username,
                     'email': user.email,
                     'role': user.role,
+                    'classroom_name': classroom_name,
                 }
             })
         except Exception as e:
@@ -1633,10 +1650,22 @@ def activity_submissions_api(request, activity_id):
                     print(f"📤 Returning file_url: {serializer.data.get('file_url')}")
                     return Response(serializer.data, status=status.HTTP_200_OK)
                 
-                # This is a direct file upload to an existing submission
-                # This should not happen in the new draft-based flow, but handle it gracefully
-                # Do NOT increment resubmit_count here - only increment when converting draft to final
-                print(f"⚠️ Direct update to existing submission {existing_submission.id} (not using draft flow)")
+                # This is a resubmission - student is submitting new work
+                print(f"🔄 Resubmission detected for existing submission {existing_submission.id}")
+                print(f"📊 Current resubmit_count: {existing_submission.resubmit_count}")
+                
+                # Check resubmit limit
+                MAX_RESUBMITS = 3
+                if existing_submission.resubmit_count >= MAX_RESUBMITS:
+                    return Response({
+                        'error': f'Maximum resubmit limit ({MAX_RESUBMITS}) reached',
+                        'resubmit_count': existing_submission.resubmit_count,
+                        'max_resubmits': MAX_RESUBMITS
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Increment resubmit count
+                existing_submission.resubmit_count += 1
+                print(f"✅ Incrementing resubmit_count to: {existing_submission.resubmit_count}")
                 
                 # Update existing submission with new data
                 existing_submission.caption = data.get('caption', '')
@@ -1645,13 +1674,12 @@ def activity_submissions_api(request, activity_id):
                 existing_submission.last_resubmit_at = timezone.now()
                 existing_submission.submitted_at = timezone.now()  # Update submission time
                 
-                # If the submission was previously scored, reset to unscored
-                if existing_submission.status == 'scored':
-                    existing_submission.status = 'unscored'
-                    existing_submission.score = None
-                    existing_submission.feedback = None
-                    existing_submission.criteria_scores = None
-                    existing_submission.scored_at = None
+                # Set status to unscored (whether it was scored before or not)
+                existing_submission.status = 'unscored'
+                existing_submission.score = None
+                existing_submission.feedback = None
+                existing_submission.criteria_scores = None
+                existing_submission.scored_at = None
                 
                 # Check if this update is late (if not already marked as late)
                 if not existing_submission.is_late and activity.due_date:
@@ -2146,6 +2174,7 @@ def approve_submission_api(request, submission_id):
                         file_type=submission.file_type,
                         activity_title=submission.activity.title if submission.activity else 'Sketch Pad',
                         activity_type=submission.activity.activity_type if submission.activity else 'Sketch',
+                        classroom=submission.student.classroom,  # Set classroom for filtering
                         original_submission=submission
                     )
                     print(f"✅ Created newsfeed post for submission {submission_id} with file: {file_data}")
@@ -2220,11 +2249,22 @@ def approve_submission_api(request, submission_id):
 @api_view(['GET'])
 def newsfeed_api(request):
     """
-    GET: Get all newsfeed posts with likes and comments
+    GET: Get newsfeed posts filtered by user's classroom
     """
     try:
-        # Get all newsfeed posts
-        posts = NewsfeedPost.objects.all().order_by('-posted_at')
+        # Filter posts by user's classroom
+        if request.user.is_authenticated and hasattr(request.user, 'classroom') and request.user.classroom:
+            # Get posts from the same classroom
+            posts = NewsfeedPost.objects.filter(classroom=request.user.classroom).order_by('-posted_at')
+            print(f"📊 Filtering newsfeed for classroom: {request.user.classroom.name}")
+        else:
+            # If user has no classroom, show no posts (or all posts for admin)
+            if request.user.is_authenticated and request.user.role == 'admin':
+                posts = NewsfeedPost.objects.all().order_by('-posted_at')
+                print(f"👑 Admin viewing all newsfeed posts")
+            else:
+                posts = NewsfeedPost.objects.none()
+                print(f"⚠️ User has no classroom, showing no posts")
         
         # Serialize posts with additional data
         posts_data = []
@@ -2785,13 +2825,13 @@ def notifications_api(request):
     
     if request.method == 'GET':
         try:
-            print(f"📬 Fetching notifications for user: {request.user.username} (role: {request.user.role})")
+            print(f"📬 Fetching notifications for user: {request.user.username} (ID: {request.user.id}, role: {request.user.role})")
             notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
-            print(f"📊 Found {notifications.count()} notifications")
+            print(f"📊 Found {notifications.count()} notifications for user {request.user.username}")
             
-            # Debug: Print first few notifications
-            for notif in notifications[:3]:
-                print(f"  - {notif.notification_type}: {notif.title}")
+            # Debug: Print ALL notifications with recipient info
+            for notif in notifications:
+                print(f"  - [{notif.notification_type}] {notif.title} (recipient: {notif.recipient.username}, ID: {notif.recipient.id})")
             
             serializer = NotificationSerializer(notifications, many=True)
             return Response(serializer.data)
@@ -3435,6 +3475,43 @@ def mark_remark_read(request, pk):
 
 # Submission Remark API Endpoints
 @csrf_exempt
+@api_view(['PUT'])
+def convert_draft_to_final_api(request, activity_id, submission_id):
+    """Convert a draft submission to a final submission"""
+    try:
+        submission = StudentSubmission.objects.get(id=submission_id, activity_id=activity_id, student=request.user)
+        
+        if submission.status != 'draft':
+            return Response({'error': 'Submission is not a draft'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Convert to final submission
+        submission.status = 'unscored'
+        submission.save()
+        
+        print(f"✅ Converted draft submission {submission_id} to final submission (status='unscored')")
+        
+        # Notify teacher
+        teacher = submission.activity.folder.teacher
+        if teacher:
+            create_notification(
+                recipient=teacher,
+                notification_type='submission_received',
+                title='New Submission Received',
+                message=f'{request.user.username} submitted work for "{submission.activity.title}"',
+                submission=submission,
+                activity=submission.activity
+            )
+        
+        serializer = StudentSubmissionSerializer(submission, context={'request': request})
+        return Response(serializer.data)
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error converting draft: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
 @api_view(['GET', 'POST'])
 def submission_remarks_api(request, submission_id):
     """
@@ -3720,15 +3797,24 @@ def check_portfolio_compilation_status_api(request, class_name):
         try:
             print(f"🗑️ Dropping portfolio compilation for class: {class_name}")
             
-            # Find and deactivate the compilation request
+            # Get the teacher's assigned classroom
+            teacher_classroom = request.user.classroom
+            if not teacher_classroom:
+                return Response({'error': 'You are not assigned to any classroom'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Verify the class_name matches the teacher's classroom
+            expected_class_name = f"Grade {teacher_classroom.grade_level} - {teacher_classroom.section}"
+            if class_name != expected_class_name:
+                return Response({'error': f'Class name mismatch. Expected: {expected_class_name}, Got: {class_name}'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Find and deactivate the compilation request (don't filter by requested_by)
             compilation_request = PortfolioCompilationRequest.objects.filter(
                 class_name=class_name,
-                requested_by=request.user,
                 is_active=True
             ).first()
             
             if not compilation_request:
-                return Response({'error': 'No active compilation request found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'No active compilation request found for this class'}, status=status.HTTP_404_NOT_FOUND)
             
             # Deactivate the request
             compilation_request.is_active = False
@@ -3748,8 +3834,7 @@ def check_portfolio_compilation_status_api(request, class_name):
             print(f"🗑️ Deleted {deleted_count} old notifications")
             
             # Get ONLY students in the teacher's classroom to notify about cancellation
-            teacher_classroom = request.user.classroom
-            
+            # (teacher_classroom already retrieved above)
             if teacher_classroom:
                 students = User.objects.filter(
                     role='student',

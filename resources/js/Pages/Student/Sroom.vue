@@ -5,7 +5,7 @@
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div class="space-y-2">
           <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block bg-white/20">
-            {{ props.className }}
+            {{ actualClassName }}
           </h1>
           <p class="text-white/90 ml-2 flex items-center gap-2 text-sm">
             <i class="pi pi-user"></i>
@@ -80,11 +80,11 @@
       <div class="w-full px-4 sm:px-6 pt-1 pb-8 transition-all duration-300"
            :style="{ 'padding-left': '1.5rem', 'padding-right': '1.5rem' }">
         <template v-if="activeTab === 'portfolio'">
-          <div v-if="!portfolioCreated" class="p-8">
+          <div v-if="!portfolioCreated" class="p-8 bg-white rounded-xl shadow-sm">
             <div class="flex flex-col items-center justify-center text-center max-w-md mx-auto">
             </div>
           </div>
-          <div v-else class="p-4 md:p-6">
+          <div v-else class="p-4 md:p-6 bg-white rounded-xl shadow-sm min-h-screen">
             <!-- Portfolio Content -->
             <div>
               <!-- Activities List View -->
@@ -240,9 +240,17 @@
                                 
                                 <!-- Status Badge (Main Design) -->
                                 <div class="flex flex-col items-end gap-1">
-                                  <!-- Resubmitted: Has been resubmitted (takes priority) -->
+                                  <!-- Resubmitting: In resubmission mode (takes priority) -->
                                   <span
-                                    v-if="hasSubmittedWork && existingSubmission?.resubmit_count > 0"
+                                    v-if="isResubmitting"
+                                    class="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5 text-xs font-medium"
+                                  >
+                                    <i class="pi pi-refresh text-xs"></i>
+                                    <span>Resubmitting</span>
+                                  </span>
+                                  <!-- Resubmitted: Has been resubmitted -->
+                                  <span
+                                    v-else-if="hasSubmittedWork && existingSubmission?.resubmit_count > 0"
                                     class="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-800 flex items-center gap-1.5 text-xs font-medium"
                                   >
                                     <i class="pi pi-refresh text-xs"></i>
@@ -409,9 +417,9 @@
                             class="hidden"
                           />
                           
-                          <!-- Add/Edit Button (Only show if not submitted) -->
+                          <!-- Add/Edit Button (Show if not submitted OR in resubmission mode) -->
                           <button
-                            v-if="!hasSubmittedWork"
+                            v-if="!hasSubmittedWork || isResubmitting"
                             @click="draftFiles.length > 0 ? viewDraftFile(draftFiles[0]) : (isReplacingFile = false, showUploadDialog = true)"
                             :disabled="isSubmitting"
                             class="w-full px-4 py-2 bg-white border-2 border-indigo-200 rounded-lg text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -424,9 +432,9 @@
                             <span v-else>Add or create</span>
                           </button>
                           
-                          <!-- Turn In / Resubmit Button -->
+                          <!-- Turn In Button (Show if not submitted OR in resubmission mode) -->
                           <button
-                            v-if="!hasSubmittedWork"
+                            v-if="!hasSubmittedWork || isResubmitting"
                             @click="openTurnInDialog"
                             :disabled="draftFiles.length === 0"
                             class="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -435,8 +443,8 @@
                             <span>Turn in</span>
                           </button>
                           
-                          <!-- Resubmit Button (Show when already submitted) -->
-                          <div v-else class="space-y-2">
+                          <!-- Resubmit Button (Show when already submitted AND NOT in resubmission mode) -->
+                          <div v-else-if="hasSubmittedWork && !isResubmitting" class="space-y-2">
                             <!-- Resubmit Counter Info -->
                             <div v-if="existingSubmission && existingSubmission.resubmit_count > 0" class="text-xs text-center">
                               <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
@@ -666,20 +674,40 @@
                 </div>
 
                 <!-- Activities Table -->
-                <div v-else class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-indigo-100">
+                <div v-else class="space-y-6">
                   <!-- Loading State -->
                   <div v-if="isLoadingActivities" class="flex justify-center items-center py-12">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
                   </div>
 
                   <!-- Empty State -->
-                  <div v-else-if="folderActivities.length === 0" class="text-center py-12">
+                  <div v-else-if="folderActivities.length === 0" class="text-center py-12 bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-indigo-100">
                     <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
                     <p class="text-gray-500">No activities available yet.</p>
                   </div>
 
-                  <!-- Activities List -->
+                  <!-- Activities Sections -->
                   <template v-else>
+                    <!-- Submitted Outputs Section -->
+                    <div v-if="folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length > 0" 
+                         class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-green-200">
+                      <!-- Section Header -->
+                      <div class="bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-4">
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                              <i class="pi pi-check-circle text-white text-xl"></i>
+                            </div>
+                            <div>
+                              <h3 class="text-lg font-bold text-white">Submitted Outputs</h3>
+                              <p class="text-sm text-white/80">
+                                {{ folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length }} 
+                                {{ folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length === 1 ? 'activity' : 'activities' }}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     <!-- Modern Table Design -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                       <!-- Table Header -->
@@ -706,9 +734,9 @@
                         </div>
                       </div>
 
-                      <!-- Table Body -->
+                      <!-- Table Body - Submitted Activities Only -->
                       <div class="divide-y divide-gray-200">
-                        <div v-for="(activity, index) in folderActivities" :key="activity.id"
+                        <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted')" :key="activity.id"
                           class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
                           @click="openActivity(activity)">
                           
@@ -803,6 +831,131 @@
                         </div>
                       </div>
                     </div>
+                    </div>
+                    <!-- End Submitted Outputs Section -->
+
+                    <!-- Missing Outputs Section -->
+                    <div v-if="folderActivities.filter(a => getActivityStatus(a) === 'missing').length > 0" 
+                         class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-red-200">
+                      <!-- Section Header -->
+                      <div class="bg-gradient-to-r from-red-500 to-rose-500 px-6 py-4">
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                              <i class="pi pi-times-circle text-white text-xl"></i>
+                            </div>
+                            <div>
+                              <h3 class="text-lg font-bold text-white">Missing Outputs</h3>
+                              <p class="text-sm text-white/80">
+                                {{ folderActivities.filter(a => getActivityStatus(a) === 'missing').length }} 
+                                {{ folderActivities.filter(a => getActivityStatus(a) === 'missing').length === 1 ? 'activity' : 'activities' }}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Table -->
+                      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <!-- Table Header -->
+                        <div class="bg-gray-50 border-b border-gray-200">
+                          <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            <div class="col-span-2">
+                              <span>Activity Type</span>
+                            </div>
+                            <div class="col-span-2">
+                              <span>Activity Title</span>
+                            </div>
+                            <div class="col-span-3">
+                              <span>Instruction</span>
+                            </div>
+                            <div class="col-span-2 text-center">
+                              <span>Status</span>
+                            </div>
+                            <div class="col-span-1 text-center">
+                              <span>Due Time</span>
+                            </div>
+                            <div class="col-span-2 text-center">
+                              <span>Due Date</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Table Body - Missing Activities Only -->
+                        <div class="divide-y divide-gray-200">
+                          <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'missing')" :key="activity.id"
+                            class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+                            @click="openActivity(activity)">
+                            
+                            <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                              <!-- Activity Type with Icon -->
+                              <div class="col-span-2">
+                                <div class="flex items-center gap-2">
+                                  <div :class="[
+                                    'w-8 h-8 rounded-lg flex items-center justify-center',
+                                    activity.type === 'project' ? 'bg-purple-100' : 
+                                    activity.type === 'contest' ? 'bg-blue-100' : 
+                                    activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
+                                  ]">
+                                    <span :class="[
+                                      'text-lg font-bold',
+                                      activity.type === 'project' ? 'text-purple-600' : 
+                                      activity.type === 'contest' ? 'text-blue-600' : 
+                                      activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
+                                    ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
+                                  </div>
+                                  <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
+                                </div>
+                              </div>
+
+                              <!-- Title -->
+                              <div class="col-span-2">
+                                <div class="font-medium text-gray-900">
+                                  {{ activity.title }}
+                                  <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
+                                </div>
+                              </div>
+
+                              <!-- Instructions -->
+                              <div class="col-span-3">
+                                <div 
+                                  class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
+                                  :title="activity.description"
+                                  style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                                >
+                                  {{ activity.description || 'No instructions provided' }}
+                                </div>
+                              </div>
+
+                              <!-- Status Badge -->
+                              <div class="col-span-2 text-center">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  <i class="pi pi-circle-fill text-[6px] mr-1.5 text-red-500"></i>
+                                  Missing
+                                </span>
+                              </div>
+
+                              <!-- Due Time -->
+                              <div class="col-span-1 text-center">
+                                <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
+                                <span v-else class="text-sm text-gray-400">--:--</span>
+                              </div>
+
+                              <!-- Due Date -->
+                              <div class="col-span-2 text-center">
+                                <div class="text-sm text-gray-700">
+                                  {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
+                                  <div v-if="activity.daysLeft" class="text-xs text-red-600">
+                                    {{ activity.daysLeft }}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- End Missing Outputs Section -->
                   </template>
                 </div>
               </div>
@@ -811,21 +964,26 @@
               <div v-if="!selectedFolder" class="space-y-6">
                 <!-- Header with title -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                  <h2 class="text-xl md:text-2xl font-bold text-gray-900">My Activities</h2>
+                  <div>
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-900">My Activities</h2>
+                    <p class="text-sm text-gray-600 mt-1">Browse your activity folders and assignments</p>
+                  </div>
                 </div>
+                
                 <!-- Loading State -->
-                <div v-if="isLoadingFolders" class="flex justify-center items-center py-12">
-                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                  <span class="ml-3 text-gray-600">Loading folders...</span>
+                <div v-if="isLoadingFolders" class="flex flex-col justify-center items-center py-16 bg-white rounded-xl shadow-sm border border-gray-200">
+                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                  <span class="text-gray-600 font-medium">Loading your activity folders...</span>
                 </div>
                 
                 <!-- Empty State -->
-                <div v-else-if="portfolioFolders.length === 0" class="text-center py-12">
-                  <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
-                    <i class="pi pi-folder text-gray-400 text-xl"></i>
+                <div v-else-if="portfolioFolders.length === 0" class="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-200">
+                  <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-indigo-100 mb-4">
+                    <i class="pi pi-folder text-indigo-600 text-2xl"></i>
                   </div>
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">No Activity Folders</h3>
-                  <p class="text-gray-500">Your teacher hasn't created any activity folders yet.</p>
+                  <h3 class="text-xl font-bold text-gray-900 mb-2">No Activity Folders Yet</h3>
+                  <p class="text-gray-600 mb-4">Your teacher hasn't created any activity folders yet.</p>
+                  <p class="text-sm text-gray-500">Check back later or contact your teacher for more information.</p>
                 </div>
                 
                 <!-- Folders Grid -->
@@ -883,10 +1041,26 @@
                  `,
                  backgroundSize: '200% 200%',
                  animation: 'gradientShift 12s ease infinite'
-               } : { background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }">
+               } : { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }">
             
             <!-- Animated Background Elements -->
             <div class="absolute inset-0 pointer-events-none overflow-hidden">
+              <!-- Simple Sparkles for Waiting State -->
+              <div v-if="!portfolioEnvelopeCreated">
+                <div v-for="i in 30" :key="`waiting-sparkle-${i}`"
+                     class="absolute bg-white rounded-full animate-sparkle"
+                     :style="{
+                       width: `${1 + Math.random() * 3}px`,
+                       height: `${1 + Math.random() * 3}px`,
+                       left: `${Math.random() * 100}%`,
+                       top: `${Math.random() * 100}%`,
+                       animationDelay: `${Math.random() * 3}s`,
+                       animationDuration: `${2 + Math.random() * 4}s`,
+                       boxShadow: '0 0 6px rgba(255, 255, 255, 0.9)'
+                     }">
+                </div>
+              </div>
+              
               <!-- Mesh Gradient Overlay -->
               <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated" 
                    class="absolute inset-0 opacity-30"
@@ -1508,6 +1682,111 @@
             </div>
           </div>
         </template>
+
+        <!-- Classroom Tab Content -->
+        <template v-if="activeTab === 'classroom'">
+          <div class="p-4 md:p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+            <!-- Classroom Header -->
+            <div class="bg-white shadow-sm border-b border-gray-200 rounded-t-xl -mx-6 -mt-6 px-6 py-4 mb-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h1 class="text-2xl font-bold text-gray-900">My Classroom</h1>
+                  <p class="text-sm text-gray-600 mt-1">View your classmates and class information</p>
+                </div>
+                <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
+                  <span class="text-sm text-gray-500">School Year:</span>
+                  <span class="text-sm font-medium text-indigo-700">2024-2025</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Classroom Card -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+              <!-- Classroom Header -->
+              <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-2xl font-bold text-white">{{ actualClassName }}</h2>
+                    <p class="text-indigo-100 mt-1">Room 111</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-white text-3xl font-bold">{{ studentClassmates.length }}</p>
+                    <p class="text-indigo-100 text-sm">Classmates</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Class Adviser Section -->
+              <div class="p-6 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Class Adviser</h3>
+                <div class="flex items-center gap-3 p-3 bg-white rounded-lg">
+                  <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    {{ getTeacherInitials(classTeacher) }}
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900">{{ classTeacher }}</p>
+                    <p class="text-sm text-gray-600">{{ classTeacherEmail }}</p>
+                    <p class="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                      <i class="pi pi-book text-indigo-600"></i>
+                      Mathematics
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Classmates List -->
+              <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-lg font-semibold text-gray-900">My Classmates</h3>
+                  <span class="text-sm text-indigo-600 font-medium">{{ studentClassmates.length }} students</span>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="mb-4">
+                  <div class="relative">
+                    <input
+                      v-model="classmateSearchQuery"
+                      type="text"
+                      placeholder="Search classmates by name..."
+                      class="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                    />
+                    <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                  </div>
+                </div>
+
+                <!-- Classmates Grid -->
+                <div class="space-y-3 max-h-96 overflow-y-auto">
+                  <div v-for="(classmate, index) in filteredClassmates" :key="classmate.id"
+                    class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <span class="text-sm text-gray-500 font-medium w-8">{{ index + 1 }}.</span>
+                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                      {{ getInitials(classmate.name) }}
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-medium text-gray-900">{{ classmate.name }}</p>
+                      <p class="text-xs text-gray-500">{{ classmate.email }}</p>
+                    </div>
+                  </div>
+                  
+                  <!-- No Results -->
+                  <div v-if="filteredClassmates.length === 0" class="text-center py-8">
+                    <i class="pi pi-search text-gray-400 text-3xl mb-3"></i>
+                    <p class="text-gray-500">No classmates found matching "{{ classmateSearchQuery }}"</p>
+                  </div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-if="studentClassmates.length === 0" class="text-center py-8">
+                  <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="pi pi-users text-gray-400 text-2xl"></i>
+                  </div>
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">No Classmates Yet</h3>
+                  <p class="text-gray-500">Your classmates will appear here once they join.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -1623,14 +1902,14 @@
         </div>
 
         <!-- Post Output Option -->
-        <div class="flex items-center mt-4">
+        <div class="flex items-center p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
           <input
             type="checkbox"
             id="post-output"
             v-model="postOutputOption"
-            class="w-4 h-4 text-indigo-700 border-indigo-100 rounded focus:ring-indigo-500"
+            class="w-5 h-5 text-indigo-600 border-2 border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           />
-          <label for="post-output" class="ml-2 text-sm font-medium text-gray-700">
+          <label for="post-output" class="ml-3 text-sm font-medium text-gray-800 cursor-pointer select-none">
             Post this output to feeds (visible to class)
           </label>
         </div>
@@ -1645,14 +1924,14 @@
             Cancel
           </button>
           <button
-            @click="isCompilingMissing ? submitMissingActivity() : submitNewProduct()"
+            @click="submitWork()"
             class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
             :disabled="!selectedFile || isSubmitting"
             :class="{'opacity-50 cursor-not-allowed': !selectedFile || isSubmitting}"
           >
             <i v-if="!isSubmitting" class="pi pi-check"></i>
             <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isSubmitting ? 'Submitting...' : (isCompilingMissing ? 'Compile Activity' : 'Submit Work') }}
+            {{ isSubmitting ? 'Submitting...' : 'Submit' }}
           </button>
         </div>
       </template>
@@ -2659,7 +2938,18 @@
           </div>
         </div>
 
-        <!-- Removed: Post to Feed Checkbox -->
+        <!-- Post to Feed Checkbox -->
+        <div class="flex items-center mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <input
+            type="checkbox"
+            id="post-to-feed-turnin"
+            v-model="postOutputOption"
+            class="w-5 h-5 text-indigo-600 border-2 border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          />
+          <label for="post-to-feed-turnin" class="ml-3 text-sm font-medium text-gray-800 cursor-pointer select-none">
+            Post this output to feeds (visible to class)
+          </label>
+        </div>
       </div>
 
       <template #footer>
@@ -2671,13 +2961,13 @@
             Cancel
           </button>
           <button
-            @click="saveAsDraft"
+            @click="submitTurnInWork"
             :disabled="isSubmitting || draftFiles.length === 0"
             class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
-            <i v-else class="pi pi-save"></i>
-            <span>{{ isSubmitting ? 'Saving...' : 'Compile Activity' }}</span>
+            <i v-else class="pi pi-check"></i>
+            <span>{{ isSubmitting ? 'Submitting...' : 'Submit' }}</span>
           </button>
         </div>
       </template>
@@ -2734,7 +3024,7 @@
             <div class="flex-1">
               <p class="text-sm text-gray-800 font-medium mb-2">You are about to resubmit your work</p>
               <p class="text-sm text-gray-600">
-                This will count as resubmission #<strong>{{ (draftSubmission?.resubmit_count || 0) + 1 }}</strong> of 3 maximum allowed.
+                This will count as resubmission #<strong>{{ (existingSubmission?.resubmit_count || 0) + 1 }}</strong> of 3 maximum allowed.
               </p>
             </div>
           </div>
@@ -2744,12 +3034,12 @@
         <div class="space-y-2">
           <div class="flex items-center justify-between text-sm">
             <span class="text-gray-600">Current resubmissions:</span>
-            <span class="font-semibold text-gray-900">{{ draftSubmission?.resubmit_count || 0 }} / 3</span>
+            <span class="font-semibold text-gray-900">{{ existingSubmission?.resubmit_count || 0 }} / 3</span>
           </div>
           <div class="flex items-center justify-between text-sm">
             <span class="text-gray-600">Remaining resubmissions:</span>
-            <span class="font-semibold" :class="(3 - (draftSubmission?.resubmit_count || 0)) <= 1 ? 'text-red-600' : 'text-green-600'">
-              {{ 3 - (draftSubmission?.resubmit_count || 0) }} left
+            <span class="font-semibold" :class="(3 - (existingSubmission?.resubmit_count || 0)) <= 1 ? 'text-red-600' : 'text-green-600'">
+              {{ 3 - (existingSubmission?.resubmit_count || 0) }} left
             </span>
           </div>
         </div>
@@ -2791,7 +3081,7 @@
             Cancel
           </button>
           <button
-            @click="confirmResubmit"
+            @click="confirmResubmitAction"
             class="px-5 py-2.5 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center gap-2"
           >
             <i class="pi pi-check"></i>
@@ -2931,7 +3221,20 @@ const selectedClass = ref(null);
 const currentUser = ref({
     name: 'Student Name',
     email: 'student@example.com',
-    role: 'student'
+    role: 'student',
+    classroom: null
+});
+
+// Computed property for actual classroom name
+const actualClassName = computed(() => {
+    // Priority: selectedClass > currentUser.classroom > props.className
+    if (selectedClass.value && selectedClass.value.name) {
+        return selectedClass.value.name;
+    }
+    if (currentUser.value.classroom) {
+        return currentUser.value.classroom;
+    }
+    return props.className;
 });
 
 const activeTab = ref('portfolio');
@@ -2958,6 +3261,7 @@ const activePortfolioTab = ref('all'); // 'all' or 'missing'
 
 // Navigation tabs
 const tabs = [
+  { id: 'classroom', name: 'Classroom', icon: 'pi-building' },
   { id: 'portfolio', name: 'Activities', icon: 'pi-folder' },
   { id: 'compilation', name: 'Portfolio Compilation', icon: 'pi-book' },
   { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' },
@@ -2971,6 +3275,46 @@ const selectedPortfolioTheme = ref('minimal'); // Default theme
 
 // Portfolio folders data
 const portfolioFolders = ref([]);
+
+// Classroom data for students
+const studentClassmates = ref([]);
+const classTeacher = ref('Teacher Name');
+const classTeacherEmail = ref('');
+const classmateSearchQuery = ref('');
+
+// Filtered classmates based on search
+const filteredClassmates = computed(() => {
+    if (!classmateSearchQuery.value.trim()) {
+        return studentClassmates.value;
+    }
+    
+    const query = classmateSearchQuery.value.toLowerCase().trim();
+    return studentClassmates.value.filter(classmate => {
+        const name = (classmate.name || '').toLowerCase();
+        return name.includes(query);
+    });
+});
+
+// Helper function to get teacher initials
+const getTeacherInitials = (name) => {
+    if (!name) return 'T';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
+
+// Helper function to get student initials
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
+
 const isLoadingFolders = ref(false);
 
 // Selected folder and activity state
@@ -2994,6 +3338,11 @@ const postOutputOption = ref(false);
 const isSubmitting = ref(false);
 const isRequestingPost = ref(false);
 const isCompilingMissing = ref(false); // Flag for missing activity compilation
+
+// Computed: Check if in resubmission mode (has submitted work AND has draft files loaded)
+const isResubmitting = computed(() => {
+  return hasSubmittedWork.value && draftFiles.value.length > 0;
+});
 
 // Check if student has already submitted (reactive state)
 const hasSubmittedWork = ref(false);
@@ -3737,48 +4086,81 @@ const loadActivitySubmissions = async (activityId) => {
 
 const checkSubmissionStatus = async (activityId) => {
   try {
-    const response = await axios.get(`/api/activities/${activityId}/submissions/`);
-    // Filter out draft submissions - only count actual submissions
-    const actualSubmissions = response.data.filter(sub => sub.status !== 'draft');
-    if (actualSubmissions.length > 0) {
-      hasSubmittedWork.value = true;
-      // Get the LATEST submission (most recent submitted_at)
-      const latestSubmission = actualSubmissions.reduce((latest, current) => {
-        const latestDate = new Date(latest.submitted_at || 0);
-        const currentDate = new Date(current.submitted_at || 0);
-        return currentDate > latestDate ? current : latest;
-      });
-      existingSubmission.value = latestSubmission;
-      console.log('📌 Using LATEST submission:', latestSubmission.id, 'submitted at:', latestSubmission.submitted_at);
+    const response = await axios.get(`/api/activities/${activityId}/submissions/?include_drafts=true`);
+    
+    // Check if there are any submissions (including drafts)
+    if (response.data && response.data.length > 0) {
+      // Separate drafts and actual submissions
+      const actualSubmissions = response.data.filter(sub => sub.status !== 'draft');
+      const draftSubmissions = response.data.filter(sub => sub.status === 'draft');
       
-      // Check if submission has been scored
-      if (existingSubmission.value.status === 'scored' && existingSubmission.value.score !== null && existingSubmission.value.score !== undefined) {
-        hasScore.value = true;
-        submissionScore.value = {
-          score: existingSubmission.value.score,
-          feedback: existingSubmission.value.feedback,
-          criteria_scores: existingSubmission.value.criteria_scores
-        };
-        console.log('✅ Submission has been scored:', submissionScore.value);
+      // If there are drafts but no actual submissions, convert the draft to final
+      if (draftSubmissions.length > 0 && actualSubmissions.length === 0) {
+        console.log('🔄 Found draft submission, converting to final submission...');
+        const draft = draftSubmissions[0];
+        
+        try {
+          // Update the draft to be a final submission
+          const updateResponse = await axios.put(`/api/activities/${activityId}/submissions/${draft.id}/convert-to-final/`);
+          console.log('✅ Draft converted to final submission');
+          
+          // Reload submissions to get the updated status
+          const reloadResponse = await axios.get(`/api/activities/${activityId}/submissions/`);
+          const updatedSubmissions = reloadResponse.data.filter(sub => sub.status !== 'draft');
+          
+          if (updatedSubmissions.length > 0) {
+            hasSubmittedWork.value = true;
+            existingSubmission.value = updatedSubmissions[0];
+            console.log('✅ Using converted submission:', existingSubmission.value);
+          }
+        } catch (convertError) {
+          console.error('❌ Failed to convert draft:', convertError);
+          // Fall back to treating it as not submitted
+          hasSubmittedWork.value = false;
+        }
+      } else if (actualSubmissions.length > 0) {
+        hasSubmittedWork.value = true;
+        // Get the LATEST submission (most recent submitted_at)
+        const latestSubmission = actualSubmissions.reduce((latest, current) => {
+          const latestDate = new Date(latest.submitted_at || 0);
+          const currentDate = new Date(current.submitted_at || 0);
+          return currentDate > latestDate ? current : latest;
+        });
+        existingSubmission.value = latestSubmission;
+        console.log('📌 Using LATEST submission:', latestSubmission.id, 'submitted at:', latestSubmission.submitted_at);
+        
+        // Check if submission has been scored
+        if (existingSubmission.value.status === 'scored' && existingSubmission.value.score !== null && existingSubmission.value.score !== undefined) {
+          hasScore.value = true;
+          submissionScore.value = {
+            score: existingSubmission.value.score,
+            feedback: existingSubmission.value.feedback,
+            criteria_scores: existingSubmission.value.criteria_scores
+          };
+          console.log('✅ Submission has been scored:', submissionScore.value);
+        } else {
+          hasScore.value = false;
+          submissionScore.value = null;
+        }
+        
+        console.log('✅ Student already submitted:', existingSubmission.value);
+        console.log('📊 Status:', existingSubmission.value.status, 'Score:', existingSubmission.value.score);
       } else {
+        hasSubmittedWork.value = false;
+        existingSubmission.value = null;
         hasScore.value = false;
         submissionScore.value = null;
+        console.log('ℹ️ No actual submissions found');
       }
-      
-      console.log('✅ Student already submitted:', existingSubmission.value);
-      console.log('📊 Status:', existingSubmission.value.status, 'Score:', existingSubmission.value.score);
-      console.log('📅 Submitted at (from backend):', existingSubmission.value.submitted_at);
-      console.log('📅 Formatted:', formatSubmittedDateTime(existingSubmission.value.submitted_at));
     } else {
       hasSubmittedWork.value = false;
       existingSubmission.value = null;
       hasScore.value = false;
       submissionScore.value = null;
-      console.log('ℹ️ No actual submissions found (drafts excluded)');
+      console.log('ℹ️ No submissions found');
     }
   } catch (error) {
     console.error('Error checking submission status:', error);
-    showError('Failed to check submission status', 'Error');
     hasSubmittedWork.value = false;
     hasScore.value = false;
   }
@@ -3819,6 +4201,17 @@ const authenticateWithBackend = async () => {
     const checkResponse = await axios.get('/api/validate-session/');
     if (checkResponse.data.authenticated) {
       console.log('Already authenticated:', checkResponse.data.user);
+      
+      // Load user data including classroom
+      const user = checkResponse.data.user;
+      currentUser.value = {
+        name: user.full_name || user.username || 'Student Name',
+        email: user.email || 'student@example.com',
+        role: user.role || 'student',
+        classroom: user.classroom_name || null
+      };
+      
+      console.log('✅ Loaded user classroom:', currentUser.value.classroom);
       return true;
     }
   } catch (error) {
@@ -3828,6 +4221,17 @@ const authenticateWithBackend = async () => {
         role: 'student'
       });
       console.log('Authentication successful:', authResponse.data.user);
+      
+      // Load user data including classroom
+      const user = authResponse.data.user;
+      currentUser.value = {
+        name: user.full_name || user.username || 'Student Name',
+        email: user.email || 'student@example.com',
+        role: user.role || 'student',
+        classroom: user.classroom_name || null
+      };
+      
+      console.log('✅ Loaded user classroom:', currentUser.value.classroom);
       return true;
     } catch (authError) {
       console.error('Authentication failed:', authError);
@@ -3880,12 +4284,58 @@ const checkPortfolioCompilationStatus = async () => {
 };
 
 // Load portfolio folders when component mounts
+// Load classmates data
+const loadClassmates = async () => {
+    try {
+        const response = await axios.get('/api/classrooms/');
+        console.log('📊 Classroom API Response:', response.data);
+        
+        if (response.data && response.data.classrooms && response.data.classrooms.length > 0) {
+            const currentClassroom = response.data.classrooms[0];
+            
+            // Filter out the current student from the list
+            studentClassmates.value = (currentClassroom.students || []).filter(s => s.id !== currentUser.value.id);
+            
+            // Get teacher name - try multiple possible field names
+            if (currentClassroom.teacher_name) {
+                classTeacher.value = currentClassroom.teacher_name;
+            } else if (currentClassroom.teacher && currentClassroom.teacher.name) {
+                classTeacher.value = currentClassroom.teacher.name;
+            } else if (currentClassroom.teacher && currentClassroom.teacher.username) {
+                classTeacher.value = currentClassroom.teacher.username;
+            } else {
+                // Fallback: get from current user's classroom teacher
+                classTeacher.value = currentUser.value.classroom?.teacher?.name || 'Teacher Name';
+            }
+            
+            // Get teacher email
+            if (currentClassroom.teacher_email) {
+                classTeacherEmail.value = currentClassroom.teacher_email;
+            } else if (currentClassroom.teacher && currentClassroom.teacher.email) {
+                classTeacherEmail.value = currentClassroom.teacher.email;
+            } else {
+                classTeacherEmail.value = currentUser.value.classroom?.teacher?.email || '';
+            }
+            
+            console.log('✅ Loaded classmates:', studentClassmates.value.length);
+            console.log('👨‍🏫 Class Adviser:', classTeacher.value);
+            console.log('📧 Adviser Email:', classTeacherEmail.value);
+        }
+    } catch (error) {
+        console.error('❌ Error loading classmates:', error);
+        studentClassmates.value = [];
+    }
+};
+
 onMounted(async () => {
   // Authenticate with backend first, then load folders
   const authenticated = await authenticateWithBackend();
   if (authenticated) {
     // Check if student has an existing portfolio envelope
     await checkExistingEnvelope();
+    
+    // Load classmates data
+    await loadClassmates();
     
     // Restore previous view state after refresh
     const savedView = localStorage.getItem('student_current_view');
@@ -3954,20 +4404,63 @@ onMounted(async () => {
   
   // Listen for class change events
   window.addEventListener('classChanged', handleClassChange);
+  
+  // Listen for folder created events from other tabs/windows
+  window.addEventListener('folderCreated', async (event) => {
+    console.log('📢 Received folderCreated event:', event.detail);
+    // Reload folders when a new folder is created
+    if (!selectedFolder.value && !selectedActivity.value) {
+      console.log('🔄 Reloading folders due to new folder creation...');
+      await loadPortfolioFolders();
+    }
+  });
+  
+  // Listen for folder deleted events from other tabs/windows
+  window.addEventListener('folderDeleted', async (event) => {
+    console.log('📢 Received folderDeleted event:', event.detail);
+    // Reload folders when a folder is deleted
+    if (!selectedFolder.value && !selectedActivity.value) {
+      console.log('🔄 Reloading folders due to folder deletion...');
+      await loadPortfolioFolders();
+    }
+  });
+  
+  // Listen for folder updated events from other tabs/windows
+  window.addEventListener('folderUpdated', async (event) => {
+    console.log('📢 Received folderUpdated event:', event.detail);
+    // Reload folders when a folder is updated
+    if (!selectedFolder.value && !selectedActivity.value) {
+      console.log('🔄 Reloading folders due to folder update...');
+      await loadPortfolioFolders();
+    }
+  });
+  
+  // Listen for storage events (cross-tab communication)
+  window.addEventListener('storage', async (event) => {
+    if (event.key === 'folder_created_trigger') {
+      console.log('📢 Folder created in another tab/window');
+      if (!selectedFolder.value && !selectedActivity.value) {
+        await loadPortfolioFolders();
+      }
+      // Clear the trigger
+      localStorage.removeItem('folder_created_trigger');
+    } else if (event.key === 'folder_deleted_trigger') {
+      console.log('📢 Folder deleted in another tab/window');
+      if (!selectedFolder.value && !selectedActivity.value) {
+        await loadPortfolioFolders();
+      }
+      // Clear the trigger
+      localStorage.removeItem('folder_deleted_trigger');
+    } else if (event.key === 'folder_updated_trigger') {
+      console.log('📢 Folder updated in another tab/window');
+      if (!selectedFolder.value && !selectedActivity.value) {
+        await loadPortfolioFolders();
+      }
+      // Clear the trigger
+      localStorage.removeItem('folder_updated_trigger');
+    }
+  });
 });
-
-// Submit work function
-const submitWork = (type) => {
-  // Here you would handle the submission based on type ('private' or 'public')
-  console.log(`Submitting work as ${type} with file:`, selectedFile.value);
-
-  // Close dialog and reset form
-  showSubmitDialog.value = false;
-
-  // Show success message or redirect as needed
-  // For demo purposes, we'll just clear the form
-  clearFile();
-};
 
 // Settings Dropdown State
 const showSettingsDropdown = ref(false);
@@ -4350,29 +4843,21 @@ const handleAutoSaveFileUpload = async (event) => {
 
 // Open Turn In Dialog and pre-populate caption from draft
 const openTurnInDialog = () => {
-  // Check if we're in resubmission mode
-  const isResubmitting = draftSubmission.value && draftSubmission.value.resubmit_count >= 0 && draftSubmission.value.last_resubmit_at;
-  
-  if (isResubmitting) {
-    // Show resubmit confirmation dialog instead
-    showResubmitConfirmDialog.value = true;
-    console.log('🔄 Resubmission mode detected - showing confirmation');
+  // Always show the Turn In dialog (not the resubmission confirmation)
+  // Pre-populate caption from draft submission if it exists
+  if (draftSubmission.value && draftSubmission.value.caption) {
+    submissionCaption.value = draftSubmission.value.caption;
+    console.log('📝 Pre-populated caption from draft:', submissionCaption.value);
   } else {
-    // Normal turn in flow
-    // Pre-populate caption from draft submission if it exists
-    if (draftSubmission.value && draftSubmission.value.caption) {
-      submissionCaption.value = draftSubmission.value.caption;
-      console.log('📝 Pre-populated caption from draft:', submissionCaption.value);
-    } else {
-      submissionCaption.value = '';
-    }
-    
-    // Reset post to feed checkbox
-    postToFeed.value = false;
-    
-    // Show the dialog
-    showTurnInDialog.value = true;
+    submissionCaption.value = '';
   }
+  
+  // Reset post to feed checkbox
+  postToFeed.value = false;
+  
+  // Show the Turn In dialog
+  showTurnInDialog.value = true;
+  console.log('📤 Opening Turn In dialog');
 };
 
 // Confirm resubmission and turn in the work
@@ -4487,88 +4972,47 @@ const turnInDraft = async () => {
   }
 };
 
-// Handle resubmission
-const handleResubmit = async () => {
-  if (!selectedActivity.value || studentSubmissions.value.length === 0) return;
+// Handle resubmission - Show confirmation dialog
+const handleResubmit = () => {
+  // Show confirmation dialog instead of immediately converting
+  showResubmitConfirmDialog.value = true;
+  console.log('🔄 Showing resubmission confirmation dialog');
+};
+
+// Confirm resubmission - Enter resubmission mode
+const confirmResubmitAction = async () => {
+  if (!selectedActivity.value) return;
   
   try {
-    console.log('🔄 Starting resubmission process...');
+    console.log('🔄 Entering resubmission mode...');
     
-    // Get the existing submission
-    const existingSubmissionData = studentSubmissions.value[0];
-    const submissionId = existingSubmissionData.activityId || existingSubmissionData.id;
+    // Close confirmation dialog
+    showResubmitConfirmDialog.value = false;
     
-    // Find the actual submission ID from backend
-    const submissionsResponse = await axios.get(`/api/activities/${selectedActivity.value.id}/submissions/`);
-    const actualSubmission = submissionsResponse.data.find(sub => sub.status !== 'draft');
-    
-    if (!actualSubmission) {
-      showError('No submission found to resubmit', 'Error');
-      return;
+    // Load existing submission file into draft for editing
+    // This will automatically trigger isResubmitting = true (computed)
+    if (existingSubmission.value) {
+      const filePath = existingSubmission.value.file_url || existingSubmission.value.file_path;
+      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+      
+      draftFiles.value = [{
+        id: existingSubmission.value.id,
+        name: existingSubmission.value.caption || 'Submitted file',
+        type: existingSubmission.value.file_type,
+        path: cacheBustedPath,
+        resubmit_count: existingSubmission.value.resubmit_count || 0
+      }];
+      
+      console.log('✅ Loaded existing file for resubmission');
+      console.log('📊 Current resubmit count:', existingSubmission.value.resubmit_count || 0);
+      console.log('✅ isResubmitting is now:', isResubmitting.value);
     }
     
-    console.log('📝 Converting submission to draft:', actualSubmission.id);
-    console.log('📊 Current resubmit count:', actualSubmission.resubmit_count || 0);
-    
-    // Convert submission back to draft status
-    const response = await axios.put(`/api/submissions/${actualSubmission.id}/`, {
-      status: 'draft'
-    });
-    
-    console.log('✅ Converted to draft:', response.data);
-    
-    // Update state - now it's a draft again
-    hasSubmittedWork.value = false;
-    existingSubmission.value = null;
-    studentSubmissions.value = [];
-    
-    // Set as draft submission with the file (includes resubmit_count)
-    draftSubmission.value = response.data;
-    
-    // Load the file into draftFiles so it can be viewed/removed with cache busting
-    const filePath = response.data.file_url || response.data.file_path || response.data.file;
-    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
-    
-    draftFiles.value = [{
-      id: response.data.id,
-      name: response.data.caption || 'Submitted file',
-      type: response.data.file_type,
-      path: cacheBustedPath,
-      resubmit_count: response.data.resubmit_count || 0  // Preserve resubmit count
-    }];
-    
-    console.log('✅ Draft file loaded:', draftFiles.value);
-    console.log('📊 Resubmit count preserved:', response.data.resubmit_count);
-    
-    // Show resubmit count info
-    const resubmitCount = response.data.resubmit_count || 0;
-    const maxResubmits = 3;
-    const remaining = maxResubmits - resubmitCount;
-    
-    showSuccess(
-      `You can now edit and resubmit your work. Resubmits remaining: ${remaining}/${maxResubmits}`, 
-      'Ready to Resubmit'
-    );
+    // Show success message
+    showSuccess('You can now edit and resubmit your work', 'Resubmission Mode');
   } catch (error) {
     console.error('❌ Error preparing resubmission:', error);
-    
-    // Handle specific error responses
-    if (error.response && error.response.data) {
-      const errorData = error.response.data;
-      
-      if (errorData.reason === 'already_scored') {
-        showError('Cannot resubmit work that has already been scored by your teacher', 'Resubmit Not Allowed');
-      } else if (errorData.reason === 'max_limit_reached') {
-        showError(
-          `You have reached the maximum resubmit limit (${errorData.max_resubmits} times). No more resubmissions allowed.`,
-          'Resubmit Limit Reached'
-        );
-      } else {
-        showError(errorData.error || 'Failed to prepare resubmission', 'Error');
-      }
-    } else {
-      showError('Failed to prepare resubmission', 'Error');
-    }
+    showError('Failed to prepare resubmission', 'Error');
   }
 };
 
@@ -5011,6 +5455,66 @@ const editCompilation = (activity) => {
   compileActivity(activity); // Reuse the same function
 };
 
+// Submit work from Turn In dialog (for regular activities)
+const submitTurnInWork = async () => {
+  if (!selectedActivity.value) {
+    showWarning('No activity selected', 'Error');
+    return;
+  }
+  
+  if (draftFiles.length === 0) {
+    showWarning('Please add a file first', 'No File');
+    return;
+  }
+  
+  isSubmitting.value = true;
+  
+  try {
+    console.log('📤 Submitting work for activity:', selectedActivity.value.id);
+    
+    const file = draftFiles.value[0]; // Get the first file
+    
+    // Check if submission is late
+    const isLateSubmission = isPastDue.value;
+    
+    // Submit to API
+    const response = await axios.post(`/api/activities/${selectedActivity.value.id}/submissions/`, {
+      caption: submissionCaption.value || '',
+      file_path: file.path, // Base64 data
+      file_type: file.type,
+      post_to_feed: postOutputOption.value,
+      is_late: isLateSubmission,
+      is_draft: false // ✅ CRITICAL: false = final submission (status will be 'unscored')
+      // Note: Don't send 'status' - backend sets it automatically based on is_draft
+    });
+    
+    if (response.data) {
+      console.log('✅ Work submitted successfully:', response.data);
+      
+      // Update submission status
+      hasSubmittedWork.value = true;
+      existingSubmission.value = response.data;
+      
+      // Close dialog and reset form
+      showTurnInDialog.value = false;
+      submissionCaption.value = '';
+      postOutputOption.value = false;
+      draftFiles.value = []; // Clearing this will automatically set isResubmitting = false
+      
+      // Reload submissions to update the UI
+      await checkSubmissionStatus(selectedActivity.value.id);
+      await loadActivitySubmissions(selectedActivity.value.id);
+      
+      showSuccess('Work submitted successfully!', 'Submitted');
+    }
+  } catch (error) {
+    console.error('❌ Error submitting work:', error);
+    showError(error.response?.data?.error || 'Failed to submit work. Please try again.', 'Submission Failed');
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
 // Save as draft
 const saveAsDraft = async () => {
   if (!selectedMissingActivity.value) {
@@ -5163,6 +5667,17 @@ const handleCompilationFileUpload = async (event) => {
   
   // Reset input
   event.target.value = '';
+};
+
+// Unified submit function that handles both regular and missing activity submissions
+const submitWork = async () => {
+  if (isCompilingMissing.value) {
+    // If compiling missing activity, use the missing activity submission
+    await submitMissingActivity();
+  } else {
+    // Otherwise, use regular submission
+    await submitNewProduct();
+  }
 };
 
 // Submit missing activity from portfolio compilation

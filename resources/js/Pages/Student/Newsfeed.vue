@@ -19,11 +19,7 @@
                         <i class="pi pi-palette text-4xl text-teal-600"></i>
                     </div>
                     <h3 class="text-xl font-bold text-gray-800 mb-2">No Posts Yet</h3>
-                    <p class="text-gray-600 mb-6">Be the first to share your amazing work with the community!</p>
-                    <button class="px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300">
-                        <i class="pi pi-plus-circle mr-2"></i>
-                        Create First Post
-                    </button>
+                    <p class="text-gray-600">No posts from your classroom yet. Check back later!</p>
                 </div>
             </div>
 

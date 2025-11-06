@@ -292,6 +292,9 @@ class NewsfeedPost(models.Model):
     file_type = models.CharField(max_length=50, default='image')
     activity_title = models.CharField(max_length=255, blank=True, null=True)
     activity_type = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Classroom filter - posts are only visible to users in the same classroom
+    classroom = models.ForeignKey('Classroom', on_delete=models.CASCADE, null=True, blank=True, related_name='newsfeed_posts')
 
     # Optional reference to original submission (can be null if submission is deleted)
     original_submission = models.ForeignKey(

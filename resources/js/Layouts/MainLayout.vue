@@ -49,10 +49,12 @@ const showDeleteAllDialog = ref(false);
 const loadNotifications = async () => {
     try {
         console.log('🔄 Loading notifications from /api/notifications/...');
+        
         const response = await fetch('/api/notifications/', {
             credentials: 'include', // Include cookies for authentication
             headers: {
                 'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest', // Help Django recognize AJAX requests
             }
         });
         
@@ -192,8 +194,10 @@ const markAsRead = async (id) => {
         
         const response = await fetch('/api/notifications/', {
             method: 'PUT',
+            credentials: 'include', // Include session cookies
             headers: {
                 'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest', // Help Django recognize AJAX requests
             },
             body: JSON.stringify({ notification_id: id })
         });
@@ -212,10 +216,23 @@ const markAsRead = async (id) => {
             if (notification) {
                 handleNotificationNavigation(notification);
             }
+        } else if (response.status === 403 || response.status === 401) {
+            console.error('❌ Authentication failed - Please refresh the page');
+            // Just navigate without marking as read
+            showNotifications.value = false;
+            if (notification) {
+                handleNotificationNavigation(notification);
+            }
         }
     } catch (error) {
         console.error('Error marking notification as read:', error);
-        showError('Failed to mark notification as read', 'Error');
+        // Still navigate even if marking as read fails
+        showNotifications.value = false;
+        const notification = notifications.value.find(n => n.id === id) || 
+                           allNotifications.value.find(n => n.id === id);
+        if (notification) {
+            handleNotificationNavigation(notification);
+        }
     }
 };
 
@@ -696,10 +713,41 @@ const loadClassrooms = async () => {
     }
 };
 
-onMounted(() => {
-    loadUserProfile(); // Load from API first
-    loadNotifications();
+onMounted(async () => {
+    // Load user data and notifications
+    await loadUserProfile(); // Load from API first
+    await loadNotifications(); // Load notifications
     loadClassrooms(); // Load classrooms dynamically
+    
+    // Detect current route from URL if not set
+    if (!currentRoute.value || currentRoute.value === 'StudentNewsfeed') {
+        const path = window.location.pathname;
+        const routeMap = {
+            '/student/newsfeed': 'StudentNewsfeed',
+            '/student/room': 'StudentRoom',
+            '/student/classroom': 'StudentClassroom',
+            '/student/sketch': 'StudentSketch',
+            '/student/remarked': 'StudentRemarked',
+            '/student/notify': 'StudentNotify',
+            '/student/archived': 'StudentArchived',
+            '/teacher/home': 'TeacherHome',
+            '/teacher/room': 'TeacherRoom',
+            '/teacher/classroom': 'TeacherClassroom',
+            '/teacher/notice': 'TeacherNotice',
+            '/teacher/outputs': 'TeacherOutputs',
+            '/teacher/progress': 'TeacherProgress',
+            '/teacher/students': 'TeacherStudents',
+            '/teacher/remarks': 'TeacherRemarks',
+            '/teacher/notify': 'TeacherNotify',
+            '/teacher/archived': 'TeacherArchived',
+        };
+        
+        if (routeMap[path]) {
+            currentRoute.value = routeMap[path];
+            localStorage.setItem('digiportal_current_page', routeMap[path]);
+            console.log('📍 Detected current route from URL:', routeMap[path]);
+        }
+    }
     
     // Listen for user data changes
     window.addEventListener('userDataChanged', handleUserDataChange);
