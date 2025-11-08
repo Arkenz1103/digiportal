@@ -267,20 +267,20 @@
 
                                             <!-- Table Header -->
                                             <div class="bg-gray-50 border-b border-gray-200">
-                                                <div class="grid grid-cols-11 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                                    <div class="col-span-1">
+                                                <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                    <div class="col-span-2">
                                                         <span>Type</span>
                                                     </div>
                                                     <div class="col-span-2">
                                                         <span>Title</span>
                                                     </div>
-                                                    <div class="col-span-4">
+                                                    <div class="col-span-3">
                                                         <span>Instructions</span>
                                                     </div>
                                                     <div class="col-span-1 text-center">
                                                         <span>Due Time</span>
                                                     </div>
-                                                    <div class="col-span-1 text-center">
+                                                    <div class="col-span-2 text-center">
                                                         <span>Due Date</span>
                                                     </div>
                                                     <div class="col-span-2 text-center">
@@ -294,13 +294,13 @@
                                                 <div v-for="(activity, index) in draftActivities" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
 
-                                                    <div class="grid grid-cols-11 gap-3 px-6 py-4 items-center cursor-pointer"
+                                                    <div class="grid grid-cols-12 gap-4 px-6 py-4 items-start cursor-pointer"
                                                         @click="navigateToActivityOutputs(activity, index)">
                                                         <!-- Activity Type with Icon -->
-                                                        <div class="col-span-1">
+                                                        <div class="col-span-2">
                                                             <div class="flex items-center gap-2">
                                                                 <div :class="[
-                                                                    'w-8 h-8 rounded-lg flex items-center justify-center',
+                                                                    'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
                                                                     activity.type === 'project' ? 'bg-purple-100' : 
                                                                     activity.type === 'contest' ? 'bg-blue-100' : 
                                                                     activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
@@ -312,45 +312,45 @@
                                                                         activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
                                                                     ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
                                                                 </div>
-                                                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
+                                                                <span class="text-sm text-gray-700 capitalize truncate">{{ activity.type }}</span>
                                                             </div>
                                                         </div>
 
                                                         <!-- Title -->
                                                         <div class="col-span-2">
-                                                            <div class="font-medium text-gray-900">
-                                                                {{ activity.title }}
-                                                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
+                                                            <div class="font-medium text-gray-900 leading-snug">
+                                                                <div class="truncate" :title="activity.title">{{ activity.title }}</div>
+                                                                <div class="text-xs text-gray-500 mt-0.5">ID: {{ activity.id }}</div>
                                                             </div>
                                                         </div>
 
                                                         <!-- Instructions -->
-                                                        <div class="col-span-4">
+                                                        <div class="col-span-3">
                                                             <div 
-                                                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
+                                                                class="text-sm text-gray-600 leading-relaxed"
                                                                 :title="activity.description"
-                                                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                                                                style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 4.5rem;"
                                                             >
                                                                 {{ activity.description || 'No instructions provided' }}
                                                             </div>
                                                         </div>
 
                                                         <!-- Due Time -->
-                                                        <div class="col-span-1 text-center">
-                                                            <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
+                                                        <div class="col-span-1 text-center self-center">
+                                                            <span v-if="activity.formattedTime" class="text-sm text-gray-700 font-medium">{{ activity.formattedTime }}</span>
                                                             <span v-else class="text-sm text-gray-400">--:--</span>
                                                         </div>
 
                                                         <!-- Due Date -->
-                                                        <div class="col-span-1 text-center">
-                                                            <div class="text-sm text-gray-700">
+                                                        <div class="col-span-2 text-center self-center">
+                                                            <div class="text-sm text-gray-700 font-medium">
                                                                 {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
-                                                                <div v-if="activity.daysLeft" class="text-xs text-gray-500">{{ activity.daysLeft }}</div>
+                                                                <div v-if="activity.daysLeft" class="text-xs text-gray-500 mt-0.5">{{ activity.daysLeft }}</div>
                                                             </div>
                                                         </div>
 
                                                         <!-- Actions -->
-                                                        <div class="col-span-2 flex items-center justify-center gap-2">
+                                                        <div class="col-span-2 flex items-center justify-center gap-2 self-center">
                                                             <!-- Publish Button -->
                                                             <button 
                                                                 @click.stop="submitActivity(activity, index)"
@@ -410,20 +410,20 @@
 
                                             <!-- Table Header -->
                                             <div class="bg-gray-50 border-b border-gray-200">
-                                                <div class="grid grid-cols-11 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                                    <div class="col-span-1">
+                                                <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                    <div class="col-span-2">
                                                         <span>Type</span>
                                                     </div>
                                                     <div class="col-span-2">
                                                         <span>Title</span>
                                                     </div>
-                                                    <div class="col-span-4">
+                                                    <div class="col-span-3">
                                                         <span>Instructions</span>
                                                     </div>
                                                     <div class="col-span-1 text-center">
                                                         <span>Due Time</span>
                                                     </div>
-                                                    <div class="col-span-1 text-center">
+                                                    <div class="col-span-2 text-center">
                                                         <span>Due Date</span>
                                                     </div>
                                                     <div class="col-span-2 text-center">
@@ -437,13 +437,13 @@
                                                 <div v-for="(activity, index) in publishedActivities" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
                                                     
-                                                    <div class="grid grid-cols-11 gap-3 px-6 py-4 items-center cursor-pointer"
+                                                    <div class="grid grid-cols-12 gap-4 px-6 py-4 items-start cursor-pointer"
                                                         @click="navigateToActivityOutputs(activity, index)">
                                                         <!-- Activity Type with Icon -->
-                                                        <div class="col-span-1">
+                                                        <div class="col-span-2">
                                                             <div class="flex items-center gap-2">
                                                                 <div :class="[
-                                                                    'w-8 h-8 rounded-lg flex items-center justify-center',
+                                                                    'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
                                                                     activity.type === 'project' ? 'bg-purple-100' : 
                                                                     activity.type === 'contest' ? 'bg-blue-100' : 
                                                                     activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
@@ -455,45 +455,45 @@
                                                                         activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
                                                                     ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
                                                                 </div>
-                                                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
+                                                                <span class="text-sm text-gray-700 capitalize truncate">{{ activity.type }}</span>
                                                             </div>
                                                         </div>
 
                                                         <!-- Title -->
                                                         <div class="col-span-2">
-                                                            <div class="font-medium text-gray-900">
-                                                                {{ activity.title }}
-                                                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
+                                                            <div class="font-medium text-gray-900 leading-snug">
+                                                                <div class="truncate" :title="activity.title">{{ activity.title }}</div>
+                                                                <div class="text-xs text-gray-500 mt-0.5">ID: {{ activity.id }}</div>
                                                             </div>
                                                         </div>
 
                                                         <!-- Instructions -->
-                                                        <div class="col-span-4">
+                                                        <div class="col-span-3">
                                                             <div 
-                                                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
+                                                                class="text-sm text-gray-600 leading-relaxed"
                                                                 :title="activity.description"
-                                                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                                                                style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 4.5rem;"
                                                             >
                                                                 {{ activity.description || 'No instructions provided' }}
                                                             </div>
                                                         </div>
 
                                                         <!-- Due Time -->
-                                                        <div class="col-span-1 text-center">
-                                                            <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
+                                                        <div class="col-span-1 text-center self-center">
+                                                            <span v-if="activity.formattedTime" class="text-sm text-gray-700 font-medium">{{ activity.formattedTime }}</span>
                                                             <span v-else class="text-sm text-gray-400">--:--</span>
                                                         </div>
 
                                                         <!-- Due Date -->
-                                                        <div class="col-span-1 text-center">
-                                                            <div class="text-sm text-gray-700">
+                                                        <div class="col-span-2 text-center self-center">
+                                                            <div class="text-sm text-gray-700 font-medium">
                                                                 {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
-                                                                <div v-if="activity.daysLeft" class="text-xs text-gray-500">{{ activity.daysLeft }}</div>
+                                                                <div v-if="activity.daysLeft" class="text-xs text-gray-500 mt-0.5">{{ activity.daysLeft }}</div>
                                                             </div>
                                                         </div>
 
                                                         <!-- Actions -->
-                                                        <div class="col-span-2 flex items-center justify-center gap-2">
+                                                        <div class="col-span-2 flex items-center justify-center gap-2 self-center">
                                                             <!-- Retract Button (First) -->
                                                             <button 
                                                                 @click.stop="retractActivity(activity, index)"
@@ -557,27 +557,27 @@
                         <div v-else class="space-y-4">
                             <!-- Show selected envelope if viewing one -->
                             <div v-if="selectedEnvelope" class="rounded-2xl shadow-2xl overflow-hidden relative min-h-[600px] animate-scaleIn"
-                                 :style="{ 
+                                 :style="isEnvelopeOpen ? { 
                                    background: `linear-gradient(135deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`,
                                    animation: 'gradientShift 8s ease infinite'
-                                 }">
+                                 } : { background: 'white' }">
                                 
-                                <!-- Animated Pattern Overlay (matching envelope) -->
-                                <div v-if="selectedEnvelope.pattern === 'dots'" 
+                                <!-- Animated Pattern Overlay (matching envelope) - Only when open -->
+                                <div v-if="isEnvelopeOpen && selectedEnvelope.pattern === 'dots'" 
                                      class="absolute inset-0 opacity-10 pointer-events-none animate-patternFloat"
                                      style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
                                 </div>
-                                <div v-else-if="selectedEnvelope.pattern === 'lines'" 
+                                <div v-else-if="isEnvelopeOpen && selectedEnvelope.pattern === 'lines'" 
                                      class="absolute inset-0 opacity-10 pointer-events-none animate-patternSlide"
                                      style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
                                 </div>
-                                <div v-else-if="selectedEnvelope.pattern === 'grid'" 
+                                <div v-else-if="isEnvelopeOpen && selectedEnvelope.pattern === 'grid'" 
                                      class="absolute inset-0 opacity-10 pointer-events-none animate-patternPulse"
                                      style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                                 </div>
 
-                                <!-- Floating Particles Effect -->
-                                <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                                <!-- Floating Particles Effect - Only when open -->
+                                <div v-if="isEnvelopeOpen" class="absolute inset-0 pointer-events-none overflow-hidden">
                                     <div v-for="i in 15" :key="i" 
                                          class="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
                                          :style="{
@@ -601,22 +601,14 @@
                                             Back to List
                                         </button>
 
-                                        <!-- Envelope Front Cover - Matching Student Design -->
-                                        <div class="max-w-3xl mx-auto">
-                                            <!-- Envelope Top Flap -->
-                                            <div class="relative h-24 rounded-t-3xl overflow-hidden"
-                                                 :style="{ background: `linear-gradient(135deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)` }">
-                                                <!-- Flap Triangle Effect -->
-                                                <div class="absolute inset-0 flex items-center justify-center">
-                                                    <div class="w-0 h-0 border-l-[400px] border-l-transparent border-r-[400px] border-r-transparent border-t-[100px]"
-                                                         :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -30) }">
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Envelope Body with Pattern -->
-                                            <div class="relative rounded-b-3xl overflow-hidden shadow-2xl"
-                                                 :style="{ background: `linear-gradient(135deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -10)} 100%)` }">
+                                        <!-- Envelope Front Cover - Matching Student Design (Clickable) -->
+                                        <div 
+                                            @click="openEnvelope"
+                                            class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl max-w-3xl mx-auto"
+                                        >
+                                            <!-- Envelope Preview -->
+                                            <div class="relative w-full aspect-[21/9]"
+                                                 :style="{ backgroundColor: selectedEnvelope.color }">
                                                 
                                                 <!-- Pattern Overlay -->
                                                 <div v-if="selectedEnvelope.pattern === 'dots'" 
@@ -632,34 +624,39 @@
                                                      style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                                                 </div>
 
-                                                <!-- Front Cover Content -->
-                                                <div class="relative z-10 p-16 text-center">
-                                                    <!-- Portfolio Label Card -->
-                                                    <div class="inline-block bg-white/20 backdrop-blur-md rounded-2xl px-12 py-10 shadow-xl border-2 border-white/30">
-                                                        <h2 class="text-5xl font-bold text-white mb-4 tracking-wide">My Portfolio</h2>
-                                                        <p class="text-2xl text-white/90 mb-2 font-medium">{{ selectedEnvelope.name }}</p>
-                                                        <p class="text-lg text-white/80">{{ selectedEnvelope.class_name }}</p>
-                                                        <div class="mt-6 pt-6 border-t border-white/30">
-                                                            <p class="text-sm text-white/70 mb-1">Submitted</p>
-                                                            <p class="text-white/90 font-medium">{{ new Date(selectedEnvelope.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
-                                                        </div>
-                                                        <div class="mt-4 flex items-center justify-center gap-2 text-white/80">
-                                                            <i class="pi pi-book"></i>
-                                                            <span class="text-sm font-medium">{{ studentActivities.length }} Output{{ studentActivities.length !== 1 ? 's' : '' }}</span>
+                                                <!-- Envelope Flap -->
+                                                <div 
+                                                    class="absolute top-0 left-0 right-0 h-1/4 border-b-4 border-white/30"
+                                                    :style="{ 
+                                                        background: `linear-gradient(180deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`
+                                                    }">
+                                                    <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
+                                                                border-l-[150px] border-r-[150px] border-t-[80px] border-l-transparent border-r-transparent"
+                                                         :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -20) }">
+                                                    </div>
+                                                </div>
+
+                                                <!-- Content Area -->
+                                                <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                                                    <div class="bg-white/20 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 max-w-sm w-full">
+                                                        <h1 class="text-2xl font-bold text-white mb-2" 
+                                                            style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
+                                                            {{ selectedEnvelope.name }}
+                                                        </h1>
+                                                        <p class="text-sm text-white/80" 
+                                                           style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
+                                                            {{ selectedEnvelope.class_name }}
+                                                        </p>
+                                                        
+                                                        <!-- Click to Open Text -->
+                                                        <div class="mt-4 text-white/60 text-xs animate-pulse">
+                                                            <i class="pi pi-hand-pointer mr-1"></i>
+                                                            Click to open
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <!-- Open Envelope Button -->
-                                        <button
-                                            @click="openEnvelope"
-                                            class="mt-8 px-12 py-5 bg-white text-gray-900 text-xl font-bold rounded-2xl hover:bg-white/90 transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:scale-105 flex items-center gap-4 mx-auto"
-                                        >
-                                            <i class="pi pi-folder-open text-2xl"></i>
-                                            Open Portfolio Envelope
-                                        </button>
                                     </div>
 
                                     <!-- Show Opened Envelope Content -->

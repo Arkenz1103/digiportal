@@ -1,10 +1,13 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import axios from '../../axios';
 import { useToast } from '../../composables/useToast';
+import { useTheme } from '../../composables/useTheme';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 
 const { showSuccess, showError, showInfo, showWarning } = useToast();
+const { currentTheme, setTheme } = useTheme();
 
 // Settings data
 const settings = ref({
@@ -62,28 +65,52 @@ const themeOptions = [
     { value: 'auto', label: 'Auto', icon: 'pi-desktop' }
 ];
 
-// Load settings
+// Load settings from backend
 const loadSettings = async () => {
     try {
+        console.log('📥 Loading settings from backend...');
         const response = await axios.get('/api/user/settings/');
-        settings.value = response.data;
-        console.log('✅ Settings loaded:', settings.value);
+        
+        if (response.data) {
+            settings.value = response.data;
+            
+            // Sync theme from backend
+            if (response.data.preferences?.theme) {
+                const backendTheme = response.data.preferences.theme;
+                console.log('🎨 Theme from backend:', backendTheme);
+                
+                // Update local theme
+                currentTheme.value = backendTheme;
+                setTheme(backendTheme);
+            }
+            
+            console.log('✅ Settings loaded:', settings.value);
+        }
     } catch (error) {
         console.error('❌ Error loading settings:', error);
-        showError('Failed to load settings', 'Error');
+        // Don't show error if endpoint doesn't exist yet
+        if (error.response?.status !== 404) {
+            showError('Failed to load settings', 'Error');
+        }
     }
 };
 
-// Save settings
+// Save settings to backend
 const saveSettings = async () => {
     try {
         isSavingSettings.value = true;
         
+        console.log('💾 Saving settings to backend...');
+        console.log('📤 Theme to save:', settings.value.preferences.theme);
+        
         const response = await axios.put('/api/user/settings/', settings.value);
-        settings.value = response.data;
+        
+        if (response.data) {
+            settings.value = response.data;
+            console.log('✅ Settings saved to backend:', settings.value);
+        }
         
         showSuccess('Settings saved successfully!', 'Saved');
-        console.log('✅ Settings saved:', settings.value);
     } catch (error) {
         console.error('❌ Error saving settings:', error);
         showError(error.response?.data?.error || 'Failed to save settings', 'Error');
@@ -128,8 +155,19 @@ const deleteAccount = async () => {
     showDeleteAccountDialog.value = false;
 };
 
+// Watch for theme changes in settings
+watch(() => settings.value.preferences.theme, (newTheme) => {
+    console.log('🎨 Theme changed in settings:', newTheme);
+    // Apply theme using global composable
+    setTheme(newTheme);
+});
+
 // Load settings on mount
 onMounted(() => {
+    // Sync with global theme state
+    settings.value.preferences.theme = currentTheme.value;
+    
+    // Load all settings from backend (will sync theme)
     loadSettings();
 });
 </script>

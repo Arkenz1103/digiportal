@@ -11,6 +11,52 @@ import Button from 'primevue/button';
 const pendingOutputs = ref([]);
 const isLoadingPending = ref(false);
 
+// Helper function to format date and time
+const formatDateTime = (dateString) => {
+    if (!dateString) return { formatted: 'N/A', daysAgo: '', timestamp: 0 };
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    
+    // Format: Nov 6, 2025 — 10:45 PM
+    const formatted = date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+    }) + ' — ' + date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+    });
+    
+    // Calculate "days ago" text
+    let daysAgo = '';
+    if (diffMinutes < 1) {
+        daysAgo = 'Just now';
+    } else if (diffMinutes < 60) {
+        daysAgo = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+    } else if (diffHours < 24) {
+        daysAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    } else if (diffDays === 1) {
+        daysAgo = '1 day ago';
+    } else if (diffDays < 30) {
+        daysAgo = `${diffDays} days ago`;
+    } else {
+        const months = Math.floor(diffDays / 30);
+        daysAgo = `${months} month${months !== 1 ? 's' : ''} ago`;
+    }
+    
+    return { 
+        formatted, 
+        daysAgo, 
+        timestamp: date.getTime() 
+    };
+};
+
 // Load pending approvals from API
 const loadPendingApprovals = async () => {
     isLoadingPending.value = true;
@@ -20,14 +66,19 @@ const loadPendingApprovals = async () => {
         console.log('📥 API Response:', response.data);
         
         if (response.data) {
-            pendingOutputs.value = response.data.map(submission => {
+            // Map and format submissions
+            const submissions = response.data.map(submission => {
                 // Get image URL from multiple possible sources
                 const imageUrl = submission.file_url || submission.file_path || submission.file || '';
+                const dateInfo = formatDateTime(submission.submitted_at);
+                
                 console.log('Submission:', {
                     id: submission.id,
                     student: submission.student_name,
                     activity: submission.activity_title,
                     imageUrl: imageUrl,
+                    submitted_at: submission.submitted_at,
+                    formatted_date: dateInfo.formatted,
                     approval_status: submission.approval_status
                 });
                 
@@ -37,14 +88,22 @@ const loadPendingApprovals = async () => {
                     title: submission.activity_title || 'Untitled',
                     subject: submission.activity_type || 'Unknown',
                     description: submission.caption || 'No caption provided',
-                    submittedDate: submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : 'N/A',
+                    submittedDate: dateInfo.formatted,
+                    daysAgo: dateInfo.daysAgo,
+                    timestamp: dateInfo.timestamp,
+                    rawDate: submission.submitted_at,
                     sampleImages: imageUrl ? [imageUrl] : [],
                     file_path: imageUrl,
                     file_type: submission.file_type || 'image',
                     status: 'Pending'
                 };
             });
-            console.log('✅ Loaded pending approvals:', pendingOutputs.value.length, 'items');
+            
+            // Sort by submission date (most recent first)
+            pendingOutputs.value = submissions.sort((a, b) => b.timestamp - a.timestamp);
+            
+            console.log('✅ Loaded and sorted pending approvals:', pendingOutputs.value.length, 'items');
+            console.log('📊 First submission:', pendingOutputs.value[0]?.submittedDate);
         }
     } catch (error) {
         console.error('❌ Error loading pending approvals:', error);
@@ -275,52 +334,70 @@ const cancelRejection = () => {
             <!-- Outputs List -->
             <div v-else class="divide-y divide-indigo-100">
                 <div v-for="output in pendingOutputs" :key="output.id" 
-                    class="p-6 hover:bg-indigo-50/50 transition-colors duration-200">
-                    <div class="flex justify-between items-start">
+                    class="p-6 hover:bg-indigo-50/50 transition-colors duration-200 border-l-4 border-transparent hover:border-indigo-400">
+                    <div class="flex justify-between items-start gap-4">
                         <div class="flex-1">
-                            <div class="flex items-center space-x-3 mb-2">
-                                <span class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-medium text-white">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <span class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-base font-semibold text-white shadow-md">
                                     {{ output.studentName.charAt(0) }}
                                 </span>
-                                <h3 class="font-medium text-indigo-900">{{ output.studentName }}</h3>
-                                <span class="text-sm text-indigo-700/80">submitted {{ output.title }}</span>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h3 class="font-semibold text-indigo-900 text-base">{{ output.studentName }}</h3>
+                                        <span class="text-sm text-indigo-600/70">•</span>
+                                        <span class="text-sm text-indigo-700/80 font-medium">{{ output.title }}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                                            <i class="pi pi-book mr-1 text-xs"></i>
+                                            {{ output.subject }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="ml-11">
-                                <p class="text-indigo-900/80">{{ output.description }}</p>
-                                <div class="mt-2">
-                                    <div class="text-sm font-medium text-indigo-900 mb-2">Student Work:</div>
+                            <div class="ml-13">
+                                <p class="text-indigo-900/80 text-sm leading-relaxed mb-3">{{ output.description }}</p>
+                                
+                                <!-- Submission Date/Time -->
+                                <div class="flex items-center gap-4 text-sm mb-3">
+                                    <div class="flex items-center gap-1.5 text-indigo-700/90">
+                                        <i class="pi pi-clock text-xs"></i>
+                                        <span class="font-medium">Submitted on:</span>
+                                        <span>{{ output.submittedDate }}</span>
+                                    </div>
+                                    <span v-if="output.daysAgo" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                                        {{ output.daysAgo }}
+                                    </span>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <div class="text-sm font-semibold text-indigo-900 mb-2">Student Work:</div>
                                     <div class="flex gap-2 overflow-x-auto pb-2">
-                                        <div v-if="output.sampleImages && output.sampleImages.length > 0 && output.sampleImages[0]" class="relative">
+                                        <div v-if="output.sampleImages && output.sampleImages.length > 0 && output.sampleImages[0]" class="relative group">
                                             <img 
                                                 :src="output.sampleImages[0]"
-                                                class="h-24 w-auto rounded-md border border-indigo-200 cursor-pointer hover:opacity-90 transition-opacity"
+                                                class="h-28 w-auto rounded-lg border-2 border-indigo-200 cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all duration-200"
                                                 @click="previewOutput(output)"
                                                 @error="(e) => { console.error('Image failed to load:', output.sampleImages[0]); e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23ddd\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\'%3ENo Image%3C/text%3E%3C/svg%3E'; }"
                                                 :alt="`${output.studentName}'s work for ${output.title}`"
                                             />
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors duration-200 flex items-center justify-center">
+                                                <i class="pi pi-search-plus text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xl"></i>
+                                            </div>
                                         </div>
-                                        <div v-else class="h-24 w-24 rounded-md border border-indigo-200 bg-gray-100 flex items-center justify-center">
-                                            <i class="pi pi-image text-2xl text-gray-400"></i>
+                                        <div v-else class="h-28 w-28 rounded-lg border-2 border-indigo-200 bg-gray-100 flex items-center justify-center">
+                                            <i class="pi pi-image text-3xl text-gray-400"></i>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="mt-2 flex items-center space-x-4 text-sm">
-                                    <span class="text-indigo-700/80">
-                                        <i class="pi pi-calendar mr-1"></i>
-                                        {{ output.submittedDate }}
-                                    </span>
-                                    <span class="text-indigo-700/80">
-                                        <i class="pi pi-book mr-1"></i>
-                                        {{ output.subject }}
-                                    </span>
-                                </div>
                             </div>
                         </div>
-                        <div class="flex flex-col gap-2">
+                        <div class="flex flex-col gap-2 flex-shrink-0">
                             <Button 
                                 label="Review" 
-                                class="p-button-sm"
-                                style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none;" 
+                                icon="pi pi-eye"
+                                class="p-button-sm whitespace-nowrap"
+                                style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);" 
                                 @click="previewOutput(output)"
                             />
                         </div>

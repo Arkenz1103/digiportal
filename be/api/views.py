@@ -151,6 +151,9 @@ def login_api(request):
             # Log the user in
             auth_login(request, authenticated_user)
             
+            # IMPORTANT: Explicitly save the session to ensure it's persisted
+            request.session.save()
+            
             # Prepare user data
             user_data = {
                 'id': authenticated_user.id,
@@ -170,11 +173,24 @@ def login_api(request):
             elif authenticated_user.role == 'teacher':
                 user_data['department'] = authenticated_user.department
             
-            return Response({
+            # Create response with explicit session cookie
+            response = Response({
                 'success': True,
                 'user': user_data,
                 'message': 'Login successful'
             }, status=status.HTTP_200_OK)
+            
+            # Ensure session cookie is set in response
+            if request.session.session_key:
+                response.set_cookie(
+                    key='sessionid',
+                    value=request.session.session_key,
+                    httponly=True,
+                    samesite='Lax',
+                    secure=False  # Set to True in production with HTTPS
+                )
+            
+            return response
         else:
             return Response({
                 'success': False,
@@ -1650,7 +1666,57 @@ def activity_submissions_api(request, activity_id):
                     print(f"📤 Returning file_url: {serializer.data.get('file_url')}")
                     return Response(serializer.data, status=status.HTTP_200_OK)
                 
-                # This is a resubmission - student is submitting new work
+                # If existing submission is a draft and we're turning it in (is_draft=False),
+                # this is the FIRST submission, NOT a resubmission - don't increment count
+                if existing_submission.status == 'draft' and not is_draft:
+                    print(f"📤 Turning in draft submission {existing_submission.id} for the FIRST time")
+                    print(f"📊 Current resubmit_count: {existing_submission.resubmit_count} (should stay 0)")
+                    
+                    # Update the submission with new data
+                    file_obj = request.FILES.get('file')
+                    if file_obj:
+                        existing_submission.file = file_obj
+                        content_type = file_obj.content_type
+                        if content_type.startswith('image/'):
+                            existing_submission.file_type = 'image'
+                        elif content_type == 'application/pdf':
+                            existing_submission.file_type = 'pdf'
+                        elif content_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                            existing_submission.file_type = 'document'
+                        else:
+                            existing_submission.file_type = 'file'
+                    
+                    if 'caption' in data:
+                        existing_submission.caption = data.get('caption', '')
+                    if 'file_path' in data:
+                        existing_submission.file_path = data.get('file_path', '')
+                    
+                    # Set status to unscored (first submission)
+                    existing_submission.status = 'unscored'
+                    existing_submission.submitted_at = timezone.now()
+                    
+                    # Check if late
+                    if activity.due_date:
+                        from datetime import datetime, time as dt_time
+                        if activity.due_time:
+                            due_datetime = timezone.make_aware(
+                                datetime.combine(activity.due_date, activity.due_time)
+                            )
+                        else:
+                            due_datetime = timezone.make_aware(
+                                datetime.combine(activity.due_date, dt_time(23, 59, 59))
+                            )
+                        existing_submission.is_late = timezone.now() > due_datetime
+                    
+                    # IMPORTANT: Do NOT increment resubmit_count - this is the first submission
+                    # resubmit_count should remain 0
+                    existing_submission.save()
+                    print(f"✅ First submission turned in - resubmit_count: {existing_submission.resubmit_count}")
+                    
+                    serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                
+                # This is a TRUE resubmission - student is submitting new work after already submitting
                 print(f"🔄 Resubmission detected for existing submission {existing_submission.id}")
                 print(f"📊 Current resubmit_count: {existing_submission.resubmit_count}")
                 
@@ -2316,11 +2382,24 @@ def post_like_api(request, post_id):
     POST: Toggle like on a post
     Body: { "liked": true/false }
     """
+    # Debug logging
+    print(f"🔍 Like API called for post {post_id}")
+    print(f"🔍 User: {request.user}")
+    print(f"🔍 Is authenticated: {request.user.is_authenticated}")
+    print(f"🔍 Session key: {request.session.session_key}")
+    print(f"🔍 Session data: {dict(request.session)}")
+    
     if not request.user.is_authenticated:
         print(f"❌ Like API - User not authenticated")
+        print(f"❌ Session exists: {bool(request.session.session_key)}")
+        print(f"❌ User object: {request.user}")
         return Response({
             'error': 'Authentication required',
-            'message': 'Please log in to like posts'
+            'message': 'Please log in to like posts',
+            'debug': {
+                'has_session': bool(request.session.session_key),
+                'user': str(request.user)
+            }
         }, status=status.HTTP_403_FORBIDDEN)
     
     try:
@@ -2364,12 +2443,26 @@ def post_comments_api(request, post_id):
     POST: Add a comment to a post
     Body: { "text": "comment text" }
     """
+    # Debug logging for POST requests
+    if request.method == 'POST':
+        print(f"🔍 Comment API called for post {post_id}")
+        print(f"🔍 User: {request.user}")
+        print(f"🔍 Is authenticated: {request.user.is_authenticated}")
+        print(f"🔍 Session key: {request.session.session_key}")
+        print(f"🔍 Session data: {dict(request.session)}")
+    
     # Allow GET for everyone, but require auth for POST
     if request.method == 'POST' and not request.user.is_authenticated:
         print(f"❌ Comment API - User not authenticated")
+        print(f"❌ Session exists: {bool(request.session.session_key)}")
+        print(f"❌ User object: {request.user}")
         return Response({
             'error': 'Authentication required',
-            'message': 'Please log in to comment on posts'
+            'message': 'Please log in to comment on posts',
+            'debug': {
+                'has_session': bool(request.session.session_key),
+                'user': str(request.user)
+            }
         }, status=status.HTTP_403_FORBIDDEN)
     
     try:
@@ -2607,9 +2700,10 @@ def submission_detail_api(request, submission_id):
                             'max_resubmits': MAX_RESUBMITS
                         }, status=status.HTTP_400_BAD_REQUEST)
                     
-                    # Mark that this is a resubmission in progress (don't increment yet)
+                    # Increment resubmit count immediately when entering resubmission mode
+                    submission.resubmit_count += 1
                     submission.last_resubmit_at = timezone.now()
-                    print(f"🔄 Converting to draft for resubmission (current count: {submission.resubmit_count})")
+                    print(f"🔄 Converting to draft for resubmission #{submission.resubmit_count}")
                 
                 submission.status = new_status
                 
@@ -2618,22 +2712,20 @@ def submission_detail_api(request, submission_id):
                     from django.utils import timezone
                     from datetime import datetime, time as dt_time
                     
-                    # Check if this is a resubmission (draft created from existing submission)
-                    # Increment resubmit count only if last_resubmit_at is set (indicates it was converted to draft)
+                    # Check if this is a resubmission or first submission
+                    # Resubmit count is already incremented when entering resubmission mode (line 2661)
+                    # So we just need to validate and log here
+                    
                     if submission.last_resubmit_at is not None:
-                        # Check if we're about to exceed the limit
-                        MAX_RESUBMITS = 3
-                        if submission.resubmit_count >= MAX_RESUBMITS:
-                            return Response({
-                                'error': f'Maximum resubmit limit ({MAX_RESUBMITS}) reached',
-                                'detail': 'You have already resubmitted the maximum number of times.',
-                                'resubmit_count': submission.resubmit_count,
-                                'max_resubmits': MAX_RESUBMITS
-                            }, status=status.HTTP_400_BAD_REQUEST)
-                        
-                        # Increment the count NOW (when turning in)
-                        submission.resubmit_count += 1
+                        # This is a resubmission - count was already incremented when entering resubmission mode
                         print(f"✅ Resubmission #{submission.resubmit_count} being turned in")
+                    else:
+                        # This is the FIRST submission - keep resubmit_count at 0
+                        print(f"✅ First submission being turned in (resubmit_count: {submission.resubmit_count})")
+                        # Ensure it's 0 (defensive programming)
+                        if submission.resubmit_count != 0:
+                            print(f"⚠️ WARNING: resubmit_count was {submission.resubmit_count}, resetting to 0 for first submission")
+                            submission.resubmit_count = 0
                     
                     # ALWAYS update submitted_at to current time (when student turned in)
                     now = timezone.now()
@@ -4585,8 +4677,30 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                 'error': 'Student not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Get all portfolio folders for this class
-        folders = PortfolioFolder.objects.filter(class_name=class_name)
+        # Verify student has a classroom assigned
+        if not student.classroom:
+            print(f"⚠️ Student {student.username} has no assigned classroom")
+            return Response({
+                'error': 'Student has no assigned classroom',
+                'all_activities': [],
+                'submitted_activities': [],
+                'missing_activities': [],
+                'total_count': 0,
+                'submitted_count': 0,
+                'missing_count': 0,
+                'student_name': student.username
+            }, status=status.HTTP_200_OK)
+        
+        print(f"✅ Student {student.username} is in classroom: {student.classroom.name} (ID: {student.classroom.id})")
+        
+        # Get all portfolio folders for this class that belong to the logged-in teacher AND the student's classroom
+        folders = PortfolioFolder.objects.filter(
+            class_name=class_name,
+            teacher=request.user,  # IMPORTANT: Only get folders created by this teacher
+            classroom=student.classroom  # IMPORTANT: Only get folders for the student's classroom
+        )
+        
+        print(f"📁 Found {folders.count()} folders for teacher {request.user.username} in classroom {student.classroom.name}")
         
         activity_list = []
         for folder in folders:
@@ -4594,24 +4708,39 @@ def get_teacher_student_activities_api(request, class_name, student_id):
             activities = PortfolioActivity.objects.filter(folder=folder).order_by('created_at')
             
             for activity in activities:
-                # Check if student has submitted this activity
+                # Get the LATEST SCORED submission for this activity (matching student endpoint logic)
                 submission = StudentSubmission.objects.filter(
                     activity=activity,
-                    student=student
-                ).first()
+                    student=student,
+                    is_active=True,
+                    status='scored'  # ONLY get scored submissions
+                ).order_by('-submitted_at').first()  # Get the latest scored submission
                 
-                # Get submission file path
+                # Get submission file path with better error handling
                 submission_file = None
                 if submission:
                     try:
+                        # Try file field first (for uploaded files) - check if file exists
                         if submission.file:
-                            # Use the FileField URL
-                            submission_file = submission.file.url if submission.file else None
-                        elif submission.file_path:
-                            # Fallback to file_path for base64 or legacy data
+                            try:
+                                if hasattr(submission.file, 'path') and os.path.exists(submission.file.path):
+                                    # File exists, build full URL
+                                    submission_file = request.build_absolute_uri(submission.file.url)
+                                    print(f"   📎 Using file.url: {submission_file[:100]}...")
+                                else:
+                                    print(f"   ⚠️ File field exists but file not found on disk")
+                            except Exception as e:
+                                print(f"   ⚠️ Error checking file: {str(e)}")
+                        
+                        # Fallback to file_path (for base64 or legacy data)
+                        if not submission_file and submission.file_path:
                             submission_file = submission.file_path
+                            print(f"   📎 Using file_path (base64): {submission_file[:100]}...")
+                        
+                        if not submission_file:
+                            print(f"   ⚠️ No file found for submission {submission.id}")
                     except Exception as file_error:
-                        print(f"⚠️ Error getting submission file: {file_error}")
+                        print(f"⚠️ Error getting submission file for activity {activity.id}: {file_error}")
                         submission_file = None
                 
                 # Convert submission time to local timezone if exists
@@ -4646,8 +4775,10 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                     'submission_caption': submission.caption if submission else None,
                     'submission_score': submission.score if submission else None,
                     'submission_feedback': submission.feedback if submission else None,
-                    'submission_status': 'submitted' if submission else 'missing',
-                    'folder_name': folder.name
+                    'submission_status': 'scored' if submission else 'missing',  # Since we only fetch scored submissions
+                    'folder_name': folder.name,
+                    'is_scored': submission is not None,  # Add flag for scored status
+                    'scored_at': submission.scored_at.isoformat() if submission and hasattr(submission, 'scored_at') and submission.scored_at else None
                 }
                 
                 activity_list.append(activity_data)
@@ -5658,5 +5789,133 @@ def classroom_detail_api(request, classroom_id):
         print(f"Error fetching classroom details: {str(e)}")
         return Response({
             'error': 'Failed to fetch classroom details',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================
+# USER SETTINGS API
+# ============================================
+
+@api_view(['GET', 'PUT'])
+def user_settings_api(request):
+    """
+    GET: Get user settings
+    PUT: Update user settings
+    """
+    if not request.user.is_authenticated:
+        return Response({
+            'error': 'Authentication required'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import UserSettings
+        
+        # Get or create user settings
+        settings, created = UserSettings.objects.get_or_create(
+            user=request.user,
+            defaults={
+                'email_notifications': True,
+                'push_notifications': True,
+                'activity_reminders': True,
+                'score_notifications': True,
+                'remark_notifications': True,
+                'submission_alerts': True,
+                'profile_visibility': 'public',
+                'show_email': False,
+                'show_phone': False,
+                'language': 'en',
+                'theme': 'light',
+                'timezone': 'Asia/Manila',
+                'date_format': 'MM/DD/YYYY'
+            }
+        )
+        
+        if created:
+            print(f"✅ Created new settings for user: {request.user.username}")
+        
+        if request.method == 'GET':
+            # Return current settings
+            return Response({
+                'notifications': {
+                    'emailNotifications': settings.email_notifications,
+                    'pushNotifications': settings.push_notifications,
+                    'submissionAlerts': settings.submission_alerts,
+                    'remarkAlerts': settings.remark_notifications,
+                    'activityReminders': settings.activity_reminders
+                },
+                'privacy': {
+                    'profileVisibility': settings.profile_visibility,
+                    'showEmail': settings.show_email,
+                    'showPhone': settings.show_phone
+                },
+                'preferences': {
+                    'language': settings.language,
+                    'timezone': settings.timezone,
+                    'dateFormat': settings.date_format,
+                    'theme': settings.theme
+                }
+            })
+        
+        elif request.method == 'PUT':
+            # Update settings
+            data = request.data
+            
+            # Update notifications
+            if 'notifications' in data:
+                notif = data['notifications']
+                settings.email_notifications = notif.get('emailNotifications', settings.email_notifications)
+                settings.push_notifications = notif.get('pushNotifications', settings.push_notifications)
+                settings.submission_alerts = notif.get('submissionAlerts', settings.submission_alerts)
+                settings.remark_notifications = notif.get('remarkAlerts', settings.remark_notifications)
+                settings.activity_reminders = notif.get('activityReminders', settings.activity_reminders)
+            
+            # Update privacy
+            if 'privacy' in data:
+                privacy = data['privacy']
+                settings.profile_visibility = privacy.get('profileVisibility', settings.profile_visibility)
+                settings.show_email = privacy.get('showEmail', settings.show_email)
+                settings.show_phone = privacy.get('showPhone', settings.show_phone)
+            
+            # Update preferences
+            if 'preferences' in data:
+                prefs = data['preferences']
+                settings.language = prefs.get('language', settings.language)
+                settings.timezone = prefs.get('timezone', settings.timezone)
+                settings.date_format = prefs.get('dateFormat', settings.date_format)
+                settings.theme = prefs.get('theme', settings.theme)
+                
+                print(f"🎨 Updated theme for {request.user.username}: {settings.theme}")
+            
+            settings.save()
+            
+            # Return updated settings
+            return Response({
+                'notifications': {
+                    'emailNotifications': settings.email_notifications,
+                    'pushNotifications': settings.push_notifications,
+                    'submissionAlerts': settings.submission_alerts,
+                    'remarkAlerts': settings.remark_notifications,
+                    'activityReminders': settings.activity_reminders
+                },
+                'privacy': {
+                    'profileVisibility': settings.profile_visibility,
+                    'showEmail': settings.show_email,
+                    'showPhone': settings.show_phone
+                },
+                'preferences': {
+                    'language': settings.language,
+                    'timezone': settings.timezone,
+                    'dateFormat': settings.date_format,
+                    'theme': settings.theme
+                }
+            })
+    
+    except Exception as e:
+        print(f"❌ Error in user settings API: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'error': 'Failed to process settings',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

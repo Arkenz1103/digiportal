@@ -298,8 +298,16 @@ const submitLogin = async () => {
                     localStorage.setItem('digiportal_auth_token', data.token);
                 }
                 
+                console.log('✅ Login successful, session cookie should be set');
+                console.log('🍪 Cookies after login:', document.cookie);
+                
                 // Dispatch custom event to notify MainLayout of user data change
                 window.dispatchEvent(new Event('userDataChanged'));
+                
+                // CRITICAL: Wait a moment to ensure session cookie is fully set
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                console.log('✅ Proceeding to navigation...');
                 
                 // Navigate based on role
                 if (data.user.role === 'teacher') {

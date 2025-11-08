@@ -176,6 +176,11 @@ INERTIA_SSR_ENABLED = False
 # Session settings
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_NAME = 'sessionid'
+SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request to keep it alive
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database-backed sessions
 
 # Authentication
 LOGIN_URL = '/login'

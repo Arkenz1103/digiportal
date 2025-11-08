@@ -49,7 +49,7 @@ const showDeleteAllDialog = ref(false);
 const loadNotifications = async () => {
     try {
         console.log('🔄 Loading notifications from /api/notifications/...');
-        
+
         const response = await fetch('/api/notifications/', {
             credentials: 'include', // Include cookies for authentication
             headers: {
@@ -57,22 +57,22 @@ const loadNotifications = async () => {
                 'X-Requested-With': 'XMLHttpRequest', // Help Django recognize AJAX requests
             }
         });
-        
+
         console.log('📡 Response status:', response.status);
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('📦 Raw data received:', data);
-            
+
             // Get the last time user opened dropdown
             const lastOpenedTime = parseInt(localStorage.getItem('notifications_last_opened_time') || '0');
-            
+
             allNotifications.value = data.map(notif => {
                 const createdTime = new Date(notif.created_at).getTime();
-                
+
                 // Mark as NEW if created after the last time dropdown was opened
                 const isNew = createdTime > lastOpenedTime;
-                
+
                 return {
                     id: notif.id,
                     type: notif.notification_type,
@@ -83,17 +83,17 @@ const loadNotifications = async () => {
                     isUnread: !notif.is_read,
                 };
             });
-            
+
             // Show only first 5 initially
             notifications.value = allNotifications.value.slice(0, displayLimit.value);
             unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
-            
+
             // Calculate badge count: count notifications with isNew = true (created within last 1 minute)
             const newCount = allNotifications.value.filter(n => n.isNew).length;
-            
+
             // Update badge count
             newNotificationsCount.value = newCount;
-            
+
             console.log('✅ Loaded notifications:', allNotifications.value.length, 'total');
             console.log('📊 Displaying:', notifications.value.length, 'notifications');
             console.log('🔔 Unread count:', unreadCount.value);
@@ -121,7 +121,7 @@ const loadMoreNotifications = () => {
     isLoadingMore.value = true;
     displayLimit.value += 5;
     notifications.value = allNotifications.value.slice(0, displayLimit.value);
-    
+
     setTimeout(() => {
         isLoadingMore.value = false;
     }, 300);
@@ -133,10 +133,10 @@ watch(showNotifications, (isOpen) => {
         // When dropdown opens, save the current timestamp
         const currentTime = Date.now();
         localStorage.setItem('notifications_last_opened_time', currentTime.toString());
-        
+
         // Hide badge immediately
         newNotificationsCount.value = 0;
-        
+
         console.log('📂 Dropdown opened');
         console.log('⏰ Saved timestamp:', new Date(currentTime).toLocaleString());
         console.log('🔕 Badge hidden');
@@ -189,9 +189,9 @@ const formatDate = (date) => {
 const markAsRead = async (id) => {
     try {
         // Find the notification first to get its type
-        const notification = notifications.value.find(n => n.id === id) || 
+        const notification = notifications.value.find(n => n.id === id) ||
                            allNotifications.value.find(n => n.id === id);
-        
+
         const response = await fetch('/api/notifications/', {
             method: 'PUT',
             credentials: 'include', // Include session cookies
@@ -201,17 +201,17 @@ const markAsRead = async (id) => {
             },
             body: JSON.stringify({ notification_id: id })
         });
-        
+
         if (response.ok) {
             if (notification) {
                 notification.isUnread = false;
                 notification.isNew = false;
             }
             unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
-            
+
             // Close the dropdown
             showNotifications.value = false;
-            
+
             // Navigate based on notification type
             if (notification) {
                 handleNotificationNavigation(notification);
@@ -228,7 +228,7 @@ const markAsRead = async (id) => {
         console.error('Error marking notification as read:', error);
         // Still navigate even if marking as read fails
         showNotifications.value = false;
-        const notification = notifications.value.find(n => n.id === id) || 
+        const notification = notifications.value.find(n => n.id === id) ||
                            allNotifications.value.find(n => n.id === id);
         if (notification) {
             handleNotificationNavigation(notification);
@@ -240,9 +240,9 @@ const markAsRead = async (id) => {
 const handleNotificationNavigation = (notification) => {
     const type = notification.type;
     const userRole = currentUser.value.role;
-    
+
     console.log(`📍 Navigating for notification type: ${type}, user role: ${userRole}`);
-    
+
     if (userRole === 'student') {
         // Student navigation
         if (type === 'activity_created' || type === 'activity_updated') {
@@ -328,22 +328,22 @@ const deleteAllNotifications = () => {
 const confirmDeleteAllNotifications = async () => {
     try {
         // Delete all notifications via API
-        const deletePromises = allNotifications.value.map(notif => 
+        const deletePromises = allNotifications.value.map(notif =>
             fetch(`/api/notifications/${notif.id}/`, {
                 method: 'DELETE',
                 credentials: 'include',
             })
         );
-        
+
         await Promise.all(deletePromises);
-        
+
         // Clear local state
         allNotifications.value = [];
         notifications.value = [];
         unreadCount.value = 0;
         newNotificationsCount.value = 0;
         showDeleteAllDialog.value = false;
-        
+
         console.log('✅ All notifications deleted');
         showSuccess('All notifications deleted successfully', 'Deleted');
     } catch (error) {
@@ -385,17 +385,17 @@ const loadUserProfile = async () => {
             credentials: 'include',
             headers: { 'Accept': 'application/json' }
         });
-        
+
         if (response.ok) {
             const data = await response.json();
-            
+
             // Construct name and remove "Teacher" or "Student" suffix for teachers
             let displayName = `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'User';
             if (data.role === 'teacher') {
                 // Remove "Teacher" or "Student" from the end of the name
                 displayName = displayName.replace(/\s+(Teacher|Student)$/i, '').trim();
             }
-            
+
             currentUser.value = {
                 name: displayName,
                 email: data.email || '',
@@ -407,12 +407,12 @@ const loadUserProfile = async () => {
                 id_number: data.id_number,
                 profile_picture_url: data.profile_picture_url
             };
-            
+
             // Save to localStorage
             localStorage.setItem('digiportal_user_name', currentUser.value.name);
             localStorage.setItem('digiportal_user_email', currentUser.value.email);
             localStorage.setItem('digiportal_user_role', currentUser.value.role);
-            
+
             console.log('✅ User profile loaded:', currentUser.value);
         }
     } catch (error) {
@@ -428,7 +428,7 @@ const loadUserDataFromLocalStorage = () => {
     const savedEmail = localStorage.getItem('digiportal_user_email');
     const savedName = localStorage.getItem('digiportal_user_name');
     const savedPage = localStorage.getItem('digiportal_current_page');
-    
+
     if (savedRole) {
         currentUser.value.role = savedRole;
     }
@@ -445,7 +445,7 @@ const loadUserDataFromLocalStorage = () => {
             currentUser.value.name = 'Student Name';
         }
     }
-    
+
     // Restore current page from localStorage
     if (savedPage) {
         currentRoute.value = savedPage;
@@ -495,7 +495,7 @@ const logout = async () => {
     } catch (error) {
         console.error('Logout API error:', error);
     }
-    
+
     // Clear ALL localStorage items related to user session
     localStorage.removeItem('digiportal_logged_in');
     localStorage.removeItem('digiportal_user_role');
@@ -504,13 +504,13 @@ const logout = async () => {
     localStorage.removeItem('digiportal_user_id');
     localStorage.removeItem('digiportal_auth_token');
     localStorage.removeItem('digiportal_current_page');
-    
+
     // Clear any other session data
     sessionStorage.clear();
-    
+
     // Dispatch event to notify other components
     window.dispatchEvent(new Event('userLoggedOut'));
-    
+
     // Navigate to landing page
     emit('navigate', 'Landing');
 };
@@ -617,14 +617,14 @@ const navigateToPage = (page) => {
 const navigateToClass = (class_) => {
     // Store selected class information
     localStorage.setItem('digiportal_selected_class', JSON.stringify(class_));
-    
+
     // Determine target route based on user role
     const targetRoute = currentUser.value.role === 'teacher' ? 'TeacherRoom' : 'StudentRoom';
-    
+
     // Always dispatch the classChanged event so Room component can reload
     console.log('🔄 Class selected, dispatching classChanged event...', class_.name);
     window.dispatchEvent(new CustomEvent('classChanged', { detail: class_ }));
-    
+
     // If not already on the room page, navigate to it
     if (currentRoute.value !== targetRoute) {
         console.log('📍 Navigating to room page...');
@@ -685,11 +685,11 @@ const loadClassrooms = async () => {
                 'Accept': 'application/json',
             }
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('📚 Classrooms data:', data);
-            
+
             if (data.classrooms && data.classrooms.length > 0) {
                 classes.value = data.classrooms.map(classroom => ({
                     id: classroom.id,
@@ -718,7 +718,7 @@ onMounted(async () => {
     await loadUserProfile(); // Load from API first
     await loadNotifications(); // Load notifications
     loadClassrooms(); // Load classrooms dynamically
-    
+
     // Detect current route from URL if not set
     if (!currentRoute.value || currentRoute.value === 'StudentNewsfeed') {
         const path = window.location.pathname;
@@ -741,18 +741,18 @@ onMounted(async () => {
             '/teacher/notify': 'TeacherNotify',
             '/teacher/archived': 'TeacherArchived',
         };
-        
+
         if (routeMap[path]) {
             currentRoute.value = routeMap[path];
             localStorage.setItem('digiportal_current_page', routeMap[path]);
             console.log('📍 Detected current route from URL:', routeMap[path]);
         }
     }
-    
+
     // Listen for user data changes
     window.addEventListener('userDataChanged', handleUserDataChange);
     window.addEventListener('userLoggedOut', handleUserLogout);
-    
+
     // Debug: Log user data
     console.log('MainLayout mounted, user data:', currentUser.value);
 });
@@ -777,8 +777,8 @@ const auth = computed(() => ({
             <div :class="['bg-gradient-to-b from-indigo-600 via-indigo-700 to-blue-800 shadow-2xl sticky top-0 flex flex-col transition-all duration-300 z-10', isCollapsed ? 'w-20' : 'w-64']">
                 <!-- Sidebar Header -->
                 <div class="p-4 border-b border-white/10 h-[52px] flex items-center relative overflow-hidden">
-                    <button 
-                        @click="toggleSidebar" 
+                    <button
+                        @click="toggleSidebar"
                         class="p-2 rounded-lg hover:bg-white/20 transition-all duration-300 ease-in-out focus:outline-none backdrop-blur-sm"
                         :style="{ transform: isCollapsed ? 'translateX(0)' : 'translateX(192px)' }"
                     >
@@ -826,30 +826,6 @@ const auth = computed(() => ({
                             <div v-if="!isCollapsed" class="text-xs uppercase font-semibold text-white/60 tracking-wider">My Classes</div>
                         </div>
 
-                        <!-- Classroom Overview Button (First Item) -->
-                        <div class="space-y-1 mb-2">
-                            <button
-                                @click="navigateToPage(currentUser.role === 'teacher' ? 'TeacherClassroom' : 'StudentClassroom')"
-                                class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left border border-white/20"
-                                :class="{
-                                    'bg-white/20 text-white shadow-lg backdrop-blur-sm': isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom'),
-                                    'text-white/80 hover:bg-white/10 hover:text-white': !isRouteActive('TeacherClassroom') && !isRouteActive('StudentClassroom'),
-                                    'active:bg-white/25 active:scale-[0.98]': true
-                                }"
-                                :title="isCollapsed ? 'Classroom' : ''"
-                            >
-                                <div v-if="isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')" class="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>
-                                <div class="flex items-center gap-3 w-full">
-                                    <i :class="['pi pi-building text-lg', (isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')) ? 'text-white' : 'text-white/70']"></i>
-                                    <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', (isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')) ? 'text-white' : 'text-white/80']">Classroom</span>
-                                    <div
-                                        v-if="(isRouteActive('TeacherClassroom') || isRouteActive('StudentClassroom')) && !isCollapsed"
-                                        class="ml-auto w-1.5 h-5 rounded-sm bg-white transition-all duration-200"
-                                    ></div>
-                                </div>
-                            </button>
-                        </div>
-
                         <!-- Classes List -->
                         <div class="space-y-1">
                             <button
@@ -883,7 +859,7 @@ const auth = computed(() => ({
                                         class="ml-auto w-1.5 h-5 rounded-sm bg-white transition-all duration-200"
                                     ></div>
                                 </div>
-                            </button>
+                            </button>``
                         </div>
                     </div>
                 </nav>
@@ -907,10 +883,10 @@ const auth = computed(() => ({
                                         </defs>
                                         <g transform="translate(50, 50)">
                                             <!-- D Shape -->
-                                            <path d="M -20 -25 L -20 25 Q -20 25, -10 25 L -10 25 Q 5 25, 5 10 L 5 -10 Q 5 -25, -10 -25 Z" 
+                                            <path d="M -20 -25 L -20 25 Q -20 25, -10 25 L -10 25 Q 5 25, 5 10 L 5 -10 Q 5 -25, -10 -25 Z"
                                                   fill="url(#headerLogoGrad)" opacity="0.9"/>
                                             <!-- P Shape -->
-                                            <path d="M 0 -25 L 0 25 M 0 -25 L 15 -25 Q 25 -25, 25 -15 L 25 -5 Q 25 5, 15 5 L 0 5" 
+                                            <path d="M 0 -25 L 0 25 M 0 -25 L 15 -25 Q 25 -25, 25 -15 L 25 -5 Q 25 5, 15 5 L 0 5"
                                                   fill="none" stroke="url(#headerLogoGrad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
                                             <!-- Digital Dot -->
                                             <circle cx="0" cy="0" r="3" fill="#06B6D4"/>
@@ -933,7 +909,7 @@ const auth = computed(() => ({
                                         class="relative w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-full transition-all duration-300 focus:outline-none group"
                                         :class="{ 'bg-gray-100': showNotifications }"
                                     >
-                                        <i class="pi pi-bell text-gray-700 text-2xl transition-transform duration-300 group-hover:scale-110" 
+                                        <i class="pi pi-bell text-gray-700 text-2xl transition-transform duration-300 group-hover:scale-110"
                                            :class="{ 'animate-bounce text-indigo-600': newNotificationsCount > 0 && !showNotifications }"></i>
                                         <!-- Notification Badge -->
                                         <div
@@ -981,7 +957,7 @@ const auth = computed(() => ({
                                                 class="group px-5 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 cursor-pointer border-b border-gray-100 last:border-0"
                                                 :class="{ 'bg-gradient-to-r from-indigo-50/50 to-purple-50/50': notification.isUnread }"
                                             >
-                                                
+
                                                 <div class="flex items-start gap-3">
                                                     <!-- Icon -->
                                                     <div class="relative">
@@ -1048,7 +1024,7 @@ const auth = computed(() => ({
                                                 <span>{{ isLoadingMore ? 'Loading...' : 'See previous notifications' }}</span>
                                             </button>
                                         </div>
-                                        
+
                                         <!-- View All Button (when all loaded) -->
                                         <div v-else-if="allNotifications.length > 5" class="border-t border-gray-100 p-3 bg-gray-50">
                                             <button
@@ -1275,9 +1251,9 @@ const auth = computed(() => ({
     </Dialog>
 
     <!-- Delete All Notifications Confirmation Dialog -->
-    <Dialog v-model:visible="showDeleteAllDialog" 
-            modal 
-            header="Delete All Notifications" 
+    <Dialog v-model:visible="showDeleteAllDialog"
+            modal
+            header="Delete All Notifications"
             :style="{ width: '90%', maxWidth: '28rem' }">
         <div class="space-y-4">
             <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">

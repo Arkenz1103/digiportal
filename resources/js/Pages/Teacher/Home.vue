@@ -199,7 +199,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import axios from '../../axios'; // Use configured axios with interceptors
 
 // Define emits
 const emit = defineEmits(['navigate']);
@@ -230,14 +230,18 @@ const getAvatarColor = (username) => {
 const loadNewsfeed = async () => {
   isLoading.value = true;
   try {
-    const response = await axios.get('/api/newsfeed/');
+    const response = await axios.get('/api/newsfeed/', {
+      withCredentials: true
+    });
     if (response.data && Array.isArray(response.data)) {
       // Map posts and load comments for each
       const postsPromises = response.data.map(async (post) => {
         // Load comments for this post
         let comments = [];
         try {
-          const commentsResponse = await axios.get(`/api/posts/${post.id}/comments/`);
+          const commentsResponse = await axios.get(`/api/posts/${post.id}/comments/`, {
+            withCredentials: true
+          });
           comments = commentsResponse.data || [];
         } catch (error) {
           console.error(`Error loading comments for post ${post.id}:`, error);
@@ -301,6 +305,8 @@ const toggleLike = async (post) => {
     // Send like/unlike to backend
     const response = await axios.post(`/api/posts/${post.id}/like/`, {
       liked: post.isLiked
+    }, {
+      withCredentials: true
     });
     
     // Update with actual count from backend
@@ -332,6 +338,8 @@ const addComment = async (post) => {
     // Send comment to backend
     const response = await axios.post(`/api/posts/${post.id}/comments/`, {
       text: commentText
+    }, {
+      withCredentials: true
     });
     
     // Use the comment returned from backend

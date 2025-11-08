@@ -15,6 +15,11 @@ import '../css/toast.css'
 // Import App component
 import App from './App.vue'
 
+// Initialize theme globally
+import { useTheme } from './composables/useTheme';
+const { initializeTheme } = useTheme();
+initializeTheme();
+
 // Create Vue app with App component
 const app = createApp(App)
 

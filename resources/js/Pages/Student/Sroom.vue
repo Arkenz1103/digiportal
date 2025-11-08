@@ -315,9 +315,9 @@
                         
                             <!-- Files Display (Draft or Submitted) -->
                             <div v-if="draftFiles.length > 0 || (hasSubmittedWork && studentSubmissions.length > 0)" class="mb-3 space-y-2">
-                          <!-- Show draft files if not submitted -->
+                          <!-- Show draft files if not submitted OR in resubmission mode -->
                           <div
-                            v-if="!hasSubmittedWork"
+                            v-if="!hasSubmittedWork || isResubmitting"
                             v-for="file in draftFiles"
                             :key="`${file.id}-${file.path}`"
                             class="flex items-center gap-2 p-2 bg-white rounded-lg border border-indigo-200 hover:border-indigo-300 transition-all group"
@@ -365,9 +365,9 @@
                             </button>
                           </div>
                           
-                          <!-- Show submitted files (not clickable) -->
+                          <!-- Show submitted files (not clickable) - only when NOT in resubmission mode -->
                           <div
-                            v-else-if="hasSubmittedWork && studentSubmissions.length > 0"
+                            v-else-if="hasSubmittedWork && !isResubmitting && studentSubmissions.length > 0"
                             v-for="submission in studentSubmissions.slice(0, 1)"
                             :key="submission.activityId"
                             class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200"
@@ -454,12 +454,12 @@
                             
                             <button
                               @click="handleResubmit"
-                              :disabled="hasScore"
+                              :disabled="hasScore || (existingSubmission && existingSubmission.resubmit_count >= 3)"
                               class="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-sm font-semibold hover:from-orange-600 hover:to-orange-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-orange-600"
-                              :title="hasScore ? 'Cannot resubmit - Already scored' : 'Resubmit your work'"
+                              :title="hasScore ? 'Cannot resubmit - Already scored' : (existingSubmission && existingSubmission.resubmit_count >= 3) ? 'Maximum resubmit limit reached (3x)' : 'Resubmit your work'"
                             >
                               <i class="pi pi-refresh"></i>
-                              <span>{{ hasScore ? 'Already Scored' : 'Resubmit' }}</span>
+                              <span>{{ hasScore ? 'Already Scored' : (existingSubmission && existingSubmission.resubmit_count >= 3) ? 'Max Limit Reached' : 'Resubmit' }}</span>
                             </button>
                             
                             <!-- Post to Feed Button -->
@@ -688,6 +688,136 @@
 
                   <!-- Activities Sections -->
                   <template v-else>
+                    <!-- Pending Outputs Section (Moved to top) -->
+                    <div v-if="folderActivities.filter(a => getActivityStatus(a) === 'pending' || getActivityStatus(a) === 'missing').length > 0" 
+                         class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-blue-200 mb-6">
+                      <!-- Section Header -->
+                      <div class="bg-gradient-to-r from-blue-500 to-indigo-500 px-6 py-4">
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                              <i class="pi pi-clock text-white text-xl"></i>
+                            </div>
+                            <div>
+                              <h3 class="text-lg font-bold text-white">Pending Outputs</h3>
+                              <p class="text-sm text-white/80">
+                                {{ folderActivities.filter(a => getActivityStatus(a) === 'pending' || getActivityStatus(a) === 'missing').length }} 
+                                {{ folderActivities.filter(a => getActivityStatus(a) === 'pending' || getActivityStatus(a) === 'missing').length === 1 ? 'activity' : 'activities' }}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    <!-- Modern Table Design -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                      <!-- Table Header -->
+                      <div class="bg-gray-50 border-b border-gray-200">
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <div class="col-span-2">
+                            <span>Activity Type</span>
+                          </div>
+                          <div class="col-span-2">
+                            <span>Activity Title</span>
+                          </div>
+                          <div class="col-span-3">
+                            <span>Instruction</span>
+                          </div>
+                          <div class="col-span-2 text-center">
+                            <span>Status</span>
+                          </div>
+                          <div class="col-span-1 text-center">
+                            <span>Due Time</span>
+                          </div>
+                          <div class="col-span-2 text-center">
+                            <span>Due Date</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Table Body - Pending/Missing Activities Only -->
+                      <div class="divide-y divide-gray-200">
+                        <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'pending' || getActivityStatus(a) === 'missing')" :key="activity.id"
+                          class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+                          @click="openActivity(activity)">
+                          
+                          <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                            <!-- Activity Type with Icon -->
+                            <div class="col-span-2">
+                              <div class="flex items-center gap-2">
+                                <div :class="[
+                                  'w-8 h-8 rounded-lg flex items-center justify-center',
+                                  activity.type === 'project' ? 'bg-purple-100' : 
+                                  activity.type === 'contest' ? 'bg-blue-100' : 
+                                  activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
+                                ]">
+                                  <span :class="[
+                                    'text-lg font-bold',
+                                    activity.type === 'project' ? 'text-purple-600' : 
+                                    activity.type === 'contest' ? 'text-blue-600' : 
+                                    activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
+                                  ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
+                                </div>
+                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
+                              </div>
+                            </div>
+
+                            <!-- Title -->
+                            <div class="col-span-2">
+                              <div class="font-medium text-gray-900">
+                                {{ activity.title }}
+                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
+                              </div>
+                            </div>
+
+                            <!-- Instructions -->
+                            <div class="col-span-3">
+                              <div 
+                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
+                                :title="activity.description"
+                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+                              >
+                                {{ activity.description || 'No instructions provided' }}
+                              </div>
+                            </div>
+
+                            <!-- Status Badge -->
+                            <div class="col-span-2 text-center">
+                              <span v-if="getActivityStatus(activity) === 'missing'" 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-red-500"></i>
+                                Missing
+                              </span>
+                              <span v-else 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-blue-500"></i>
+                                Pending
+                              </span>
+                            </div>
+
+                            <!-- Due Time -->
+                            <div class="col-span-1 text-center">
+                              <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
+                              <span v-else class="text-sm text-gray-400">--:--</span>
+                            </div>
+
+                            <!-- Due Date -->
+                            <div class="col-span-2 text-center">
+                              <div class="text-sm text-gray-700">
+                                {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
+                                <div v-if="activity.daysLeft" class="text-xs text-gray-500">
+                                  <span v-if="activity.daysLeft === 'Today'" class="text-orange-600 font-medium">Due today</span>
+                                  <span v-else-if="activity.daysLeft.includes('ago')" class="text-red-600">{{ activity.daysLeft }}</span>
+                                  <span v-else class="text-gray-500">{{ activity.daysLeft }}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    </div>
+                    <!-- End Pending Outputs Section -->
+
                     <!-- Submitted Outputs Section -->
                     <div v-if="folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length > 0" 
                          class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-green-200">
@@ -798,16 +928,6 @@
                                 <i class="pi pi-circle-fill text-[6px] mr-1.5 text-green-500"></i>
                                 Submitted
                               </span>
-                              <span v-else-if="getActivityStatus(activity) === 'missing'" 
-                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-red-500"></i>
-                                Missing
-                              </span>
-                              <span v-else 
-                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                <i class="pi pi-circle-fill text-[6px] mr-1.5 text-yellow-500"></i>
-                                Pending
-                              </span>
                             </div>
 
                             <!-- Due Time -->
@@ -833,129 +953,6 @@
                     </div>
                     </div>
                     <!-- End Submitted Outputs Section -->
-
-                    <!-- Missing Outputs Section -->
-                    <div v-if="folderActivities.filter(a => getActivityStatus(a) === 'missing').length > 0" 
-                         class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm overflow-hidden border border-red-200">
-                      <!-- Section Header -->
-                      <div class="bg-gradient-to-r from-red-500 to-rose-500 px-6 py-4">
-                        <div class="flex items-center justify-between">
-                          <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                              <i class="pi pi-times-circle text-white text-xl"></i>
-                            </div>
-                            <div>
-                              <h3 class="text-lg font-bold text-white">Missing Outputs</h3>
-                              <p class="text-sm text-white/80">
-                                {{ folderActivities.filter(a => getActivityStatus(a) === 'missing').length }} 
-                                {{ folderActivities.filter(a => getActivityStatus(a) === 'missing').length === 1 ? 'activity' : 'activities' }}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Table -->
-                      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <!-- Table Header -->
-                        <div class="bg-gray-50 border-b border-gray-200">
-                          <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            <div class="col-span-2">
-                              <span>Activity Type</span>
-                            </div>
-                            <div class="col-span-2">
-                              <span>Activity Title</span>
-                            </div>
-                            <div class="col-span-3">
-                              <span>Instruction</span>
-                            </div>
-                            <div class="col-span-2 text-center">
-                              <span>Status</span>
-                            </div>
-                            <div class="col-span-1 text-center">
-                              <span>Due Time</span>
-                            </div>
-                            <div class="col-span-2 text-center">
-                              <span>Due Date</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- Table Body - Missing Activities Only -->
-                        <div class="divide-y divide-gray-200">
-                          <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'missing')" :key="activity.id"
-                            class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
-                            @click="openActivity(activity)">
-                            
-                            <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
-                              <!-- Activity Type with Icon -->
-                              <div class="col-span-2">
-                                <div class="flex items-center gap-2">
-                                  <div :class="[
-                                    'w-8 h-8 rounded-lg flex items-center justify-center',
-                                    activity.type === 'project' ? 'bg-purple-100' : 
-                                    activity.type === 'contest' ? 'bg-blue-100' : 
-                                    activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
-                                  ]">
-                                    <span :class="[
-                                      'text-lg font-bold',
-                                      activity.type === 'project' ? 'text-purple-600' : 
-                                      activity.type === 'contest' ? 'text-blue-600' : 
-                                      activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
-                                    ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
-                                  </div>
-                                  <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
-                                </div>
-                              </div>
-
-                              <!-- Title -->
-                              <div class="col-span-2">
-                                <div class="font-medium text-gray-900">
-                                  {{ activity.title }}
-                                  <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
-                                </div>
-                              </div>
-
-                              <!-- Instructions -->
-                              <div class="col-span-3">
-                                <div 
-                                  class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
-                                  :title="activity.description"
-                                  style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
-                                >
-                                  {{ activity.description || 'No instructions provided' }}
-                                </div>
-                              </div>
-
-                              <!-- Status Badge -->
-                              <div class="col-span-2 text-center">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  <i class="pi pi-circle-fill text-[6px] mr-1.5 text-red-500"></i>
-                                  Missing
-                                </span>
-                              </div>
-
-                              <!-- Due Time -->
-                              <div class="col-span-1 text-center">
-                                <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
-                                <span v-else class="text-sm text-gray-400">--:--</span>
-                              </div>
-
-                              <!-- Due Date -->
-                              <div class="col-span-2 text-center">
-                                <div class="text-sm text-gray-700">
-                                  {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
-                                  <div v-if="activity.daysLeft" class="text-xs text-red-600">
-                                    {{ activity.daysLeft }}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <!-- End Missing Outputs Section -->
                   </template>
                 </div>
               </div>
@@ -1041,29 +1038,12 @@
                  `,
                  backgroundSize: '200% 200%',
                  animation: 'gradientShift 12s ease infinite'
-               } : { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }">
+               } : { background: 'white' }">
             
-            <!-- Animated Background Elements -->
-            <div class="absolute inset-0 pointer-events-none overflow-hidden">
-              <!-- Simple Sparkles for Waiting State -->
-              <div v-if="!portfolioEnvelopeCreated">
-                <div v-for="i in 30" :key="`waiting-sparkle-${i}`"
-                     class="absolute bg-white rounded-full animate-sparkle"
-                     :style="{
-                       width: `${1 + Math.random() * 3}px`,
-                       height: `${1 + Math.random() * 3}px`,
-                       left: `${Math.random() * 100}%`,
-                       top: `${Math.random() * 100}%`,
-                       animationDelay: `${Math.random() * 3}s`,
-                       animationDuration: `${2 + Math.random() * 4}s`,
-                       boxShadow: '0 0 6px rgba(255, 255, 255, 0.9)'
-                     }">
-                </div>
-              </div>
-              
+            <!-- Animated Background Elements - Only when envelope is open -->
+            <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated" class="absolute inset-0 pointer-events-none overflow-hidden">
               <!-- Mesh Gradient Overlay -->
-              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated" 
-                   class="absolute inset-0 opacity-30"
+              <div class="absolute inset-0 opacity-30"
                    :style="{
                      background: `
                        radial-gradient(at 0% 0%, ${envelopeDesign.color}40 0px, transparent 50%),
@@ -1075,21 +1055,21 @@
               </div>
               
               <!-- Animated Pattern Overlay -->
-              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated && envelopeDesign.pattern === 'dots'" 
+              <div v-if="envelopeDesign.pattern === 'dots'" 
                    class="absolute inset-0 opacity-5 animate-patternFloat"
                    style="background-image: radial-gradient(circle, white 3px, transparent 3px); background-size: 40px 40px;">
               </div>
-              <div v-else-if="isEnvelopeOpen && portfolioEnvelopeCreated && envelopeDesign.pattern === 'lines'" 
+              <div v-else-if="envelopeDesign.pattern === 'lines'" 
                    class="absolute inset-0 opacity-5 animate-patternSlide"
                    style="background-image: repeating-linear-gradient(45deg, white 0, white 3px, transparent 3px, transparent 20px);">
               </div>
-              <div v-else-if="isEnvelopeOpen && portfolioEnvelopeCreated && envelopeDesign.pattern === 'grid'" 
+              <div v-else-if="envelopeDesign.pattern === 'grid'" 
                    class="absolute inset-0 opacity-5 animate-patternPulse"
                    style="background-image: linear-gradient(white 2px, transparent 2px), linear-gradient(90deg, white 2px, transparent 2px); background-size: 40px 40px;">
               </div>
               
               <!-- Large Floating Orbs -->
-              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated">
+              <div>
                 <div v-for="i in 12" :key="`orb-${i}`"
                      class="absolute rounded-full blur-3xl opacity-20 animate-float"
                      :style="{
@@ -1105,7 +1085,7 @@
               </div>
               
               <!-- Sparkle Effects -->
-              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated">
+              <div>
                 <div v-for="i in 30" :key="`sparkle-${i}`"
                      class="absolute bg-white rounded-full animate-sparkle"
                      :style="{
@@ -1121,7 +1101,7 @@
               </div>
               
               <!-- Ambient Light Rays -->
-              <div v-if="isEnvelopeOpen && portfolioEnvelopeCreated" class="absolute inset-0">
+              <div class="absolute inset-0">
                 <div v-for="i in 5" :key="`ray-${i}`"
                      class="absolute h-full opacity-10 animate-float"
                      :style="{
@@ -1899,19 +1879,6 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Post Output Option -->
-        <div class="flex items-center p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-          <input
-            type="checkbox"
-            id="post-output"
-            v-model="postOutputOption"
-            class="w-5 h-5 text-indigo-600 border-2 border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          />
-          <label for="post-output" class="ml-3 text-sm font-medium text-gray-800 cursor-pointer select-none">
-            Post this output to feeds (visible to class)
-          </label>
         </div>
       </div>
 
@@ -2937,19 +2904,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Post to Feed Checkbox -->
-        <div class="flex items-center mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-          <input
-            type="checkbox"
-            id="post-to-feed-turnin"
-            v-model="postOutputOption"
-            class="w-5 h-5 text-indigo-600 border-2 border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          />
-          <label for="post-to-feed-turnin" class="ml-3 text-sm font-medium text-gray-800 cursor-pointer select-none">
-            Post this output to feeds (visible to class)
-          </label>
-        </div>
       </div>
 
       <template #footer>
@@ -3162,8 +3116,8 @@
 
       <template #footer>
         <div class="flex items-center justify-between w-full gap-3">
-          <!-- Left side: Replace File button (only if draft) -->
-          <div v-if="!hasSubmittedWork" class="flex gap-2">
+          <!-- Left side: Replace File button (only if draft OR resubmitting) -->
+          <div v-if="!hasSubmittedWork || isResubmitting" class="flex gap-2">
             <button
               @click="openReplaceFileDialog"
               class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
@@ -3339,9 +3293,23 @@ const isSubmitting = ref(false);
 const isRequestingPost = ref(false);
 const isCompilingMissing = ref(false); // Flag for missing activity compilation
 
-// Computed: Check if in resubmission mode (has submitted work AND has draft files loaded)
+// Computed: Check if in resubmission mode
+// True if: has submitted work AND (has draft files loaded OR existing submission is in draft status with last_resubmit_at set)
 const isResubmitting = computed(() => {
-  return hasSubmittedWork.value && draftFiles.value.length > 0;
+  // If has draft files loaded, we're in resubmission mode
+  if (hasSubmittedWork.value && draftFiles.value.length > 0) {
+    return true;
+  }
+  
+  // If existing submission is in draft status AND has last_resubmit_at set, we're in resubmission mode
+  // This handles the case when page is refreshed during resubmission
+  if (existingSubmission.value && 
+      existingSubmission.value.status === 'draft' && 
+      existingSubmission.value.last_resubmit_at) {
+    return true;
+  }
+  
+  return false;
 });
 
 // Check if student has already submitted (reactive state)
@@ -4094,31 +4062,43 @@ const checkSubmissionStatus = async (activityId) => {
       const actualSubmissions = response.data.filter(sub => sub.status !== 'draft');
       const draftSubmissions = response.data.filter(sub => sub.status === 'draft');
       
-      // If there are drafts but no actual submissions, convert the draft to final
-      if (draftSubmissions.length > 0 && actualSubmissions.length === 0) {
-        console.log('🔄 Found draft submission, converting to final submission...');
+      // Check if draft is in resubmission mode (has last_resubmit_at set)
+      if (draftSubmissions.length > 0) {
         const draft = draftSubmissions[0];
         
-        try {
-          // Update the draft to be a final submission
-          const updateResponse = await axios.put(`/api/activities/${activityId}/submissions/${draft.id}/convert-to-final/`);
-          console.log('✅ Draft converted to final submission');
+        // If draft has last_resubmit_at, it's in resubmission mode - load it
+        if (draft.last_resubmit_at) {
+          console.log('🔄 Found draft in resubmission mode, loading for editing...');
+          hasSubmittedWork.value = true;
+          existingSubmission.value = draft;
           
-          // Reload submissions to get the updated status
-          const reloadResponse = await axios.get(`/api/activities/${activityId}/submissions/`);
-          const updatedSubmissions = reloadResponse.data.filter(sub => sub.status !== 'draft');
+          // Load the draft file for editing
+          const filePath = draft.file_url || draft.file_path;
+          const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
           
-          if (updatedSubmissions.length > 0) {
-            hasSubmittedWork.value = true;
-            existingSubmission.value = updatedSubmissions[0];
-            console.log('✅ Using converted submission:', existingSubmission.value);
-          }
-        } catch (convertError) {
-          console.error('❌ Failed to convert draft:', convertError);
-          // Fall back to treating it as not submitted
+          draftFiles.value = [{
+            id: draft.id,
+            name: draft.caption || 'Resubmitting work',
+            type: draft.file_type,
+            path: cacheBustedPath,
+            resubmit_count: draft.resubmit_count || 0
+          }];
+          
+          console.log('✅ Loaded draft for resubmission:', draft.id);
+          console.log('📊 Resubmit count:', draft.resubmit_count || 0);
+          
+          // IMPORTANT: Return early to prevent overwriting with actual submission
+          return;
+        } else if (actualSubmissions.length === 0) {
+          // Draft without last_resubmit_at and no actual submissions - this shouldn't happen
+          // but handle it by treating as not submitted
+          console.log('⚠️ Found orphan draft, treating as not submitted');
           hasSubmittedWork.value = false;
+          existingSubmission.value = null;
         }
-      } else if (actualSubmissions.length > 0) {
+      }
+      
+      if (actualSubmissions.length > 0) {
         hasSubmittedWork.value = true;
         // Get the LATEST submission (most recent submitted_at)
         const latestSubmission = actualSubmissions.reduce((latest, current) => {
@@ -4981,7 +4961,7 @@ const handleResubmit = () => {
 
 // Confirm resubmission - Enter resubmission mode
 const confirmResubmitAction = async () => {
-  if (!selectedActivity.value) return;
+  if (!selectedActivity.value || !existingSubmission.value) return;
   
   try {
     console.log('🔄 Entering resubmission mode...');
@@ -4989,30 +4969,42 @@ const confirmResubmitAction = async () => {
     // Close confirmation dialog
     showResubmitConfirmDialog.value = false;
     
+    // Call backend API to convert submission to draft status
+    // This will increment resubmit_count and set last_resubmit_at
+    const response = await axios.put(`/api/submissions/${existingSubmission.value.id}/`, {
+      status: 'draft'
+    });
+    
+    console.log('✅ Backend response:', response.data);
+    console.log('📊 New resubmit count:', response.data.resubmit_count);
+    console.log('📅 Last resubmit at:', response.data.last_resubmit_at);
+    
+    // Update local state with backend response
+    existingSubmission.value = response.data;
+    
     // Load existing submission file into draft for editing
-    // This will automatically trigger isResubmitting = true (computed)
-    if (existingSubmission.value) {
-      const filePath = existingSubmission.value.file_url || existingSubmission.value.file_path;
-      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
-      
-      draftFiles.value = [{
-        id: existingSubmission.value.id,
-        name: existingSubmission.value.caption || 'Submitted file',
-        type: existingSubmission.value.file_type,
-        path: cacheBustedPath,
-        resubmit_count: existingSubmission.value.resubmit_count || 0
-      }];
-      
-      console.log('✅ Loaded existing file for resubmission');
-      console.log('📊 Current resubmit count:', existingSubmission.value.resubmit_count || 0);
-      console.log('✅ isResubmitting is now:', isResubmitting.value);
-    }
+    const filePath = response.data.file_url || response.data.file_path;
+    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+    
+    draftFiles.value = [{
+      id: response.data.id,
+      name: response.data.caption || 'Submitted file',
+      type: response.data.file_type,
+      path: cacheBustedPath,
+      resubmit_count: response.data.resubmit_count || 0
+    }];
+    
+    console.log('✅ Loaded existing file for resubmission');
+    console.log('✅ isResubmitting is now:', isResubmitting.value);
     
     // Show success message
     showSuccess('You can now edit and resubmit your work', 'Resubmission Mode');
   } catch (error) {
     console.error('❌ Error preparing resubmission:', error);
-    showError('Failed to prepare resubmission', 'Error');
+    showError(
+      error.response?.data?.error || 'Failed to enter resubmission mode',
+      'Error'
+    );
   }
 };
 
