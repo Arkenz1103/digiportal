@@ -1538,61 +1538,99 @@
               </div>
             </div>
 
-            <!-- Show message only if teacher requested compilation but envelope not created -->
-            <div v-else-if="portfolioCompilationRequested" class="flex items-center justify-center min-h-[60vh]">
-              <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 md:p-12 text-center">
-                <!-- Icon -->
-                <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-indigo-100 mb-6">
-                  <i class="pi pi-book text-indigo-600 text-4xl"></i>
+            <!-- Show portfolio activities if envelope not created -->
+            <div v-else class="max-w-6xl mx-auto">
+              <!-- Header Section -->
+              <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Portfolio Compilation</h2>
+                    <p class="text-gray-600">
+                      {{ portfolioCompilationRequested 
+                        ? 'Your teacher has requested you to compile your portfolio. Review your scored activities below.' 
+                        : 'View your scored activities and achievements.' }}
+                    </p>
+                  </div>
+                  <button
+                    v-if="portfolioCompilationRequested"
+                    @click="startPortfolioCompilation"
+                    class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                  >
+                    <i class="pi pi-book"></i>
+                    Create Portfolio Envelope
+                  </button>
                 </div>
-                
-                <!-- Title -->
-                <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                  Portfolio Compilation Ready
-                </h2>
-                
-                <!-- Message -->
-                <p class="text-gray-600 text-lg mb-8">
-                  Your teacher has requested you to start compiling your portfolio. 
-                  Click the button below to begin organizing your work and achievements.
-                </p>
-                
-                <!-- Start Button -->
-                <button
-                  @click="startPortfolioCompilation"
-                  class="px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 inline-flex items-center gap-3"
-                >
-                  <i class="pi pi-play-circle text-xl"></i>
-                  Start Portfolio Compilation
-                </button>
-                
-                <!-- Additional Info -->
-                <p class="text-sm text-gray-500 mt-6">
-                  Make sure to review all your activities before compiling your portfolio.
-                </p>
               </div>
-            </div>
-            
-            <!-- Show waiting state if teacher hasn't requested compilation yet -->
-            <div v-else class="flex items-center justify-center min-h-[60vh]">
-              <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 md:p-12 text-center">
-                <!-- Icon -->
-                <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gray-100 mb-6">
-                  <i class="pi pi-clock text-gray-400 text-4xl"></i>
+
+              <!-- Portfolio Activities List -->
+              <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 px-6 py-4 border-b border-indigo-300">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                        <i class="pi pi-check-circle text-white text-lg"></i>
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-bold text-white">Scored Activities</h3>
+                        <p class="text-sm text-white/80">Your completed and graded work</p>
+                      </div>
+                    </div>
+                    <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                      {{ portfolioActivities.length }} Activities
+                    </span>
+                  </div>
                 </div>
-                
-                <!-- Title -->
-                <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                  Waiting for Teacher
-                </h2>
-                
-                <!-- Message -->
-                <p class="text-gray-600 text-lg mb-4">
-                  Your teacher hasn't requested portfolio compilation yet.
-                </p>
-                <p class="text-gray-500 text-base">
-                  You'll be notified when it's time to start compiling your portfolio.
-                </p>
+
+                <!-- Activities Grid -->
+                <div v-if="portfolioActivities.length > 0" class="p-6">
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div
+                      v-for="activity in portfolioActivities"
+                      :key="activity.id"
+                      class="bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-indigo-400 hover:shadow-lg transition-all duration-200"
+                    >
+                      <!-- Activity Image -->
+                      <div class="relative h-48 bg-gray-100">
+                        <img
+                          v-if="activity.file_url"
+                          :src="activity.file_url"
+                          :alt="activity.activity_title"
+                          class="w-full h-full object-cover"
+                          @error="(e) => e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23ddd\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\'%3ENo Image%3C/text%3E%3C/svg%3E'"
+                        />
+                        <div v-else class="w-full h-full flex items-center justify-center">
+                          <i class="pi pi-image text-4xl text-gray-400"></i>
+                        </div>
+                        <!-- Score Badge -->
+                        <div class="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                          {{ activity.score || 0 }}/{{ activity.max_score || 10 }}
+                        </div>
+                      </div>
+
+                      <!-- Activity Info -->
+                      <div class="p-4">
+                        <h4 class="font-semibold text-gray-900 mb-1 truncate">{{ activity.activity_title }}</h4>
+                        <p class="text-sm text-gray-600 mb-2">{{ activity.activity_type }}</p>
+                        <div class="flex items-center justify-between text-xs text-gray-500">
+                          <span class="flex items-center gap-1">
+                            <i class="pi pi-calendar"></i>
+                            {{ new Date(activity.submitted_at).toLocaleDateString() }}
+                          </span>
+                          <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
+                            Scored
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else class="p-12 text-center">
+                  <i class="pi pi-inbox text-6xl text-gray-400 mb-4"></i>
+                  <h3 class="text-xl font-bold text-gray-900 mb-2">No Scored Activities Yet</h3>
+                  <p class="text-gray-600">Complete and submit your activities to see them here.</p>
+                </div>
               </div>
             </div>
             </div>
@@ -5447,9 +5485,12 @@ const editCompilation = (activity) => {
   compileActivity(activity); // Reuse the same function
 };
 
-// Submit work from Turn In dialog (for regular activities)
+// Submit work from Turn In dialog (for regular activities AND missing activity compilation)
 const submitTurnInWork = async () => {
-  if (!selectedActivity.value) {
+  // Check for either selectedActivity (regular) or selectedMissingActivity (compilation)
+  const activity = selectedActivity.value || selectedMissingActivity.value;
+  
+  if (!activity) {
     showWarning('No activity selected', 'Error');
     return;
   }
@@ -5462,21 +5503,25 @@ const submitTurnInWork = async () => {
   isSubmitting.value = true;
   
   try {
-    console.log('📤 Submitting work for activity:', selectedActivity.value.id);
+    console.log('📤 Submitting work for activity:', activity.id, activity.title);
     
     const file = draftFiles.value[0]; // Get the first file
     
     // Check if submission is late
     const isLateSubmission = isPastDue.value;
     
+    // Determine if this is a compilation submission (from missing activities)
+    const isCompilation = !!selectedMissingActivity.value;
+    
     // Submit to API
-    const response = await axios.post(`/api/activities/${selectedActivity.value.id}/submissions/`, {
+    const response = await axios.post(`/api/activities/${activity.id}/submissions/`, {
       caption: submissionCaption.value || '',
       file_path: file.path, // Base64 data
       file_type: file.type,
       post_to_feed: postOutputOption.value,
       is_late: isLateSubmission,
-      is_draft: false // ✅ CRITICAL: false = final submission (status will be 'unscored')
+      is_draft: false, // ✅ CRITICAL: false = final submission (status will be 'unscored')
+      is_compilation: isCompilation // ✅ Mark if this is a compilation submission
       // Note: Don't send 'status' - backend sets it automatically based on is_draft
     });
     
@@ -5493,9 +5538,16 @@ const submitTurnInWork = async () => {
       postOutputOption.value = false;
       draftFiles.value = []; // Clearing this will automatically set isResubmitting = false
       
-      // Reload submissions to update the UI
-      await checkSubmissionStatus(selectedActivity.value.id);
-      await loadActivitySubmissions(selectedActivity.value.id);
+      // Clear selected missing activity if it was a compilation
+      if (isCompilation) {
+        selectedMissingActivity.value = null;
+        // Reload portfolio activities to update missing list
+        await loadPortfolioActivities();
+      } else {
+        // Reload submissions to update the UI for regular activities
+        await checkSubmissionStatus(activity.id);
+        await loadActivitySubmissions(activity.id);
+      }
       
       showSuccess('Work submitted successfully!', 'Submitted');
     }

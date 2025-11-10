@@ -1692,8 +1692,10 @@ def activity_submissions_api(request, activity_id):
                         existing_submission.file_path = data.get('file_path', '')
                     
                     # Set status to unscored (first submission)
+                    import pytz
+                    manila_tz = pytz.timezone('Asia/Manila')
                     existing_submission.status = 'unscored'
-                    existing_submission.submitted_at = timezone.now()
+                    existing_submission.submitted_at = timezone.now().astimezone(manila_tz)
                     
                     # Check if late
                     if activity.due_date:
@@ -1737,8 +1739,11 @@ def activity_submissions_api(request, activity_id):
                 existing_submission.caption = data.get('caption', '')
                 existing_submission.file_path = data.get('file_path', '')
                 existing_submission.file_type = data.get('file_type', '')
-                existing_submission.last_resubmit_at = timezone.now()
-                existing_submission.submitted_at = timezone.now()  # Update submission time
+                import pytz
+                manila_tz = pytz.timezone('Asia/Manila')
+                current_time = timezone.now().astimezone(manila_tz)
+                existing_submission.last_resubmit_at = current_time
+                existing_submission.submitted_at = current_time  # Update submission time
                 
                 # Set status to unscored (whether it was scored before or not)
                 existing_submission.status = 'unscored'
@@ -2144,31 +2149,46 @@ def pending_approvals_api(request):
         # 1. Pending approval status
         # 2. Student is in the SAME classroom as the teacher
         # 3. Either has activity from teacher's folder OR is a sketch (activity_id is None)
+        from django.db.models import Case, When, Value, IntegerField
+        from datetime import datetime
+        
+        # Get all pending submissions
         submissions = StudentSubmission.objects.filter(
             Q(approval_status='pending') &
             Q(student__classroom=teacher_classroom) &  # CRITICAL: Only students in teacher's classroom
             (Q(activity__folder__classroom=teacher_classroom) | Q(activity__isnull=True))
-        ).select_related('student', 'activity', 'activity__folder').order_by('-submitted_at')
+        ).select_related('student', 'activity', 'activity__folder')
+        
+        # Sort: submissions WITH dates first (newest to oldest), then submissions WITHOUT dates
+        submissions = submissions.annotate(
+            has_date=Case(
+                When(submitted_at__isnull=True, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField()
+            )
+        ).order_by('has_date', '-submitted_at')
         
         print(f"\n{'='*60}")
         print(f"📝 PENDING APPROVALS CHECK for teacher: {request.user.username}")
         print(f"{'='*60}")
         print(f"Found {submissions.count()} pending approvals")
+        print(f"\n📊 SORTED ORDER (Newest to Oldest):")
         
-        # Debug: Print each submission with full details
-        for sub in submissions:
-            print(f"\n   📋 Submission #{sub.id}:")
+        # Debug: Print each submission with full details in sorted order
+        for index, sub in enumerate(submissions, 1):
+            print(f"\n   {index}. 📋 Submission #{sub.id}:")
             print(f"      Student: {sub.student.username}")
-            print(f"      Activity: {sub.activity.title if sub.activity else 'N/A'}")
+            print(f"      Activity: {sub.activity.title if sub.activity else 'Sketch Pad'}")
             print(f"      Caption: {sub.caption[:50] if sub.caption else 'No caption'}...")
             print(f"      Status: {sub.status}")
             print(f"      Approval Status: {sub.approval_status}")
             print(f"      Post to Feed: {sub.post_to_feed}")
             print(f"      File Type: {sub.file_type}")
-            print(f"      Submitted At: {sub.submitted_at}")
+            print(f"      ⏰ Submitted At: {sub.submitted_at if sub.submitted_at else 'NO DATE'}")
         
-        print(f"{'='*60}\n")
+        print(f"\n{'='*60}\n")
         
+        # Serializer will handle timezone conversion automatically
         serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
         return Response(serializer.data)
     except Exception as e:
@@ -2728,7 +2748,9 @@ def submission_detail_api(request, submission_id):
                             submission.resubmit_count = 0
                     
                     # ALWAYS update submitted_at to current time (when student turned in)
-                    now = timezone.now()
+                    import pytz
+                    manila_tz = pytz.timezone('Asia/Manila')
+                    now = timezone.now().astimezone(manila_tz)
                     submission.submitted_at = now
                     
                     activity = submission.activity
@@ -2772,9 +2794,11 @@ def submission_detail_api(request, submission_id):
                 if not is_draft and submission.status == 'draft':
                     from django.utils import timezone
                     from datetime import datetime, time as dt_time
+                    import pytz
                     
-                    # Update submitted_at to current time
-                    now = timezone.now()
+                    # Update submitted_at to current time in Manila timezone
+                    manila_tz = pytz.timezone('Asia/Manila')
+                    now = timezone.now().astimezone(manila_tz)
                     submission.submitted_at = now
                     
                     activity = submission.activity
@@ -2854,13 +2878,25 @@ def request_post_approval_api(request, submission_id):
             return Response({'error': 'Caption is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Update submission with new caption and set approval status to pending
+        # Also update submitted_at to reflect when approval was requested
+        from django.utils import timezone
+        import pytz
+        
+        # Get current time in Asia/Manila timezone
+        manila_tz = pytz.timezone('Asia/Manila')
+        current_time = timezone.now().astimezone(manila_tz)
+        
         submission.caption = caption
         submission.approval_status = 'pending'
+        submission.submitted_at = current_time  # Update timestamp to current Manila time
         submission.save()
         
         print(f"📝 Updated submission {submission_id}:")
         print(f"   Caption: {caption}")
         print(f"   Approval status: {submission.approval_status}")
+        print(f"   Submitted at: {submission.submitted_at}")
+        print(f"   Timezone info: {submission.submitted_at.tzinfo}")
+        print(f"   Current Manila time: {current_time}")
         
         # Create notification for teacher
         activity = submission.activity
@@ -3131,6 +3167,13 @@ def sketch_submission_api(request):
         
         # Create a sketch submission (activity_id can be null or use a special "Sketch" activity)
         # For now, we'll create it without an activity or you can create a default "Sketch Pad" activity
+        from django.utils import timezone
+        import pytz
+        
+        # Get current time in Asia/Manila timezone
+        manila_tz = pytz.timezone('Asia/Manila')
+        current_time = timezone.now().astimezone(manila_tz)
+        
         submission = StudentSubmission.objects.create(
             activity_id=None,  # No specific activity for sketches
             student=request.user,
@@ -3139,11 +3182,14 @@ def sketch_submission_api(request):
             file_type='image',
             status='unscored',
             post_to_feed=True,
-            approval_status='pending'
+            approval_status='pending',
+            submitted_at=current_time  # Set submission timestamp in Manila timezone
         )
         
         print(f"✅ Sketch submission created: ID={submission.id}")
         print(f"📢 POST TO FEED: True, APPROVAL STATUS: pending")
+        print(f"⏰ SUBMITTED AT (Manila): {submission.submitted_at}")
+        print(f"⏰ SUBMITTED AT (UTC): {submission.submitted_at.astimezone(pytz.UTC)}")
         
         # Notify teacher about sketch submission
         # Get the student's classroom teacher
@@ -4324,7 +4370,38 @@ def get_student_portfolio_activities_api(request, class_name):
                     print(f"   ⏳ Skipping pending activity from missing list: {activity.title}")
                     pass  # Don't add to any list - it's in limbo waiting for score
                 else:  # truly missing (never submitted)
-                    missing_activities.append(activity_data)
+                    # Only add to missing if the due date has PASSED
+                    is_overdue = False
+                    if activity.due_date:
+                        try:
+                            # Combine due date and time for accurate comparison
+                            if activity.due_time:
+                                due_datetime_naive = datetime.combine(activity.due_date, activity.due_time)
+                            else:
+                                # If no time specified, use end of day (23:59:59)
+                                due_datetime_naive = datetime.combine(activity.due_date, datetime_time(23, 59, 59))
+                            
+                            # Make sure due_datetime is timezone-aware
+                            if timezone.is_naive(due_datetime_naive):
+                                due_datetime = timezone.make_aware(due_datetime_naive)
+                            else:
+                                due_datetime = due_datetime_naive
+                            
+                            # Check if current time is past the due date
+                            current_time = timezone.now()
+                            is_overdue = current_time > due_datetime
+                            
+                            if is_overdue:
+                                print(f"   ❌ Activity {activity.id} ({activity.title}) is OVERDUE - adding to missing")
+                                missing_activities.append(activity_data)
+                            else:
+                                print(f"   ⏰ Activity {activity.id} ({activity.title}) is NOT YET DUE - skipping from missing")
+                        except Exception as date_error:
+                            print(f"⚠️ Error checking due date for activity {activity.id}: {date_error}")
+                            # If we can't determine, don't add to missing to be safe
+                    else:
+                        # No due date set - don't consider it missing
+                        print(f"   ℹ️ Activity {activity.id} ({activity.title}) has no due date - skipping from missing")
         
         print(f"✅ Categorized activities:")
         print(f"   - Submitted: {len(submitted_activities)}")

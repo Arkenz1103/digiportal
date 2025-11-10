@@ -1,10 +1,13 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import axios from '../../axios';
 import { useToast } from '../../composables/useToast';
+import { useTheme } from '../../composables/useTheme';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 
 const { showSuccess, showError, showInfo, showWarning } = useToast();
+const { currentTheme, setTheme } = useTheme();
 
 // Settings data
 const settings = ref({
@@ -20,6 +23,8 @@ const settings = ref({
     },
     preferences: {
         language: 'en',
+        timezone: 'Asia/Manila',
+        dateFormat: 'MM/DD/YYYY',
         theme: 'light'
     }
 });
@@ -36,6 +41,20 @@ const languageOptions = [
     { value: 'es', label: 'Spanish' }
 ];
 
+// Timezone options
+const timezoneOptions = [
+    { value: 'Asia/Manila', label: 'Asia/Manila (GMT+8)' },
+    { value: 'America/New_York', label: 'America/New_York (GMT-5)' },
+    { value: 'Europe/London', label: 'Europe/London (GMT+0)' }
+];
+
+// Date format options
+const dateFormatOptions = [
+    { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+    { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+    { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' }
+];
+
 // Theme options
 const themeOptions = [
     { value: 'light', label: 'Light', icon: 'pi-sun' },
@@ -43,15 +62,33 @@ const themeOptions = [
     { value: 'auto', label: 'Auto', icon: 'pi-desktop' }
 ];
 
-// Load settings
+// Load settings from backend
 const loadSettings = async () => {
     try {
+        console.log('📥 Loading settings from backend...');
         const response = await axios.get('/api/user/settings/');
-        settings.value = response.data;
-        console.log('✅ Settings loaded:', settings.value);
+        
+        if (response.data) {
+            settings.value = response.data;
+            
+            // Sync theme from backend
+            if (response.data.preferences?.theme) {
+                const backendTheme = response.data.preferences.theme;
+                console.log('🎨 Theme from backend:', backendTheme);
+                
+                // Update local theme
+                currentTheme.value = backendTheme;
+                setTheme(backendTheme);
+            }
+            
+            console.log('✅ Settings loaded:', settings.value);
+        }
     } catch (error) {
         console.error('❌ Error loading settings:', error);
-        showError('Failed to load settings', 'Error');
+        // Don't show error if endpoint doesn't exist yet
+        if (error.response?.status !== 404) {
+            showError('Failed to load settings', 'Error');
+        }
     }
 };
 
@@ -102,6 +139,14 @@ const exportData = async () => {
         isExportingData.value = false;
     }
 };
+
+// Watch for theme changes and apply immediately
+watch(() => settings.value.preferences.theme, (newTheme) => {
+    if (newTheme) {
+        console.log('🎨 Theme changed to:', newTheme);
+        setTheme(newTheme);
+    }
+});
 
 // Load settings on mount
 onMounted(() => {
@@ -269,6 +314,32 @@ onMounted(() => {
                             >
                                 <option v-for="lang in languageOptions" :key="lang.value" :value="lang.value">
                                     {{ lang.label }}
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <!-- Timezone -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
+                            <select 
+                                v-model="settings.preferences.timezone"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                                <option v-for="tz in timezoneOptions" :key="tz.value" :value="tz.value">
+                                    {{ tz.label }}
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <!-- Date Format -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Date Format</label>
+                            <select 
+                                v-model="settings.preferences.dateFormat"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                                <option v-for="format in dateFormatOptions" :key="format.value" :value="format.value">
+                                    {{ format.label }}
                                 </option>
                             </select>
                         </div>

@@ -112,6 +112,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     max_score = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
     display_status = serializers.SerializerMethodField()
+    submitted_at = serializers.SerializerMethodField()
     
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
@@ -153,6 +154,28 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
             return obj.file.url
         # Fallback to file_path (base64 or old data)
         return obj.file_path
+    
+    def get_submitted_at(self, obj):
+        """Return submitted_at in Manila timezone"""
+        if not obj.submitted_at:
+            return None
+        
+        from django.utils import timezone
+        import pytz
+        
+        manila_tz = pytz.timezone('Asia/Manila')
+        
+        # Convert to Manila timezone
+        if timezone.is_naive(obj.submitted_at):
+            # If naive, assume UTC and add 8 hours
+            from datetime import timedelta
+            manila_time = manila_tz.localize(obj.submitted_at + timedelta(hours=8))
+        else:
+            # If aware, convert to Manila timezone
+            manila_time = obj.submitted_at.astimezone(manila_tz)
+        
+        # Return ISO format string
+        return manila_time.isoformat()
     
     def get_display_status(self, obj):
         """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""

@@ -66,21 +66,11 @@ const loadPendingApprovals = async () => {
         console.log('📥 API Response:', response.data);
         
         if (response.data) {
-            // Map and format submissions
-            const submissions = response.data.map(submission => {
+            // Map and format submissions (backend already sorted them properly)
+            pendingOutputs.value = response.data.map(submission => {
                 // Get image URL from multiple possible sources
                 const imageUrl = submission.file_url || submission.file_path || submission.file || '';
                 const dateInfo = formatDateTime(submission.submitted_at);
-                
-                console.log('Submission:', {
-                    id: submission.id,
-                    student: submission.student_name,
-                    activity: submission.activity_title,
-                    imageUrl: imageUrl,
-                    submitted_at: submission.submitted_at,
-                    formatted_date: dateInfo.formatted,
-                    approval_status: submission.approval_status
-                });
                 
                 return {
                     id: submission.id,
@@ -99,11 +89,11 @@ const loadPendingApprovals = async () => {
                 };
             });
             
-            // Sort by submission date (most recent first)
-            pendingOutputs.value = submissions.sort((a, b) => b.timestamp - a.timestamp);
-            
-            console.log('✅ Loaded and sorted pending approvals:', pendingOutputs.value.length, 'items');
-            console.log('📊 First submission:', pendingOutputs.value[0]?.submittedDate);
+            console.log('✅ Loaded pending approvals:', pendingOutputs.value.length, 'items');
+            console.log('📊 Display order (as received from backend - already sorted):');
+            pendingOutputs.value.forEach((item, index) => {
+                console.log(`   ${index + 1}. ${item.studentName} - ${item.title} - ${item.submittedDate} (${item.rawDate || 'NO DATE'})`);
+            });
         }
     } catch (error) {
         console.error('❌ Error loading pending approvals:', error);
