@@ -2012,74 +2012,31 @@ def student_submitted_collection_api(request):
         return Response({'error': 'Only students can view their submitted collection'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Get only SCORED submissions by this student (exclude drafts, pending, and hidden items)
+        # Get ALL submitted work by this student (both scored and unscored)
+        # Include submissions that have been approved and posted to collection
+        from django.db.models import Q
+        
         submissions = StudentSubmission.objects.filter(
             student=request.user,
             submitted_at__isnull=False,  # Only include submissions that have been submitted (not drafts)
             is_active=True,  # Only show active submissions (not hidden from collection)
-            status='scored'  # Only show scored submissions
+            status__in=['unscored', 'scored'],  # Include both scored and unscored submissions
+        ).filter(
+            # Include submissions that are approved OR have no approval status (regular activities)
+            Q(approval_status='approved') | Q(approval_status__isnull=True)
         ).select_related('activity', 'activity__folder').order_by('-submitted_at')
         
-        print(f"📦 Processing {submissions.count()} SCORED submissions for student {request.user.username}")
+        print(f"📦 Processing {submissions.count()} submitted works for student {request.user.username}")
         
-        # Format response with activity details
-        collection_data = []
-        for submission in submissions:
-            try:
-                activity = submission.activity
-                if not activity:
-                    print(f"⚠️ Submission {submission.id} has no activity, skipping")
-                    continue
-                
-                # Get folder name safely
-                folder_name = 'Unknown'
-                if hasattr(activity, 'folder') and activity.folder:
-                    folder_name = activity.folder.name
-                
-                # Get proper file URL - prefer actual file over base64
-                file_url = ''
-                if submission.file:
-                    try:
-                        # Check if file actually exists
-                        if hasattr(submission.file, 'path') and os.path.exists(submission.file.path):
-                            # If file field has actual file and it exists, return its URL
-                            file_url = request.build_absolute_uri(submission.file.url)
-                        else:
-                            print(f"⚠️ File does not exist: {submission.file.path if hasattr(submission.file, 'path') else 'No path'}")
-                            # File doesn't exist, try file_path as fallback
-                            if submission.file_path:
-                                file_url = submission.file_path
-                    except Exception as e:
-                        print(f"⚠️ Error checking file: {str(e)}")
-                        # If error checking file, try file_path as fallback
-                        if submission.file_path:
-                            file_url = submission.file_path
-                elif submission.file_path:
-                    # Fallback to file_path (base64 or old data)
-                    file_url = submission.file_path
-                
-                collection_data.append({
-                    'id': submission.id,
-                    'activity_id': activity.id,
-                    'activity_title': activity.title,
-                    'activity_type': activity.activity_type,
-                    'folder_name': folder_name,
-                    'caption': submission.caption or '',
-                    'file_path': file_url,  # Use proper file URL
-                    'file_type': submission.file_type or 'unknown',
-                    'submitted_at': submission.submitted_at.isoformat() if submission.submitted_at else None,
-                    'is_late': submission.is_late,
-                    'status': submission.status,
-                    'score': submission.score if submission.status == 'scored' else None,
-                    'feedback': submission.feedback if submission.status == 'scored' else '',
-                    'scored_at': submission.scored_at.isoformat() if submission.scored_at else None,
-                })
-            except Exception as item_error:
-                print(f"⚠️ Error processing submission {submission.id}: {str(item_error)}")
-                continue
+        # Debug: Show what we found
+        for sub in submissions:
+            print(f"   - Submission #{sub.id}: {sub.activity.title if sub.activity else 'Sketch Pad'} (status: {sub.status}, approval: {sub.approval_status})")
         
-        print(f"✅ Successfully formatted {len(collection_data)} submissions for student {request.user.username}")
-        return Response(collection_data)
+        # Use serializer for consistent formatting and timezone handling
+        serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
+        
+        print(f"✅ Successfully formatted {len(serializer.data)} submissions for student {request.user.username}")
+        return Response(serializer.data)
     except Exception as e:
         import traceback
         print(f"❌ Error fetching submitted collection: {str(e)}")

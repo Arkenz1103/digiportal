@@ -3016,7 +3016,7 @@ const props = defineProps({
     }
 });
 
-const activeTab = ref('pupil');
+const activeTab = ref('classroom');
 
 // Tab configurations
 const tabs = [

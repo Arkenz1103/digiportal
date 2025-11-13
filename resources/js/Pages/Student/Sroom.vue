@@ -3229,7 +3229,7 @@ const actualClassName = computed(() => {
     return props.className;
 });
 
-const activeTab = ref('portfolio');
+const activeTab = ref('classroom');
 const activeContentTab = ref('samples');
 const portfolioCompilationRequested = ref(false); // Track if teacher requested compilation
 const showEnvelopeDesigner = ref(false); // Track if envelope designer is shown
@@ -3444,6 +3444,7 @@ const openFolderContent = async (folder) => {
   
   // Save folder view state
   localStorage.setItem('student_current_view', JSON.stringify({
+    activeTab: activeTab.value,
     selectedFolder: folder,
     selectedActivity: null
   }));
@@ -3589,6 +3590,7 @@ const backToActivitiesList = () => {
   // Update view state to folder only
   if (selectedFolder.value) {
     localStorage.setItem('student_current_view', JSON.stringify({
+      activeTab: activeTab.value,
       selectedFolder: selectedFolder.value,
       selectedActivity: null
     }));
@@ -3965,13 +3967,14 @@ const openActivity = async (activity) => {
   
   // Save current view state to localStorage
   localStorage.setItem('student_current_view', JSON.stringify({
+    activeTab: activeTab.value,
     selectedFolder: selectedFolder.value,
     selectedActivity: {
       id: activity.id,
       title: activity.title
     }
   }));
-  console.log('💾 Saved view state: Activity', activity.title);
+  console.log('💾 Saved view state: Tab:', activeTab.value, 'Activity:', activity.title);
   
   // Use the hasSubmitted status from the activity object if available
   if (activity.hasSubmitted !== undefined) {
@@ -4362,6 +4365,12 @@ onMounted(async () => {
         const viewState = JSON.parse(savedView);
         console.log('🔄 Restoring view state:', viewState);
         
+        // Restore active tab
+        if (viewState.activeTab) {
+          activeTab.value = viewState.activeTab;
+          console.log('🔄 Restored tab:', viewState.activeTab);
+        }
+        
         if (viewState.selectedFolder) {
           // First load all folders to ensure we have the latest data
           await loadPortfolioFolders();
@@ -4599,6 +4608,21 @@ watch(activeUploadTab, async (newValue) => {
   selectedSketchId.value = null;
   // Reset to sketches sub-tab
   activeSketchSubTab.value = 'sketches';
+});
+
+// Watch for main tab changes and save to localStorage
+watch(activeTab, (newValue) => {
+  const savedView = localStorage.getItem('student_current_view');
+  if (savedView) {
+    try {
+      const viewState = JSON.parse(savedView);
+      viewState.activeTab = newValue;
+      localStorage.setItem('student_current_view', JSON.stringify(viewState));
+      console.log('💾 Updated active tab in view state:', newValue);
+    } catch (error) {
+      console.error('Error updating tab in view state:', error);
+    }
+  }
 });
 
 // Load sketches from API
