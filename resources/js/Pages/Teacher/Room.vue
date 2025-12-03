@@ -66,7 +66,7 @@
                         <i :class="['pi', tab.icon]"></i>
                         <span>{{ tab.name }}</span>
                     </span>
-                    <span 
+                    <span
                         v-if="activeTab === tab.id"
                         class="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full"
                     ></span>
@@ -100,7 +100,7 @@
                                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                                 <span class="ml-3 text-gray-600">Loading folders...</span>
                             </div>
-                            
+
                             <!-- Empty State -->
                             <div v-else-if="subjectFolders.length === 0" class="text-center py-12">
                                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
@@ -109,7 +109,7 @@
                                 <h3 class="text-lg font-medium text-gray-900 mb-2">No Activity Folders</h3>
                                 <p class="text-gray-500">Click "Create Class Activity" to create your first folder.</p>
                             </div>
-                            
+
                             <!-- Folders Grid -->
                             <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                 <!-- Subject Folders -->
@@ -129,7 +129,7 @@
                                             >
                                                 <i class="pi pi-ellipsis-v"></i>
                                             </button>
-                                            
+
                                             <!-- Dropdown Menu -->
                                             <div
                                                 v-if="activeFolderMenuIndex === index"
@@ -147,8 +147,8 @@
                                                     :disabled="folder.items > 0"
                                                     :class="[
                                                         'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2',
-                                                        folder.items > 0 
-                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                                                        folder.items > 0
+                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50'
                                                             : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
                                                     ]"
                                                     :title="folder.items > 0 ? 'Cannot drop folder with activities. Please delete all activities first.' : 'Drop this folder'"
@@ -158,7 +158,7 @@
                                                 </button>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- Stacked Preview Images with Dynamic Animation -->
                                         <div class="absolute top-5 right-12 w-28 h-32 flex items-center justify-center">
                                             <div class="absolute w-24 h-28 rounded-md transform rotate-[-15deg] transition-all duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
@@ -301,14 +301,14 @@
                                                             <div class="flex items-center gap-2">
                                                                 <div :class="[
                                                                     'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                                                                    activity.type === 'project' ? 'bg-purple-100' : 
-                                                                    activity.type === 'contest' ? 'bg-blue-100' : 
+                                                                    activity.type === 'project' ? 'bg-purple-100' :
+                                                                    activity.type === 'contest' ? 'bg-blue-100' :
                                                                     activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
                                                                 ]">
                                                                     <span :class="[
                                                                         'text-lg font-bold',
-                                                                        activity.type === 'project' ? 'text-purple-600' : 
-                                                                        activity.type === 'contest' ? 'text-blue-600' : 
+                                                                        activity.type === 'project' ? 'text-purple-600' :
+                                                                        activity.type === 'contest' ? 'text-blue-600' :
                                                                         activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
                                                                     ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
                                                                 </div>
@@ -326,7 +326,7 @@
 
                                                         <!-- Instructions -->
                                                         <div class="col-span-3">
-                                                            <div 
+                                                            <div
                                                                 class="text-sm text-gray-600 leading-relaxed"
                                                                 :title="activity.description"
                                                                 style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 4.5rem;"
@@ -352,7 +352,7 @@
                                                         <!-- Actions -->
                                                         <div class="col-span-2 flex items-center justify-center gap-2 self-center">
                                                             <!-- Publish Button -->
-                                                            <button 
+                                                            <button
                                                                 @click.stop="submitActivity(activity, index)"
                                                                 :disabled="activity.is_published"
                                                                 :class="[
@@ -366,9 +366,9 @@
                                                                 <i class="pi pi-send text-xs"></i>
                                                                 <span>Publish</span>
                                                             </button>
-                                                            
+
                                                             <!-- Edit Button -->
-                                                            <button 
+                                                            <button
                                                                 @click.stop="editActivity(activity, index)"
                                                                 :disabled="isActivityPastDue(activity)"
                                                                 :class="[
@@ -436,7 +436,7 @@
                                             <div class="divide-y divide-gray-200">
                                                 <div v-for="(activity, index) in publishedActivities" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
-                                                    
+
                                                     <div class="grid grid-cols-12 gap-4 px-6 py-4 items-start cursor-pointer"
                                                         @click="navigateToActivityOutputs(activity, index)">
                                                         <!-- Activity Type with Icon -->
@@ -444,14 +444,14 @@
                                                             <div class="flex items-center gap-2">
                                                                 <div :class="[
                                                                     'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                                                                    activity.type === 'project' ? 'bg-purple-100' : 
-                                                                    activity.type === 'contest' ? 'bg-blue-100' : 
+                                                                    activity.type === 'project' ? 'bg-purple-100' :
+                                                                    activity.type === 'contest' ? 'bg-blue-100' :
                                                                     activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
                                                                 ]">
                                                                     <span :class="[
                                                                         'text-lg font-bold',
-                                                                        activity.type === 'project' ? 'text-purple-600' : 
-                                                                        activity.type === 'contest' ? 'text-blue-600' : 
+                                                                        activity.type === 'project' ? 'text-purple-600' :
+                                                                        activity.type === 'contest' ? 'text-blue-600' :
                                                                         activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
                                                                     ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
                                                                 </div>
@@ -469,7 +469,7 @@
 
                                                         <!-- Instructions -->
                                                         <div class="col-span-3">
-                                                            <div 
+                                                            <div
                                                                 class="text-sm text-gray-600 leading-relaxed"
                                                                 :title="activity.description"
                                                                 style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 4.5rem;"
@@ -495,7 +495,7 @@
                                                         <!-- Actions -->
                                                         <div class="col-span-2 flex items-center justify-center gap-2 self-center">
                                                             <!-- Retract Button (First) -->
-                                                            <button 
+                                                            <button
                                                                 @click.stop="retractActivity(activity, index)"
                                                                 :disabled="!activity.is_published"
                                                                 :class="[
@@ -509,9 +509,9 @@
                                                                 <i class="pi pi-undo text-xs"></i>
                                                                 <span>Retract</span>
                                                             </button>
-                                                            
+
                                                             <!-- Edit Button (Second) -->
-                                                            <button 
+                                                            <button
                                                                 @click.stop="editActivity(activity, index)"
                                                                 :disabled="isActivityPastDue(activity)"
                                                                 :class="[
@@ -557,28 +557,28 @@
                         <div v-else class="space-y-4">
                             <!-- Show selected envelope if viewing one -->
                             <div v-if="selectedEnvelope" class="rounded-2xl shadow-2xl overflow-hidden relative min-h-[600px] animate-scaleIn"
-                                 :style="isEnvelopeOpen ? { 
+                                 :style="isEnvelopeOpen ? {
                                    background: `linear-gradient(135deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`,
                                    animation: 'gradientShift 8s ease infinite'
                                  } : { background: 'white' }">
-                                
+
                                 <!-- Animated Pattern Overlay (matching envelope) - Only when open -->
-                                <div v-if="isEnvelopeOpen && selectedEnvelope.pattern === 'dots'" 
+                                <div v-if="isEnvelopeOpen && selectedEnvelope.pattern === 'dots'"
                                      class="absolute inset-0 opacity-10 pointer-events-none animate-patternFloat"
                                      style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
                                 </div>
-                                <div v-else-if="isEnvelopeOpen && selectedEnvelope.pattern === 'lines'" 
+                                <div v-else-if="isEnvelopeOpen && selectedEnvelope.pattern === 'lines'"
                                      class="absolute inset-0 opacity-10 pointer-events-none animate-patternSlide"
                                      style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
                                 </div>
-                                <div v-else-if="isEnvelopeOpen && selectedEnvelope.pattern === 'grid'" 
+                                <div v-else-if="isEnvelopeOpen && selectedEnvelope.pattern === 'grid'"
                                      class="absolute inset-0 opacity-10 pointer-events-none animate-patternPulse"
                                      style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                                 </div>
 
                                 <!-- Floating Particles Effect - Only when open -->
                                 <div v-if="isEnvelopeOpen" class="absolute inset-0 pointer-events-none overflow-hidden">
-                                    <div v-for="i in 15" :key="i" 
+                                    <div v-for="i in 15" :key="i"
                                          class="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
                                          :style="{
                                            left: `${Math.random() * 100}%`,
@@ -602,35 +602,35 @@
                                         </button>
 
                                         <!-- Envelope Front Cover - Matching Student Design (Clickable) -->
-                                        <div 
+                                        <div
                                             @click="openEnvelope"
                                             class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl max-w-3xl mx-auto"
                                         >
                                             <!-- Envelope Preview -->
                                             <div class="relative w-full aspect-[21/9]"
                                                  :style="{ backgroundColor: selectedEnvelope.color }">
-                                                
+
                                                 <!-- Pattern Overlay -->
-                                                <div v-if="selectedEnvelope.pattern === 'dots'" 
+                                                <div v-if="selectedEnvelope.pattern === 'dots'"
                                                      class="absolute inset-0 opacity-20"
                                                      style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
                                                 </div>
-                                                <div v-else-if="selectedEnvelope.pattern === 'lines'" 
+                                                <div v-else-if="selectedEnvelope.pattern === 'lines'"
                                                      class="absolute inset-0 opacity-20"
                                                      style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
                                                 </div>
-                                                <div v-else-if="selectedEnvelope.pattern === 'grid'" 
+                                                <div v-else-if="selectedEnvelope.pattern === 'grid'"
                                                      class="absolute inset-0 opacity-20"
                                                      style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                                                 </div>
 
                                                 <!-- Envelope Flap -->
-                                                <div 
+                                                <div
                                                     class="absolute top-0 left-0 right-0 h-1/4 border-b-4 border-white/30"
-                                                    :style="{ 
+                                                    :style="{
                                                         background: `linear-gradient(180deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`
                                                     }">
-                                                    <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
+                                                    <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0
                                                                 border-l-[150px] border-r-[150px] border-t-[80px] border-l-transparent border-r-transparent"
                                                          :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -20) }">
                                                     </div>
@@ -639,15 +639,15 @@
                                                 <!-- Content Area -->
                                                 <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
                                                     <div class="bg-white/20 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 max-w-sm w-full">
-                                                        <h1 class="text-2xl font-bold text-white mb-2" 
+                                                        <h1 class="text-2xl font-bold text-white mb-2"
                                                             style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
                                                             {{ selectedEnvelope.name }}
                                                         </h1>
-                                                        <p class="text-sm text-white/80" 
+                                                        <p class="text-sm text-white/80"
                                                            style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
                                                             {{ selectedEnvelope.class_name }}
                                                         </p>
-                                                        
+
                                                         <!-- Click to Open Text -->
                                                         <div class="mt-4 text-white/60 text-xs animate-pulse">
                                                             <i class="pi pi-hand-pointer mr-1"></i>
@@ -667,8 +667,8 @@
                                             <div class="flex gap-2">
                                                 <button
                                                     @click="activePortfolioTab = 'scored'"
-                                                    :class="activePortfolioTab === 'scored' 
-                                                        ? 'bg-indigo-600 text-white shadow-lg' 
+                                                    :class="activePortfolioTab === 'scored'
+                                                        ? 'bg-indigo-600 text-white shadow-lg'
                                                         : 'bg-white/30 text-white hover:bg-white/40'"
                                                     class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
                                                 >
@@ -681,8 +681,8 @@
                                                 </button>
                                                 <button
                                                     @click="activePortfolioTab = 'missing'"
-                                                    :class="activePortfolioTab === 'missing' 
-                                                        ? 'bg-indigo-600 text-white shadow-lg' 
+                                                    :class="activePortfolioTab === 'missing'
+                                                        ? 'bg-indigo-600 text-white shadow-lg'
                                                         : 'bg-white/30 text-white hover:bg-white/40'"
                                                     class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
                                                 >
@@ -707,7 +707,7 @@
 
                                         <!-- Display Student Activities (Carousel Style like Student View) -->
                                         <div class="relative min-h-[600px]">
-                                    
+
                                     <!-- Loading state -->
                                     <div v-if="currentTabActivities.length === 0" class="text-center py-20 relative z-10">
                                         <div class="inline-block p-8 rounded-full mb-6 bg-white/30">
@@ -717,17 +717,17 @@
                                             {{ activePortfolioTab === 'scored' ? 'No scored activities found' : 'No missing compiled activities' }}
                                         </p>
                                         <p class="text-sm text-white/80 mt-2">
-                                            {{ activePortfolioTab === 'scored' 
-                                                ? 'This student hasn\'t submitted any scored activities yet' 
+                                            {{ activePortfolioTab === 'scored'
+                                                ? 'This student hasn\'t submitted any scored activities yet'
                                                 : 'This student has compiled all missing activities' }}
                                         </p>
                                     </div>
-                                    
+
                                     <!-- Activity Carousel -->
                                     <div v-else class="relative">
                                         <!-- Activity Counter with Enhanced Design -->
                                         <div class="absolute top-4 right-4 z-10 text-white px-6 py-3 rounded-full text-base font-bold shadow-2xl animate-pulse-slow transform transition-all duration-300 hover:scale-110"
-                                             :style="{ 
+                                             :style="{
                                                background: `linear-gradient(135deg, ${adjustBrightness(selectedEnvelope.color, -20)} 0%, ${adjustBrightness(selectedEnvelope.color, -40)} 100%)`,
                                                boxShadow: `0 0 30px ${selectedEnvelope.color}60, 0 8px 16px rgba(0,0,0,0.2)`
                                              }">
@@ -741,7 +741,7 @@
                                         </div>
 
                                         <!-- Activity Content -->
-                                        <div v-if="currentTabActivities[currentActivityIndex]" 
+                                        <div v-if="currentTabActivities[currentActivityIndex]"
                                              :key="currentActivityIndex"
                                              class="animate-fadeIn">
                                           <!-- Content Card with Glass Effect -->
@@ -749,7 +749,7 @@
                                             <!-- Activity Image/Preview -->
                                             <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
                                                  :style="{ borderColor: `${selectedEnvelope.color}40` }">
-                                              <img v-if="currentTabActivities[currentActivityIndex].submission_file" 
+                                              <img v-if="currentTabActivities[currentActivityIndex].submission_file"
                                                    :src="currentTabActivities[currentActivityIndex].submission_file"
                                                    alt="Activity submission"
                                                    class="w-full h-full object-contain"
@@ -769,7 +769,7 @@
                                             </div>
 
                                             <!-- Score and Feedback -->
-                                            <div v-if="currentTabActivities[currentActivityIndex].submission_score !== null" 
+                                            <div v-if="currentTabActivities[currentActivityIndex].submission_score !== null"
                                                  class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                                               <div class="flex items-center justify-between mb-2">
                                                 <span class="text-sm font-medium text-gray-700">Score:</span>
@@ -824,22 +824,22 @@
                                             </div>
                                           </div>
                                         </div>
-                                        
+
                                         <!-- Navigation Arrows with Enhanced Design -->
                                         <button
                                           @click="previousActivity"
                                           :disabled="currentActivityIndex === 0"
                                           class="absolute left-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
-                                          :style="{ 
-                                            borderColor: selectedEnvelope.color, 
+                                          :style="{
+                                            borderColor: selectedEnvelope.color,
                                             borderWidth: '3px',
                                             boxShadow: `0 8px 32px ${selectedEnvelope.color}40, 0 0 0 0 ${selectedEnvelope.color}20`
                                           }"
                                         >
-                                          <i class="pi pi-chevron-left text-2xl transition-all duration-300 group-hover:scale-110" 
+                                          <i class="pi pi-chevron-left text-2xl transition-all duration-300 group-hover:scale-110"
                                              :style="{ color: selectedEnvelope.color }"></i>
                                           <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                               :style="{ 
+                                               :style="{
                                                  background: `radial-gradient(circle, ${selectedEnvelope.color}20 0%, transparent 70%)`,
                                                  animation: 'pulse 2s infinite'
                                                }">
@@ -849,16 +849,16 @@
                                           @click="nextActivity"
                                           :disabled="currentActivityIndex >= currentTabActivities.length - 1"
                                           class="absolute right-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
-                                          :style="{ 
-                                            borderColor: selectedEnvelope.color, 
+                                          :style="{
+                                            borderColor: selectedEnvelope.color,
                                             borderWidth: '3px',
                                             boxShadow: `0 8px 32px ${selectedEnvelope.color}40, 0 0 0 0 ${selectedEnvelope.color}20`
                                           }"
                                         >
-                                          <i class="pi pi-chevron-right text-2xl transition-all duration-300 group-hover:scale-110" 
+                                          <i class="pi pi-chevron-right text-2xl transition-all duration-300 group-hover:scale-110"
                                              :style="{ color: selectedEnvelope.color }"></i>
                                           <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                               :style="{ 
+                                               :style="{
                                                  background: `radial-gradient(circle, ${selectedEnvelope.color}20 0%, transparent 70%)`,
                                                  animation: 'pulse 2s infinite'
                                                }">
@@ -911,8 +911,8 @@
                                 <!-- Table Body -->
                                 <div class="divide-y divide-gray-200">
                                     <!-- Student Rows - Clickable -->
-                                    <div 
-                                        v-for="student in portfolioStudents" 
+                                    <div
+                                        v-for="student in portfolioStudents"
                                         :key="student.id"
                                         @click="viewStudentEnvelope(student)"
                                         class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150 cursor-pointer"
@@ -1040,7 +1040,7 @@
                                     <i class="pi pi-users text-blue-500 text-2xl"></i>
                                 </div>
                             </div>
-                            
+
                             <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-500">
                                 <div class="flex items-center justify-between">
                                     <div>
@@ -1105,7 +1105,7 @@
                                             <p class="text-xs text-gray-500">{{ student.email }}</p>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- No Results -->
                                     <div v-if="filteredStudents.length === 0" class="text-center py-8">
                                         <i class="pi pi-search text-gray-400 text-3xl mb-3"></i>
@@ -1198,7 +1198,7 @@
                                         </span>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Right: Stacked Folder Icon -->
                                 <div class="relative w-24 h-24 flex-shrink-0">
                                     <div class="absolute inset-0 flex items-center justify-center">
@@ -1209,7 +1209,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Footer -->
                         <div class="border-t border-gray-100 px-6 py-3 bg-gray-50 flex items-center justify-between">
                             <div class="flex items-center gap-2 text-sm text-indigo-600 font-medium">
@@ -1367,7 +1367,7 @@
                         </p>
                     </div>
                 </div>
-                
+
                 <div class="space-y-2">
                     <div class="flex items-center justify-between py-2 border-b border-gray-200">
                         <span class="text-sm font-medium text-gray-700">Activity Title:</span>
@@ -1381,8 +1381,8 @@
                         <span class="text-sm font-medium text-gray-700">Status:</span>
                         <span :class="[
                             'text-sm font-medium px-2 py-1 rounded',
-                            deleteActivityData.is_published 
-                                ? 'bg-green-100 text-green-800' 
+                            deleteActivityData.is_published
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-gray-100 text-gray-800'
                         ]">
                             {{ deleteActivityData.is_published ? 'Published' : 'Draft' }}
@@ -1396,13 +1396,13 @@
                         class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                         Cancel
                     </button>
-                    <button 
+                    <button
                         @click="confirmDeleteActivity"
                         :disabled="isDeletingActivity"
                         :class="[
                             'px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2',
-                            isDeletingActivity 
-                                ? 'bg-gray-400 cursor-not-allowed' 
+                            isDeletingActivity
+                                ? 'bg-gray-400 cursor-not-allowed'
                                 : 'bg-red-600 hover:bg-red-700'
                         ]"
                     >
@@ -1482,27 +1482,27 @@
                 <div class="bg-white rounded-xl shadow-lg overflow-hidden">
                     <div class="relative w-full aspect-[21/9]"
                          :style="{ backgroundColor: selectedEnvelope.color }">
-                        
+
                         <!-- Pattern Overlay -->
-                        <div v-if="selectedEnvelope.pattern === 'dots'" 
+                        <div v-if="selectedEnvelope.pattern === 'dots'"
                              class="absolute inset-0 opacity-20"
                              style="background-image: radial-gradient(circle, white 2px, transparent 2px); background-size: 20px 20px;">
                         </div>
-                        <div v-else-if="selectedEnvelope.pattern === 'lines'" 
+                        <div v-else-if="selectedEnvelope.pattern === 'lines'"
                              class="absolute inset-0 opacity-20"
                              style="background-image: repeating-linear-gradient(45deg, white 0, white 2px, transparent 2px, transparent 10px);">
                         </div>
-                        <div v-else-if="selectedEnvelope.pattern === 'grid'" 
+                        <div v-else-if="selectedEnvelope.pattern === 'grid'"
                              class="absolute inset-0 opacity-20"
                              style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                         </div>
 
                         <!-- Envelope Flap -->
                         <div class="absolute top-0 left-0 right-0 h-1/4 border-b-4 border-white/30"
-                             :style="{ 
+                             :style="{
                                  background: `linear-gradient(180deg, ${selectedEnvelope.color} 0%, ${adjustBrightness(selectedEnvelope.color, -20)} 100%)`
                              }">
-                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0 
+                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0
                                         border-l-[150px] border-r-[150px] border-t-[80px] border-l-transparent border-r-transparent"
                                  :style="{ borderTopColor: adjustBrightness(selectedEnvelope.color, -20) }">
                             </div>
@@ -1599,7 +1599,7 @@
                     <!-- Left Column: Activity Area -->
                     <div class="space-y-2.5">
                         <h3 class="text-base font-semibold text-gray-900 mb-2">Activity Details</h3>
-                        
+
                         <div>
                             <label for="activityType" class="block text-xs font-medium text-gray-700 mb-0.5">Activity Type</label>
                             <Dropdown
@@ -1676,7 +1676,7 @@
                             >
                         </div>
                     </div>
-                    
+
                     <!-- Right Column: Scoring Criteria -->
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
@@ -1692,7 +1692,7 @@
                                 Add Criterion
                             </button>
                         </div>
-                        
+
                         <!-- Criteria List -->
                         <div class="space-y-2.5 max-h-96 overflow-y-auto pr-2">
                             <div
@@ -1711,7 +1711,7 @@
                                         required
                                         :disabled="criterion.isCreated && !criterion.isEditing"
                                         class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        :class="{ 
+                                        :class="{
                                             'border-red-300': !criterion.name && !criterion.isCreated,
                                             'bg-gray-50 cursor-not-allowed': criterion.isCreated && !criterion.isEditing
                                         }"
@@ -1725,13 +1725,13 @@
                                         required
                                         :disabled="criterion.isCreated && !criterion.isEditing"
                                         class="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
-                                        :class="{ 
+                                        :class="{
                                             'border-red-300': (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined) && !criterion.isCreated,
                                             'bg-gray-50 cursor-not-allowed': criterion.isCreated && !criterion.isEditing
                                         }"
                                     />
                                     <span class="text-xs text-gray-500 font-medium">pts</span>
-                                    
+
                                     <!-- Create Button (only for new criteria) -->
                                     <button
                                         v-if="!criterion.isCreated"
@@ -1741,7 +1741,7 @@
                                     >
                                         Create
                                     </button>
-                                    
+
                                     <!-- Remove Button (only for new criteria) -->
                                     <button
                                         v-if="!criterion.isCreated"
@@ -1751,7 +1751,7 @@
                                     >
                                         Remove
                                     </button>
-                                    
+
                                     <!-- Update Button (only for created criteria not being edited) -->
                                     <button
                                         v-if="criterion.isCreated && !criterion.isEditing"
@@ -1761,7 +1761,7 @@
                                     >
                                         Update
                                     </button>
-                                    
+
                                     <!-- Confirm Button (only when editing) -->
                                     <button
                                         v-if="criterion.isCreated && criterion.isEditing"
@@ -1771,7 +1771,7 @@
                                     >
                                         Confirm
                                     </button>
-                                    
+
                                     <!-- Cancel Button (only when editing) -->
                                     <button
                                         v-if="criterion.isCreated && criterion.isEditing"
@@ -1781,7 +1781,7 @@
                                     >
                                         Cancel
                                     </button>
-                                    
+
                                     <!-- Delete Button (only for created criteria not being edited) -->
                                     <button
                                         v-if="criterion.isCreated && !criterion.isEditing"
@@ -1795,7 +1795,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Total Score Display -->
                         <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
                             <div class="flex items-center justify-between">
@@ -1838,7 +1838,7 @@
                     <!-- Left Column: Activity Details -->
                     <div class="space-y-2.5">
                         <h3 class="text-base font-semibold text-gray-900 mb-2">Activity Details</h3>
-                        
+
                         <div>
                             <label for="editActivityType" class="block text-xs font-medium text-gray-700 mb-0.5">
                                 Activity Type <span class="text-red-500">*</span>
@@ -1914,7 +1914,7 @@
                             >
                         </div>
                     </div>
-                    
+
                     <!-- Right Column: Scoring Criteria -->
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
@@ -1930,7 +1930,7 @@
                                 Add Criterion
                             </button>
                         </div>
-                        
+
                         <!-- Criteria List -->
                         <div class="space-y-2.5 max-h-96 overflow-y-auto pr-2">
                             <div
@@ -1955,7 +1955,7 @@
                                         class="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
                                     />
                                     <span class="text-xs text-gray-500 font-medium">pts</span>
-                                    
+
                                     <!-- Remove Button -->
                                     <button
                                         @click="editScoringCriteria.splice(index, 1)"
@@ -1967,7 +1967,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Total Points Display -->
                         <div v-if="editScoringCriteria.length > 0" class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
                             <div class="flex items-center justify-between">
@@ -2000,9 +2000,9 @@
         </Dialog>
 
         <!-- Submit Confirmation Dialog -->
-        <Dialog v-model:visible="showSubmitDialog" 
-                modal 
-                header="Publish Activity" 
+        <Dialog v-model:visible="showSubmitDialog"
+                modal
+                header="Publish Activity"
                 :style="{ width: '90%', maxWidth: '28rem' }">
             <div class="p-6">
                 <div class="flex items-start gap-4">
@@ -2014,7 +2014,7 @@
                     <div>
                         <h3 class="text-lg font-medium text-gray-900">Publish Activity to Students</h3>
                         <p class="mt-1 text-gray-600">
-                            Are you sure you want to publish "<span class="font-medium">{{ activityToSubmit?.title }}</span>"? 
+                            Are you sure you want to publish "<span class="font-medium">{{ activityToSubmit?.title }}</span>"?
                             Students will be notified and can start working on this activity.
                         </p>
                     </div>
@@ -2036,9 +2036,9 @@
         </Dialog>
 
         <!-- Retract Confirmation Dialog -->
-        <Dialog v-model:visible="showRetractDialog" 
-                modal 
-                header="Retract Activity" 
+        <Dialog v-model:visible="showRetractDialog"
+                modal
+                header="Retract Activity"
                 :style="{ width: '90%', maxWidth: '28rem' }">
             <div class="p-6">
                 <div class="flex items-start gap-4">
@@ -2050,7 +2050,7 @@
                     <div>
                         <h3 class="text-lg font-medium text-gray-900">Retract Activity from Students</h3>
                         <p class="mt-1 text-gray-600">
-                            Are you sure you want to retract "<span class="font-medium">{{ activityToRetract?.title }}</span>"? 
+                            Are you sure you want to retract "<span class="font-medium">{{ activityToRetract?.title }}</span>"?
                             Students will no longer be able to see or submit this activity. You can publish it again later.
                         </p>
                     </div>
@@ -2072,9 +2072,9 @@
         </Dialog>
 
         <!-- Delete Confirmation Dialog -->
-        <Dialog v-model:visible="showDeleteDialog" 
-                modal 
-                header="Confirm Deletion" 
+        <Dialog v-model:visible="showDeleteDialog"
+                modal
+                header="Confirm Deletion"
                 :style="{ width: '90%', maxWidth: '28rem' }">
             <div class="p-6">
                 <div class="flex items-start gap-4">
@@ -2086,7 +2086,7 @@
                     <div>
                         <h3 class="text-lg font-medium text-gray-900">Delete Activity Permanently</h3>
                         <p class="mt-1 text-gray-600">
-                            Are you sure you want to delete "<span class="font-medium">{{ activityToDelete.activity?.title }}</span>"? 
+                            Are you sure you want to delete "<span class="font-medium">{{ activityToDelete.activity?.title }}</span>"?
                             This will permanently delete the activity and all associated student submissions. This action cannot be undone.
                         </p>
                     </div>
@@ -2106,7 +2106,7 @@
                 </div>
             </template>
         </Dialog>
-        
+
         <!-- Archive Toast -->
         <div v-if="showArchiveToast" class="fixed bottom-4 right-4 z-[9999]">
             <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden w-80">
@@ -2133,7 +2133,7 @@
                     </div>
                 </div>
                 <div class="bg-gray-100 h-1 w-full">
-                    <div class="bg-amber-500 h-full transition-all duration-5000 ease-linear" 
+                    <div class="bg-amber-500 h-full transition-all duration-5000 ease-linear"
                          :class="{'w-0': !showArchiveToast, 'w-full': showArchiveToast}"
                          style="transition-duration: 5s;"></div>
                 </div>
@@ -2166,7 +2166,7 @@ const { showSuccess, showError, showInfo, showWarning } = useToast();
 const navigateToActivityOutputs = (activity, index) => {
     console.log('🚀 Navigating to outputs with activity:', activity);
     console.log('📊 Scoring criteria:', activity.scoringCriteria);
-    
+
     // Store the selected activity for the outputs page
     localStorage.setItem('selected_activity', JSON.stringify({
         id: activity.id, // Use the actual database ID
@@ -2179,7 +2179,7 @@ const navigateToActivityOutputs = (activity, index) => {
         subject: selectedSubject.value || 'General',
         scoringCriteria: activity.scoringCriteria // Use camelCase
     }));
-    
+
     // Navigate to outputs page
     emit('navigate', 'TeacherOutputs');
 };
@@ -2191,7 +2191,7 @@ const navigateToProgress = () => {
         className: className.value,
         subject: selectedSubject.value || 'General'
     }));
-    
+
     // Navigate to special progress page
     emit('navigate', 'TeacherSprogress');
 };
@@ -2280,7 +2280,7 @@ const filteredStudents = computed(() => {
     if (!studentSearchQuery.value.trim()) {
         return classroomStudents.value;
     }
-    
+
     const query = studentSearchQuery.value.toLowerCase().trim();
     return classroomStudents.value.filter(student => {
         const name = (student.name || '').toLowerCase();
@@ -2306,15 +2306,15 @@ const isActivityFormValid = computed(() => {
     const hasTitle = newActivity.value.title && newActivity.value.title.trim() !== '';
     const hasDueDate = newActivity.value.dueDate && newActivity.value.dueDate.trim() !== '';
     const hasDueTime = newActivity.value.dueTime && newActivity.value.dueTime.trim() !== '';
-    
+
     // Check if at least one criterion is created with valid points
-    const hasValidCriteria = savedCriteria.value.some(c => 
-        c.isCreated && 
-        c.name && 
-        c.name.trim() !== '' && 
+    const hasValidCriteria = savedCriteria.value.some(c =>
+        c.isCreated &&
+        c.name &&
+        c.name.trim() !== '' &&
         c.maxScore > 0
     );
-    
+
     return hasTitle && hasDueDate && hasDueTime && hasValidCriteria;
 });
 
@@ -2343,7 +2343,7 @@ const createNewFolder = async () => {
 
             showNewFolderDialog.value = false;
             newFolder.value = { title: '', description: '' };
-            
+
             // Broadcast folder creation event to other tabs/windows
             const folderEvent = new CustomEvent('folderCreated', {
                 detail: {
@@ -2353,33 +2353,33 @@ const createNewFolder = async () => {
                 }
             });
             window.dispatchEvent(folderEvent);
-            
+
             // Also use localStorage for cross-tab communication
             localStorage.setItem('folder_created_trigger', JSON.stringify({
                 folderId: response.data.id,
                 folderName: response.data.name,
                 timestamp: Date.now()
             }));
-            
+
             console.log('📢 Broadcasted folder creation event');
-            
+
             // Show success message
             showSuccess('Portfolio folder created successfully!', 'Folder Created');
         }
     } catch (error) {
         console.error('Error creating folder:', error);
         console.error('Error response:', error.response?.data);
-        
+
         // Show detailed error message
         const errorMsg = error.response?.data?.error || error.message || 'Failed to create folder';
         const errorDetail = error.response?.data?.detail || '';
-        
+
         if (errorDetail) {
             showError(`${errorMsg}\n\n${errorDetail}`, 'Failed to Create Folder');
         } else {
             showError(errorMsg, 'Failed to Create Folder');
         }
-        
+
         // If authentication failed, try to re-authenticate
         if (error.response?.status === 401) {
             console.log('Authentication failed, attempting to re-authenticate...');
@@ -2411,30 +2411,30 @@ const openUpdateFolderDialog = (folder) => {
 // Update folder
 const updateFolder = async () => {
     if (!updateFolderData.value.title) return;
-    
+
     try {
         console.log('Updating folder:', updateFolderData.value);
-        
+
         const response = await axios.put(`/api/portfolio/folders/${updateFolderData.value.id}/`, {
             name: updateFolderData.value.title,
             description: updateFolderData.value.description || ''
         });
-        
+
         if (response.data) {
             console.log('Folder updated successfully:', response.data);
-            
+
             // Update the folder in the list
             const folderIndex = subjectFolders.value.findIndex(f => f.id === updateFolderData.value.id);
             if (folderIndex !== -1) {
                 subjectFolders.value[folderIndex].name = response.data.name;
                 subjectFolders.value[folderIndex].description = response.data.description || '';
             }
-            
+
             // If we're currently viewing this folder's activities, update the selected subject name
             if (selectedFolderId.value === updateFolderData.value.id) {
                 selectedSubject.value = response.data.name;
             }
-            
+
             // Broadcast folder update event to other tabs/windows
             const folderEvent = new CustomEvent('folderUpdated', {
                 detail: {
@@ -2444,16 +2444,16 @@ const updateFolder = async () => {
                 }
             });
             window.dispatchEvent(folderEvent);
-            
+
             // Also use localStorage for cross-tab communication
             localStorage.setItem('folder_updated_trigger', JSON.stringify({
                 folderId: updateFolderData.value.id,
                 folderName: response.data.name,
                 timestamp: Date.now()
             }));
-            
+
             console.log('📢 Broadcasted folder update event');
-            
+
             showUpdateFolderDialog.value = false;
             updateFolderData.value = { id: null, title: '', description: '' };
             showSuccess('The change is reflected in the database and for all students.', 'Folder Updated');
@@ -2461,10 +2461,10 @@ const updateFolder = async () => {
     } catch (error) {
         console.error('Error updating folder:', error);
         console.error('Error details:', error.response?.data);
-        
+
         const errorMsg = error.response?.data?.error || error.message;
         const errorDetail = error.response?.data?.detail || '';
-        
+
         if (errorDetail) {
             showError(`${errorMsg}\n\n${errorDetail}`, 'Failed to Update Folder');
         } else {
@@ -2481,7 +2481,7 @@ const openDropFolderDialog = (folder) => {
         activeFolderMenuIndex.value = null;
         return;
     }
-    
+
     dropFolderData.value = {
         id: folder.id,
         name: folder.name,
@@ -2495,15 +2495,15 @@ const openDropFolderDialog = (folder) => {
 const dropFolder = async () => {
     try {
         console.log('Dropping folder:', dropFolderData.value);
-        
+
         // Delete folder from database (only if it has no activities)
         const response = await axios.delete(`/api/portfolio/folders/${dropFolderData.value.id}/`);
-        
+
         console.log('Folder dropped successfully:', response.data);
-        
+
         // Remove the folder from the list
         subjectFolders.value = subjectFolders.value.filter(f => f.id !== dropFolderData.value.id);
-        
+
         // If we're currently viewing this folder's activities, go back to folder view
         if (selectedFolderId.value === dropFolderData.value.id) {
             showingActivities.value = false;
@@ -2511,7 +2511,7 @@ const dropFolder = async () => {
             selectedFolderId.value = null;
             activities.value = [];
         }
-        
+
         // Broadcast folder deletion event to other tabs/windows
         const folderEvent = new CustomEvent('folderDeleted', {
             detail: {
@@ -2521,35 +2521,35 @@ const dropFolder = async () => {
             }
         });
         window.dispatchEvent(folderEvent);
-        
+
         // Also use localStorage for cross-tab communication
         localStorage.setItem('folder_deleted_trigger', JSON.stringify({
             folderId: dropFolderData.value.id,
             folderName: dropFolderData.value.name,
             timestamp: Date.now()
         }));
-        
+
         console.log('📢 Broadcasted folder deletion event');
-        
+
         showDropFolderDialog.value = false;
         dropFolderData.value = { id: null, name: '', items: 0 };
-        
+
         showSuccess('Portfolio folder has been permanently deleted.', 'Folder Deleted');
     } catch (error) {
         console.error('Error dropping folder:', error);
         console.error('Error details:', error.response?.data);
-        
+
         // Get error message from backend
         const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
         const errorDetail = error.response?.data?.detail || '';
-        
+
         // Show detailed error message
         if (errorDetail) {
             showError(`${errorMsg}\n\n${errorDetail}`, 'Failed to Delete Folder');
         } else {
             showError(errorMsg, 'Failed to Delete Folder');
         }
-        
+
         // Close the dialog
         showDropFolderDialog.value = false;
     }
@@ -2572,27 +2572,27 @@ const confirmDeleteActivity = async () => {
     try {
         isDeletingActivity.value = true;
         console.log('Deleting activity:', deleteActivityData.value);
-        
+
         // Delete activity from database
         const response = await axios.delete(`/api/activities/${deleteActivityData.value.id}/`);
-        
+
         console.log('Activity deleted successfully:', response.data);
-        
+
         // Remove the activity from the list
         activities.value = activities.value.filter(a => a.id !== deleteActivityData.value.id);
-        
+
         // Close dialog and reset data
         showDeleteActivityDialog.value = false;
         deleteActivityData.value = { id: null, title: '', type: '', is_published: false, index: null };
-        
+
         showSuccess('Activity and all related submissions have been permanently deleted.', 'Activity Deleted');
     } catch (error) {
         console.error('Error deleting activity:', error);
         console.error('Error details:', error.response?.data);
-        
+
         // Get error message from backend
         const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
-        
+
         showError(errorMsg, 'Failed to Delete Activity');
     } finally {
         isDeletingActivity.value = false;
@@ -2609,9 +2609,9 @@ const loadPortfolioFolders = async () => {
     isLoadingFolders.value = true;
     try {
         const response = await axios.get('/api/portfolio/folders/');
-        
+
         console.log('API Response:', response.data); // Debug log
-        
+
         if (response.data && Array.isArray(response.data)) {
             subjectFolders.value = response.data.map(folder => ({
                 id: folder.id,
@@ -2640,82 +2640,82 @@ const addCriterion = () => {
 // Create a criterion (validates and marks as created)
 const createCriterion = (index) => {
     const criterion = savedCriteria.value[index];
-    
+
     // Validate name
     if (!criterion.name || !criterion.name.trim()) {
         showWarning('Criterion name is required', 'Invalid Criterion');
         return;
     }
-    
+
     // Validate score - must be a number and required
     if (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined || isNaN(criterion.maxScore)) {
         showWarning('Score level is required', 'Invalid Score');
         return;
     }
-    
+
     if (criterion.maxScore <= 0) {
         showWarning('Score must be greater than 0', 'Invalid Score');
         return;
     }
-    
+
     // Mark as created
     criterion.isCreated = true;
-    
+
     console.log('Criterion created:', criterion);
 };
 
 // Enable editing for a created criterion
 const enableEdit = (index) => {
     const criterion = savedCriteria.value[index];
-    
+
     // Save original values for cancel
     criterion.originalName = criterion.name;
     criterion.originalScore = criterion.maxScore;
-    
+
     // Enable editing mode
     criterion.isEditing = true;
-    
+
     console.log('Criterion edit enabled:', criterion);
 };
 
 // Confirm edit changes
 const confirmEdit = (index) => {
     const criterion = savedCriteria.value[index];
-    
+
     // Validate name
     if (!criterion.name || !criterion.name.trim()) {
         showWarning('Criterion name is required', 'Invalid Criterion');
         return;
     }
-    
+
     // Validate score - must be a number and required
     if (criterion.maxScore === '' || criterion.maxScore === null || criterion.maxScore === undefined || isNaN(criterion.maxScore)) {
         showWarning('Score level is required', 'Invalid Score');
         return;
     }
-    
+
     if (criterion.maxScore <= 0) {
         showWarning('Score must be greater than 0', 'Invalid Score');
         return;
     }
-    
+
     // Disable editing mode
     criterion.isEditing = false;
-    
+
     console.log('Criterion updated:', criterion);
 };
 
 // Cancel edit changes
 const cancelEdit = (index) => {
     const criterion = savedCriteria.value[index];
-    
+
     // Restore original values
     criterion.name = criterion.originalName;
     criterion.maxScore = criterion.originalScore;
-    
+
     // Disable editing mode
     criterion.isEditing = false;
-    
+
     console.log('Edit cancelled:', criterion);
 };
 
@@ -2756,13 +2756,13 @@ const getCurrentTime = () => {
 // Helper function to check if activity is past due or too close to deadline
 const isActivityPastDue = (activity) => {
     if (!activity.due_date) return false;
-    
+
     // Configuration: Minimum hours before due date/time to allow editing (must match backend)
     const EDIT_CUTOFF_HOURS = 3;
-    
+
     // Parse due date
     const dueDate = new Date(activity.due_date);
-    
+
     // Combine date and time
     let dueDatetime;
     if (activity.due_time) {
@@ -2774,41 +2774,41 @@ const isActivityPastDue = (activity) => {
         dueDatetime = new Date(dueDate);
         dueDatetime.setHours(23, 59, 59, 999);
     }
-    
+
     // Get current time
     const now = new Date();
-    
+
     // Calculate time remaining in milliseconds
     const timeRemaining = dueDatetime - now;
-    
+
     // If deadline has passed
     if (timeRemaining <= 0) {
         return true;
     }
-    
+
     // If less than EDIT_CUTOFF_HOURS remaining
     const cutoffMilliseconds = EDIT_CUTOFF_HOURS * 60 * 60 * 1000;
     if (timeRemaining < cutoffMilliseconds) {
         return true;
     }
-    
+
     return false;
 };
 
 // Helper function to get minimum time for time input (only if date is today)
 const getMinTime = () => {
     if (!newActivity.value.dueDate) return '';
-    
+
     const selectedDate = new Date(newActivity.value.dueDate);
     const today = new Date();
     selectedDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
-    
+
     // If selected date is today, return current time as minimum
     if (selectedDate.getTime() === today.getTime()) {
         return getCurrentTime();
     }
-    
+
     // If future date, no minimum time restriction
     return '';
 };
@@ -2816,17 +2816,17 @@ const getMinTime = () => {
 // Helper function to get minimum time for edit dialog
 const getMinTimeForEdit = () => {
     if (!editActivityData.value.dueDate) return '';
-    
+
     const selectedDate = new Date(editActivityData.value.dueDate);
     const today = new Date();
     selectedDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
-    
+
     // If selected date is today, return current time as minimum
     if (selectedDate.getTime() === today.getTime()) {
         return getCurrentTime();
     }
-    
+
     // If future date, no minimum time restriction
     return '';
 };
@@ -2838,25 +2838,25 @@ const addNewActivity = async () => {
         showWarning('Please select an activity type.', 'Activity Type Required');
         return;
     }
-    
+
     // Validate Activity Title
     if (!newActivity.value.title || !newActivity.value.title.trim()) {
         showWarning('Please enter a title for the activity.', 'Activity Title Required');
         return;
     }
-    
+
     // Validate Due Date
     if (!newActivity.value.dueDate) {
         showWarning('Please select a due date.', 'Due Date Required');
         return;
     }
-    
+
     // Validate Due Time
     if (!newActivity.value.dueTime || !newActivity.value.dueTime.trim()) {
         showWarning('Please select a due time.', 'Due Time Required');
         return;
     }
-    
+
     // Validate Scoring Criteria
     const createdCriteria = savedCriteria.value.filter(c => c.isCreated);
     if (createdCriteria.length === 0) {
@@ -2880,18 +2880,18 @@ const addNewActivity = async () => {
             if (!isNaN(dateObj.getTime())) {
                 formattedDueDate = dateObj.toISOString().split('T')[0];
             }
-            
+
             // Validate that the date is not in the past
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const selectedDate = new Date(formattedDueDate);
             selectedDate.setHours(0, 0, 0, 0);
-            
+
             if (selectedDate < today) {
                 showWarning('Please select today or a future date.', 'Invalid Due Date');
                 return;
             }
-            
+
             // If the date is today, validate the time is not in the past
             if (selectedDate.getTime() === today.getTime()) {
                 const currentTime = getCurrentTime();
@@ -2930,7 +2930,7 @@ const addNewActivity = async () => {
 
         if (response.data) {
             console.log('Activity created successfully:', response.data);
-            
+
             // Update the items count
             currentFolder.items += 1;
 
@@ -2971,29 +2971,29 @@ const currentUser = ref({
 // Function to handle class change event
 const handleClassChange = async (event) => {
     console.log('🔄 Class changed in Room, reloading data...', event.detail);
-    
+
     // Update selected class in localStorage (already done by MainLayout, but ensure it's set)
     localStorage.setItem('digiportal_selected_class', JSON.stringify(event.detail));
-    
+
     // Update local state
     selectedClass.value = event.detail;
     className.value = event.detail.name;
-    
+
     // Clear current view state - go back to folders view
     showingActivities.value = false;
     selectedSubject.value = '';
     selectedFolderId.value = null;
     activities.value = [];
     selectedActivity.value = null;
-    
+
     // Clear saved view state - this ensures clicking a class always shows folders
     localStorage.removeItem('teacher_current_view');
-    
+
     console.log('📂 Clearing activities view, returning to folders');
-    
+
     // Reload folders for the new class
     await loadPortfolioFolders();
-    
+
     console.log('✅ Folders reloaded for class:', event.detail.name);
 };
 
@@ -3004,7 +3004,7 @@ onMounted(() => {
         selectedClass.value = JSON.parse(savedClass);
         className.value = selectedClass.value.name;
     }
-    
+
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
 });
@@ -3074,15 +3074,15 @@ const activePortfolioTab = ref('scored'); // 'scored' or 'missing'
 
 // Computed properties for filtered activities
 const scoredActivities = computed(() => {
-    return studentActivities.value.filter(activity => 
-        activity.submission_status === 'scored' || 
-        activity.submission_status === 'scored_late' || 
+    return studentActivities.value.filter(activity =>
+        activity.submission_status === 'scored' ||
+        activity.submission_status === 'scored_late' ||
         activity.submission_status === 'scored_resubmitted'
     );
 });
 
 const missingCompiledActivities = computed(() => {
-    return studentActivities.value.filter(activity => 
+    return studentActivities.value.filter(activity =>
         activity.submission_status === 'submitted_compilation'
     );
 });
@@ -3111,7 +3111,7 @@ watch(isSidebarCollapsed, (newValue) => {
 // Toggle activity action menu
 const toggleActivityMenu = (event, activity, index) => {
     event.stopPropagation();
-    
+
     if (activeMenuIndex.value === index) {
         activeMenuIndex.value = null;
     } else {
@@ -3184,13 +3184,13 @@ const authenticateWithBackend = async () => {
                     // Logout first
                     await axios.post('/logout/');
                     console.log('Logged out from', checkResponse.data.user?.role);
-                    
+
                     // Refresh CSRF token after logout
                     const csrfToken = getCsrfToken();
                     if (csrfToken) {
                         axios.defaults.headers.common['X-CSRFToken'] = csrfToken;
                     }
-                    
+
                     // Then login as teacher
                     const authResponse = await axios.post('/api/validate-session/', {
                         role: 'teacher'
@@ -3236,17 +3236,17 @@ const authenticateWithBackend = async () => {
 const checkPortfolioCompilationStatus = async () => {
     try {
         const classNameValue = props.className || className.value;
-        
+
         if (!classNameValue) {
             return;
         }
-        
+
         const response = await axios.get(`/api/notifications/portfolio-compilation/${encodeURIComponent(classNameValue)}/`);
-        
+
         if (response.data && response.data.compilation_requested) {
             portfolioCompilationActive.value = true;
             console.log('✅ Portfolio compilation is active for this class');
-            
+
             // Fetch portfolio envelopes if compilation is active
             await fetchPortfolioEnvelopes();
         } else {
@@ -3264,7 +3264,7 @@ const checkEditDeadlines = async () => {
     try {
         console.log('🔔 Checking for activities approaching edit deadline...');
         const response = await axios.get('/api/notifications/check-edit-deadlines/');
-        
+
         if (response.data && response.data.warnings_sent > 0) {
             console.log(`✅ ${response.data.warnings_sent} edit deadline warning(s) sent:`, response.data.activities_warned);
         } else {
@@ -3283,7 +3283,7 @@ const viewStudentEnvelope = async (student) => {
     currentActivityIndex.value = 0; // Reset to first activity
     activePortfolioTab.value = 'scored'; // Reset to scored tab
     console.log('Viewing envelope for:', student.name);
-    
+
     // Fetch student activities immediately
     await fetchStudentActivities(student.student_id);
 };
@@ -3297,10 +3297,10 @@ const openEnvelope = () => {
 
 // Navigate activities
 const nextActivity = () => {
-    const maxIndex = activePortfolioTab.value === 'scored' 
-        ? scoredActivities.value.length - 1 
+    const maxIndex = activePortfolioTab.value === 'scored'
+        ? scoredActivities.value.length - 1
         : missingCompiledActivities.value.length - 1;
-    
+
     if (currentActivityIndex.value < maxIndex) {
         currentActivityIndex.value++;
     }
@@ -3316,16 +3316,16 @@ const previousActivity = () => {
 const fetchStudentActivities = async (studentId) => {
     try {
         const classNameValue = props.className || className.value;
-        
+
         if (!classNameValue || !studentId) {
             return;
         }
-        
+
         console.log(`📚 Fetching activities for student ID: ${studentId}`);
-        
+
         // Fetch activities for specific student (teacher view)
         const response = await axios.get(`/api/portfolio-envelope/teacher-activities/${encodeURIComponent(classNameValue)}/${studentId}/`);
-        
+
         if (response.data) {
             // Use submitted_activities to show only submitted work
             studentActivities.value = response.data.submitted_activities || [];
@@ -3357,15 +3357,15 @@ const adjustBrightness = (color, percent) => {
 const fetchPortfolioEnvelopes = async () => {
     try {
         const classNameValue = props.className || className.value;
-        
+
         if (!classNameValue) {
             return;
         }
-        
+
         console.log('📋 Fetching portfolio envelopes for:', classNameValue);
-        
+
         const response = await axios.get(`/api/portfolio-envelope/${encodeURIComponent(classNameValue)}/`);
-        
+
         if (response.data && response.data.envelopes) {
             portfolioStudents.value = response.data.envelopes.map(env => ({
                 id: env.id,
@@ -3380,7 +3380,7 @@ const fetchPortfolioEnvelopes = async () => {
                 pattern: env.pattern,
                 className: env.class_name || props.className || className.value
             }));
-            
+
             console.log(`✅ Loaded ${portfolioStudents.value.length} portfolio envelopes`);
         }
     } catch (error) {
@@ -3414,53 +3414,53 @@ onMounted(async () => {
     document.addEventListener('click', handleDocumentClick, true);
     document.addEventListener('click', handleClickOutside);
     document.addEventListener('click', closeFolderMenu);
-    
+
     // Authenticate with backend first, then load folders
     const authenticated = await authenticateWithBackend();
     if (authenticated) {
         await loadPortfolioFolders();
         await loadClassroomStudents();
-        
+
         // Check portfolio compilation status
         await checkPortfolioCompilationStatus();
-        
+
         // Check for activities approaching edit deadline
         await checkEditDeadlines();
-        
+
         // Check if returning from Outputs/Sprogress page to show activities list
         const returnContext = localStorage.getItem('return_to_activities');
         if (returnContext) {
             try {
                 const context = JSON.parse(returnContext);
                 console.log('Return context:', context);
-                
+
                 // Check if timestamp exists and is within 5 seconds (to prevent showing on refresh)
                 const isRecent = context.timestamp && (Date.now() - context.timestamp < 5000);
-                
+
                 if (!isRecent) {
                     console.log('⏰ Return context expired, clearing...');
                     localStorage.removeItem('return_to_activities');
                 } else {
                     console.log('Available folders:', subjectFolders.value);
-                    
+
                     if (context.showActivities && context.subject) {
                         // Find the folder for this subject
                         // First try exact match by folder name (for Outputs.vue)
                         let folder = subjectFolders.value.find(f => f.name === context.subject);
-                        
+
                         // If not found, try matching by class_name (for Sprogress.vue)
                         if (!folder) {
                             folder = subjectFolders.value.find(f => f.class_name === context.subject);
                         }
-                        
+
                         // If still not found, just use the first folder for this class
                         if (!folder && subjectFolders.value.length > 0) {
                             console.log('⚠️ No exact match, using first folder');
                             folder = subjectFolders.value[0];
                         }
-                        
+
                         console.log('✅ Found folder:', folder);
-                        
+
                         if (folder) {
                             console.log('🎯 Showing activities for folder:', folder.name, 'ID:', folder.id);
                             // Use folder.name (not context.subject) as the first parameter
@@ -3478,25 +3478,25 @@ onMounted(async () => {
                 localStorage.removeItem('return_to_activities');
             }
         }
-        
+
         // Check for regular view state restoration (for page refresh)
         const savedView = localStorage.getItem('teacher_current_view');
         if (savedView && !returnContext) {
             try {
                 const viewState = JSON.parse(savedView);
                 console.log('🔄 Restoring teacher view state:', viewState);
-                
+
                 if (viewState.showingActivities && viewState.selectedFolderId) {
                     // Find the folder by ID
                     const folder = subjectFolders.value.find(f => f.id === viewState.selectedFolderId);
-                    
+
                     if (folder) {
                         console.log('✅ Restoring activities view for folder:', folder.name);
                         // Restore the activities view
                         selectedSubject.value = viewState.selectedSubject;
                         selectedFolderId.value = viewState.selectedFolderId;
                         showingActivities.value = true;
-                        
+
                         // Load activities
                         await loadActivities(viewState.selectedFolderId);
                         console.log('✅ Activities view restored');
@@ -3513,22 +3513,22 @@ onMounted(async () => {
     } else {
         console.error('Failed to authenticate with backend');
     }
-    
+
     // Listen for folder created events (same tab)
     window.addEventListener('folderCreated', async (event) => {
         console.log('📢 Received folderCreated event in teacher view:', event.detail);
     });
-    
+
     // Listen for folder deleted events (same tab)
     window.addEventListener('folderDeleted', async (event) => {
         console.log('📢 Received folderDeleted event in teacher view:', event.detail);
     });
-    
+
     // Listen for folder updated events (same tab)
     window.addEventListener('folderUpdated', async (event) => {
         console.log('📢 Received folderUpdated event in teacher view:', event.detail);
     });
-    
+
     // Listen for storage events (cross-tab communication)
     window.addEventListener('storage', async (event) => {
         if (event.key === 'folder_created_trigger') {
@@ -3589,7 +3589,7 @@ const backToFolders = () => {
     selectedSubject.value = '';
     selectedFolderId.value = null;
     activities.value = [];
-    
+
     // Clear saved view state
     localStorage.removeItem('teacher_current_view');
     console.log('🗑️ Cleared teacher view state');
@@ -3600,7 +3600,7 @@ const showSubjectActivities = async (subject, folderId) => {
     selectedSubject.value = subject;
     selectedFolderId.value = folderId;
     showingActivities.value = true;
-    
+
     // Save view state to localStorage
     localStorage.setItem('teacher_current_view', JSON.stringify({
         showingActivities: true,
@@ -3608,7 +3608,7 @@ const showSubjectActivities = async (subject, folderId) => {
         selectedFolderId: folderId
     }));
     console.log('💾 Saved teacher view state: Activities for', subject);
-    
+
     // Load activities from database
     await loadActivities(folderId);
 };
@@ -3619,7 +3619,7 @@ const loadActivities = async (folderId) => {
     try {
         const response = await axios.get(`/api/portfolio/folders/${folderId}/activities/`);
         console.log('🔥 API Response for activities:', response.data);
-        
+
         if (response.data) {
             // Format activities for display
             activities.value = response.data.map(activity => {
@@ -3627,13 +3627,13 @@ const loadActivities = async (folderId) => {
                 console.log('📊 Raw scoring_criteria from API:', activity.scoring_criteria);
                 console.log('📊 Type:', typeof activity.scoring_criteria);
                 console.log('📊 Is Array:', Array.isArray(activity.scoring_criteria));
-                
+
                 // Parse scoring criteria if it exists
                 let scoringCriteria = [];
                 if (activity.scoring_criteria) {
                     try {
-                        scoringCriteria = typeof activity.scoring_criteria === 'string' 
-                            ? JSON.parse(activity.scoring_criteria) 
+                        scoringCriteria = typeof activity.scoring_criteria === 'string'
+                            ? JSON.parse(activity.scoring_criteria)
                             : activity.scoring_criteria;
                         console.log('✅ Parsed scoring criteria:', scoringCriteria);
                     } catch (error) {
@@ -3642,7 +3642,7 @@ const loadActivities = async (folderId) => {
                 } else {
                     console.log('⚠️ No scoring criteria found for activity:', activity.title);
                 }
-                
+
                 // Format due time if available
                 let formattedTime = '';
                 if (activity.due_time) {
@@ -3652,9 +3652,9 @@ const loadActivities = async (folderId) => {
                     const displayHour = hour % 12 || 12;
                     formattedTime = `${displayHour}:${minutes} ${ampm}`;
                 }
-                
+
                 console.log(`📌 Activity "${activity.title}" - is_published:`, activity.is_published, 'published_at:', activity.published_at);
-                
+
                 return {
                     id: activity.id,
                     type: activity.activity_type,
@@ -3688,19 +3688,19 @@ const loadActivities = async (folderId) => {
 // Handle edit activity
 const editActivity = (activity, index) => {
     closeMenu();
-    
+
     // Check if activity is past due or too close to deadline
     if (isActivityPastDue(activity)) {
         alert('Cannot edit activity within 3 hours of the deadline or after it has passed.');
         return;
     }
-    
+
     console.log('📝 Editing activity:', activity);
     console.log('📊 Activity scoring criteria:', activity.scoringCriteria);
-    
+
     // Find the activity type object that matches the current activity's type
     const activityType = activityTypes.value.find(type => type.value === activity.type) || null;
-    
+
     editActivityData.value = {
         id: activity.id,
         title: activity.title,
@@ -3709,7 +3709,7 @@ const editActivity = (activity, index) => {
         dueDate: activity.due_date,
         dueTime: activity.due_time || ''
     };
-    
+
     // Load scoring criteria if exists
     if (activity.scoringCriteria && activity.scoringCriteria.length > 0) {
         editScoringCriteria.value = activity.scoringCriteria.map(c => ({
@@ -3725,7 +3725,7 @@ const editActivity = (activity, index) => {
         editScoringCriteria.value = [];
         console.log('⚠️ No criteria found for this activity');
     }
-    
+
     showEditDialog.value = true;
 };
 
@@ -3753,22 +3753,22 @@ const handleDelete = async () => {
 const deleteActivity = async (activity, index) => {
     try {
         console.log('Deleting activity:', activity.id);
-        
+
         // Make API call to delete the activity
         const response = await axios.delete(`/api/activities/${activity.id}/`);
-        
+
         console.log('✅ Activity deleted:', response.data);
-        
+
         // Reload activities for the current folder
         if (selectedFolderId.value) {
             await loadActivities(selectedFolderId.value);
         }
-        
+
         showSuccess('Activity deleted successfully!', 'Activity Deleted');
-        
+
         // For now, just remove from local state
         activities.value.splice(index, 1);
-        
+
     } catch (error) {
         console.error('Error deleting activity:', error);
         showError('Failed to delete activity', 'Error');
@@ -3789,26 +3789,26 @@ const submitActivity = (activity, index) => {
 // Confirm submit activity
 const confirmSubmitActivity = async () => {
     if (!activityToSubmit.value) return;
-    
+
     try {
         const wasRetracted = activityToSubmit.value.is_published === false && activityToSubmit.value.published_at === null;
         console.log('Publishing activity:', activityToSubmit.value.id, wasRetracted ? '(Re-publishing retracted activity)' : '');
-        
+
         const response = await axios.post(`/api/activities/${activityToSubmit.value.id}/publish/`);
-        
+
         if (response.data) {
             console.log('✅ Activity published successfully:', response.data);
-            
+
             // Update the activity in the local list
             const activityIndex = activities.value.findIndex(a => a.id === activityToSubmit.value.id);
             if (activityIndex !== -1) {
                 activities.value[activityIndex].is_published = true;
                 activities.value[activityIndex].published_at = response.data.activity.published_at;
             }
-            
+
             showSubmitDialog.value = false;
             activityToSubmit.value = null;
-            
+
             if (wasRetracted) {
                 showSuccess('Students can now see this activity again.', 'Activity Re-Published');
             } else {
@@ -3828,13 +3828,13 @@ const activityToRetract = ref(null);
 // Retract activity (show confirmation dialog)
 const retractActivity = (activity, index) => {
     closeMenu();
-    
+
     // Check if activity is published
     if (!activity.is_published) {
         alert('This activity is not published yet.');
         return;
     }
-    
+
     activityToRetract.value = activity;
     showRetractDialog.value = true;
 };
@@ -3842,22 +3842,22 @@ const retractActivity = (activity, index) => {
 // Confirm retract activity
 const confirmRetractActivity = async () => {
     if (!activityToRetract.value) return;
-    
+
     try {
         console.log('Retracting activity:', activityToRetract.value.id);
-        
+
         const response = await axios.post(`/api/activities/${activityToRetract.value.id}/retract/`);
-        
+
         if (response.data) {
             console.log('✅ Activity retracted successfully:', response.data);
-            
+
             // Update the activity in the local list
             const activityIndex = activities.value.findIndex(a => a.id === activityToRetract.value.id);
             if (activityIndex !== -1) {
                 activities.value[activityIndex].is_published = false;
                 activities.value[activityIndex].published_at = null;
             }
-            
+
             showRetractDialog.value = false;
             activityToRetract.value = null;
             showSuccess('Students can no longer see this activity.', 'Activity Retracted');
@@ -3875,25 +3875,25 @@ const updateActivity = async () => {
         alert('Activity Type is required. Please select an activity type.');
         return;
     }
-    
+
     // Validate Activity Title
     if (!editActivityData.value.title || !editActivityData.value.title.trim()) {
         alert('Activity Title is required. Please enter a title for the activity.');
         return;
     }
-    
+
     // Validate Due Date
     if (!editActivityData.value.dueDate) {
         alert('Due Date is required. Please select a due date.');
         return;
     }
-    
+
     // Validate Due Time
     if (!editActivityData.value.dueTime || !editActivityData.value.dueTime.trim()) {
         alert('Due Time is required. Please select a due time.');
         return;
     }
-    
+
     // Validate Scoring Criteria
     const validCriteria = editScoringCriteria.value.filter(c => c.name && c.name.trim() && c.maxScore > 0);
     if (validCriteria.length === 0) {
@@ -3903,21 +3903,21 @@ const updateActivity = async () => {
 
     try {
         const activityId = editActivityData.value.id;
-        
+
         console.log('Updating activity:', activityId);
-        
+
         // Validate date and time
         if (editActivityData.value.dueDate) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const selectedDate = new Date(editActivityData.value.dueDate);
             selectedDate.setHours(0, 0, 0, 0);
-            
+
             if (selectedDate < today) {
                 alert('Due date cannot be in the past. Please select today or a future date.');
                 return;
             }
-            
+
             // If the date is today, validate the time is not in the past
             if (selectedDate.getTime() === today.getTime()) {
                 const currentTime = getCurrentTime();
@@ -3927,13 +3927,13 @@ const updateActivity = async () => {
                 }
             }
         }
-        
+
         // Prepare scoring criteria
         const scoringCriteria = validCriteria.map(c => ({
             name: c.name,
             maxScore: parseInt(c.maxScore)
         }));
-        
+
         // Make API call to update the activity
         const response = await axios.put(`/api/activities/${editActivityData.value.id}/`, {
             title: editActivityData.value.title,
@@ -3943,14 +3943,14 @@ const updateActivity = async () => {
             due_time: editActivityData.value.dueTime || null,
             scoring_criteria: JSON.stringify(scoringCriteria)
         });
-        
+
         console.log('✅ Activity updated:', response.data);
-        
+
         // Reload activities for the current folder
         if (selectedFolderId.value) {
             await loadActivities(selectedFolderId.value);
         }
-        
+
         showEditDialog.value = false;
         showSuccess('Activity updated successfully!', 'Activity Updated');
     } catch (error) {
@@ -3967,16 +3967,16 @@ let toastTimeout = null;
 // Handle archive activity
 const archiveActivity = (activity, index) => {
     closeMenu();
-    
+
     // Store the activity and its index for potential undo
     archivedActivity.value = { ...activity, originalIndex: index };
-    
+
     // Remove from the current list
     activities.value.splice(index, 1);
-    
+
     // Show toast with undo option
     showArchiveToast.value = true;
-    
+
     // Hide toast after 5 seconds
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => {
@@ -3995,15 +3995,15 @@ const undoArchive = () => {
     if (archivedActivity.value) {
         // Add the activity back to its original position
         activities.value.splice(
-            archivedActivity.value.originalIndex, 
-            0, 
+            archivedActivity.value.originalIndex,
+            0,
             archivedActivity.value
         );
-        
+
         // Hide toast and clear the archived activity
         showArchiveToast.value = false;
         archivedActivity.value = null;
-        
+
         if (toastTimeout) {
             clearTimeout(toastTimeout);
             toastTimeout = null;
@@ -4016,29 +4016,29 @@ const confirmPortfolioCompilation = async () => {
     try {
         // Close the dialog
         showPortfolioCompilationDialog.value = false;
-        
+
         // Get the class name from props
         const classNameValue = props.className || className.value;
-        
+
         if (!classNameValue) {
             alert('Class name not found');
             return;
         }
-        
+
         // Send notification to all students in this class
         const response = await axios.post('/api/notifications/portfolio-compilation/', {
             class_name: classNameValue
         });
-        
+
         console.log('✅ Portfolio compilation notification sent:', response.data);
-        
+
         // Set compilation as active
         portfolioCompilationActive.value = true;
-        
+
         // Show success message with details
         const studentsNotified = response.data.students_notified || 0;
         showSuccess(`Portfolio compilation request sent successfully! ${studentsNotified} student(s) have been notified.`, 'Notification Sent');
-        
+
     } catch (error) {
         console.error('❌ Error sending portfolio compilation notification:', error);
         const errorMsg = error.response?.data?.error || error.message;
@@ -4051,29 +4051,29 @@ const confirmDropPortfolioCompilation = async () => {
     try {
         // Close the dialog
         showDropCompilationDialog.value = false;
-        
+
         const classNameValue = props.className || className.value;
-        
+
         if (!classNameValue) {
             alert('Class name not found');
             return;
         }
-        
+
         // Delete the compilation request and notify students
         const response = await axios.delete(`/api/notifications/portfolio-compilation/${encodeURIComponent(classNameValue)}/`);
-        
+
         console.log('✅ Portfolio compilation dropped:', response.data);
-        
+
         // Set compilation as inactive and clear students list
         portfolioCompilationActive.value = false;
         portfolioStudents.value = [];
-        
+
         // Show success message
         const envelopesDeleted = response.data.envelopes_deleted || 0;
         const notificationsDeleted = response.data.notifications_deleted || 0;
         const studentsNotified = response.data.students_notified || 0;
         showSuccess(`Portfolio compilation deleted successfully. ${envelopesDeleted} envelope(s) deleted, ${notificationsDeleted} notification(s) removed, ${studentsNotified} student(s) notified.`, 'Compilation Deleted');
-        
+
     } catch (error) {
         console.error('❌ Error dropping portfolio compilation:', error);
         const errorMsg = error.response?.data?.error || error.message;
