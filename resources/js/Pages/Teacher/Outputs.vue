@@ -21,7 +21,7 @@ const loadActivityFromAPI = async (activityId) => {
         console.log('🔄 Reloading activity from API:', activityId);
         const response = await axios.get(`/api/activities/${activityId}/`);
         console.log('📥 API Response:', response.data);
-        
+
         // Parse scoring criteria if it's a string
         let scoringCriteria = [];
         if (response.data.scoring_criteria) {
@@ -34,7 +34,7 @@ const loadActivityFromAPI = async (activityId) => {
                 console.error('❌ Error parsing scoring criteria:', error);
             }
         }
-        
+
         // Update activity with fresh data from API
         activity.value = {
             ...activity.value,
@@ -44,7 +44,7 @@ const loadActivityFromAPI = async (activityId) => {
             dueDate: response.data.due_date,
             scoringCriteria: scoringCriteria
         };
-        
+
         console.log('✅ Activity updated from API:', activity.value);
     } catch (error) {
         console.error('❌ Error loading activity from API:', error);
@@ -54,10 +54,10 @@ const loadActivityFromAPI = async (activityId) => {
 // Function to handle class change event
 const handleClassChange = (event) => {
     console.log('🔄 Class changed in Outputs, clearing view state and navigating...', event.detail);
-    
+
     // Clear the teacher view state so Room shows folders view
     localStorage.removeItem('teacher_current_view');
-    
+
     // Navigate back to TeacherRoom when class is changed
     emit('navigate', 'TeacherRoom');
 };
@@ -67,12 +67,12 @@ onMounted(async () => {
     const savedActivity = localStorage.getItem('selected_activity');
     if (savedActivity) {
         const parsedActivity = JSON.parse(savedActivity);
-        
+
         console.log('📦 Raw saved activity from localStorage:', parsedActivity);
         console.log('📊 Raw scoring criteria:', parsedActivity.scoringCriteria);
         console.log('📊 Type:', typeof parsedActivity.scoringCriteria);
         console.log('📊 Is Array:', Array.isArray(parsedActivity.scoringCriteria));
-        
+
         activity.value = {
             title: parsedActivity.title,
             description: parsedActivity.description || 'View student submissions for this activity',
@@ -83,17 +83,17 @@ onMounted(async () => {
             subject: parsedActivity.subject  // Add subject field
         };
         console.log('✅ Loaded activity from localStorage:', activity.value);
-        
+
         // Reload fresh data from API to get any updates
         if (parsedActivity.id) {
             await loadActivityFromAPI(parsedActivity.id);
         }
     }
-    
+
     // Load submissions for this specific activity
     loadUnscoredSubmissions();
     loadScoredSubmissions();
-    
+
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
 });
@@ -145,7 +145,7 @@ const loadUnscoredSubmissions = async () => {
         if (response.data) {
             console.log('All unscored submissions:', response.data);
             console.log('Filtering by activity ID:', activity.value.id);
-            
+
             // Filter submissions by the current activity ID
             const filteredSubmissions = response.data.filter(submission => {
                 // Try both activity and activity_id fields
@@ -153,7 +153,7 @@ const loadUnscoredSubmissions = async () => {
                 console.log('Submission activity ID:', submissionActivityId, 'matches:', submissionActivityId === activity.value.id);
                 return submissionActivityId === activity.value.id;
             });
-            
+
             submissions.value = filteredSubmissions.map(submission => {
                 const submittedDate = new Date(submission.submitted_at);
                 const dateStr = submittedDate.toLocaleDateString('en-US', {
@@ -166,7 +166,7 @@ const loadUnscoredSubmissions = async () => {
                     minute: '2-digit',
                     hour12: true
                 });
-                
+
                 console.log('📊 Submission data:', {
                     id: submission.id,
                     has_file_path: !!submission.file_path,
@@ -174,7 +174,7 @@ const loadUnscoredSubmissions = async () => {
                     file_type: submission.file_type,
                     file_path_preview: submission.file_path?.substring(0, 100)
                 });
-                
+
                 return {
                     id: submission.id,
                     studentId: submission.student.id,
@@ -209,14 +209,14 @@ const loadScoredSubmissions = async () => {
         const response = await axios.get('/api/submissions/scored/');
         if (response.data) {
             console.log('All scored submissions:', response.data);
-            
+
             // Filter submissions by the current activity ID
             const filteredSubmissions = response.data.filter(submission => {
                 // Try both activity and activity_id fields
                 const submissionActivityId = submission.activity || submission.activity_id;
                 return submissionActivityId === activity.value.id;
             });
-            
+
             scoredSubmissionsData.value = filteredSubmissions.map(submission => {
                 const submittedDate = new Date(submission.scored_at || submission.submitted_at);
                 const dateStr = submittedDate.toLocaleDateString('en-US', {
@@ -229,7 +229,7 @@ const loadScoredSubmissions = async () => {
                     minute: '2-digit',
                     hour12: true
                 });
-                
+
                 return {
                     id: submission.id,
                     studentId: submission.student.id,
@@ -315,14 +315,14 @@ const viewSubmission = async (submission) => {
         has_file_path: !!submission.file_path,
         file_path_length: submission.file_path?.length
     });
-    
+
     // Use the submission data directly (it already has file_path and file_type)
     selectedSubmission.value = {
         ...submission,
         newRemark: '',
         rank: null
     };
-    
+
     showSubmissionDialog.value = true;
 };
 
@@ -337,12 +337,12 @@ const deleteRemarks = async () => {
         try {
             const submissionId = selectedSubmission.value.id;
             const remarkId = studentOutputs.value[submissionId]?.remarkId;
-            
+
             if (remarkId) {
                 await axios.delete(`/api/submissions/${submissionId}/remarks/${remarkId}/`);
                 console.log('Remark deleted successfully');
             }
-            
+
             // Update local state
             if (studentOutputs.value[submissionId]) {
                 studentOutputs.value[submissionId].remarks = '';
@@ -350,7 +350,7 @@ const deleteRemarks = async () => {
             }
             selectedSubmission.value.newRemark = '';
             isEditingRemarks.value = false;
-            
+
             showSuccess('Remark deleted successfully!', 'Deleted');
         } catch (error) {
             console.error('Error deleting remark:', error);
@@ -369,7 +369,7 @@ const saveRemarks = async () => {
         try {
             const submissionId = selectedSubmission.value.id;
             const remarkText = selectedSubmission.value.newRemark.trim();
-            
+
             if (isEditingRemarks.value && studentOutputs.value[submissionId]?.remarkId) {
                 // Update existing remark
                 const response = await axios.put(
@@ -384,24 +384,24 @@ const saveRemarks = async () => {
                     { text: remarkText }
                 );
                 console.log('Remark created successfully:', response.data);
-                
+
                 // Store the remark ID for future updates
                 if (!studentOutputs.value[submissionId]) {
                     studentOutputs.value[submissionId] = {};
                 }
                 studentOutputs.value[submissionId].remarkId = response.data.id;
             }
-            
+
             // Update local state
             if (!studentOutputs.value[submissionId]) {
                 studentOutputs.value[submissionId] = {};
             }
             studentOutputs.value[submissionId].remarks = remarkText;
-            
+
             // Reset editing state
             isEditingRemarks.value = false;
             selectedSubmission.value.newRemark = '';
-            
+
             showSuccess('Remark saved successfully!', 'Saved');
         } catch (error) {
             console.error('Error saving remark:', error);
@@ -416,12 +416,12 @@ const addScore = () => {
     technicalScore.value = '';
     requirementsScore.value = '';
     scoreFeedback.value = '';
-    
+
     // Initialize criteria scores from activity
     console.log('Full activity object:', activity.value);
     console.log('Activity scoring criteria:', activity.value.scoringCriteria);
     console.log('Type of scoring criteria:', typeof activity.value.scoringCriteria);
-    
+
     if (activity.value.scoringCriteria && activity.value.scoringCriteria.length > 0) {
         criteriaScores.value = activity.value.scoringCriteria.map(criterion => ({
             name: criterion.name,
@@ -434,7 +434,7 @@ const addScore = () => {
         criteriaScores.value = [];
         console.log('❌ No scoring criteria found - using empty array');
     }
-    
+
     // Show the add score dialog
     showAddScoreDialog.value = true;
 };
@@ -451,19 +451,19 @@ const validateCriterionScore = (criterion) => {
 
 const saveScore = async () => {
     // Validate that all criteria have scores
-    const allScoresEntered = criteriaScores.value.every(criterion => 
+    const allScoresEntered = criteriaScores.value.every(criterion =>
         criterion.score !== '' && criterion.score !== null && criterion.score !== undefined
     );
-    
+
     if (!selectedSubmission.value || !allScoresEntered) {
         showWarning('Please enter scores for all criteria', 'Incomplete Scores');
         return;
     }
-    
+
     try {
         const totalScore = calculateDynamicTotalScore();
         const maxScore = calculateMaxTotalScore();
-        
+
         // Build scores object from criteria
         const scoresData = {};
         criteriaScores.value.forEach((criterion, index) => {
@@ -473,7 +473,7 @@ const saveScore = async () => {
                 maxScore: parseInt(criterion.maxScore)
             };
         });
-        
+
         // Call the backend API to save the score
         const response = await axios.post(`/api/submissions/${selectedSubmission.value.id}/score/`, {
             score: totalScore,
@@ -484,12 +484,12 @@ const saveScore = async () => {
                 maxScore: parseInt(c.maxScore)
             })))
         });
-        
+
         console.log('✅ Score saved successfully:', response.data);
-        
+
         // Small delay to ensure database is updated
         await new Promise(resolve => setTimeout(resolve, 300));
-        
+
         // Refresh both lists to move submission from unscored to scored
         console.log('🔄 Reloading submissions...');
         await Promise.all([
@@ -499,10 +499,10 @@ const saveScore = async () => {
         console.log('✅ Submissions reloaded');
         console.log('📊 Unscored count:', submissions.value.length);
         console.log('📊 Scored count:', scoredSubmissionsData.value.length);
-        
+
         // Show success message
         showSuccess('Score saved successfully!', 'Scored');
-        
+
         // Close both dialogs AFTER everything is done
         closeAddScoreDialog();
         closeDialog();
@@ -576,10 +576,10 @@ const formatSubmissionDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
         });
     } catch (error) {
         return 'Invalid Date';
@@ -591,8 +591,8 @@ const formatSubmissionTime = (dateString) => {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
             minute: '2-digit',
             hour12: true
         });
@@ -1017,28 +1017,19 @@ const getMedalDetails = (rank) => {
 <template>
     <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
 <!-- Header -->
-<div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-lg">
+<div class="bg-white p-6 md:p-4 shadow-sm border-b border-gray-200">
     <div class="flex flex-col gap-4">
-        <div class="flex justify-between items-start">
-            <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
-                {{ activity.title }}
-            </h1>
-            <button
-                @click="goBack"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-            >
-                <i class="pi pi-arrow-left"></i>
-                <span>Back to Activities</span>
-            </button>
-        </div>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block">
+            {{ activity.title }}
+        </h1>
         <div class="flex flex-col gap-2 ml-2">
-            <p class="text-white/90 flex items-center gap-2">
+            <p class="text-gray-700 flex items-center gap-2">
                 <i class="pi pi-align-left"></i>
-                <span>Description: {{ activity.description }}</span>
+                <span>Description: <span class="text-justify">{{ activity.description }}</span></span>
             </p>
-            <p class="text-white/90 flex items-center gap-2">
+            <p class="text-gray-700 flex items-center gap-2">
                 <i class="pi pi-calendar"></i>
-                <span>Due: {{ activity.date }}</span>
+                <span>Due: {{ activity.dueDate || 'No due date set' }}</span>
             </p>
         </div>
     </div>
@@ -1048,32 +1039,43 @@ const getMedalDetails = (rank) => {
         <div class="p-8 space-y-8">
             <!-- Show submissions list only when no submission is selected -->
             <div v-if="!selectedSubmission" class="space-y-8">
+                <!-- Back to Activities Button -->
+                <div class="flex justify-start">
+                    <button
+                        @click="goBack"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    >
+                        <i class="pi pi-arrow-left"></i>
+                        <span>Back to Activities</span>
+                    </button>
+                </div>
+
                 <!-- Unscored Submissions Section -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <!-- Section Header -->
-                    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 px-6 py-4 border-b border-indigo-300">
+                    <div class="bg-white px-6 py-4 border-b border-gray-200">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                    <i class="pi pi-clock text-white text-lg"></i>
+                                <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                    <i class="pi pi-clock text-indigo-600 text-lg"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-lg font-bold text-white">Unscored Submissions</h3>
-                                    <p class="text-sm text-white/80">Pending review and scoring</p>
+                                    <h3 class="text-lg font-bold text-gray-900">Unscored Submissions</h3>
+                                    <p class="text-sm text-gray-600">Pending review and scoring</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">
-                                <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
                                     {{ unscoredSubmissions.length }} Submission{{ unscoredSubmissions.length !== 1 ? 's' : '' }}
                                 </span>
-                                <div class="flex items-center rounded-lg bg-white/20 p-1">
+                                <div class="flex items-center rounded-lg bg-gray-100 p-1">
                                     <!-- List View Button -->
                                     <button @click="toggleView('list')"
                                             :class="[
                                                 'p-2 rounded-lg transition-all duration-200',
                                                 viewMode === 'list'
-                                                    ? 'bg-white text-indigo-600'
-                                                    : 'text-white/80 hover:text-white'
+                                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                                    : 'text-gray-600 hover:text-gray-900'
                                             ]"
                                     >
                                         <i class="pi pi-list text-base"></i>
@@ -1083,8 +1085,8 @@ const getMedalDetails = (rank) => {
                                             :class="[
                                                 'p-2 rounded-lg transition-all duration-200',
                                                 viewMode === 'card'
-                                                    ? 'bg-white text-indigo-600'
-                                                    : 'text-white/80 hover:text-white'
+                                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                                    : 'text-gray-600 hover:text-gray-900'
                                             ]"
                                     >
                                         <i class="pi pi-th-large text-base"></i>
@@ -1159,7 +1161,7 @@ const getMedalDetails = (rank) => {
 
                                 <!-- Status -->
                                 <div class="col-span-2">
-                                    <span 
+                                    <span
                                         v-if="submission.resubmit_count > 0"
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
                                     >
@@ -1167,14 +1169,14 @@ const getMedalDetails = (rank) => {
                                         <span>Resubmitted</span>
                                         <span class="text-xs">({{ submission.resubmit_count }}x)</span>
                                     </span>
-                                    <span 
+                                    <span
                                         v-else-if="submission.is_late"
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
                                     >
                                         <i class="pi pi-clock text-xs"></i>
                                         <span>Submitted late</span>
                                     </span>
-                                    <span 
+                                    <span
                                         v-else
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
                                     >
@@ -1295,7 +1297,7 @@ const getMedalDetails = (rank) => {
                     </div>
                 </template>
                 </div>
-                
+
                 <!-- Scored Submissions Section -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <!-- Section Header -->
@@ -1376,7 +1378,7 @@ const getMedalDetails = (rank) => {
 
                                     <!-- Status -->
                                     <div class="col-span-2">
-                                        <span 
+                                        <span
                                             v-if="submission.resubmit_count > 0"
                                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
                                         >
@@ -1384,14 +1386,14 @@ const getMedalDetails = (rank) => {
                                             <span>Resubmitted</span>
                                             <span class="text-xs">({{ submission.resubmit_count }}x)</span>
                                         </span>
-                                        <span 
+                                        <span
                                             v-else-if="submission.is_late"
                                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
                                         >
                                             <i class="pi pi-clock text-xs"></i>
                                             <span>Submitted late</span>
                                         </span>
-                                        <span 
+                                        <span
                                             v-else
                                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
                                         >
@@ -1461,7 +1463,7 @@ const getMedalDetails = (rank) => {
 
                                     <!-- Status Badge -->
                                     <div class="absolute top-3 left-3">
-                                        <span 
+                                        <span
                                             v-if="submission.resubmit_count > 0"
                                             class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-blue-400/90 text-white flex items-center gap-1.5"
                                         >
@@ -1469,14 +1471,14 @@ const getMedalDetails = (rank) => {
                                             <span>Resubmitted</span>
                                             <span class="text-xs">({{ submission.resubmit_count }}x)</span>
                                         </span>
-                                        <span 
+                                        <span
                                             v-else-if="submission.is_late"
                                             class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-orange-400/90 text-white flex items-center gap-1.5"
                                         >
                                             <i class="pi pi-clock text-xs"></i>
                                             <span>Submitted late</span>
                                         </span>
-                                        <span 
+                                        <span
                                             v-else
                                             class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-green-400/90 text-white flex items-center gap-1.5"
                                         >
@@ -1509,7 +1511,7 @@ const getMedalDetails = (rank) => {
                                             <span class="text-sm font-medium text-indigo-700">Score: {{ submission.score }}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Submission Details with Icons -->
                                     <div class="pt-3 border-t flex items-center justify-between text-sm"
                                          style="border-color: #e0e7ff;">
@@ -1532,32 +1534,36 @@ const getMedalDetails = (rank) => {
             </div>
 
             <!-- Show submission details when a submission is selected -->
-            <div v-if="selectedSubmission" class="bg-white rounded-3xl shadow-lg overflow-hidden border border-indigo-100">
-                <div class="px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="pi pi-user-edit text-indigo-700"></i>
-                            Submission Details
-                        </h2>
-                    </div>
-                    
+            <div v-if="selectedSubmission" class="space-y-6">
+                <!-- Back to Submissions Button -->
+                <div class="flex justify-start">
                     <button
                         @click="selectedSubmission = null"
-                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                     >
                         <i class="pi pi-arrow-left"></i>
                         <span>Back to Submissions</span>
                     </button>
                 </div>
 
-                <div class="p-6">
-                    <div class="flex justify-between items-center mb-6 relative">
+                <div class="bg-white rounded-3xl shadow-lg overflow-hidden border border-indigo-100">
+                    <div class="px-6 py-4 border-b border-indigo-100">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                                <i class="pi pi-user-edit text-indigo-700"></i>
+                                Submission Details
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6 relative">
                         <h3 class="text-2xl font-semibold text-gray-900 px-2">
                             {{ selectedSubmission.caption || selectedSubmission.activityTitle || 'Submission Details' }}
                         </h3>
 
                         <!-- Add Score Button (replaced with badge if already scored) -->
-                        <button 
+                        <button
                             v-if="selectedSubmission.score !== null && selectedSubmission.score !== undefined"
                             disabled
                             class="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium flex items-center gap-2 border border-green-300 cursor-default"
@@ -1565,9 +1571,9 @@ const getMedalDetails = (rank) => {
                             <i class="pi pi-check-circle"></i>
                             <span>Already Scored</span>
                         </button>
-                        <button 
+                        <button
                             v-else
-                            @click="addScore" 
+                            @click="addScore"
                             class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
                         >
                             <i class="pi pi-plus-circle"></i>
@@ -1719,23 +1725,23 @@ const getMedalDetails = (rank) => {
                                     Output Remarks
                                     <span class="text-xs text-gray-400 font-normal">(Optional)</span>
                                 </h4>
-                                <button @click="showRemarksSection = !showRemarksSection" 
+                                <button @click="showRemarksSection = !showRemarksSection"
                                         class="text-indigo-600 hover:text-indigo-700">
                                     <i :class="showRemarksSection ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
                                 </button>
                             </div>
-                            
+
                             <div v-show="showRemarksSection" class="space-y-3">
                                 <!-- Display existing remarks with Edit/Delete buttons -->
                                 <div v-if="studentOutputs[selectedSubmission.id]?.remarks && !isEditingRemarks" class="mb-4 p-3 bg-gray-50 rounded-lg">
                                     <p class="text-sm text-gray-600 mb-3">{{ studentOutputs[selectedSubmission.id].remarks }}</p>
                                     <div class="flex gap-2">
-                                        <button @click="editRemarks" 
+                                        <button @click="editRemarks"
                                                 class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
                                             <i class="pi pi-pencil text-xs"></i>
                                             Edit
                                         </button>
-                                        <button @click="deleteRemarks" 
+                                        <button @click="deleteRemarks"
                                                 class="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
                                             <i class="pi pi-trash text-xs"></i>
                                             Delete
@@ -1767,6 +1773,7 @@ const getMedalDetails = (rank) => {
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1780,12 +1787,12 @@ const getMedalDetails = (rank) => {
                 <p class="text-sm font-medium text-indigo-900">Student: {{ selectedSubmission?.name }}</p>
                 <p class="text-sm text-indigo-700">Output: {{ selectedSubmission?.content?.title || 'Submission' }}</p>
             </div>
-            
+
             <!-- Scoring Criteria -->
             <div>
                 <h4 class="text-sm font-medium text-gray-700 mb-3">Scoring Criteria:</h4>
                 <div v-if="criteriaScores.length > 0" class="space-y-3">
-                    <div v-for="(criterion, index) in criteriaScores" :key="index" 
+                    <div v-for="(criterion, index) in criteriaScores" :key="index"
                          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div class="flex items-start gap-2">
                             <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5"></div>
@@ -1815,7 +1822,7 @@ const getMedalDetails = (rank) => {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Total Score Display -->
             <div v-if="criteriaScores.length > 0" class="p-3 bg-indigo-50 rounded-lg">
                 <div class="flex items-center justify-between">
@@ -1825,11 +1832,11 @@ const getMedalDetails = (rank) => {
                     </span>
                 </div>
             </div>
-            
+
             <!-- Feedback Section -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Feedback for Student: 
+                    Feedback for Student:
                     <span class="text-xs text-gray-500 font-normal">(Optional)</span>
                 </label>
                 <textarea
@@ -1841,7 +1848,7 @@ const getMedalDetails = (rank) => {
                 <p class="text-xs text-gray-500 mt-1">This feedback will be visible to the student if provided.</p>
             </div>
         </div>
-        
+
         <template #footer>
             <button
                 @click="closeAddScoreDialog"

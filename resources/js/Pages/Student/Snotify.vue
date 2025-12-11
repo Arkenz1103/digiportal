@@ -8,7 +8,7 @@
             <h1 class="text-3xl font-bold text-white">
               Notifications
             </h1>
-            
+
             <!-- Back to Home Button -->
             <button
               @click="goBackHome"
@@ -30,8 +30,8 @@
                 @click="activeTab = tab"
                 class="group relative px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2.5 font-medium"
                 :class="[
-                  activeTab === tab 
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-200 scale-105' 
+                  activeTab === tab
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-200 scale-105'
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105'
                 ]"
               >
@@ -44,18 +44,18 @@
                   activeTab === tab ? 'scale-110' : 'group-hover:scale-110'
                 ]"></i>
                 <span class="capitalize">{{ tab }}</span>
-                <span v-if="tab === 'unread' && notifications.filter(n => n.isUnread).length > 0" 
+                <span v-if="tab === 'unread' && notifications.filter(n => n.isUnread).length > 0"
                       class="ml-1 px-2.5 py-0.5 text-xs font-bold rounded-full animate-pulse"
                       :class="[
-                        activeTab === tab 
-                          ? 'bg-white/30 text-white' 
+                        activeTab === tab
+                          ? 'bg-white/30 text-white'
                           : tab === 'new' ? 'bg-indigo-100 text-indigo-600' : 'bg-purple-100 text-purple-600'
                       ]">
                   {{ tab === 'new' ? notifications.filter(n => n.isNew).length : notifications.filter(n => n.isUnread).length }}
                 </span>
               </button>
             </div>
-            
+
             <!-- Action Buttons -->
             <div class="flex items-center gap-2">
               <!-- Select Button -->
@@ -63,14 +63,14 @@
                 v-if="notifications.length > 0"
                 @click="toggleSelectMode"
                 class="px-4 py-2.5 text-sm font-semibold transition-all duration-200 flex items-center gap-2 rounded-xl"
-                :class="isSelectMode 
-                  ? 'text-white bg-indigo-600 hover:bg-indigo-700' 
+                :class="isSelectMode
+                  ? 'text-white bg-indigo-600 hover:bg-indigo-700'
                   : 'text-indigo-600 hover:text-white hover:bg-indigo-600 border-2 border-indigo-300 hover:border-indigo-600'"
               >
                 <i :class="isSelectMode ? 'pi pi-times' : 'pi pi-check-square'"></i>
                 <span>{{ isSelectMode ? 'Cancel' : 'Select' }}</span>
               </button>
-              
+
               <!-- Delete Selected Button -->
               <button
                 v-if="isSelectMode && selectedNotifications.length > 0"
@@ -80,7 +80,7 @@
                 <i class="pi pi-trash"></i>
                 <span>Delete ({{ selectedNotifications.length }})</span>
               </button>
-              
+
               <!-- Delete All Button -->
               <button
                 v-if="notifications.length > 0 && !isSelectMode"
@@ -113,15 +113,15 @@
               :key="notification.id"
               class="group relative bg-white rounded-2xl border-2 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] cursor-pointer overflow-hidden"
               :class="[
-                notification.isUnread 
-                  ? 'border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50' 
+                notification.isUnread
+                  ? 'border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50'
                   : 'border-gray-200 hover:border-indigo-200'
               ]"
               @click="handleNotificationClick(notification)"
             >
               <!-- Unread Indicator -->
               <div v-if="notification.isUnread" class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-600 to-purple-600"></div>
-              
+
               <div class="p-5 flex items-center gap-5">
                 <!-- Checkbox (Select Mode) -->
                 <div v-if="isSelectMode" class="flex items-center">
@@ -133,7 +133,7 @@
                     class="w-5 h-5 text-indigo-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   />
                 </div>
-                
+
                 <!-- Icon -->
                 <div class="relative">
                   <div
@@ -148,21 +148,21 @@
                   </div>
                   <div v-if="notification.isNew" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
                 </div>
-                
+
                 <!-- Content -->
                 <div class="flex-1 min-w-0">
                   <div class="flex items-start justify-between gap-3 mb-2">
                     <div class="flex items-center gap-2 flex-wrap">
                       <h3 class="font-bold text-gray-900 text-lg">{{ notification.title }}</h3>
-                      <span v-if="notification.isNew" 
+                      <span v-if="notification.isNew"
                             class="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-md animate-pulse">
                         NEW
                       </span>
                     </div>
                   </div>
-                  
+
                   <p class="text-gray-700 leading-relaxed mb-3">{{ notification.message }}</p>
-                  
+
                   <div class="flex items-center gap-4 text-sm">
                     <div class="flex items-center gap-2 text-gray-500">
                       <i class="pi pi-clock"></i>
@@ -170,7 +170,7 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- Unread Indicator (Right Middle) -->
                 <div v-if="notification.isUnread" class="flex items-center">
                   <div class="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg">
@@ -183,7 +183,7 @@
           </TransitionGroup>
 
           <!-- Empty State -->
-          <div v-if="filteredNotifications.length === 0" 
+          <div v-if="filteredNotifications.length === 0"
                class="text-center py-16 bg-gradient-to-br from-gray-50 to-indigo-50 rounded-2xl border-2 border-dashed border-indigo-200">
             <div class="relative inline-block mb-6">
               <div class="w-24 h-24 mx-auto bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center shadow-xl">
@@ -214,12 +214,12 @@
         <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <i class="pi pi-exclamation-triangle text-red-600 text-3xl"></i>
         </div>
-        
+
         <!-- Title -->
         <h3 class="text-xl font-bold text-gray-900 text-center mb-2">
           Confirm Delete
         </h3>
-        
+
         <!-- Message -->
         <p class="text-gray-600 text-center mb-6">
           <span v-if="deleteAction === 'all'">
@@ -229,7 +229,7 @@
             Are you sure you want to delete {{ selectedNotifications.length }} selected notification(s)?
           </span>
         </p>
-        
+
         <!-- Actions -->
         <div class="flex gap-3">
           <button
@@ -286,15 +286,15 @@ const loadNotifications = async () => {
     if (response.data) {
       // Get the last time user opened notifications page or dropdown
       const lastOpenedTime = parseInt(localStorage.getItem('notifications_last_opened_time') || '0');
-      
+
       notifications.value = response.data.map(notif => {
         const createdTime = new Date(notif.created_at).getTime();
         const currentTime = Date.now();
         const oneMinute = 60 * 1000; // 1 minute in milliseconds
-        
+
         // Mark as NEW if created within the last 1 minute
         const isNew = (currentTime - createdTime) < oneMinute;
-        
+
         return {
           id: notif.id,
           type: notif.notification_type,
@@ -349,13 +349,13 @@ const showDeleteConfirmation = (action) => {
 // Confirm delete action
 const confirmDelete = async () => {
   showDeleteDialog.value = false;
-  
+
   if (deleteAction.value === 'selected') {
     await deleteSelectedNotifications();
   } else if (deleteAction.value === 'all') {
     await deleteAllNotifications();
   }
-  
+
   deleteAction.value = null;
 };
 
@@ -374,16 +374,16 @@ const deleteSelectedNotifications = async () => {
         data: { notification_id: id }
       })
     );
-    
+
     await Promise.all(deletePromises);
-    
+
     // Remove deleted notifications from local state
     notifications.value = notifications.value.filter(
       n => !selectedNotifications.value.includes(n.id)
     );
-    
+
     console.log(`✅ Deleted ${selectedNotifications.value.length} notifications`);
-    
+
     // Clear selection and exit select mode
     selectedNotifications.value = [];
     isSelectMode.value = false;
@@ -400,7 +400,7 @@ const deleteAllNotifications = async () => {
     const response = await axios.delete('/api/notifications/', {
       data: { delete_all: true }
     });
-    
+
     if (response.status === 200) {
       // Clear local state
       notifications.value = [];
@@ -477,7 +477,7 @@ const markAsRead = async (id) => {
     const response = await axios.put('/api/notifications/', {
       notification_id: id
     });
-    
+
     if (response.status === 200) {
       const notification = notifications.value.find((n) => n.id === id);
       if (notification) {
@@ -496,13 +496,13 @@ const handleNotificationClick = async (notification) => {
   if (isSelectMode.value) {
     return;
   }
-  
+
   // Mark as read
   await markAsRead(notification.id);
-  
+
   // Navigate based on notification type using window.navigateTo
   const type = notification.type;
-  
+
   if (type === 'activity_created' || type === 'activity_updated') {
     // Navigate to classroom to view the activity
     console.log('📍 Navigating to classroom for activity notification');
@@ -534,6 +534,14 @@ const handleNotificationClick = async (notification) => {
       window.navigateTo('StudentRoom');
     } else {
       window.location.href = '/student/room';
+    }
+  } else if (type === 'remark_added' || type === 'remark_updated' || type === 'remark_deleted') {
+    // Navigate to remarked page to view remarks
+    console.log('📍 Navigating to remarked page for remark notification');
+    if (window.navigateTo) {
+      window.navigateTo('StudentRemarked');
+    } else {
+      window.location.href = '/student/remarked';
     }
   } else if (type === 'portfolio_created' || type === 'portfolio_updated') {
     // Navigate to classroom

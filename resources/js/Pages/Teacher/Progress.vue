@@ -27,7 +27,7 @@
             </div>
 
             <!-- Back Button -->
-            <button @click="goBack" 
+            <button @click="goBack"
               class="flex items-center gap-2 px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all shadow-md hover:shadow-lg text-sm font-medium">
               <i class="pi pi-arrow-left text-sm"></i>
               <span>Back to Student Progress</span>
@@ -46,10 +46,10 @@
                   <span class="text-xs text-white/80">{{ remarksDate }} • {{ remarksTime }}</span>
                 </div>
               </div>
-              <button 
-                @click="openRemarksDialog" 
+              <button
+                @click="openRemarksDialog"
                 class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-200 shadow-sm hover:shadow-md">
-                
+
                 <span>View All</span>
               </button>
             </div>
@@ -70,7 +70,7 @@
         <!-- Statistics boxes -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <!-- Total Activities -->
-            <div 
+            <div
                 @click="setFilter('all')"
                 class="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
                 :class="activeFilter === 'all' ? 'border-indigo-500 border-2 ring-2 ring-indigo-200' : 'border-indigo-100'">
@@ -86,7 +86,7 @@
             </div>
 
             <!-- Completed -->
-            <div 
+            <div
                 @click="setFilter('completed')"
                 class="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
                 :class="activeFilter === 'completed' ? 'border-green-500 border-2 ring-2 ring-green-200' : 'border-green-100'">
@@ -102,7 +102,7 @@
             </div>
 
             <!-- Pending -->
-            <div 
+            <div
                 @click="setFilter('pending')"
                 class="bg-gradient-to-br from-amber-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
                 :class="activeFilter === 'pending' ? 'border-amber-500 border-2 ring-2 ring-amber-200' : 'border-amber-100'">
@@ -118,7 +118,7 @@
             </div>
 
             <!-- Missing -->
-            <div 
+            <div
                 @click="setFilter('missing')"
                 class="bg-gradient-to-br from-red-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
                 :class="activeFilter === 'missing' ? 'border-red-500 border-2 ring-2 ring-red-200' : 'border-red-100'">
@@ -157,7 +157,7 @@
         </div>
 
         <!-- Search Results Notification -->
-        <div v-if="searchQuery" 
+        <div v-if="searchQuery"
           class="p-3 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-lg flex items-center gap-2">
           <i class="pi pi-filter text-indigo-600"></i>
           <span>Showing results for "<strong class="font-medium">{{ searchQuery }}</strong>"</span>
@@ -170,9 +170,9 @@
 
         <!-- Updated DataTable -->
         <DataTable v-else
-          :value="paginatedRecords" 
-          :scrollable="true" 
-          scrollHeight="400px" 
+          :value="paginatedRecords"
+          :scrollable="true"
+          scrollHeight="400px"
           class="p-datatable-rounded"
           stripedRows
           showGridlines>
@@ -199,7 +199,7 @@
           </Column>
           <Column field="status" header="Status">
             <template #body="slotProps">
-              <span 
+              <span
                 class="px-3 py-1.5 text-sm rounded-lg font-medium inline-block"
                 :class="{
                   'bg-green-100 text-green-800 border border-green-200': slotProps.data.status === 'Scored',
@@ -220,7 +220,7 @@
           </Column>
           <Column header="Actions" style="min-width: 120px">
             <template #body="slotProps">
-              <button v-if="slotProps.data.filePath" 
+              <button v-if="slotProps.data.filePath"
                       @click="viewOutput(slotProps.data)"
                       class="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors text-sm font-medium">
                 <i class="pi pi-eye mr-1"></i>
@@ -282,7 +282,7 @@
           <p class="text-indigo-900">{{ selectedOutput.caption }}</p>
         </div>
       </div>
-      
+
       <div v-if="selectedOutput.fileType === 'image'" class="bg-gray-100 rounded-lg p-4 flex items-center justify-center">
         <img :src="selectedOutput.filePath" :alt="selectedOutput.output" class="max-w-full max-h-96 rounded shadow-lg">
       </div>
@@ -298,19 +298,19 @@
     <div class="space-y-4 h-full flex flex-col">
       <!-- Tabs -->
       <div class="flex gap-2 border-b border-indigo-200">
-        <button 
+        <button
           @click="remarksTab = 'all'"
           class="px-4 py-2 font-medium transition-colors duration-200"
-          :class="remarksTab === 'all' 
-            ? 'text-indigo-600 border-b-2 border-indigo-600' 
+          :class="remarksTab === 'all'
+            ? 'text-indigo-600 border-b-2 border-indigo-600'
             : 'text-gray-500 hover:text-indigo-600'">
           All
         </button>
-        <button 
+        <button
           @click="remarksTab = 'unread'"
           class="px-4 py-2 font-medium transition-colors duration-200 flex items-center gap-2"
-          :class="remarksTab === 'unread' 
-            ? 'text-indigo-600 border-b-2 border-indigo-600' 
+          :class="remarksTab === 'unread'
+            ? 'text-indigo-600 border-b-2 border-indigo-600'
             : 'text-gray-500 hover:text-indigo-600'">
           Unread
           <span v-if="unreadRemarksCount > 0" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -321,7 +321,7 @@
 
       <!-- Remarks List -->
       <div v-if="filteredRemarks.length > 0" class="space-y-3 overflow-y-auto flex-1 pr-2">
-        <div v-for="remark in filteredRemarks" :key="remark.id" 
+        <div v-for="remark in filteredRemarks" :key="remark.id"
              @click="openRemarkDetail(remark)"
              class="bg-white p-4 rounded-lg border-2 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
              :class="remark.is_read ? 'border-indigo-100' : 'border-indigo-300 bg-indigo-50/30'">
@@ -418,34 +418,34 @@ const loadStudentWork = async (studentId) => {
     isLoading.value = true;
     console.log('🔍 loadStudentWork called with studentId:', studentId);
     console.log('   Type:', typeof studentId);
-    
+
     try {
         // Load portfolio folders
         const foldersResponse = await axios.get('/api/portfolio/folders/');
         portfolioFolders.value = foldersResponse.data || [];
         console.log('📁 Loaded portfolio folders:', portfolioFolders.value.length);
-        
+
         const allRecords = [];
-        
+
         // Load submissions for each folder
         for (const folder of portfolioFolders.value) {
             console.log(`\n📂 Processing folder: ${folder.name} (ID: ${folder.id})`);
             try {
                 const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
                 const activities = activitiesResponse.data || [];
-                
+
                 for (const activity of activities) {
                     console.log(`   📝 Activity: ${activity.title} (ID: ${activity.id})`);
                     try {
                         const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                         const submissions = submissionsResponse.data || [];
                         console.log(`      Total submissions: ${submissions.length}`);
-                        
+
                         // Filter submissions for this student
                         // Compare using database ID (numeric comparison)
                         const studentSubmissions = submissions.filter(sub => {
                             const submissionStudentId = sub.student?.id || sub.student_id;
-                            const match = Number(submissionStudentId) === Number(studentId) || 
+                            const match = Number(submissionStudentId) === Number(studentId) ||
                                    sub.student?.username === studentId;
                             if (submissions.length > 0 && submissions.indexOf(sub) === 0) {
                                 console.log(`      Checking submission - Student ID: ${submissionStudentId}, Looking for: ${studentId}, Match: ${match}`);
@@ -453,21 +453,21 @@ const loadStudentWork = async (studentId) => {
                             return match;
                         });
                         console.log(`      Student submissions found: ${studentSubmissions.length}`);
-                        
+
                         if (studentSubmissions.length > 0) {
                             studentSubmissions.forEach(submission => {
                                 // Calculate score display
                                 let scoreDisplay = 'N/A';
                                 let totalScore = submission.total_score;
                                 let maxScore = submission.max_score;
-                                
+
                                 // Try to calculate from criteria_scores if available
                                 if (submission.criteria_scores) {
                                     try {
-                                        const criteria = typeof submission.criteria_scores === 'string' 
-                                            ? JSON.parse(submission.criteria_scores) 
+                                        const criteria = typeof submission.criteria_scores === 'string'
+                                            ? JSON.parse(submission.criteria_scores)
                                             : submission.criteria_scores;
-                                        
+
                                         if (Array.isArray(criteria) && criteria.length > 0) {
                                             totalScore = criteria.reduce((sum, c) => sum + (parseInt(c.score) || 0), 0);
                                             maxScore = criteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0);
@@ -476,15 +476,15 @@ const loadStudentWork = async (studentId) => {
                                         console.error('Error parsing criteria_scores:', error);
                                     }
                                 }
-                                
+
                                 // Format score display
-                                if (totalScore !== null && totalScore !== undefined && 
+                                if (totalScore !== null && totalScore !== undefined &&
                                     maxScore !== null && maxScore !== undefined) {
                                     scoreDisplay = `${totalScore}/${maxScore}`;
                                 } else if (submission.score !== null && submission.score !== undefined) {
                                     scoreDisplay = `${submission.score}/10`;
                                 }
-                                
+
                                 allRecords.push({
                                     subject: folder.name,
                                     output: activity.title,
@@ -506,11 +506,11 @@ const loadStudentWork = async (studentId) => {
                             const now = new Date();
                             const dueDate = activity.due_date ? new Date(activity.due_date) : null;
                             let status = 'Pending';
-                            
+
                             if (dueDate && now > dueDate) {
                                 status = 'Missing'; // Past due date
                             }
-                            
+
                             // Show activity even if not submitted
                             allRecords.push({
                                 subject: folder.name,
@@ -536,7 +536,7 @@ const loadStudentWork = async (studentId) => {
                 console.error(`Error loading activities for folder ${folder.id}:`, error);
             }
         }
-        
+
         records.value = allRecords;
         console.log('\n✅ SUMMARY:');
         console.log(`   Total records loaded: ${records.value.length}`);
@@ -554,7 +554,7 @@ const getTimeAgo = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
-    
+
     if (seconds < 60) return 'just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
@@ -567,11 +567,11 @@ const getTimeAgo = (dateString) => {
 
 const filteredRecords = computed(() => {
     let filtered = records.value;
-    
+
     // Filter by status
     if (activeFilter.value !== 'all') {
         if (activeFilter.value === 'completed') {
-            filtered = filtered.filter(record => 
+            filtered = filtered.filter(record =>
                 record.status === 'Scored' || record.status === 'Submitted'
             );
         } else if (activeFilter.value === 'pending') {
@@ -580,17 +580,17 @@ const filteredRecords = computed(() => {
             filtered = filtered.filter(record => record.status === 'Missing');
         }
     }
-    
+
     // Filter by search query
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase().trim();
-        filtered = filtered.filter(record => 
+        filtered = filtered.filter(record =>
             record.subject.toLowerCase().includes(query) ||
             record.output.toLowerCase().includes(query) ||
             record.activityType.toLowerCase().includes(query)
         );
     }
-    
+
     return filtered;
 });
 
@@ -648,17 +648,17 @@ const studentInfo = computed(() => ({
 // Function to handle class change event
 const handleClassChange = (event) => {
     console.log('🔄 Class changed in Progress, clearing view state and navigating...', event.detail);
-    
+
     // Clear the teacher view state so Room shows folders view
     localStorage.removeItem('teacher_current_view');
-    
+
     // Navigate directly to TeacherRoom to show folders view
     emit('navigate', 'TeacherRoom');
 };
 
 onMounted(() => {
     console.log('Progress.vue mounted');
-    
+
     // Get student data from localStorage (set by Sprogress.vue)
     const stored = localStorage.getItem('selected_student_progress');
     if (stored) {
@@ -668,7 +668,7 @@ onMounted(() => {
             console.log('Loaded student from localStorage:', studentData.value);
             console.log('Student display ID:', studentData.value?.id);
             console.log('Student database ID:', studentData.value?.dbId);
-            
+
             // Load the student's work using database ID (dbId), not display ID
             const studentIdToUse = studentData.value?.dbId || studentData.value?.id;
             if (studentIdToUse) {
@@ -684,7 +684,7 @@ onMounted(() => {
     } else {
         console.warn('No student data in localStorage');
     }
-    
+
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
 });
@@ -705,9 +705,9 @@ const remarksDate = ref(new Date().toLocaleDateString('en-US', {
     day: 'numeric'
 }));
 
-const remarksTime = ref(new Date().toLocaleTimeString([], { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+const remarksTime = ref(new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
 }));
 
 const showRemarksDialog = ref(false);
@@ -771,7 +771,7 @@ const getCsrfToken = () => {
 const openRemarkDetail = async (remark) => {
     selectedRemark.value = remark;
     showRemarkDetailDialog.value = true;
-    
+
     // Mark as read for the current user (teacher)
     if (!remark.is_read) {
         try {

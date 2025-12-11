@@ -26,6 +26,38 @@ const isClassDropdownOpen = ref(false);
 // Add state for classes - will be loaded dynamically from API
 const classes = ref([]);
 
+// State for subjects in sidebar
+const subjectsInSidebar = ref([]);
+
+// State for selected subject to track active folder
+const selectedSubject = ref(null);
+const selectedClassForSubject = ref(null);
+
+// State for My Classes dropdown
+const isMyClassesDropdownOpen = ref(false);
+
+// State for expanded classes - simplified to track single expanded class
+const expandedClassId = ref(null);
+
+// Initialize expanded classes when needed
+const initializeExpandedClasses = () => {
+    if (classes.value && classes.value.length > 0) {
+        expandedClassId.value = classes.value[0]?.id || null; // Expand first class by default
+    }
+};
+
+// Toggle class expansion
+const toggleClass = (classId) => {
+    expandedClassId.value = expandedClassId.value === classId ? null : classId;
+};
+
+// Safe helper to extract section letter from class name (e.g., "Grade 1 - A" -> "A")
+const getClassSection = (className) => {
+    if (!className || typeof className !== 'string') return '';
+    const parts = className?.split(' ') || [];
+    return parts.length > 1 ? parts[parts.length - 1] : (className || '');
+};
+
 // Add new state for the modal and form
 const showAddClassModal = ref(false);
 const newClassForm = ref({
@@ -469,13 +501,13 @@ const sideBarItems = computed(() => {
             { label: 'Home', icon: 'pi pi-home', route: 'TeacherHome' },
             { label: 'Remarks', icon: 'pi pi-comments', route: 'TeacherRemarks' },
             { label: 'Notice', icon: 'pi pi-check-circle', route: 'TeacherNotice' },
-            { label: 'Archived', icon: 'pi pi-folder', route: 'TeacherArchived' },
+            { label: 'Archived', icon: 'pi pi-inbox', route: 'TeacherArchived' },
         ],
         student: [
             { label: 'Home', icon: 'pi pi-home', route: 'StudentNewsfeed' },
             { label: 'Sketch', icon: 'pi pi-pencil', route: 'StudentSketch' },
             { label: 'Remarked', icon: 'pi pi-comments', route: 'StudentRemarked' },
-            { label: 'Archived', icon: 'pi pi-folder', route: 'StudentArchived' },
+            { label: 'Archived', icon: 'pi pi-inbox', route: 'StudentArchived' },
         ],
     };
 
@@ -610,11 +642,25 @@ const navigateToPage = (page) => {
     currentRoute.value = page;
     // Save current page to localStorage so it persists on refresh
     localStorage.setItem('digiportal_current_page', page);
+
+    // Clear selected subject and class when navigating to other pages
+    // This prevents the active hover state from remaining when clicking other sidebar items
+    if (page !== 'TeacherRoom' && page !== 'StudentRoom') {
+        selectedSubject.value = null;
+        selectedClassForSubject.value = null;
+        localStorage.removeItem('digiportal_selected_subject');
+        localStorage.removeItem('digiportal_selected_class');
+    }
+
     emit('navigate', page);
 };
 
 // Navigate to class room
 const navigateToClass = (class_) => {
+    // Clear any selected subject
+    selectedSubject.value = null;
+    selectedClassForSubject.value = null;
+
     // Store selected class information
     localStorage.setItem('digiportal_selected_class', JSON.stringify(class_));
 
@@ -623,7 +669,12 @@ const navigateToClass = (class_) => {
 
     // Always dispatch the classChanged event so Room component can reload
     console.log('🔄 Class selected, dispatching classChanged event...', class_.name);
-    window.dispatchEvent(new CustomEvent('classChanged', { detail: class_ }));
+    window.dispatchEvent(new CustomEvent('classChanged', {
+        detail: {
+            classItem: class_,
+            subject: null // Explicitly set subject to null
+        }
+    }));
 
     // If not already on the room page, navigate to it
     if (currentRoute.value !== targetRoute) {
@@ -632,6 +683,33 @@ const navigateToClass = (class_) => {
     } else {
         console.log('✅ Already on room page, event will trigger reload');
     }
+};
+
+// Navigate to subject folder - Always navigate to Student Activities (Room page)
+const navigateToSubject = (classItem, subject) => {
+    // Update selected subject tracking
+    selectedSubject.value = subject;
+    selectedClassForSubject.value = classItem;
+
+    // Store selected class and subject information
+    localStorage.setItem('digiportal_selected_class', JSON.stringify(classItem));
+    localStorage.setItem('digiportal_selected_subject', subject);
+
+    // Determine target route based on user role
+    const targetRoute = currentUser.value.role === 'teacher' ? 'TeacherRoom' : 'StudentRoom';
+
+    // Dispatch event with subject information
+    console.log('📂 Subject selected:', subject, 'in class:', classItem.name);
+    window.dispatchEvent(new CustomEvent('subjectChanged', {
+        detail: {
+            classItem: classItem, // Changed 'class' to 'classItem' to match Sroom.vue
+            subject: subject
+        }
+    }));
+
+    // Always navigate to the Student Activities (Room) page
+    console.log('📍 Navigating to Student Activities page...');
+    navigateToPage(targetRoute);
 };
 
 // Navigate to notifications
@@ -675,6 +753,7 @@ const handleUserLogout = () => {
     };
 };
 
+
 // Load classrooms from API
 const loadClassrooms = async () => {
     try {
@@ -691,33 +770,109 @@ const loadClassrooms = async () => {
             console.log('📚 Classrooms data:', data);
 
             if (data.classrooms && data.classrooms.length > 0) {
+                // Initialize classes without default subjects
                 classes.value = data.classrooms.map(classroom => ({
                     id: classroom.id,
                     name: classroom.name,
                     grade_level: classroom.grade_level,
                     section: classroom.section,
-                    theme: 'purple'
+                    theme: 'purple',
+                    subjects: [] // Start with empty subjects array
                 }));
-                console.log('✅ Loaded classrooms:', classes.value);
+
+                // Now load the actual subjects for each class
+                await loadSubjectsForAllClasses();
+                console.log('✅ Loaded classrooms with actual subjects:', classes.value);
             } else {
                 console.log('⚠️ No classrooms found for this user');
-                classes.value = [];
+                classes.value = []; // No default classes
             }
         } else {
             console.error('❌ Failed to load classrooms:', response.status);
-            classes.value = [];
+            classes.value = []; // No default classes
         }
     } catch (error) {
         console.error('❌ Error loading classrooms:', error);
-        classes.value = [];
+        classes.value = []; // No default classes
     }
 };
+
+// Load subjects for all classes from actual folders
+const loadSubjectsForAllClasses = async () => {
+    if (!classes.value || classes.value.length === 0) return;
+
+    try {
+        console.log('📂 Loading subjects from portfolio folders...');
+        const response = await fetch('/api/portfolio/folders/', {
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+            }
+        });
+
+        if (response.ok) {
+            const folders = await response.json();
+            console.log('📂 Loaded folders:', folders);
+
+            // Group folders by class
+            const foldersByClass = {};
+            folders.forEach(folder => {
+                if (folder.classroom) {
+                    if (!foldersByClass[folder.classroom]) {
+                        foldersByClass[folder.classroom] = [];
+                    }
+                    foldersByClass[folder.classroom].push(folder.name);
+                }
+            });
+
+            // Update classes with their actual subjects
+            classes.value = classes.value.map(classItem => {
+                const classFolders = foldersByClass[classItem.id] || [];
+                return {
+                    ...classItem,
+                    subjects: [...new Set(classFolders)] // Remove duplicates
+                };
+            });
+
+            console.log('✅ Updated classes with actual subjects:', classes.value);
+        } else {
+            console.error('❌ Failed to load folders:', response.status);
+        }
+    } catch (error) {
+        console.error('❌ Error loading subjects from folders:', error);
+    }
+};
+
 
 onMounted(async () => {
     // Load user data and notifications
     await loadUserProfile(); // Load from API first
     await loadNotifications(); // Load notifications
-    loadClassrooms(); // Load classrooms dynamically
+    await loadClassrooms(); // Load classrooms dynamically
+
+    // Initialize expanded classes state
+    initializeExpandedClasses();
+
+    // Restore selected subject from localStorage
+    const savedSubject = localStorage.getItem('digiportal_selected_subject');
+    const savedClass = localStorage.getItem('digiportal_selected_class');
+    if (savedSubject && savedClass) {
+        try {
+            const classData = JSON.parse(savedClass);
+            selectedSubject.value = savedSubject;
+            selectedClassForSubject.value = classData;
+            // Expand the class that has the selected subject
+            expandedClassId.value = classData.id;
+        } catch (e) {
+            console.error('Error parsing saved class data:', e);
+        }
+    }
+
+    // Small delay to ensure classrooms are loaded before loading subjects
+    setTimeout(() => {
+        loadSubjectsForAllClasses();
+        initializeExpandedClasses();
+    }, 500);
 
     // Detect current route from URL if not set
     if (!currentRoute.value || currentRoute.value === 'StudentNewsfeed') {
@@ -774,15 +929,14 @@ const auth = computed(() => ({
     <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
         <div class="flex">
             <!-- Sidebar -->
-            <div :class="['bg-gradient-to-b from-indigo-600 via-indigo-700 to-blue-800 shadow-2xl sticky top-0 flex flex-col transition-all duration-300 z-10', isCollapsed ? 'w-20' : 'w-64']">
+            <div :class="['bg-gradient-to-b from-indigo-600 via-indigo-700 to-blue-800 shadow-2xl sticky top-0 flex flex-col transition-all duration-200 ease-in-out z-10', isCollapsed ? 'w-16' : 'w-64']">
                 <!-- Sidebar Header -->
-                <div class="p-4 border-b border-white/10 h-[52px] flex items-center relative overflow-hidden">
+                <div class="h-[52px] flex items-center justify-end pr-3 border-b border-white/10">
                     <button
                         @click="toggleSidebar"
-                        class="p-2 rounded-lg hover:bg-white/20 transition-all duration-300 ease-in-out focus:outline-none backdrop-blur-sm"
-                        :style="{ transform: isCollapsed ? 'translateX(0)' : 'translateX(192px)' }"
+                        class="p-2 rounded-lg hover:bg-white/20 transition-all duration-200 ease-in-out focus:outline-none"
                     >
-                        <i class="pi pi-bars text-white"></i>
+                        <i class="pi pi-bars text-white text-lg"></i>
                     </button>
                 </div>
 
@@ -794,17 +948,19 @@ const auth = computed(() => ({
                             v-for="(item, index) in sideBarItems"
                             :key="index"
                             @click="navigateToPage(item.route)"
-                            class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left"
+                            class="flex items-center rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left"
                             :class="{
                                 'bg-white/20 text-white shadow-lg backdrop-blur-sm': isRouteActive(item.route),
                                 'text-white/80 hover:bg-white/10 hover:text-white': !isRouteActive(item.route),
-                                'active:bg-white/25 active:scale-[0.98]': true
+                                'active:bg-white/25 active:scale-[0.98]': true,
+                                'p-2 justify-center': isCollapsed,
+                                'p-3': !isCollapsed
                             }"
                             :title="isCollapsed ? item.label : ''"
                         >
-                            <div v-if="isRouteActive(item.route)" class="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>
-                            <div class="flex items-center gap-3 w-full">
-                                <i :class="[item.icon, 'text-lg', isRouteActive(item.route) ? 'text-white' : 'text-white/70']"></i>
+                            <div v-if="isRouteActive(item.route) && !isCollapsed" class="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>
+                            <div class="flex items-center gap-3 w-full" :class="{'justify-center': isCollapsed}">
+                                <i :class="[item.icon, 'text-lg flex-shrink-0', isRouteActive(item.route) ? 'text-white' : 'text-white/70']"></i>
                                 <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', isRouteActive(item.route) ? 'text-white' : 'text-white/80']">{{ item.label }}</span>
                                 <div
                                     v-if="isRouteActive(item.route) && !isCollapsed"
@@ -820,48 +976,77 @@ const auth = computed(() => ({
                         <div class="border-t border-white/20"></div>
                     </div>
 
-                    <!-- My Classes Section -->
-                    <div v-if="auth?.user?.role === 'teacher' || auth?.user?.role === 'student'" class="mb-4">
-                        <div class="flex items-center justify-between px-4 mb-2">
-                            <div v-if="!isCollapsed" class="text-xs uppercase font-semibold text-white/60 tracking-wider">My Classes</div>
-                        </div>
-
-                        <!-- Classes List -->
-                        <div class="space-y-1">
-                            <button
-                                v-for="class_ in classes"
-                                :key="class_.id"
-                                @click="navigateToClass(class_)"
-                                class="flex items-center p-3 rounded-lg transition-all duration-200 mx-1 group relative overflow-hidden w-full text-left"
-                                :class="{
-                                    'bg-white/20 text-white shadow-lg backdrop-blur-sm': isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'),
-                                    'text-white/80 hover:bg-white/10 hover:text-white': !isRouteActive('TeacherRoom') && !isRouteActive('StudentRoom'),
-                                    'active:bg-white/25 active:scale-[0.98]': true
-                                }"
-                                :title="isCollapsed ? class_.name : ''"
+                    <!-- My Classes Section - Clean Minimal Design -->
+                    <template v-if="auth?.user?.role === 'teacher' || auth?.user?.role === 'student'">
+                        <div class="mb-4">
+                            <!-- MY CLASSES Header - Simple Text without Chevron -->
+                            <div
+                                v-if="!isCollapsed"
+                                class="flex items-center gap-2 px-4 py-2 w-full text-left text-white/80"
                             >
-                                <div v-if="isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')" class="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>
-                                <div class="flex items-center gap-3 w-full">
-                                    <div
-                                        :class="[
-                                            'w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg transition-all duration-200',
-                                            'bg-white/30 backdrop-blur-sm',
-                                            (isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'))
-                                                ? 'scale-110 ring-2 ring-white/50'
-                                                : 'group-hover:scale-105 group-hover:ring-2 group-hover:ring-white/30'
-                                        ]"
-                                    >
-                                        <span class="text-xs font-semibold">{{ class_.name.split(' ')[1] }}</span>
+                                <i class="pi pi-book text-sm text-white/70"></i>
+                                <span class="text-sm font-medium flex-1">My Classes</span>
+                            </div>
+                            <div
+                                v-else
+                                class="flex items-center justify-center py-3 w-full text-white/70"
+                                title="My Classes"
+                            >
+                                <i class="pi pi-book text-base"></i>
+                            </div>
+
+                            <!-- Classes and Subjects List - Always Visible -->
+                            <template v-if="classes && classes.length > 0">
+                                <div v-for="classItem in classes" :key="classItem?.id" class="transition-all duration-200" :class="isCollapsed ? 'mt-3' : 'mt-4'">
+                                    <!-- Class Name - Dropdown Button -->
+                                    <div class="flex items-center py-1.5 px-2 transition-all duration-200 w-full group" :class="{'justify-center': isCollapsed}">
+                                        <div @click="navigateToClass(classItem)" class="flex items-center justify-center cursor-pointer transition-all duration-200 rounded-lg" :class="{
+                                            'text-white bg-white/20': isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'),
+                                            'text-white/80 hover:text-white hover:bg-white/10': !isRouteActive('TeacherRoom') && !isRouteActive('StudentRoom'),
+                                            'w-10 h-10': isCollapsed,
+                                            'w-full px-3 py-2': !isCollapsed
+                                        }" :title="isCollapsed ? classItem.name : ''">
+                                            <div class="flex items-center gap-3 w-full">
+                                                <div
+                                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 transition-all duration-200"
+                                                    :class="{
+                                                        'bg-white/40': isRouteActive('TeacherRoom') || isRouteActive('StudentRoom'),
+                                                        'bg-white/20 group-hover:bg-white/30': !isRouteActive('TeacherRoom') && !isRouteActive('StudentRoom')
+                                                    }"
+                                                >
+                                                    {{ getClassSection(classItem?.name) }}
+                                                </div>
+                                                <span v-if="!isCollapsed" class="text-sm font-medium">{{ classItem?.name }}</span>
+                                            </div>
+                                        </div>
+                                        <button v-if="!isCollapsed" @click.stop="toggleClass(classItem.id)" :class="['pi text-xs transition-transform duration-200 p-2', expandedClassId === classItem.id ? 'pi-chevron-down' : 'pi-chevron-right', 'text-white/60']"></button>
                                     </div>
-                                    <span v-if="!isCollapsed" :class="['text-sm font-medium truncate', (isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')) ? 'text-white' : 'text-white/80']">{{ class_.name }}</span>
-                                    <div
-                                        v-if="(isRouteActive('TeacherRoom') || isRouteActive('StudentRoom')) && !isCollapsed"
-                                        class="ml-auto w-1.5 h-5 rounded-sm bg-white transition-all duration-200"
-                                    ></div>
+
+                                    <!-- Subjects List - Visible When Class is Expanded -->
+                                    <template v-if="!isCollapsed && expandedClassId === classItem.id && classItem?.subjects && classItem.subjects.length > 0">
+                                        <div class="mt-1 ml-2 space-y-1 border-l-2 border-white/10 pl-3">
+                                            <div
+                                                v-for="(subject, index) in classItem.subjects"
+                                                :key="`${classItem.id}-${index}-${subject}`"
+                                                @click="navigateToSubject(classItem, subject)"
+                                                class="flex items-center gap-3 px-3 py-1.5 w-full text-left transition-all duration-200 rounded-lg cursor-pointer"
+                                                :class="{
+                                                    'bg-white/20 text-white shadow-lg backdrop-blur-sm': selectedSubject === subject && selectedClassForSubject?.id === classItem.id,
+                                                    'text-white/70 hover:text-white hover:bg-white/10': !(selectedSubject === subject && selectedClassForSubject?.id === classItem.id),
+                                                    'opacity-0 h-0 py-0 my-0 overflow-hidden': isCollapsed
+                                                }"
+                                                :title="`Open ${subject} folder in ${classItem.name}`"
+                                            >
+                                                <i class="pi pi-folder text-sm" :class="selectedSubject === subject && selectedClassForSubject?.id === classItem.id ? 'text-white' : 'text-white/60'"></i>
+                                                <span class="text-sm font-medium flex-1" :class="selectedSubject === subject && selectedClassForSubject?.id === classItem.id ? 'text-white' : ''">{{ subject }}</span>
+                                                <div v-if="selectedSubject === subject && selectedClassForSubject?.id === classItem.id" class="ml-auto w-1.5 h-5 rounded-sm bg-white transition-all duration-200"></div>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
-                            </button>``
+                            </template>
                         </div>
-                    </div>
+                    </template>
                 </nav>
             </div>
 

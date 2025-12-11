@@ -11,27 +11,27 @@ class Classroom(models.Model):
     room_number = models.CharField(max_length=50)  # Room 111, Room 121, etc.
     capacity = models.IntegerField(default=30)
     school_year = models.CharField(max_length=20, default='2024-2025')
-    
+
     # Teacher assignment
-    teacher = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, 
+    teacher = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='taught_classrooms', limit_choices_to={'role': 'teacher'})
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'classrooms'
         ordering = ['grade_level', 'section']
         unique_together = ['grade_level', 'section', 'school_year']
-    
+
     def __str__(self):
         return f"Grade {self.grade_level} - {self.section}"
-    
+
     @property
     def student_count(self):
         """Get the number of students in this classroom"""
         return self.students.filter(role='student').count()
-    
+
     @property
     def is_full(self):
         """Check if classroom is at capacity"""
@@ -292,7 +292,7 @@ class NewsfeedPost(models.Model):
     file_type = models.CharField(max_length=50, default='image')
     activity_title = models.CharField(max_length=255, blank=True, null=True)
     activity_type = models.CharField(max_length=100, blank=True, null=True)
-    
+
     # Classroom filter - posts are only visible to users in the same classroom
     classroom = models.ForeignKey('Classroom', on_delete=models.CASCADE, null=True, blank=True, related_name='newsfeed_posts')
 
@@ -442,17 +442,19 @@ class Notification(models.Model):
 
 class PortfolioCompilationRequest(models.Model):
     """Track portfolio compilation requests per class"""
-    class_name = models.CharField(max_length=255)
-    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compilation_requests')
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name='compilation_requests', null=True, blank=True)
+    class_name = models.CharField(max_length=255, default='General')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compilation_requests_made')
     requested_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'portfolio_compilation_requests'
         ordering = ['-requested_at']
+        unique_together = ['classroom', 'requested_by']
 
     def __str__(self):
-        return f"Compilation request for {self.class_name} by {self.requested_by.username}"
+        return f"Compilation request for {self.classroom.name if self.classroom else 'N/A'} by {self.requested_by.username}"
 
 
 class PortfolioEnvelope(models.Model):

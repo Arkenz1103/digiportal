@@ -1,23 +1,23 @@
 <template>
     <!-- Toast Notification -->
     <Toast />
-    
+
     <!-- Submission View Dialog -->
     <Dialog v-model:visible="showSubmissionDialog" modal :style="{ width: '90vw', maxWidth: '800px' }" :dismissableMask="true">
         <template #header>
             <div class="flex items-center gap-3">
                 <div :class="[
                     'w-10 h-10 rounded-lg flex items-center justify-center',
-                    selectedSubmission?.type === 'Project' ? 'bg-purple-100' : 
-                    selectedSubmission?.type === 'Contest' ? 'bg-blue-100' : 
-                    selectedSubmission?.type === 'Quiz' ? 'bg-green-100' : 
+                    selectedSubmission?.type === 'Project' ? 'bg-purple-100' :
+                    selectedSubmission?.type === 'Contest' ? 'bg-blue-100' :
+                    selectedSubmission?.type === 'Quiz' ? 'bg-green-100' :
                     selectedSubmission?.type === 'Exam' ? 'bg-red-100' : 'bg-gray-100'
                 ]">
                     <span :class="[
                         'text-xl font-bold',
-                        selectedSubmission?.type === 'Project' ? 'text-purple-600' : 
-                        selectedSubmission?.type === 'Contest' ? 'text-blue-600' : 
-                        selectedSubmission?.type === 'Quiz' ? 'text-green-600' : 
+                        selectedSubmission?.type === 'Project' ? 'text-purple-600' :
+                        selectedSubmission?.type === 'Contest' ? 'text-blue-600' :
+                        selectedSubmission?.type === 'Quiz' ? 'text-green-600' :
                         selectedSubmission?.type === 'Exam' ? 'text-red-600' : 'text-gray-600'
                     ]">{{ selectedSubmission?.type?.charAt(0) }}</span>
                 </div>
@@ -50,7 +50,7 @@
             <!-- Submission Info -->
             <div class="border-t pt-4">
                 <h4 class="font-semibold text-gray-800 mb-3">Your Submission</h4>
-                
+
                 <!-- Submission Date & Time -->
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
@@ -117,7 +117,7 @@
             </div>
         </template>
     </Dialog>
-    
+
     <!-- Restore Confirmation Dialog -->
     <Dialog v-model:visible="showRestoreConfirm" modal :style="{ width: '90vw', maxWidth: '450px' }" :dismissableMask="true">
         <template #header>
@@ -172,8 +172,8 @@
                     <div v-if="!showingSubject">
                         <!-- Filter -->
                         <div class="flex items-center gap-2 mb-6">
-                            <button 
-                                v-for="period in ['All', 'Current Year', 'Last Year']" 
+                            <button
+                                v-for="period in ['All', 'Current Year', 'Last Year']"
                                 :key="period"
                                 @click="currentFilter = period.toLowerCase()"
                                 :class="[
@@ -186,10 +186,10 @@
                                 {{ period }}
                             </button>
                         </div>
-                        
+
                         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                             <!-- Grade 1 - A Card -->
-                            <div 
+                            <div
                                 class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer"
                                 @click="showSubjectActivities('Grade 1 - A')"
                             >
@@ -198,7 +198,7 @@
                                 <h3 class="text-lg font-semibold text-white">Grade 1 - A</h3>
                                 <p class="text-xs text-white/80">Archived on May 30, 2025</p>
                             </div>
-                            
+
                             <!-- Class Details -->
                             <div class="p-4">
                                 <div class="flex items-center justify-between mb-3">
@@ -221,7 +221,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="flex items-center text-sm text-indigo-600 border-t border-indigo-100 pt-3 mt-3">
                                     <div class="flex items-center">
                                         <i class="pi pi-calendar mr-1"></i>
@@ -240,7 +240,7 @@
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                                 <h3 class="text-xl font-bold text-indigo-900">My Portfolio</h3>
                                 <div class="w-full sm:w-auto">
-                                    <button 
+                                    <button
                                         @click="goBack"
                                         class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all duration-200 w-full sm:w-auto shadow-sm"
                                     >
@@ -256,7 +256,7 @@
                             <div class="space-y-6">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                     <!-- Portfolio Folders -->
-                                    <div 
+                                    <div
                                         v-for="folder in portfolioFolders"
                                         :key="folder.id"
                                         class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1 duration-200"
@@ -282,7 +282,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- Interactive Footer -->
                                         <div class="mt-4 pt-4 border-t border-indigo-100 flex justify-between items-center p-4 md:p-6">
                                             <div class="flex items-center space-x-2 text-sm text-indigo-600 font-medium">
@@ -298,14 +298,17 @@
 
                         <!-- Activities List View -->
                         <div v-else class="space-y-6">
+                            <!-- Header Title (Top) -->
+                            <div class="mb-4">
+                                <h2 class="text-2xl font-bold text-indigo-900">List of Activities - {{ selectedSubject }}</h2>
+                            </div>
+
                             <!-- Back button and List Header -->
-                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                                <div class="rounded-lg py-2 px-4">
-                                    <span class="text-2xl font-bold text-indigo-900">List of Activities - {{ selectedSubject }}</span>
-                                </div>
-                                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                                    <button 
-                                        @click="showingActivities = false" 
+                            <div class="flex flex-col sm:flex-row justify-start items-start sm:items-center gap-4 mb-6">
+                                <!-- Back Button (Left Side) -->
+                                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-first">
+                                    <button
+                                        @click="showingActivities = false"
                                         class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all duration-200 w-full sm:w-auto shadow-sm"
                                     >
                                         <i class="pi pi-arrow-left"></i>
@@ -339,7 +342,7 @@
 
                                 <!-- Activity Items -->
                                 <div class="divide-y divide-gray-200">
-                                    <div v-for="(activity, index) in activities" :key="index" 
+                                    <div v-for="(activity, index) in activities" :key="index"
                                         @click="viewSubmission(activity)"
                                         class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-indigo-50/50 transition-colors duration-150 items-center cursor-pointer">
                                         <!-- Activity Type with Icon -->
@@ -347,16 +350,16 @@
                                             <div class="flex items-center gap-2">
                                                 <div :class="[
                                                     'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                                                    activity.type === 'Project' ? 'bg-purple-100' : 
-                                                    activity.type === 'Contest' ? 'bg-blue-100' : 
-                                                    activity.type === 'Quiz' ? 'bg-green-100' : 
+                                                    activity.type === 'Project' ? 'bg-purple-100' :
+                                                    activity.type === 'Contest' ? 'bg-blue-100' :
+                                                    activity.type === 'Quiz' ? 'bg-green-100' :
                                                     activity.type === 'Exam' ? 'bg-red-100' : 'bg-gray-100'
                                                 ]">
                                                     <span :class="[
                                                         'text-base font-bold',
-                                                        activity.type === 'Project' ? 'text-purple-600' : 
-                                                        activity.type === 'Contest' ? 'text-blue-600' : 
-                                                        activity.type === 'Quiz' ? 'text-green-600' : 
+                                                        activity.type === 'Project' ? 'text-purple-600' :
+                                                        activity.type === 'Contest' ? 'text-blue-600' :
+                                                        activity.type === 'Quiz' ? 'text-green-600' :
                                                         activity.type === 'Exam' ? 'text-red-600' : 'text-gray-600'
                                                     ]">{{ activity.type.charAt(0) }}</span>
                                                 </div>
@@ -374,7 +377,7 @@
 
                                         <!-- Description -->
                                         <div class="col-span-4">
-                                            <div 
+                                            <div
                                                 class="text-sm text-gray-600 leading-relaxed"
                                                 :title="activity.description"
                                                 style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 3rem;"
@@ -439,9 +442,9 @@ const portfolioFolders = ref([
 // Activities data by folder with submission data
 const activitiesByFolder = {
     'Quarter 1 Portfolio': [
-        { 
-            id: 101, type: 'Project', title: 'All About Me Poster', 
-            description: 'Create a colorful poster introducing yourself. Include your name, age, favorite things, and a self-portrait...', 
+        {
+            id: 101, type: 'Project', title: 'All About Me Poster',
+            description: 'Create a colorful poster introducing yourself. Include your name, age, favorite things, and a self-portrait...',
             date: 'Jun 15, 2024', time: '10:00 AM',
             submission: {
                 status: 'Scored',
@@ -457,9 +460,9 @@ const activitiesByFolder = {
                 feedback: 'Excellent work! Your poster is very creative and colorful. I love how you organized the information and your self-portrait is wonderful. Great job!'
             }
         },
-        { 
-            id: 102, type: 'Quiz', title: 'Number Recognition Quiz', 
-            description: 'Identify and write numbers 1-50. Match numerals with number words.', 
+        {
+            id: 102, type: 'Quiz', title: 'Number Recognition Quiz',
+            description: 'Identify and write numbers 1-50. Match numerals with number words.',
             date: 'Jun 20, 2024', time: '9:00 AM',
             submission: {
                 status: 'Scored',
@@ -474,9 +477,9 @@ const activitiesByFolder = {
                 feedback: 'Great job! You got almost all the numbers correct. Just remember that 13 is "thirteen" not "threeteen". Keep practicing!'
             }
         },
-        { 
-            id: 103, type: 'Project', title: 'Family Tree Artwork', 
-            description: 'Draw your family tree with pictures or drawings of family members. Label each person with their name an...', 
+        {
+            id: 103, type: 'Project', title: 'Family Tree Artwork',
+            description: 'Draw your family tree with pictures or drawings of family members. Label each person with their name an...',
             date: 'Jun 28, 2024', time: '2:00 PM',
             submission: {
                 status: 'Scored',
@@ -492,9 +495,9 @@ const activitiesByFolder = {
                 feedback: 'Beautiful family tree! I can see you put a lot of effort into drawing each family member. Your labels are clear and neat. Well done!'
             }
         },
-        { 
-            id: 104, type: 'Quiz', title: 'Alphabet Assessment', 
-            description: 'Recite the alphabet and identify uppercase and lowercase letters A-Z.', 
+        {
+            id: 104, type: 'Quiz', title: 'Alphabet Assessment',
+            description: 'Recite the alphabet and identify uppercase and lowercase letters A-Z.',
             date: 'Jul 5, 2024', time: '11:00 AM',
             submission: {
                 status: 'Scored',
@@ -511,9 +514,9 @@ const activitiesByFolder = {
         }
     ],
     'Quarter 2 Portfolio': [
-        { 
-            id: 201, type: 'Project', title: 'Weather Journal', 
-            description: 'Keep a daily weather journal for one week. Draw pictures and write simple sentences about the weather each day.', 
+        {
+            id: 201, type: 'Project', title: 'Weather Journal',
+            description: 'Keep a daily weather journal for one week. Draw pictures and write simple sentences about the weather each day.',
             date: 'Aug 12, 2024', time: '1:00 PM',
             submission: {
                 status: 'Scored',
@@ -529,9 +532,9 @@ const activitiesByFolder = {
                 feedback: 'Great observations! Your drawings are detailed and your sentences are clear. Remember to capitalize the first word of each sentence.'
             }
         },
-        { 
-            id: 202, type: 'Quiz', title: 'Addition & Subtraction Quiz', 
-            description: 'Solve basic addition and subtraction problems within 20. Show your work using drawings or number lines.', 
+        {
+            id: 202, type: 'Quiz', title: 'Addition & Subtraction Quiz',
+            description: 'Solve basic addition and subtraction problems within 20. Show your work using drawings or number lines.',
             date: 'Aug 18, 2024', time: '10:30 AM',
             submission: {
                 status: 'Scored',
@@ -546,9 +549,9 @@ const activitiesByFolder = {
                 feedback: 'Excellent work! You showed your thinking clearly. Just watch out for borrowing in subtraction - review problem #8.'
             }
         },
-        { 
-            id: 203, type: 'Contest', title: 'Spelling Bee Competition', 
-            description: 'Participate in the class spelling bee. Study the provided word list of 25 first-grade vocabulary words.', 
+        {
+            id: 203, type: 'Contest', title: 'Spelling Bee Competition',
+            description: 'Participate in the class spelling bee. Study the provided word list of 25 first-grade vocabulary words.',
             date: 'Aug 25, 2024', time: '9:00 AM',
             submission: {
                 status: 'Scored',
@@ -563,9 +566,9 @@ const activitiesByFolder = {
                 feedback: 'You did wonderfully! 4th place is amazing. Keep practicing those tricky words like "because" and "friend".'
             }
         },
-        { 
-            id: 204, type: 'Project', title: 'Plant Growth Observation', 
-            description: 'Plant a seed and observe its growth over two weeks. Draw and label the plant parts as they develop.', 
+        {
+            id: 204, type: 'Project', title: 'Plant Growth Observation',
+            description: 'Plant a seed and observe its growth over two weeks. Draw and label the plant parts as they develop.',
             date: 'Sep 2, 2024', time: '3:00 PM',
             submission: {
                 status: 'Scored',
@@ -581,9 +584,9 @@ const activitiesByFolder = {
                 feedback: 'Outstanding science project! Your observations are detailed and your drawings show the growth stages perfectly. Great job!'
             }
         },
-        { 
-            id: 205, type: 'Exam', title: 'Reading Comprehension Test', 
-            description: 'Read short passages and answer questions about characters, setting, and main ideas.', 
+        {
+            id: 205, type: 'Exam', title: 'Reading Comprehension Test',
+            description: 'Read short passages and answer questions about characters, setting, and main ideas.',
             date: 'Sep 10, 2024', time: '8:30 AM',
             submission: {
                 status: 'Scored',
@@ -600,9 +603,9 @@ const activitiesByFolder = {
         }
     ],
     'Quarter 3 Portfolio': [
-        { 
-            id: 301, type: 'Project', title: 'Community Helpers Presentation', 
-            description: 'Research a community helper (doctor, firefighter, teacher, etc.) and create a presentation with pictures and facts.', 
+        {
+            id: 301, type: 'Project', title: 'Community Helpers Presentation',
+            description: 'Research a community helper (doctor, firefighter, teacher, etc.) and create a presentation with pictures and facts.',
             date: 'Oct 8, 2024', time: '11:00 AM',
             submission: {
                 status: 'Scored',
@@ -618,9 +621,9 @@ const activitiesByFolder = {
                 feedback: 'Wonderful presentation! You included great facts and your poster is very informative. I learned new things about firefighters from you!'
             }
         },
-        { 
-            id: 302, type: 'Quiz', title: 'Shapes and Patterns Quiz', 
-            description: 'Identify 2D and 3D shapes. Create and extend patterns using shapes and colors.', 
+        {
+            id: 302, type: 'Quiz', title: 'Shapes and Patterns Quiz',
+            description: 'Identify 2D and 3D shapes. Create and extend patterns using shapes and colors.',
             date: 'Oct 15, 2024', time: '9:30 AM',
             submission: {
                 status: 'Scored',
@@ -636,9 +639,9 @@ const activitiesByFolder = {
                 feedback: 'Great job identifying shapes! Your patterns are creative. Remember that a cube has 6 faces, not 4.'
             }
         },
-        { 
-            id: 303, type: 'Project', title: 'Story Writing - My Adventure', 
-            description: 'Write and illustrate a short story about an imaginary adventure. Include a beginning, middle, and end.', 
+        {
+            id: 303, type: 'Project', title: 'Story Writing - My Adventure',
+            description: 'Write and illustrate a short story about an imaginary adventure. Include a beginning, middle, and end.',
             date: 'Oct 22, 2024', time: '2:30 PM',
             submission: {
                 status: 'Scored',
@@ -654,9 +657,9 @@ const activitiesByFolder = {
                 feedback: 'What an imaginative story! Your beginning, middle, and end are clear. Your illustrations bring the story to life. Great creativity!'
             }
         },
-        { 
-            id: 304, type: 'Contest', title: 'Math Olympics', 
-            description: 'Compete in math games and challenges. Topics include counting, addition, subtraction, and word problems.', 
+        {
+            id: 304, type: 'Contest', title: 'Math Olympics',
+            description: 'Compete in math games and challenges. Topics include counting, addition, subtraction, and word problems.',
             date: 'Oct 28, 2024', time: '10:00 AM',
             submission: {
                 status: 'Scored',
@@ -673,9 +676,9 @@ const activitiesByFolder = {
         }
     ],
     'Quarter 4 Portfolio': [
-        { 
-            id: 401, type: 'Project', title: 'Animal Habitat Diorama', 
-            description: 'Create a 3D diorama showing an animal in its natural habitat. Include labels for the animal and habitat features.', 
+        {
+            id: 401, type: 'Project', title: 'Animal Habitat Diorama',
+            description: 'Create a 3D diorama showing an animal in its natural habitat. Include labels for the animal and habitat features.',
             date: 'Nov 12, 2024', time: '1:30 PM',
             submission: {
                 status: 'Scored',
@@ -691,9 +694,9 @@ const activitiesByFolder = {
                 feedback: 'Amazing diorama! Your attention to detail is impressive. The labels are clear and your jaguar looks realistic. Excellent work!'
             }
         },
-        { 
-            id: 402, type: 'Quiz', title: 'Money and Time Quiz', 
-            description: 'Count coins and make change. Tell time to the hour and half-hour on analog and digital clocks.', 
+        {
+            id: 402, type: 'Quiz', title: 'Money and Time Quiz',
+            description: 'Count coins and make change. Tell time to the hour and half-hour on analog and digital clocks.',
             date: 'Nov 18, 2024', time: '10:00 AM',
             submission: {
                 status: 'Scored',
@@ -708,9 +711,9 @@ const activitiesByFolder = {
                 feedback: 'Great progress! You counted coins correctly. Just remember the minute hand points to 6 for half past the hour.'
             }
         },
-        { 
-            id: 403, type: 'Project', title: 'Biography Book Report', 
-            description: 'Read a biography of a famous person and create a book report poster with important facts about their life.', 
+        {
+            id: 403, type: 'Project', title: 'Biography Book Report',
+            description: 'Read a biography of a famous person and create a book report poster with important facts about their life.',
             date: 'Nov 25, 2024', time: '11:30 AM',
             submission: {
                 status: 'Scored',
@@ -726,9 +729,9 @@ const activitiesByFolder = {
                 feedback: 'Wonderful book report! You captured the important facts about Helen Keller\'s inspiring life. Your poster is well-organized and informative!'
             }
         },
-        { 
-            id: 404, type: 'Exam', title: 'End of Year Assessment', 
-            description: 'Comprehensive test covering all subjects: reading, writing, math, science, and social studies.', 
+        {
+            id: 404, type: 'Exam', title: 'End of Year Assessment',
+            description: 'Comprehensive test covering all subjects: reading, writing, math, science, and social studies.',
             date: 'Dec 5, 2024', time: '8:00 AM',
             submission: {
                 status: 'Scored',
@@ -743,9 +746,9 @@ const activitiesByFolder = {
                 feedback: 'Excellent performance on your final exam! You showed great understanding across all subjects. Have a wonderful summer!'
             }
         },
-        { 
-            id: 405, type: 'Project', title: 'Summer Reading Plan', 
-            description: 'Create a list of 10 books you want to read over summer vacation. Design a reading log to track your progress.', 
+        {
+            id: 405, type: 'Project', title: 'Summer Reading Plan',
+            description: 'Create a list of 10 books you want to read over summer vacation. Design a reading log to track your progress.',
             date: 'Dec 12, 2024', time: '2:00 PM',
             submission: {
                 status: 'Scored',
@@ -763,9 +766,9 @@ const activitiesByFolder = {
         }
     ],
     'Special Projects': [
-        { 
-            id: 501, type: 'Contest', title: 'Science Fair - Volcano Experiment', 
-            description: 'Build a model volcano and demonstrate a chemical reaction. Explain the science behind volcanic eruptions.', 
+        {
+            id: 501, type: 'Contest', title: 'Science Fair - Volcano Experiment',
+            description: 'Build a model volcano and demonstrate a chemical reaction. Explain the science behind volcanic eruptions.',
             date: 'Jul 20, 2024', time: '9:00 AM',
             submission: {
                 status: 'Scored',
@@ -782,9 +785,9 @@ const activitiesByFolder = {
                 feedback: 'Fantastic science project! Your volcano looked amazing and your explanation of the chemical reaction was clear. Great presentation!'
             }
         },
-        { 
-            id: 502, type: 'Project', title: 'Cultural Heritage Day', 
-            description: 'Share information about your family\'s cultural background. Bring traditional food, clothing, or artifacts to present.', 
+        {
+            id: 502, type: 'Project', title: 'Cultural Heritage Day',
+            description: 'Share information about your family\'s cultural background. Bring traditional food, clothing, or artifacts to present.',
             date: 'Aug 30, 2024', time: '10:30 AM',
             submission: {
                 status: 'Scored',
@@ -800,9 +803,9 @@ const activitiesByFolder = {
                 feedback: 'What a wonderful presentation! You taught us so much about Filipino culture. Thank you for sharing your heritage with the class!'
             }
         },
-        { 
-            id: 503, type: 'Contest', title: 'Talent Show Performance', 
-            description: 'Prepare a 3-minute talent performance (singing, dancing, magic trick, etc.) for the school talent show.', 
+        {
+            id: 503, type: 'Contest', title: 'Talent Show Performance',
+            description: 'Prepare a 3-minute talent performance (singing, dancing, magic trick, etc.) for the school talent show.',
             date: 'Sep 15, 2024', time: '6:00 PM',
             submission: {
                 status: 'Scored',
@@ -818,9 +821,9 @@ const activitiesByFolder = {
                 feedback: 'Amazing performance! Your energy and enthusiasm were wonderful. You practiced hard and it showed. The audience loved it!'
             }
         },
-        { 
-            id: 504, type: 'Project', title: 'Recycling Awareness Campaign', 
-            description: 'Design posters and create a presentation to teach classmates about recycling and environmental protection.', 
+        {
+            id: 504, type: 'Project', title: 'Recycling Awareness Campaign',
+            description: 'Design posters and create a presentation to teach classmates about recycling and environmental protection.',
             date: 'Oct 10, 2024', time: '1:00 PM',
             submission: {
                 status: 'Scored',
@@ -838,9 +841,9 @@ const activitiesByFolder = {
         }
     ],
     'Art & Creativity': [
-        { 
-            id: 601, type: 'Project', title: 'Self-Portrait in Different Styles', 
-            description: 'Create three self-portraits using different art styles: realistic, abstract, and cartoon. Use various media.', 
+        {
+            id: 601, type: 'Project', title: 'Self-Portrait in Different Styles',
+            description: 'Create three self-portraits using different art styles: realistic, abstract, and cartoon. Use various media.',
             date: 'Jun 25, 2024', time: '2:00 PM',
             submission: {
                 status: 'Scored',
@@ -857,9 +860,9 @@ const activitiesByFolder = {
                 feedback: 'Incredible artistic range! Each portrait captures your personality in a unique way. Your use of different media shows great skill!'
             }
         },
-        { 
-            id: 602, type: 'Project', title: 'Clay Sculpture - Favorite Animal', 
-            description: 'Sculpt your favorite animal using clay. Paint and decorate it after it dries.', 
+        {
+            id: 602, type: 'Project', title: 'Clay Sculpture - Favorite Animal',
+            description: 'Sculpt your favorite animal using clay. Paint and decorate it after it dries.',
             date: 'Jul 15, 2024', time: '11:00 AM',
             submission: {
                 status: 'Scored',
@@ -875,9 +878,9 @@ const activitiesByFolder = {
                 feedback: 'Beautiful sculpture! Your dolphin looks so realistic. Great attention to detail in the painting. Wonderful work!'
             }
         },
-        { 
-            id: 603, type: 'Project', title: 'Watercolor Landscape Painting', 
-            description: 'Paint a landscape scene using watercolors. Include foreground, middle ground, and background elements.', 
+        {
+            id: 603, type: 'Project', title: 'Watercolor Landscape Painting',
+            description: 'Paint a landscape scene using watercolors. Include foreground, middle ground, and background elements.',
             date: 'Aug 5, 2024', time: '10:00 AM',
             submission: {
                 status: 'Scored',
@@ -893,9 +896,9 @@ const activitiesByFolder = {
                 feedback: 'Stunning watercolor work! Your layering of foreground, middle, and background creates great depth. The sunset colors are beautiful!'
             }
         },
-        { 
-            id: 604, type: 'Contest', title: 'School Art Exhibition', 
-            description: 'Submit your best artwork for the annual school art exhibition. Theme: "My World, My Imagination".', 
+        {
+            id: 604, type: 'Contest', title: 'School Art Exhibition',
+            description: 'Submit your best artwork for the annual school art exhibition. Theme: "My World, My Imagination".',
             date: 'Sep 20, 2024', time: '3:00 PM',
             submission: {
                 status: 'Scored',
@@ -911,9 +914,9 @@ const activitiesByFolder = {
                 feedback: 'Absolutely magical! Your imagination shines through. This piece won 2nd place in the exhibition. Congratulations!'
             }
         },
-        { 
-            id: 605, type: 'Project', title: 'Collage - Seasons of the Year', 
-            description: 'Create a four-panel collage representing spring, summer, fall, and winter using magazine cutouts and drawings.', 
+        {
+            id: 605, type: 'Project', title: 'Collage - Seasons of the Year',
+            description: 'Create a four-panel collage representing spring, summer, fall, and winter using magazine cutouts and drawings.',
             date: 'Oct 30, 2024', time: '1:30 PM',
             submission: {
                 status: 'Scored',
@@ -929,9 +932,9 @@ const activitiesByFolder = {
                 feedback: 'Excellent representation of all four seasons! Your choice of images and colors perfectly captures each season. Creative and well-organized!'
             }
         },
-        { 
-            id: 606, type: 'Project', title: 'Origami Art Display', 
-            description: 'Learn and create 5 different origami designs. Mount them on a poster board with instructions.', 
+        {
+            id: 606, type: 'Project', title: 'Origami Art Display',
+            description: 'Learn and create 5 different origami designs. Mount them on a poster board with instructions.',
             date: 'Nov 20, 2024', time: '2:30 PM',
             submission: {
                 status: 'Scored',
@@ -1001,19 +1004,19 @@ const restoreClass = (classroom) => {
 
 const confirmRestore = async () => {
     if (!classToRestore.value) return;
-    
+
     try {
         console.log('🔄 Restoring class:', classToRestore.value.name);
         // Simulated API call - replace with actual API when available
         // await axios.put(`/api/classrooms/${classToRestore.value.id}/`, { is_archived: false });
-        
+
         toast.add({
             severity: 'success',
             summary: 'Class Restored',
             detail: `"${classToRestore.value.name}" has been restored successfully!`,
             life: 3000
         });
-        
+
         // Reload would go here
         // await loadArchivedClasses();
     } catch (error) {
@@ -1034,14 +1037,14 @@ const confirmRestore = async () => {
 const filteredClasses = computed(() => {
     if (currentFilter.value === 'all') return archivedClasses.value;
     const currentYear = new Date().getFullYear();
-    
+
     return archivedClasses.value.filter(class_ => {
         if (!class_ || !class_.academicYear) return false;
-        
+
         try {
             const classYear = parseInt(class_.academicYear.split('-')[0]);
             if (isNaN(classYear)) return false;
-            
+
             if (currentFilter.value === 'current year') {
                 return classYear === currentYear;
             }
@@ -1062,7 +1065,7 @@ const formatDate = (dateString) => {
         if (!dateString) return '';
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '';
-        
+
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',

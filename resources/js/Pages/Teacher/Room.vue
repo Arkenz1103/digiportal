@@ -1,13 +1,13 @@
 <template>
     <div class="flex flex-col">
         <!-- Class Header -->
-        <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-4 md:p-3 shadow-lg rounded-t-xl">
+        <div class="bg-white p-4 md:p-3 shadow-lg rounded-t-xl border-b border-gray-200">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div class="space-y-2">
-                    <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block bg-white/20">
+                    <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block bg-gray-100">
                         {{ className }}
                     </h1>
-                    <p class="text-white/90 ml-2 flex items-center gap-2 text-sm">
+                    <p class="text-gray-600 ml-2 flex items-center gap-2 text-sm">
                         <i class="pi pi-user"></i>
                         Teacher: {{ currentUser.name }}
                     </p>
@@ -16,7 +16,7 @@
                     <button
                         @click.stop="toggleSettingsDropdown"
                         type="button"
-                        class="flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:shadow-md border border-white/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-indigo-700 focus:ring-white"
+                        class="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
                         aria-label="Settings"
                         aria-haspopup="true"
                         :aria-expanded="showSettingsDropdown"
@@ -55,11 +55,11 @@
                     v-for="tab in tabs"
                     :key="tab.id"
                     @click="activeTab = tab.id"
-                    class="flex items-center gap-2 text-white/90 px-4 py-2 md:px-5 md:py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group"
+                    class="flex items-center gap-2 text-gray-600 px-4 py-2 md:px-5 md:py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group"
                     :class="[
                         activeTab === tab.id
-                            ? 'font-semibold text-white'
-                            : 'hover:text-white hover:bg-white/5'
+                            ? 'font-semibold text-indigo-700 bg-indigo-50'
+                            : 'hover:text-indigo-600 hover:bg-gray-50'
                     ]"
                 >
                     <span class="relative z-10 flex items-center gap-2">
@@ -68,7 +68,7 @@
                     </span>
                     <span
                         v-if="activeTab === tab.id"
-                        class="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full"
+                        class="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full"
                     ></span>
                 </button>
             </div>
@@ -113,78 +113,61 @@
                             <!-- Folders Grid -->
                             <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                 <!-- Subject Folders -->
-                                <div v-for="(folder, index) in subjectFolders"
-                                    :key="folder.id"
-                                    @click="showSubjectActivities(folder.name, folder.id)"
-                                    class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1 duration-200"
-                                >
-                                    <!-- Folder Preview -->
-                                    <div class="relative h-36 mb-4 p-4 md:p-6">
-                                        <!-- 3-Dot Menu Button -->
-                                        <div class="absolute top-2 right-2 z-20">
-                                            <button
-                                                @click.stop="toggleFolderMenu($event, folder, index)"
-                                                class="p-2 rounded-full hover:bg-indigo-100 text-gray-600 hover:text-indigo-700 transition-colors"
-                                                :ref="'folderMenuButton' + index"
-                                            >
-                                                <i class="pi pi-ellipsis-v"></i>
-                                            </button>
+                                <div v-for="folder in subjectFolders" :key="folder.id" class="group cursor-pointer">
+                                    <div @click="showSubjectActivities(folder.name, folder.id)" class="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 relative h-full flex flex-col group-hover:border-indigo-300">
+                                        <!-- Header with Gradient Background -->
+                                        <div class="relative h-32 bg-gradient-to-r from-indigo-600 to-blue-600 rounded-t-xl">
+                                            <!-- Decorative Background Pattern -->
+                                            <div class="absolute inset-0 opacity-10">
+                                                <div class="absolute top-0 right-0 w-40 h-40 bg-white rounded-full transform translate-x-1/3 -translate-y-1/3"></div>
+                                            </div>
 
-                                            <!-- Dropdown Menu -->
-                                            <div
-                                                v-if="activeFolderMenuIndex === index"
-                                                class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
-                                            >
-                                                <button
-                                                    @click.stop="openUpdateFolderDialog(folder)"
-                                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2"
-                                                >
-                                                    <i class="pi pi-pencil text-sm"></i>
-                                                    <span>Update</span>
-                                                </button>
-                                                <button
-                                                    @click.stop="openDropFolderDialog(folder)"
-                                                    :disabled="folder.items > 0"
-                                                    :class="[
-                                                        'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2',
-                                                        folder.items > 0
-                                                            ? 'text-gray-400 cursor-not-allowed bg-gray-50'
-                                                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                                                    ]"
-                                                    :title="folder.items > 0 ? 'Cannot drop folder with activities. Please delete all activities first.' : 'Drop this folder'"
-                                                >
-                                                    <i class="pi pi-trash text-sm"></i>
-                                                    <span>Drop</span>
-                                                </button>
+                                            <!-- Content -->
+                                            <div class="relative z-10 p-4 h-full flex flex-col justify-between text-white">
+                                                <div>
+                                                    <h3 class="text-lg font-bold truncate">{{ folder.name }}</h3>
+                                                    <p class="text-sm text-white/80 truncate">Subject Folder</p>
+                                                </div>
+                                                <div class="text-xs text-white/70">{{ folder.items }} activities</div>
+                                            </div>
+
+                                            <!-- Teacher Avatar/Profile Picture -->
+                                            <div class="absolute bottom-2 right-4 w-16 h-16 rounded-full bg-white shadow-lg border-4 border-white flex items-center justify-center overflow-hidden">
+                                                <div v-if="currentUser?.profile_picture" class="w-full h-full">
+                                                    <img :src="currentUser.profile_picture" :alt="currentUser?.name" class="w-full h-full object-cover">
+                                                </div>
+                                                <div v-else class="w-full h-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
+                                                    {{ currentUser?.name?.charAt(0) || 'T' }}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <!-- Stacked Preview Images with Dynamic Animation -->
-                                        <div class="absolute top-5 right-12 w-28 h-32 flex items-center justify-center">
-                                            <div class="absolute w-24 h-28 rounded-md transform rotate-[-15deg] transition-all duration-300 group-hover:rotate-[-20deg] group-hover:scale-105 bg-gradient-to-br from-violet-500 to-blue-600 shadow-md ring-1 ring-white/40"></div>
-                                            <div class="absolute w-24 h-28 rounded-md transform rotate-[-5deg] transition-all duration-300 group-hover:rotate-[-10deg] group-hover:scale-105 bg-gradient-to-br from-violet-400 to-blue-500 shadow-sm ring-1 ring-white/30"></div>
-                                            <div class="absolute w-24 h-28 rounded-md transform rotate-[5deg] transition-all duration-300 group-hover:rotate-[10deg] group-hover:scale-105 bg-gradient-to-br from-violet-300 to-blue-400 ring-1 ring-white/20"></div>
-                                        </div>
-                                        <!-- Folder Title -->
-                                        <div class="relative z-10">
-                                            <h3 class="text-xl md:text-2xl font-bold mb-1 text-gray-900 group-hover:text-indigo-700 transition-colors">
-                                                {{ folder.name }}
-                                            </h3>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                                    {{ folder.items }} items
-                                                </span>
+                                        <!-- Footer with Menu Button -->
+                                        <div class="p-4 flex items-center justify-end border-t border-gray-100 overflow-visible">
+                                            <!-- Menu Button (Vertical 3 dots) -->
+                                            <div class="relative z-20">
+                                                <button
+                                                    @click.stop="activeFolderMenuIndex = activeFolderMenuIndex === folder.id ? null : folder.id"
+                                                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                                    :title="`Menu for ${folder.name}`"
+                                                >
+                                                    <i class="pi pi-ellipsis-v text-gray-500"></i>
+                                                </button>
+
+                                                <!-- Dropdown Menu -->
+                                                <div v-if="activeFolderMenuIndex === folder.id" class="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-md shadow-lg z-20 py-1">
+                                                    <a @click.stop="openUpdateFolderModal(folder)" href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                                        <i class="pi pi-pencil mr-2"></i> Update
+                                                    </a>
+                                                    <div v-tooltip.left="folder.items > 0 ? 'Cannot drop a folder with activities' : 'Drop Folder'">
+                                                        <a @click.stop="folder.items === 0 && dropfolder(folder)" href="#"
+                                                           :class="['block w-full text-left px-4 py-2 text-sm', { 'text-red-500 hover:bg-red-50': folder.items === 0, 'text-gray-400 cursor-not-allowed': folder.items > 0 }]">
+                                                            <i class="pi pi-trash mr-2"></i> Drop
+                                                        </a>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <!-- Interactive Footer -->
-                                    <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center p-4 md:p-6">
-                                        <div class="flex items-center space-x-2 text-sm text-indigo-700">
-                                            <i class="pi pi-folder text-indigo-700"></i>
-                                            <span>View Contents</span>
-                                        </div>
-                                        <i class="pi pi-arrow-right text-indigo-700 transform group-hover:translate-x-1 transition-transform"></i>
                                     </div>
                                 </div>
                             </div>
@@ -192,14 +175,27 @@
 
                         <!-- Show activities list when a folder is selected -->
                         <div v-else>
-                            <!-- Back button and List Header container -->
-                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                                <!-- List of Activities Header -->
-                                <div class="rounded-lg py-2 px-4">
-                                    <span class="text-2xl font-bold text-indigo-900">List of Activities - {{ selectedSubject }}</span>
+                            <!-- List of Activities Header (Top) -->
+                            <div class="mb-4">
+                                <h2 class="text-2xl font-bold text-indigo-900">List of Activities - {{ selectedSubject }}</h2>
+                            </div>
+
+                            <!-- Back button and Action Buttons container -->
+                            <div class="flex flex-col sm:flex-row justify-start sm:items-center gap-4 mb-4">
+                                <!-- Back Button (Left Side) -->
+                                <div class="flex flex-wrap gap-2 order-first">
+                                    <!-- Back button -->
+                                    <button
+                                        @click="backToFolders"
+                                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                                    >
+                                        <i class="pi pi-arrow-left"></i>
+                                        <span>Back to Folders</span>
+                                    </button>
                                 </div>
 
-                                <div class="flex flex-wrap gap-2">
+                                <!-- Action Buttons (Right Side) -->
+                                <div class="flex flex-wrap gap-2 ml-auto">
                                     <!-- Add Activity button -->
                                     <button
                                         @click="showAddActivityDialog = true"
@@ -216,15 +212,6 @@
                                     >
                                         <i class="pi pi-chart-line"></i>
                                         <span>Track Progress</span>
-                                    </button>
-
-                                    <!-- Back button -->
-                                    <button
-                                        @click="backToFolders"
-                                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
-                                    >
-                                        <i class="pi pi-arrow-left"></i>
-                                        <span>Back to Folders</span>
                                     </button>
                                 </div>
                             </div>
@@ -248,18 +235,18 @@
                                         <!-- Draft Activities Table -->
                                         <div v-if="draftActivities.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                             <!-- Section Header -->
-                                            <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 px-6 py-4 border-b border-indigo-300">
+                                            <div class="bg-white border-b border-gray-200 px-6 py-4">
                                                 <div class="flex items-center justify-between">
                                                     <div class="flex items-center gap-3">
-                                                        <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                                            <i class="pi pi-file-edit text-white text-lg"></i>
+                                                        <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                                            <i class="pi pi-file-edit text-lg"></i>
                                                         </div>
                                                         <div>
-                                                            <h3 class="text-lg font-bold text-white">Draft Activities</h3>
-                                                            <p class="text-sm text-white/80">Activities not yet published to students</p>
+                                                            <h3 class="text-lg font-bold text-gray-800">Draft Activities</h3>
+                                                            <p class="text-sm text-gray-600">Activities not yet published to students</p>
                                                         </div>
                                                     </div>
-                                                    <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                                    <span class="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full border border-amber-200 shadow-sm">
                                                         {{ draftActivities.length }} Draft{{ draftActivities.length !== 1 ? 's' : '' }}
                                                     </span>
                                                 </div>
@@ -391,18 +378,18 @@
                                         <!-- Published Activities Table -->
                                         <div v-if="publishedActivities.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                             <!-- Section Header -->
-                                            <div class="bg-gradient-to-r from-green-600 to-green-500 px-6 py-4 border-b border-green-300">
+                                            <div class="bg-gray-50 border-b border-gray-200 px-6 py-4">
                                                 <div class="flex items-center justify-between">
                                                     <div class="flex items-center gap-3">
-                                                        <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                                            <i class="pi pi-check-circle text-white text-lg"></i>
+                                                        <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                                            <i class="pi pi-check-circle text-lg"></i>
                                                         </div>
                                                         <div>
-                                                            <h3 class="text-lg font-bold text-white">Published Activities</h3>
-                                                            <p class="text-sm text-white/80">Activities visible to students</p>
+                                                            <h3 class="text-lg font-bold text-gray-800">Published Activities</h3>
+                                                            <p class="text-sm text-gray-600">Activities visible to students</p>
                                                         </div>
                                                     </div>
-                                                    <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
+                                                    <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full border border-emerald-200 shadow-sm">
                                                         {{ publishedActivities.length }} Published
                                                     </span>
                                                 </div>
@@ -887,8 +874,8 @@
                                 <!-- Table Container -->
                             <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                 <!-- Table Header -->
-                                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
-                                    <div class="grid grid-cols-4 gap-4 text-white font-semibold text-sm">
+                                <div class="bg-white border-b border-gray-200 px-6 py-4">
+                                    <div class="grid grid-cols-4 gap-4 text-gray-700 font-semibold text-sm">
                                         <div class="flex items-center gap-2">
                                             <i class="pi pi-user"></i>
                                             Student Name
@@ -1014,7 +1001,7 @@
 
                 <!-- Classroom Tab Content -->
                 <template v-if="activeTab === 'classroom'">
-                    <div class="p-4 md:p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+                    <div class="p-4 md:p-6 min-h-screen bg-white">
                         <!-- Classroom Header -->
                         <div class="bg-white shadow-sm border-b border-gray-200 rounded-t-xl -mx-6 -mt-6 px-6 py-4 mb-6">
                             <div class="flex items-center justify-between">
@@ -1055,15 +1042,15 @@
                         <!-- Classroom Card -->
                         <div class="bg-white rounded-xl shadow-lg overflow-hidden">
                             <!-- Classroom Header -->
-                            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+                            <div class="bg-white border-b border-gray-200 p-6">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <h2 class="text-2xl font-bold text-white">{{ className }}</h2>
-                                        <p class="text-indigo-100 mt-1">Room 111</p>
+                                        <h2 class="text-2xl font-bold text-gray-900">{{ className }}</h2>
+                                        <p class="text-gray-600 mt-1">Room 111</p>
                                     </div>
                                     <div class="text-right">
-                                        <p class="text-white text-3xl font-bold">{{ totalStudents }}</p>
-                                        <p class="text-indigo-100 text-sm">Students</p>
+                                        <p class="text-gray-900 text-3xl font-bold">{{ totalStudents }}</p>
+                                        <p class="text-gray-600 text-sm">Students</p>
                                     </div>
                                 </div>
                             </div>
@@ -1291,63 +1278,6 @@
             </template>
         </Dialog>
 
-        <!-- Drop Folder Dialog -->
-        <Dialog v-model:visible="showDropFolderDialog"
-            modal
-            header="Drop Portfolio Folder"
-            :style="{ width: '90%', maxWidth: '35rem' }">
-            <div class="space-y-4">
-                <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <i class="pi pi-exclamation-triangle text-red-600 text-xl mt-0.5"></i>
-                    <div>
-                        <h4 class="font-semibold text-red-900 mb-1">Warning: Permanent Action</h4>
-                        <p class="text-sm text-red-700">
-                            Dropping this portfolio folder will permanently delete the folder.
-                        </p>
-                        <p class="text-sm text-red-700 mt-2 font-medium">
-                            This action cannot be undone!
-                        </p>
-                    </div>
-                </div>
-                <div class="p-4 bg-gray-50 rounded-lg">
-                    <p class="text-sm text-gray-700">
-                        <strong>Folder:</strong> {{ dropFolderData.name }}
-                    </p>
-                    <p class="text-sm text-gray-700 mt-1">
-                        <strong>Items:</strong> {{ dropFolderData.items }} activities
-                    </p>
-                </div>
-                <div v-if="dropFolderData.items > 0" class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <i class="pi pi-info-circle text-amber-600 text-xl mt-0.5"></i>
-                    <div>
-                        <p class="text-sm text-amber-700">
-                            <strong>Note:</strong> This folder contains activities. You must delete all activities before you can drop this folder.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <template #footer>
-                <div class="flex justify-end gap-2">
-                    <button @click="showDropFolderDialog = false"
-                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                        Cancel
-                    </button>
-                    <button
-                        @click="dropFolder"
-                        :disabled="dropFolderData.items > 0"
-                        :class="[
-                            'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
-                            dropFolderData.items > 0
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-red-600 text-white hover:bg-red-700'
-                        ]"
-                    >
-                        <i class="pi pi-trash"></i>
-                        Drop Folder
-                    </button>
-                </div>
-            </template>
-        </Dialog>
 
         <!-- Delete Activity Dialog -->
         <Dialog v-model:visible="showDeleteActivityDialog"
@@ -1582,7 +1512,7 @@
                     <button @click="confirmDropPortfolioCompilation"
                         class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2">
                         <i class="pi pi-trash"></i>
-                        Drop Request
+                        Drop
                     </button>
                 </div>
             </div>
@@ -1640,13 +1570,24 @@
                             >
                         </div>
                         <div>
-                            <label for="activityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Instruction</label>
+                            <div class="flex items-center justify-between mb-0.5">
+                                <label for="activityDescription" class="block text-xs font-medium text-gray-700">Instruction</label>
+                                <button
+                                    @click="() => { setGradeLevelFromClass(); showAIGenerationDialog = true; }"
+                                    type="button"
+                                    class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
+                                    title="Generate questions with AI"
+                                >
+                                    <i class="pi pi-sparkles text-sm"></i>
+                                    <span>AI Generate</span>
+                                </button>
+                            </div>
                             <textarea
                                 id="activityDescription"
                                 v-model="newActivity.description"
                                 rows="2"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                                placeholder="Enter instruction"
+                                placeholder="Enter instruction or use AI to generate questions"
                             ></textarea>
                         </div>
                         <div>
@@ -2107,38 +2048,231 @@
             </template>
         </Dialog>
 
-        <!-- Archive Toast -->
-        <div v-if="showArchiveToast" class="fixed bottom-4 right-4 z-[9999]">
-            <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden w-80">
-                <div class="p-4 flex items-start">
-                    <div class="flex-shrink-0">
-                        <div class="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-                            <i class="pi pi-archive text-amber-600"></i>
+        <!-- Archive Toast Notification -->
+        <div v-if="showArchiveToast" class="fixed bottom-6 right-6 z-[9999] transition-all duration-300 transform"
+             :class="{'translate-x-0 opacity-100': showArchiveToast, 'translate-x-full opacity-0': !showArchiveToast}">
+            <div class="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden w-96">
+                <div class="p-4 flex items-start gap-3">
+                    <div class="flex-shrink-0 mt-0.5">
+                        <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <i class="pi pi-archive text-emerald-600 text-sm"></i>
                         </div>
                     </div>
-                    <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium text-gray-900">Activity Archived</p>
-                        <p class="mt-1 text-sm text-gray-500">
-                            {{ archivedActivity?.title || 'Activity' }} has been moved to archive.
-                        </p>
-                    </div>
-                    <div class="ml-4 flex-shrink-0 flex">
-                        <button @click="undoArchive" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-                            Undo
-                        </button>
-                        <button @click="showArchiveToast = false" class="ml-4 text-gray-400 hover:text-gray-500">
-                            <span class="sr-only">Close</span>
-                            <i class="pi pi-times"></i>
-                        </button>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start">
+                            <h4 class="text-[15px] font-semibold text-gray-900">Activity Archived</h4>
+                            <button @click="showArchiveToast = false"
+                                    class="text-gray-400 hover:text-gray-600 transition-colors"
+                                    aria-label="Close notification">
+                                <i class="pi pi-times text-sm"></i>
+                            </button>
+                        </div>
+                        <p class="mt-1 text-sm text-gray-600">The activity has been moved to archives. You can restore it within 5 seconds.</p>
+                        <div class="mt-3 flex items-center gap-2">
+                            <button @click="undoArchive"
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-100">
+                                Undo Archive
+                            </button>
+                            <span class="text-xs text-gray-500">5s</span>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-gray-100 h-1 w-full">
-                    <div class="bg-amber-500 h-full transition-all duration-5000 ease-linear"
+                <div class="h-1 bg-gray-100 w-full">
+                    <div class="h-full bg-emerald-500 transition-all duration-5000 ease-linear"
                          :class="{'w-0': !showArchiveToast, 'w-full': showArchiveToast}"
-                         style="transition-duration: 5s;"></div>
+                         style="transition-duration: 5s;">
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- AI Question Generation Dialog -->
+        <Dialog
+            v-model:visible="showAIGenerationDialog"
+            header="Generate Activity with AI"
+            :style="{ width: '90vw', maxWidth: '900px' }"
+            :modal="true"
+            :closable="true"
+            :dismissableMask="true"
+            class="p-0"
+        >
+            <div class="space-y-4 p-6">
+                <!-- Input Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Subject/Topic *</label>
+                        <input
+                            v-model="aiPrompt.topic"
+                            type="text"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                            placeholder="e.g., Photosynthesis, World War II, Algebra"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Grade Level *</label>
+                        <div class="flex items-center gap-2">
+                            <select
+                                v-model="aiPrompt.gradeLevel"
+                                :disabled="isGradeLevelLocked"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                :class="{ 'bg-gray-100 cursor-not-allowed': isGradeLevelLocked }"
+                            >
+                                <option value="">Select grade level</option>
+                                <option value="Grade 1">Grade 1</option>
+                                <option value="Grade 2">Grade 2</option>
+                                <option value="Grade 3">Grade 3</option>
+                                <option value="Grade 4">Grade 4</option>
+                                <option value="Grade 5">Grade 5</option>
+                                <option value="Grade 6">Grade 6</option>
+                                <option value="Middle School (7-8)">Middle School (7-8)</option>
+                                <option value="High School (9-12)">High School (9-12)</option>
+                                <option value="College/University">College/University</option>
+                            </select>
+                            <div v-if="isGradeLevelLocked" class="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700 whitespace-nowrap">
+                                <i class="pi pi-lock text-xs"></i>
+                                <span>Auto-filled</span>
+                            </div>
+                        </div>
+                        <p v-if="isGradeLevelLocked" class="text-xs text-gray-500 mt-1">
+                            Grade level is automatically set based on your class assignment
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Number of Questions *</label>
+                        <input
+                            v-model.number="aiPrompt.numQuestions"
+                            type="number"
+                            min="1"
+                            max="10"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Difficulty Level</label>
+                        <select
+                            v-model="aiPrompt.difficulty"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        >
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                            <option value="mixed">Mixed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Question Types -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Question Types *</label>
+                    <div class="flex flex-wrap gap-3">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" v-model="aiPrompt.types" value="multiple_choice" class="rounded text-indigo-600 w-4 h-4">
+                            <span class="ml-2 text-sm text-gray-700">Multiple Choice</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" v-model="aiPrompt.types" value="true_false" class="rounded text-indigo-600 w-4 h-4">
+                            <span class="ml-2 text-sm text-gray-700">True/False</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" v-model="aiPrompt.types" value="short_answer" class="rounded text-indigo-600 w-4 h-4">
+                            <span class="ml-2 text-sm text-gray-700">Short Answer</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" v-model="aiPrompt.types" value="essay" class="rounded text-indigo-600 w-4 h-4">
+                            <span class="ml-2 text-sm text-gray-700">Essay</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Additional Instructions -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Additional Instructions (Optional)</label>
+                    <textarea
+                        v-model="aiPrompt.additionalInstructions"
+                        rows="2"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-none"
+                        placeholder="Any specific requirements, focus areas, or teaching objectives..."
+                    ></textarea>
+                </div>
+
+                <!-- Loading State -->
+                <div v-if="isGeneratingAI" class="text-center py-6">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+                    <p class="text-sm text-gray-600">Generating questions with AI, please wait...</p>
+                </div>
+
+                <!-- Generated Content Preview -->
+                <div v-if="generatedContent && !isGeneratingAI" class="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                    <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <i class="pi pi-check-circle text-green-600"></i>
+                        Preview
+                    </h3>
+                    <div class="prose prose-sm max-w-none text-gray-700 bg-white p-3 rounded border border-gray-200 max-h-64 overflow-y-auto">
+                        <div v-html="formatGeneratedContent(generatedContent)"></div>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div v-if="aiError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
+                    <i class="pi pi-exclamation-circle flex-shrink-0 mt-0.5"></i>
+                    <div>{{ aiError }}</div>
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="flex justify-between items-center gap-2">
+                    <button
+                        @click="showAIGenerationDialog = false"
+                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    >
+                        Cancel
+                    </button>
+                    <div class="flex gap-2">
+                        <button
+                            v-if="generatedContent && !isGeneratingAI"
+                            @click="regenerateAIQuestions"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 text-sm font-medium"
+                        >
+                            <i class="pi pi-refresh"></i>
+                            Regenerate
+                        </button>
+                        <button
+                            @click="generateAIQuestions"
+                            :disabled="isGeneratingAI || !aiPrompt.topic || !aiPrompt.gradeLevel || aiPrompt.types.length === 0"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <i class="pi pi-sparkles"></i>
+                            {{ generatedContent && !isGeneratingAI ? 'Generate New' : 'Generate Questions' }}
+                        </button>
+                        <button
+                            v-if="generatedContent && !isGeneratingAI"
+                            @click="useGeneratedContent"
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm font-medium"
+                        >
+                            <i class="pi pi-check"></i>
+                            Use These Questions
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </Dialog>
+        <!-- Drop Folder Confirmation Dialog -->
+        <Dialog header="Confirm Drop Folder" v-model:visible="showDropFolderDialog" :modal="true" :style="{ width: '400px' }">
+            <div class="p-4">
+                <div class="text-center">
+                    <i class="pi pi-exclamation-triangle text-5xl text-amber-500"></i>
+                    <p class="text-lg font-semibold mt-4">Are you sure you want to drop this folder?</p>
+                    <p class="text-gray-600 mt-2">This action cannot be undone. All associated data will be permanently deleted.</p>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="Cancel" icon="pi pi-times" @click="showDropFolderDialog = false" class="p-button-text" />
+                <Button label="Drop Folder" icon="pi pi-trash" @click="confirmDropFolder" class="p-button-danger" />
+            </template>
+        </Dialog>
     </div>
 </template>
 
@@ -2216,11 +2350,13 @@ const newFolder = ref({ title: '', description: '' });
 
 // Update Folder Dialog State
 const showUpdateFolderDialog = ref(false);
+const showDropFolderDialog = ref(false);
+const folderToDrop = ref(null);
 const updateFolderData = ref({ id: null, title: '', description: '' });
 
-// Drop Folder Dialog State
-const showDropFolderDialog = ref(false);
-const dropFolderData = ref({ id: null, name: '', items: 0 });
+// Archive Folder Dialog State
+const showArchiveFolderDialog = ref(false);
+const archiveFolderData = ref({ id: null, name: '', items: 0 });
 
 // Delete Activity Dialog State
 const showDeleteActivityDialog = ref(false);
@@ -2258,6 +2394,45 @@ const editActivityData = ref({
 });
 
 const editScoringCriteria = ref([]);
+
+// AI Question Generation State
+const showAIGenerationDialog = ref(false);
+const isGeneratingAI = ref(false);
+const generatedContent = ref('');
+const aiError = ref('');
+const isGradeLevelLocked = ref(false);
+const aiPrompt = ref({
+    topic: '',
+    gradeLevel: '',
+    numQuestions: 5,
+    types: [],
+    additionalInstructions: '',
+    difficulty: 'medium'
+});
+
+// Function to extract grade number from class name
+const extractGradeFromClassName = (classNameStr) => {
+    // Examples: "Grade 1 - A", "Grade 4 - B", "Grade 6 - A"
+    const match = classNameStr.match(/Grade\s+(\d+)/);
+    return match ? parseInt(match[1]) : null;
+};
+
+// Function to determine if grade level should be locked
+const isGrade1To3 = computed(() => {
+    const gradeNum = extractGradeFromClassName(className.value);
+    return gradeNum && gradeNum >= 1 && gradeNum <= 3;
+});
+
+// Function to set grade level based on class
+const setGradeLevelFromClass = () => {
+    const gradeNum = extractGradeFromClassName(className.value);
+    if (gradeNum) {
+        aiPrompt.value.gradeLevel = `Grade ${gradeNum}`;
+        // Lock grade level for grades 1-3 (they teach only their section)
+        // Unlock for grades 4-6 (they switch between sections)
+        isGradeLevelLocked.value = isGrade1To3.value;
+    }
+};
 
 // Classroom Management Data
 const classroomStudents = ref([]);
@@ -2398,14 +2573,38 @@ const toggleFolderMenu = (event, folder, index) => {
 };
 
 // Open update folder dialog
-const openUpdateFolderDialog = (folder) => {
+const openUpdateFolderModal = (folder) => {
     updateFolderData.value = {
         id: folder.id,
         title: folder.name,
-        description: folder.description || ''
+        description: folder.description
     };
     showUpdateFolderDialog.value = true;
-    activeFolderMenuIndex.value = null;
+};
+
+const dropfolder = (folder) => {
+    folderToDrop.value = folder;
+    showDropFolderDialog.value = true;
+};
+
+const confirmDropFolder = async () => {
+    if (!folderToDrop.value) return;
+
+    try {
+        await axios.delete(`/api/folders/${folderToDrop.value.id}/delete/`);
+        showDropFolderDialog.value = false;
+        showSuccess('Folder dropped successfully!', 'The folder has been permanently deleted.');
+
+        // Refresh the folder list
+        loadPortfolioFolders();
+
+    } catch (error) {
+        console.error('Error dropping folder:', error);
+        showError('Failed to drop folder', error.response?.data?.error || 'Please try again.');
+        showDropFolderDialog.value = false;
+    } finally {
+        folderToDrop.value = null;
+    }
 };
 
 // Update folder
@@ -2473,87 +2672,54 @@ const updateFolder = async () => {
     }
 };
 
-// Open drop folder dialog
-const openDropFolderDialog = (folder) => {
-    // Prevent opening dialog if folder has activities
-    if (folder.items > 0) {
-        showWarning(`This folder contains ${folder.items} activity/activities. Please delete all activities first before deleting the folder.`, 'Cannot Delete Folder');
-        activeFolderMenuIndex.value = null;
-        return;
-    }
-
-    dropFolderData.value = {
+// Open archive folder dialog
+const openArchiveFolderDialog = (folder) => {
+    archiveFolderData.value = {
         id: folder.id,
         name: folder.name,
         items: folder.items || 0
     };
-    showDropFolderDialog.value = true;
+    showArchiveFolderDialog.value = true;
     activeFolderMenuIndex.value = null;
+    console.log('📦 Archive folder dialog opened for:', folder.name);
 };
 
-// Drop folder
-const dropFolder = async () => {
+// Archive folder
+const archiveFolder = async () => {
     try {
-        console.log('Dropping folder:', dropFolderData.value);
+        console.log('📦 Archiving folder:', archiveFolderData.value);
 
-        // Delete folder from database (only if it has no activities)
-        const response = await axios.delete(`/api/portfolio/folders/${dropFolderData.value.id}/`);
+        // Update folder status to archived in database
+        const response = await axios.patch(`/api/portfolio/folders/${archiveFolderData.value.id}/`, {
+            is_archived: true
+        });
 
-        console.log('Folder dropped successfully:', response.data);
+        console.log('✅ Folder archived successfully:', response.data);
 
-        // Remove the folder from the list
-        subjectFolders.value = subjectFolders.value.filter(f => f.id !== dropFolderData.value.id);
+        // Remove the folder from the active list
+        subjectFolders.value = subjectFolders.value.filter(f => f.id !== archiveFolderData.value.id);
 
         // If we're currently viewing this folder's activities, go back to folder view
-        if (selectedFolderId.value === dropFolderData.value.id) {
+        if (selectedFolderId.value === archiveFolderData.value.id) {
             showingActivities.value = false;
             selectedSubject.value = '';
             selectedFolderId.value = null;
             activities.value = [];
         }
 
-        // Broadcast folder deletion event to other tabs/windows
-        const folderEvent = new CustomEvent('folderDeleted', {
-            detail: {
-                folderId: dropFolderData.value.id,
-                folderName: dropFolderData.value.name,
-                timestamp: Date.now()
-            }
-        });
-        window.dispatchEvent(folderEvent);
-
-        // Also use localStorage for cross-tab communication
-        localStorage.setItem('folder_deleted_trigger', JSON.stringify({
-            folderId: dropFolderData.value.id,
-            folderName: dropFolderData.value.name,
-            timestamp: Date.now()
-        }));
-
-        console.log('📢 Broadcasted folder deletion event');
-
-        showDropFolderDialog.value = false;
-        dropFolderData.value = { id: null, name: '', items: 0 };
-
-        showSuccess('Portfolio folder has been permanently deleted.', 'Folder Deleted');
-    } catch (error) {
-        console.error('Error dropping folder:', error);
-        console.error('Error details:', error.response?.data);
-
-        // Get error message from backend
-        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
-        const errorDetail = error.response?.data?.detail || '';
-
-        // Show detailed error message
-        if (errorDetail) {
-            showError(`${errorMsg}\n\n${errorDetail}`, 'Failed to Delete Folder');
-        } else {
-            showError(errorMsg, 'Failed to Delete Folder');
-        }
-
         // Close the dialog
-        showDropFolderDialog.value = false;
+        showArchiveFolderDialog.value = false;
+        archiveFolderData.value = { id: null, name: '', items: 0 };
+
+        showSuccess('Subject folder has been archived.', 'Folder Archived');
+    } catch (error) {
+        console.error('❌ Error archiving folder:', error);
+        const errorMsg = error.response?.data?.message || 'Failed to archive folder';
+        showError(errorMsg, 'Archive Failed');
     }
 };
+
+
 
 // Open delete activity dialog
 const openDeleteActivityDialog = (activity, index) => {
@@ -2608,7 +2774,14 @@ const closeFolderMenu = () => {
 const loadPortfolioFolders = async () => {
     isLoadingFolders.value = true;
     try {
-        const response = await axios.get('/api/portfolio/folders/');
+        const selectedClass = JSON.parse(localStorage.getItem('digiportal_selected_class'));
+        if (!selectedClass || !selectedClass.id) {
+            showError('No class selected. Please go back and select a class.', 'Error');
+            isLoadingFolders.value = false;
+            return;
+        }
+
+        const response = await axios.get(`/api/portfolio/folders/?classroom_id=${selectedClass.id}`);
 
         console.log('API Response:', response.data); // Debug log
 
@@ -3022,8 +3195,7 @@ const activeTab = ref('classroom');
 const tabs = [
     { id: 'classroom', name: "Student's Classroom", icon: 'pi-building' },
     { id: 'pupil', name: "Student's Activities", icon: 'pi-users' },
-    { id: 'portfolio', name: "Student's Portfolio Compilation", icon: 'pi-folder' },
-    { id: 'schedule', name: 'Schedule', icon: 'pi-calendar' }
+    { id: 'portfolio', name: "Student's Portfolio Compilation", icon: 'pi-folder' }
 ];
 
 // Add these for the calendar functionality
@@ -3235,13 +3407,14 @@ const authenticateWithBackend = async () => {
 // Check if portfolio compilation is already active for this class
 const checkPortfolioCompilationStatus = async () => {
     try {
-        const classNameValue = props.className || className.value;
+        const classroomId = selectedClass.value?.id;
 
-        if (!classNameValue) {
+        if (!classroomId) {
+            console.log('No class selected, skipping portfolio compilation check');
             return;
         }
 
-        const response = await axios.get(`/api/notifications/portfolio-compilation/${encodeURIComponent(classNameValue)}/`);
+        const response = await axios.get(`/api/notifications/portfolio-compilation/${classroomId}/`);
 
         if (response.data && response.data.compilation_requested) {
             portfolioCompilationActive.value = true;
@@ -3554,6 +3727,19 @@ onMounted(async () => {
             localStorage.removeItem('folder_updated_trigger');
         }
     });
+
+    // Watch for class changes to update AI grade level lock status
+    watch(className, (newClassName) => {
+        if (showAIGenerationDialog.value) {
+            setGradeLevelFromClass();
+        }
+    });
+
+    // Listen for subject change events from sidebar
+    window.addEventListener('subjectChanged', handleSubjectChange);
+
+    // Listen for class change events
+    window.addEventListener('classChanged', handleClassChange);
 });
 
 onUnmounted(() => {
@@ -3565,7 +3751,77 @@ onUnmounted(() => {
 onUnmounted(() => {
     document.removeEventListener('click', handleDocumentClick, true);
     window.removeEventListener('classChanged', handleClassChange);
+    window.removeEventListener('subjectChanged', handleSubjectChange);
 });
+
+const handleSubjectChange = async (event) => {
+    const { classItem, subject } = event.detail;
+
+    // Guard against undefined classItem
+    if (!classItem) {
+        console.error('❌ Error: classItem is undefined in subjectChanged event.');
+        return;
+    }
+
+    console.log('📂 Subject clicked from sidebar:', subject, 'in class:', classItem.name);
+
+    try {
+        // Wait for folders to load if they're not loaded yet
+        if (!subjectFolders.value || subjectFolders.value.length === 0) {
+            console.log('⏳ Folders not loaded yet, loading now...');
+            await loadPortfolioFolders();
+        }
+
+        console.log('📋 Available folders:', subjectFolders.value.map(f => ({ name: f.name, id: f.id })));
+
+        // Find the folder ID for this subject - try exact match first, then case-insensitive
+        let folder = subjectFolders.value.find(f => f.name === subject);
+
+        if (!folder) {
+            // Try case-insensitive match
+            folder = subjectFolders.value.find(f => f.name.toLowerCase() === subject.toLowerCase());
+        }
+
+        if (!folder) {
+            // Try partial match (in case folder name has extra text)
+            folder = subjectFolders.value.find(f => f.name.includes(subject) || subject.includes(f.name));
+        }
+
+        if (folder) {
+            console.log('✅ Found folder:', folder.name, 'with ID:', folder.id);
+            // Show activities for this subject
+            await showSubjectActivities(subject, folder.id);
+        } else {
+            console.log('❌ Folder not found for subject:', subject);
+            console.log('📌 Creating new folder for subject:', subject);
+
+            // Create the folder if it doesn't exist
+            try {
+                const response = await axios.post('/api/portfolio/folders/', {
+                    name: subject,
+                    description: `Activities for ${subject}`,
+                    classroom: selectedClass.id
+                });
+
+                console.log('✅ Created new folder:', response.data);
+
+                // Reload folders and show activities
+                await loadPortfolioFolders();
+                const newFolder = subjectFolders.value.find(f => f.name === subject);
+
+                if (newFolder) {
+                    await showSubjectActivities(subject, newFolder.id);
+                }
+            } catch (error) {
+                console.error('❌ Error creating folder:', error);
+                // If folder creation fails, just show empty activities view
+                await showSubjectActivities(subject, null);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error in handleSubjectChange:', error);
+    }
+};
 
 // Subject activities state
 const showingActivities = ref(false);
@@ -3596,18 +3852,21 @@ const backToFolders = () => {
 };
 
 // Function to show activities for a subject
-const showSubjectActivities = async (subject, folderId) => {
-    selectedSubject.value = subject;
+const showSubjectActivities = async (subjectName, folderId) => {
+    selectedSubject.value = subjectName;
     selectedFolderId.value = folderId;
     showingActivities.value = true;
+
+    // Automatically switch to the Student's Activities tab
+    activeTab.value = 'pupil';
 
     // Save view state to localStorage
     localStorage.setItem('teacher_current_view', JSON.stringify({
         showingActivities: true,
-        selectedSubject: subject,
+        selectedSubject: subjectName, // Use the correct variable
         selectedFolderId: folderId
     }));
-    console.log('💾 Saved teacher view state: Activities for', subject);
+    console.log('💾 Saved teacher view state: Activities for', subjectName);
 
     // Load activities from database
     await loadActivities(folderId);
@@ -4052,15 +4311,15 @@ const confirmDropPortfolioCompilation = async () => {
         // Close the dialog
         showDropCompilationDialog.value = false;
 
-        const classNameValue = props.className || className.value;
+        const classroomId = selectedClass.value?.id;
 
-        if (!classNameValue) {
-            alert('Class name not found');
+        if (!classroomId) {
+            showError('No class selected or class ID is missing.', 'Error');
             return;
         }
 
         // Delete the compilation request and notify students
-        const response = await axios.delete(`/api/notifications/portfolio-compilation/${encodeURIComponent(classNameValue)}/`);
+        const response = await axios.delete(`/api/notifications/portfolio-compilation/${classroomId}/`);
 
         console.log('✅ Portfolio compilation dropped:', response.data);
 
@@ -4080,6 +4339,99 @@ const confirmDropPortfolioCompilation = async () => {
         showError('Failed to drop compilation request: ' + errorMsg, 'Error');
     }
 };
+
+// AI Question Generation Functions
+const generateAIQuestions = async () => {
+    console.log('🚀 Starting AI question generation...');
+
+    // Validate inputs
+    console.log('Validating inputs:', {
+        topic: aiPrompt.value.topic,
+        gradeLevel: aiPrompt.value.gradeLevel,
+        types: aiPrompt.value.types
+    });
+
+    if (!aiPrompt.value.topic || !aiPrompt.value.gradeLevel || aiPrompt.value.types.length === 0) {
+        aiError.value = 'Please fill in all required fields (Topic, Grade Level, and at least one Question Type)';
+        console.error('❌ Validation failed:', aiError.value);
+        return;
+    }
+
+    isGeneratingAI.value = true;
+    aiError.value = '';
+    generatedContent.value = '';
+
+    try {
+        const payload = {
+            topic: aiPrompt.value.topic,
+            grade_level: aiPrompt.value.gradeLevel,
+            num_questions: aiPrompt.value.numQuestions,
+            question_types: aiPrompt.value.types,
+            difficulty: aiPrompt.value.difficulty,
+            additional_instructions: aiPrompt.value.additionalInstructions
+        };
+
+        console.log('📤 Sending request to /api/ai/generate-questions/ with payload:', payload);
+
+        const response = await axios.post('/api/ai/generate-questions/', payload);
+
+        console.log('📥 Response received:', response.data);
+        generatedContent.value = response.data.content;
+        console.log('✅ AI questions generated successfully');
+    } catch (err) {
+        console.error('❌ Error generating questions:', err);
+        console.error('Error response:', err.response?.data);
+        console.error('Error status:', err.response?.status);
+
+        aiError.value = 'Failed to generate questions. Please try again.';
+        if (err.response?.data?.message) {
+            aiError.value += ` (${err.response.data.message})`;
+        }
+        if (err.response?.status === 404) {
+            aiError.value = 'API endpoint not found. Please refresh the page and try again.';
+        }
+    } finally {
+        isGeneratingAI.value = false;
+    }
+};
+
+const regenerateAIQuestions = () => {
+    generatedContent.value = '';
+    generateAIQuestions();
+};
+
+const useGeneratedContent = () => {
+    if (generatedContent.value) {
+        // Update the activity description with the generated content
+        newActivity.value.description = generatedContent.value;
+        showAIGenerationDialog.value = false;
+        showSuccess('Questions added to activity description', 'Success');
+    }
+};
+
+const formatGeneratedContent = (content) => {
+    // Convert markdown-like content to HTML
+    let html = content
+        .replace(/^### (.*?)$/gm, '<h3 class="font-bold text-lg mt-3 mb-2">$1</h3>')
+        .replace(/^## (.*?)$/gm, '<h2 class="font-bold text-xl mt-4 mb-2">$1</h2>')
+        .replace(/^# (.*?)$/gm, '<h1 class="font-bold text-2xl mt-4 mb-2">$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+        .replace(/^- (.*?)$/gm, '<li class="ml-4">$1</li>')
+        .replace(/(<li.*?<\/li>)/s, '<ul class="list-disc">$1</ul>')
+        .replace(/\n\n/g, '</p><p class="mt-2">');
+
+    return '<p class="mt-2">' + html + '</p>';
+};
+
+onMounted(() => {
+    // If the pupil's activities tab is active and no folder is selected, auto-select the first one.
+    if (activeTab.value === 'pupil' && folders.value.length > 0 && !selectedFolderId.value) {
+        const firstFolder = folders.value[0];
+        showSubjectActivities(firstFolder.name, firstFolder.id);
+        console.log('Automatically selected the first folder:', firstFolder.name);
+    }
+});
 
 </script>
 

@@ -25,22 +25,22 @@
             <!-- Posts Feed -->
             <div v-else class="space-y-6">
                 <!-- Post Card -->
-                <div v-for="post in posts" :key="post.id" 
+                <div v-for="post in posts" :key="post.id"
                     class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-teal-100 hover:border-teal-300">
-                    
+
                     <!-- Post Header -->
                     <div class="p-6 pb-4">
                         <div class="flex items-start justify-between">
                             <div class="flex items-center gap-4">
                                 <!-- Avatar -->
                                 <div class="relative">
-                                    <div :class="getAvatarColor(post.user)" 
+                                    <div :class="getAvatarColor(post.user)"
                                         class="w-14 h-14 flex items-center justify-center rounded-full text-white font-bold text-lg shadow-lg ring-2 ring-teal-200">
                                         {{ post.user.charAt(0).toUpperCase() }}
                                     </div>
                                     <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-teal-500 rounded-full border-2 border-white"></div>
                                 </div>
-                                
+
                                 <!-- User Info -->
                                 <div>
                                     <h3 class="font-bold text-gray-900 text-lg">{{ post.user }}</h3>
@@ -69,7 +69,7 @@
                     <div v-if="post.image" class="relative group bg-gray-100">
                         <!-- Smaller aspect ratio container -->
                         <div class="relative w-full" style="padding-bottom: 50%; min-height: 200px; max-height: 400px;">
-                            <img :src="post.image" 
+                            <img :src="post.image"
                                 :alt="post.content"
                                 class="absolute inset-0 w-full h-full object-contain cursor-pointer bg-gray-50"
                                 @click="openImageModal(post.image)"
@@ -80,7 +80,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Smaller placeholder for missing image -->
                     <div v-else-if="post.activityType" class="relative bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center" style="min-height: 200px;">
                         <div class="text-center text-gray-400">
@@ -102,23 +102,19 @@
 
                     <!-- Action Buttons -->
                     <div class="px-6 py-3 border-t-2 border-teal-50 flex items-center gap-2">
-                        <button @click="toggleLike(post)" 
+                        <button @click="toggleLike(post)"
                             class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-200"
-                            :class="post.isLiked 
-                                ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 hover:from-red-100 hover:to-pink-100 border border-red-200' 
+                            :class="post.isLiked
+                                ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 hover:from-red-100 hover:to-pink-100 border border-red-200'
                                 : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 hover:from-teal-100 hover:to-cyan-100 border border-teal-200'">
                             <i class="pi text-lg" :class="post.isLiked ? 'pi-heart-fill' : 'pi-heart'"></i>
                             <span>{{ post.isLiked ? 'Liked' : 'Like' }}</span>
                         </button>
 
-                        <button @click="toggleComments(post)" 
+                        <button @click="toggleComments(post)"
                             class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 hover:from-cyan-100 hover:to-blue-100 border border-cyan-200 transition-all duration-200">
                             <i class="pi pi-comment text-lg"></i>
                             <span>Comment</span>
-                        </button>
-
-                        <button class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 hover:from-amber-100 hover:to-yellow-100 border border-amber-200 transition-all duration-200">
-                            <i class="pi pi-share-alt text-lg"></i>
                         </button>
                     </div>
 
@@ -126,9 +122,9 @@
                     <div v-if="post.showComments" class="px-6 pb-6 border-t-2 border-teal-50 bg-gradient-to-b from-teal-50/30 to-transparent">
                         <!-- Existing Comments -->
                         <div v-if="post.comments.length > 0" class="mt-4 space-y-3 max-h-96 overflow-y-auto">
-                            <div v-for="comment in post.comments" :key="comment.id" 
+                            <div v-for="comment in post.comments" :key="comment.id"
                                 class="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-white to-teal-50/50 hover:from-teal-50 hover:to-cyan-50 transition-colors border border-teal-100">
-                                <div :class="getAvatarColor(comment.user)" 
+                                <div :class="getAvatarColor(comment.user)"
                                     class="w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0 ring-2 ring-teal-200">
                                     {{ comment.user.charAt(0).toUpperCase() }}
                                 </div>
@@ -152,7 +148,7 @@
                                 T
                             </div>
                             <div class="flex-1">
-                                <textarea 
+                                <textarea
                                     v-model="post.newComment"
                                     @keydown.enter.prevent="addComment(post)"
                                     placeholder="Write a comment..."
@@ -168,7 +164,7 @@
                                             <i class="pi pi-face-smile"></i>
                                         </button>
                                     </div>
-                                    <button 
+                                    <button
                                         @click="addComment(post)"
                                         :disabled="!post.newComment || post.newComment.trim() === ''"
                                         class="px-5 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md">
@@ -183,14 +179,14 @@
         </div>
 
         <!-- Image Modal -->
-        <div v-if="selectedImage" 
+        <div v-if="selectedImage"
             @click="selectedImage = null"
             class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <button @click="selectedImage = null" 
+            <button @click="selectedImage = null"
                 class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors">
                 <i class="pi pi-times text-3xl"></i>
             </button>
-            <img :src="selectedImage" 
+            <img :src="selectedImage"
                 class="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                 @click.stop>
         </div>
@@ -246,7 +242,7 @@ const loadNewsfeed = async () => {
         } catch (error) {
           console.error(`Error loading comments for post ${post.id}:`, error);
         }
-        
+
         return {
           id: post.id,
           user: post.student_name,
@@ -262,7 +258,7 @@ const loadNewsfeed = async () => {
           newComment: ''
         };
       });
-      
+
       posts.value = await Promise.all(postsPromises);
       console.log('Loaded newsfeed for teacher:', posts.value);
     } else {
@@ -281,7 +277,7 @@ const getTimeAgo = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now - date) / 1000);
-  
+
   if (seconds < 60) return 'Just now';
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
@@ -296,11 +292,11 @@ const getTimeAgo = (dateString) => {
 const toggleLike = async (post) => {
   const wasLiked = post.isLiked;
   const wasLikes = post.likes;
-  
+
   // Optimistic update
   post.isLiked = !post.isLiked;
   post.likes += post.isLiked ? 1 : -1;
-  
+
   try {
     // Send like/unlike to backend
     const response = await axios.post(`/api/posts/${post.id}/like/`, {
@@ -308,7 +304,7 @@ const toggleLike = async (post) => {
     }, {
       withCredentials: true
     });
-    
+
     // Update with actual count from backend
     if (response.data) {
       post.likes = response.data.likes_count;
@@ -331,9 +327,9 @@ const toggleComments = (post) => {
 // Add comment functionality
 const addComment = async (post) => {
   if (!post.newComment || post.newComment.trim() === '') return;
-  
+
   const commentText = post.newComment.trim();
-  
+
   try {
     // Send comment to backend
     const response = await axios.post(`/api/posts/${post.id}/comments/`, {
@@ -341,12 +337,12 @@ const addComment = async (post) => {
     }, {
       withCredentials: true
     });
-    
+
     // Use the comment returned from backend
     if (response.data && response.data.comment) {
       post.comments.push(response.data.comment);
     }
-    
+
     post.newComment = '';
     console.log('Comment added successfully');
   } catch (error) {

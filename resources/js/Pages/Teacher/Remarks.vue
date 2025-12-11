@@ -27,7 +27,7 @@
               <div class="p-4 border-b border-indigo-100">
                 <div class="relative">
                   <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-indigo-400"></i>
-                  <input 
+                  <input
                     v-model="searchQuery"
                     type="text"
                     placeholder="Search students..."
@@ -40,13 +40,13 @@
                   <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                 </div>
                 <ul v-else class="space-y-2">
-                  <li v-for="student in filteredStudents" 
-                      :key="student.id" 
+                  <li v-for="student in filteredStudents"
+                      :key="student.id"
                       @click="selectStudent(student)"
                       class="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 border-2"
                       :class="[
-                        selectedStudent?.id === student.id 
-                          ? 'bg-gradient-to-r from-indigo-100 to-violet-100 border-indigo-400 shadow-md scale-105' 
+                        selectedStudent?.id === student.id
+                          ? 'bg-gradient-to-r from-indigo-100 to-violet-100 border-indigo-400 shadow-md scale-105'
                           : 'hover:bg-indigo-50 border-transparent hover:border-indigo-200 hover:shadow-sm',
                       ]">
                     <div class="flex items-center gap-3">
@@ -64,7 +64,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Remarks Section -->
           <div class="lg:col-span-2 bg-white/95 rounded-xl border-2 border-indigo-100 overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
             <div class="bg-gradient-to-r from-indigo-50 to-violet-50 p-4 border-b-2 border-indigo-100">
@@ -78,8 +78,8 @@
                   Select a student to view remarks
                 </h3>
                 <div v-if="selectedStudent" class="flex gap-2">
-                  <button 
-                    @click="showAddRemarkDialog = true" 
+                  <button
+                    @click="showAddRemarkDialog = true"
                     class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200
                            bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-700 hover:to-blue-700
                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -89,30 +89,30 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="p-4">
               <div v-if="selectedStudent" class="space-y-4">
                 <!-- Add Remark Section -->
                 <div class="bg-gradient-to-br from-indigo-50 to-violet-50 p-4 rounded-xl border-2 border-indigo-200 shadow-sm">
-                  <Textarea 
-                    v-model="newRemark" 
-                    rows="3" 
-                    placeholder="Enter new remark..." 
+                  <Textarea
+                    v-model="newRemark"
+                    rows="3"
+                    placeholder="Enter new remark..."
                     class="w-full border-2 border-indigo-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-300 rounded-lg shadow-sm"/>
                 </div>
 
                 <!-- Remarks List -->
                 <div class="space-y-3">
-                  <div v-for="remark in selectedStudent.remarks" 
-                       :key="remark.id" 
+                  <div v-for="remark in selectedStudent.remarks"
+                       :key="remark.id"
                        class="bg-white p-4 rounded-xl border-2 border-indigo-100 hover:shadow-md transition-all duration-200 hover:border-indigo-300 relative group hover:scale-[1.02]">
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex flex-col">
                         <span class="text-sm text-indigo-700/80">{{ remark.date }}</span>
                         <span v-if="remark.time" class="text-xs text-indigo-600/60">{{ remark.time }}</span>
                       </div>
-                      <Button 
-                        icon="pi pi-ellipsis-v" 
+                      <Button
+                        icon="pi pi-ellipsis-v"
                         class="p-button-text p-button-rounded p-button-plain h-8 w-8 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-colors duration-200"
                         @click="toggleRemarkMenu(remark.id)"
                         v-tooltip.top="'More options'"
@@ -160,9 +160,9 @@
   </div>
 
   <!-- Add Remark Confirmation Dialog -->
-  <Dialog 
-    v-model:visible="showAddRemarkDialog" 
-    :style="{ width: '450px' }" 
+  <Dialog
+    v-model:visible="showAddRemarkDialog"
+    :style="{ width: '450px' }"
     header="Confirm Add Remark"
     :modal="true"
   >
@@ -171,14 +171,14 @@
       <span>Are you sure you want to add this remark for {{ selectedStudent?.name }}?</span>
     </div>
     <template #footer>
-      <Button 
-        label="Cancel" 
-        @click="showAddRemarkDialog = false" 
+      <Button
+        label="Cancel"
+        @click="showAddRemarkDialog = false"
         class="p-button-secondary"
       />
-      <Button 
-        label="Add Remark" 
-        @click="confirmAddRemark" 
+      <Button
+        label="Add Remark"
+        @click="confirmAddRemark"
         style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none;"
         :disabled="!newRemark.trim()"
       />
@@ -186,9 +186,9 @@
   </Dialog>
 
   <!-- Delete Confirmation Dialog -->
-  <Dialog 
-    v-model:visible="showDeleteDialog" 
-    :style="{ width: '450px' }" 
+  <Dialog
+    v-model:visible="showDeleteDialog"
+    :style="{ width: '450px' }"
     header="Confirm Deletion"
     :modal="true"
   >
@@ -197,15 +197,15 @@
       <span>Are you sure you want to delete this remark? This action cannot be undone.</span>
     </div>
     <template #footer>
-      <Button 
-        label="Cancel" 
-        @click="showDeleteDialog = false" 
+      <Button
+        label="Cancel"
+        @click="showDeleteDialog = false"
         class="p-button-secondary"
         style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; color: white;"
       />
-      <Button 
-        label="Delete" 
-        @click="deleteRemark" 
+      <Button
+        label="Delete"
+        @click="deleteRemark"
         class="p-button-danger"
       />
     </template>
@@ -234,7 +234,7 @@ const filteredStudents = computed(() => {
     return students.value;
   }
   const query = searchQuery.value.toLowerCase();
-  return students.value.filter(student => 
+  return students.value.filter(student =>
     student.name.toLowerCase().includes(query) ||
     student.id.toString().includes(query) ||
     student.student_id?.toLowerCase().includes(query)
@@ -328,12 +328,12 @@ function editRemark(remark) {
 
 async function saveEdit(remark) {
   if (!editText.value.trim()) return;
-  
+
   try {
     const response = await axios.put(`/api/remarks/${remark.id}/`, {
       text: editText.value.trim()
     });
-    
+
     if (response.data) {
       const remarkDate = new Date(response.data.updated_at);
       const remarkToUpdate = selectedStudent.value.remarks.find(r => r.id === remark.id);
@@ -342,7 +342,7 @@ async function saveEdit(remark) {
         remarkToUpdate.date = remarkDate.toLocaleDateString();
         remarkToUpdate.time = remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
-      
+
       // Also update in students list
       const studentInList = students.value.find(s => s.id === selectedStudent.value.id);
       if (studentInList && studentInList.remarks) {
@@ -353,7 +353,7 @@ async function saveEdit(remark) {
           remarkInList.time = remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
       }
-      
+
       cancelEdit();
       console.log('Remark updated successfully');
     }
@@ -378,12 +378,12 @@ async function deleteRemark() {
   if (remarkToDelete.value) {
     try {
       await axios.delete(`/api/remarks/${remarkToDelete.value.id}/`);
-      
+
       // Remove from selected student's remarks
       selectedStudent.value.remarks = selectedStudent.value.remarks.filter(
         r => r.id !== remarkToDelete.value.id
       );
-      
+
       // Update the student in the students list to reflect the new count
       const studentInList = students.value.find(s => s.id === selectedStudent.value.id);
       if (studentInList && studentInList.remarks) {
@@ -391,7 +391,7 @@ async function deleteRemark() {
           r => r.id !== remarkToDelete.value.id
         );
       }
-      
+
       showDeleteDialog.value = false;
       remarkToDelete.value = null;
       console.log('Remark deleted successfully');
@@ -410,7 +410,7 @@ async function confirmAddRemark() {
         student: selectedStudent.value.id,
         text: newRemark.value.trim()
       });
-      
+
       if (response.data) {
         const remarkDate = new Date(response.data.created_at);
         const newRemarkData = {
@@ -419,10 +419,10 @@ async function confirmAddRemark() {
           time: remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           text: response.data.text
         };
-        
+
         // Reload remarks for the selected student to get fresh data from server
         await loadStudentRemarks(selectedStudent.value.id);
-        
+
         newRemark.value = "";
         showAddRemarkDialog.value = false;
         showSuccess('Remark saved successfully!', 'Saved');

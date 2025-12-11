@@ -24,8 +24,8 @@
                     <div v-if="!showingSubject">
                         <!-- Filter -->
                         <div class="flex items-center gap-2 mb-6">
-                            <button 
-                                v-for="period in ['All', 'Current Year', 'Last Year']" 
+                            <button
+                                v-for="period in ['All', 'Current Year', 'Last Year']"
                                 :key="period"
                                 @click="currentFilter = period.toLowerCase()"
                                 :class="[
@@ -38,7 +38,7 @@
                                 {{ period }}
                             </button>
                         </div>
-                        
+
                         <!-- Loading State -->
                         <div v-if="isLoading" class="flex justify-center items-center py-20">
                             <div class="text-center">
@@ -61,7 +61,7 @@
                         <!-- Archived Classes Grid -->
                         <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                             <!-- Archived Class Card -->
-                            <div 
+                            <div
                                 v-for="classroom in filteredClasses"
                                 :key="classroom.id"
                                 class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-md transition-all cursor-pointer"
@@ -72,7 +72,7 @@
                                     <h3 class="text-lg font-semibold text-white">{{ classroom.name }}</h3>
                                     <p class="text-xs text-white/80">Archived on {{ formatDate(classroom.archivedDate) }}</p>
                                 </div>
-                                
+
                                 <!-- Class Details -->
                                 <div class="p-4">
                                     <div class="flex items-center justify-between mb-3">
@@ -95,7 +95,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="flex items-center text-sm text-gray-500 border-t border-gray-100 pt-3 mt-3">
                                         <div class="flex items-center">
                                             <i class="pi pi-calendar mr-1"></i>
@@ -114,7 +114,7 @@
                             <div class="flex items-center justify-between mb-6">
                                 <h3 class="text-lg font-semibold text-[#0E1836]">Pupils Portfolio</h3>
                                 <div class="flex items-center gap-3">
-                                    <button 
+                                    <button
                                         @click="goBack"
                                         class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                                     >
@@ -149,7 +149,7 @@
                             <div v-else class="space-y-6">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                     <!-- Portfolio Folder Card -->
-                                    <div 
+                                    <div
                                         v-for="folder in portfolioFolders"
                                         :key="folder.id"
                                         class="group bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1 duration-200"
@@ -175,7 +175,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- Interactive Footer -->
                                         <div class="mt-4 pt-4 border-t border-indigo-100 flex justify-between items-center p-4 md:p-6">
                                             <div class="flex items-center space-x-2 text-sm text-indigo-600">
@@ -191,15 +191,18 @@
 
                         <!-- Activities List View -->
                         <div v-else class="space-y-6">
+                            <!-- Header Title (Top) -->
+                            <div class="mb-4">
+                                <h2 class="text-2xl font-bold text-[#0E1836]">List of Items - Portfolio {{ selectedFolder?.name }}</h2>
+                            </div>
+
                             <!-- Back button and List Header -->
-                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                                <div class="rounded-lg py-2 px-4">
-                                    <span class="text-2xl font-bold text-[#0E1836]">List of Items - Portfolio {{ selectedFolder?.name }}</span>
-                                </div>
-                                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                            <div class="flex flex-col sm:flex-row justify-start items-start sm:items-center gap-4 mb-6">
+                                <!-- Back Button (Left Side) -->
+                                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-first">
                                     <!-- Add Item and Track Progress buttons removed - archived classes are view-only -->
-                                    <button 
-                                        @click="showingActivities = false" 
+                                    <button
+                                        @click="showingActivities = false"
                                         class="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200 w-full sm:w-auto"
                                     >
                                         <i class="pi pi-arrow-left"></i>
@@ -250,23 +253,23 @@
 
                                 <!-- Activity Items -->
                                 <div class="divide-y divide-gray-200">
-                                    <div v-for="activity in activities" :key="activity.id" 
+                                    <div v-for="activity in activities" :key="activity.id"
                                         class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-indigo-50/50 transition-colors duration-150 items-center">
                                         <!-- Activity Type with Icon -->
                                         <div class="col-span-2">
                                             <div class="flex items-center gap-2">
                                                 <div :class="[
                                                     'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                                                    activity.type === 'project' ? 'bg-purple-100' : 
-                                                    activity.type === 'contest' ? 'bg-blue-100' : 
-                                                    activity.type === 'quiz' ? 'bg-green-100' : 
+                                                    activity.type === 'project' ? 'bg-purple-100' :
+                                                    activity.type === 'contest' ? 'bg-blue-100' :
+                                                    activity.type === 'quiz' ? 'bg-green-100' :
                                                     activity.type === 'exam' ? 'bg-red-100' : 'bg-gray-100'
                                                 ]">
                                                     <span :class="[
                                                         'text-base font-bold',
-                                                        activity.type === 'project' ? 'text-purple-600' : 
-                                                        activity.type === 'contest' ? 'text-blue-600' : 
-                                                        activity.type === 'quiz' ? 'text-green-600' : 
+                                                        activity.type === 'project' ? 'text-purple-600' :
+                                                        activity.type === 'contest' ? 'text-blue-600' :
+                                                        activity.type === 'quiz' ? 'text-green-600' :
                                                         activity.type === 'exam' ? 'text-red-600' : 'text-gray-600'
                                                     ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
                                                 </div>
@@ -284,7 +287,7 @@
 
                                         <!-- Description -->
                                         <div class="col-span-4">
-                                            <div 
+                                            <div
                                                 class="text-sm text-gray-600 leading-relaxed"
                                                 :title="activity.description"
                                                 style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 3rem;"
@@ -349,7 +352,7 @@ const loadArchivedClasses = async () => {
         const response = await axios.get('/api/classrooms/', {
             params: { archived: true }
         });
-        
+
         if (response.data && response.data.classrooms && response.data.classrooms.length > 0) {
             archivedClasses.value = response.data.classrooms.map(classroom => ({
                 id: classroom.id,
@@ -400,7 +403,7 @@ const loadPortfolioFolders = async (classId) => {
         const response = await axios.get('/api/portfolio-folders/', {
             params: { classroom_id: classId }
         });
-        
+
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
             portfolioFolders.value = response.data.map(folder => ({
                 id: folder.id,
@@ -501,7 +504,7 @@ const loadPortfolioFolders = async (classId) => {
 // Load activities for selected portfolio folder
 const loadActivities = async (folderId) => {
     isLoading.value = true;
-    
+
     // Define sample activities mapping for each portfolio folder
     const sampleActivitiesByFolder = {
         'sample-1': [ // Quarter 1 Portfolio
@@ -741,11 +744,11 @@ const loadActivities = async (folderId) => {
                     }
         ]
     };
-    
+
     // Log folder ID for debugging
     console.log('🔍 Loading activities for folder ID:', folderId);
     console.log('📋 Available folder IDs:', Object.keys(sampleActivitiesByFolder));
-    
+
     // ALWAYS use sample data (skip API call since it will fail with 404)
     if (sampleActivitiesByFolder[folderId]) {
         activities.value = sampleActivitiesByFolder[folderId];
@@ -754,7 +757,7 @@ const loadActivities = async (folderId) => {
         activities.value = sampleActivitiesByFolder['sample-1'];
         console.log('⚠️ Folder ID not found, using Quarter 1 default');
     }
-    
+
     isLoading.value = false;
 };
 
@@ -794,14 +797,14 @@ onMounted(() => {
 const filteredClasses = computed(() => {
     if (currentFilter.value === 'all') return archivedClasses.value;
     const currentYear = new Date().getFullYear();
-    
+
     return archivedClasses.value.filter(class_ => {
         if (!class_ || !class_.academicYear) return false;
-        
+
         try {
             const classYear = parseInt(class_.academicYear.split('-')[0]);
             if (isNaN(classYear)) return false;
-            
+
             if (currentFilter.value === 'current year') {
                 return classYear === currentYear;
             }
@@ -822,7 +825,7 @@ const formatDate = (dateString) => {
         if (!dateString) return '';
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '';
-        
+
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',

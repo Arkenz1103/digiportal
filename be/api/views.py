@@ -52,15 +52,15 @@ def login_view(request):
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
-        
+
         # Try to find user by email
         try:
             user = User.objects.get(email=email)
             user = authenticate(request, username=user.username, password=password)
-            
+
             if user is not None:
                 auth_login(request, user)
-                
+
                 # Redirect based on role
                 if user.role == 'teacher':
                     return redirect('teacher_home')
@@ -76,7 +76,7 @@ def login_view(request):
             return inertia_render(request, 'Auth/Login', {
                 'errors': {'email': 'Invalid credentials.'}
             })
-    
+
     return inertia_render(request, 'Auth/Login')
 
 
@@ -97,7 +97,7 @@ def logout_api(request):
     try:
         # Logout the user (clears server-side session)
         auth_logout(request)
-        
+
         return Response({
             'success': True,
             'message': 'Logged out successfully'
@@ -121,13 +121,13 @@ def login_api(request):
         email = request.data.get('email')
         password = request.data.get('password')
         role = request.data.get('role')  # Optional role verification
-        
+
         if not email or not password:
             return Response({
                 'success': False,
                 'error': 'Email and password are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Try to find user by email
         try:
             user = User.objects.get(email=email)
@@ -136,10 +136,10 @@ def login_api(request):
                 'success': False,
                 'error': 'Invalid email or password'
             }, status=status.HTTP_401_UNAUTHORIZED)
-        
+
         # Authenticate user
         authenticated_user = authenticate(request, username=user.username, password=password)
-        
+
         if authenticated_user is not None:
             # Verify role if provided
             if role and authenticated_user.role != role:
@@ -147,13 +147,13 @@ def login_api(request):
                     'success': False,
                     'error': f'This account is not registered as a {role}'
                 }, status=status.HTTP_403_FORBIDDEN)
-            
+
             # Log the user in
             auth_login(request, authenticated_user)
-            
+
             # IMPORTANT: Explicitly save the session to ensure it's persisted
             request.session.save()
-            
+
             # Prepare user data
             user_data = {
                 'id': authenticated_user.id,
@@ -164,7 +164,7 @@ def login_api(request):
                 'first_name': authenticated_user.first_name,
                 'last_name': authenticated_user.last_name,
             }
-            
+
             # Add role-specific data
             if authenticated_user.role == 'student':
                 user_data['student_id'] = authenticated_user.id_number
@@ -172,14 +172,14 @@ def login_api(request):
                 user_data['section'] = authenticated_user.section
             elif authenticated_user.role == 'teacher':
                 user_data['department'] = authenticated_user.department
-            
+
             # Create response with explicit session cookie
             response = Response({
                 'success': True,
                 'user': user_data,
                 'message': 'Login successful'
             }, status=status.HTTP_200_OK)
-            
+
             # Ensure session cookie is set in response
             if request.session.session_key:
                 response.set_cookie(
@@ -189,14 +189,14 @@ def login_api(request):
                     samesite='Lax',
                     secure=False  # Set to True in production with HTTPS
                 )
-            
+
             return response
         else:
             return Response({
                 'success': False,
                 'error': 'Invalid email or password'
             }, status=status.HTTP_401_UNAUTHORIZED)
-            
+
     except Exception as e:
         print(f"Login API error: {str(e)}")
         return Response({
@@ -218,11 +218,11 @@ def teacher_home(request):
 def teacher_outputs(request, id):
     """Teacher outputs page"""
     activity = request.GET.dict()
-    
+
     # Ensure grade_section is available
     if 'grade_section' not in activity and 'room_id' in activity:
         activity['grade_section'] = activity['room_id']
-    
+
     return inertia_render(request, 'Teacher/Outputs', {
         'activity': activity
     })
@@ -234,21 +234,21 @@ def teacher_class(request, grade_section):
     """Teacher class room page"""
     # Convert 'grade1-a' to 'Grade 1 - A'
     parts = grade_section.split('-')
-    
+
     if len(parts) < 2:
         return redirect('teacher_home')
-    
+
     grade = parts[0].replace('grade', 'Grade ')
     section = parts[1].upper()
     display_name = f"{grade} - {section}"
-    
+
     # Default theme mapping
     classes = {
         'Grade 1 - A': 'purple',
         'Grade 2 - A': 'purple',
         'Grade 3 - A': 'purple',
     }
-    
+
     return inertia_render(request, 'Teacher/Room', {
         'className': display_name,
         'theme': classes.get(display_name, 'emerald')
@@ -284,16 +284,16 @@ def teacher_progress(request):
 def teacher_sprogress(request):
     """Teacher student progress page"""
     from django.db.models import Count, Q
-    
+
     # Get class name from query parameter (from Sroom)
     class_name = request.GET.get('class', None)
-    
+
     # Get all students (optionally filtered by class), exclude admin users
     students = User.objects.filter(role='student').exclude(username='admin').order_by('username')
-    
+
     # Get teacher's portfolio folders
     teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
-    
+
     # If class is specified, filter students by submissions in that class's portfolios
     if class_name:
         # Get folders for this class
@@ -303,18 +303,18 @@ def teacher_sprogress(request):
             activity__folder__in=class_folders
         ).values_list('student_id', flat=True).distinct()
         students = students.filter(id__in=student_ids)
-    
+
     student_data = []
     for student in students:
         # Count total outputs (submissions) for this student
         total_outputs = StudentSubmission.objects.filter(student=student).count()
-        
+
         # Get student's submissions with portfolio and activity info
         submissions = StudentSubmission.objects.filter(
             student=student,
             activity__isnull=False
         ).select_related('activity__folder').order_by('-submitted_at')
-        
+
         student_data.append({
             'id': student.id,
             'student_id': f'STD{str(student.id).zfill(3)}',
@@ -334,7 +334,7 @@ def teacher_sprogress(request):
                 for sub in submissions[:10]  # Limit to 10 recent submissions
             ]
         })
-    
+
     return inertia_render(request, 'Teacher/Sprogress', {
         'students': student_data,
         'class_name': class_name,
@@ -411,20 +411,20 @@ def student_archived(request):
 def student_class(request, grade_section):
     """Student class room page"""
     parts = grade_section.split('-')
-    
+
     if len(parts) < 2:
         return redirect('student_newsfeed')
-    
+
     grade = parts[0].replace('grade', 'Grade ')
     section = parts[1].upper()
     display_name = f"{grade} - {section}"
-    
+
     classes = {
         'Grade 1 - A': 'purple',
         'Grade 2 - A': 'purple',
         'Grade 3 - A': 'purple',
     }
-    
+
     return inertia_render(request, 'Student/Sroom', {
         'className': display_name,
         'theme': classes.get(display_name, 'emerald')
@@ -453,16 +453,19 @@ def validate_session(request, id=None):
     # Ignore the ID parameter if provided (for backwards compatibility)
     if id is not None:
         print(f"Warning: validate_session called with ID={id}, ignoring it")
-    
+
     if request.method == 'GET':
         if request.user.is_authenticated:
             print(f"User authenticated: {request.user.username} (role: {request.user.role})")
-            
-            # Get classroom name if user has a classroom
-            classroom_name = None
+
+            # Serialize classroom if it exists
+            classroom_data = None
             if request.user.classroom:
-                classroom_name = f"Grade {request.user.classroom.grade_level} - {request.user.classroom.section}"
-            
+                classroom_data = {
+                    'id': request.user.classroom.id,
+                    'name': str(request.user.classroom)
+                }
+
             return JsonResponse({
                 'authenticated': True,
                 'user': {
@@ -472,20 +475,20 @@ def validate_session(request, id=None):
                     'username': request.user.username,
                     'email': request.user.email,
                     'role': request.user.role,
-                    'classroom_name': classroom_name,
+                    'classroom': classroom_data,
                 }
             })
         print("User not authenticated")
         return JsonResponse({'authenticated': False}, status=401)
-    
+
     elif request.method == 'POST':
         # For development: create a mock session
         try:
             data = json.loads(request.body)
             role = data.get('role', 'teacher')
-            
+
             print(f"Creating/authenticating test user with role: {role}")
-            
+
             # Try to get or create a test user
             user, created = User.objects.get_or_create(
                 username=f'test_{role}',
@@ -496,23 +499,26 @@ def validate_session(request, id=None):
                     'last_name': role.capitalize()
                 }
             )
-            
+
             if created:
                 user.set_password('password123')
                 user.save()
                 print(f"Created new test user: {user.username}")
             else:
                 print(f"Using existing test user: {user.username}")
-            
+
             # Log the user in
             auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             print(f"User logged in successfully: {user.username} (role: {user.role})")
-            
-            # Get classroom name if user has a classroom
-            classroom_name = None
+
+            # Serialize classroom if it exists
+            classroom_data = None
             if user.classroom:
-                classroom_name = f"Grade {user.classroom.grade_level} - {user.classroom.section}"
-            
+                classroom_data = {
+                    'id': user.classroom.id,
+                    'name': str(user.classroom)
+                }
+
             return JsonResponse({
                 'authenticated': True,
                 'user': {
@@ -522,7 +528,7 @@ def validate_session(request, id=None):
                     'username': user.username,
                     'email': user.email,
                     'role': user.role,
-                    'classroom_name': classroom_name,
+                    'classroom': classroom_data,
                 }
             })
         except Exception as e:
@@ -542,46 +548,41 @@ def portfolio_folders_api(request):
     if request.method == 'GET':
         try:
             # Filter folders based on user role and classroom
-            if request.user.is_authenticated:
+            classroom_id = request.query_params.get('classroom_id')
+
+            if classroom_id:
+                # If a classroom_id is provided, filter by it (for teacher's main view)
+                try:
+                    classroom = Classroom.objects.get(id=classroom_id)
+                    folders = PortfolioFolder.objects.filter(classroom=classroom).order_by('-created_at')
+                    print(f"📚 {request.user.role.capitalize()} {request.user.username} viewing specific classroom folders: {classroom.name}")
+                except Classroom.DoesNotExist:
+                    return Response({'error': 'Classroom not found.'}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                # If no classroom_id, use role-based logic (for sidebar and student view)
                 if request.user.role == 'teacher':
-                    # Teachers only see folders from their assigned classroom
-                    teacher_classroom = request.user.classroom
-                    if teacher_classroom:
-                        folders = PortfolioFolder.objects.filter(
-                            classroom=teacher_classroom
-                        ).order_by('-created_at')
-                        print(f"📚 Teacher {request.user.username} viewing folders for classroom: {teacher_classroom.name}")
-                    else:
-                        # Fallback: show teacher's own folders if no classroom assigned
-                        folders = PortfolioFolder.objects.filter(
-                            teacher=request.user
-                        ).order_by('-created_at')
-                        print(f"⚠️ Teacher {request.user.username} has no classroom, showing own folders")
+                    # Teacher sidebar gets all folders they own
+                    folders = PortfolioFolder.objects.filter(teacher=request.user).order_by('-created_at')
+                    print(f"📚 Teacher {request.user.username} viewing all their folders for the sidebar.")
                 elif request.user.role == 'student':
-                    # Students only see folders from their assigned classroom
+                    # Student gets folders from their assigned classroom
                     student_classroom = request.user.classroom
                     if student_classroom:
-                        folders = PortfolioFolder.objects.filter(
-                            classroom=student_classroom
-                        ).order_by('-created_at')
-                        print(f"📚 Student {request.user.username} viewing folders for classroom: {student_classroom.name}")
+                        folders = PortfolioFolder.objects.filter(classroom=student_classroom).order_by('-created_at')
+                        print(f"📚 Student {request.user.username} viewing folders for their classroom: {student_classroom.name}")
                     else:
-                        # Fallback: show all folders if no classroom assigned
-                        folders = PortfolioFolder.objects.all().order_by('-created_at')
-                        print(f"⚠️ Student {request.user.username} has no classroom, showing all folders")
+                        folders = PortfolioFolder.objects.none()
+                        print(f"⚠️ Student {request.user.username} has no classroom assigned.")
                 else:
-                    # Admin or other roles see all folders
-                    folders = PortfolioFolder.objects.all().order_by('-created_at')
-            else:
-                # Unauthenticated users see no folders
-                folders = PortfolioFolder.objects.none()
-            
+                    # Fallback for other roles
+                    folders = PortfolioFolder.objects.none()
+
             serializer = PortfolioFolderSerializer(folders, many=True)
             return Response(serializer.data)
         except Exception as e:
             print(f"Error fetching folders: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     elif request.method == 'POST':
         # Check authentication
         if not hasattr(request, 'user') or not request.user or not request.user.is_authenticated:
@@ -590,7 +591,7 @@ def portfolio_folders_api(request):
                 'error': 'Authentication required',
                 'detail': 'Please authenticate with the backend first'
             }, status=status.HTTP_401_UNAUTHORIZED)
-        
+
         # Check role
         if not hasattr(request.user, 'role') or request.user.role != 'teacher':
             print(f"Authorization failed - User role: {getattr(request.user, 'role', 'unknown')}")
@@ -598,36 +599,36 @@ def portfolio_folders_api(request):
                 'error': 'Only teachers can create folders',
                 'detail': f'Your role is: {getattr(request.user, "role", "unknown")}'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             # Use request.data (DRF automatically parses JSON)
             # DO NOT access request.body after this!
             data = request.data
             print(f"Received data: {data}")
             print(f"Content-Type: {request.content_type}")
-            
+
             name = data.get('name')
             description = data.get('description', '')
             class_name = data.get('class_name', 'Grade 1 - A')  # Default class name
-            
+
             if not name:
                 return Response({'error': 'Folder name is required'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             # Check for duplicate folder name for this teacher and class (case-sensitive)
             existing_folder = PortfolioFolder.objects.filter(
                 teacher=request.user,
                 name=name,  # Case-sensitive comparison (exact match)
                 class_name=class_name
             ).first()
-            
+
             if existing_folder:
                 return Response({
                     'error': 'Duplicate folder name',
                     'detail': f'A folder with the exact name "{name}" already exists in {class_name}. Please choose a different name.'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             print(f"Creating folder - Name: {name}, User: {request.user.username}, Class: {class_name}")
-            
+
             # Get teacher's classroom based on class_name
             classroom = None
             try:
@@ -636,14 +637,14 @@ def portfolio_folders_api(request):
                     teacher=request.user,
                     name=class_name
                 ).first()
-                
+
                 if classroom:
                     print(f"✅ Found classroom: {classroom.name} (ID: {classroom.id})")
                 else:
                     print(f"⚠️ No classroom found for class_name: {class_name}")
             except Exception as e:
                 print(f"❌ Error finding classroom: {str(e)}")
-            
+
             folder = PortfolioFolder.objects.create(
                 teacher=request.user,
                 name=name,
@@ -651,7 +652,7 @@ def portfolio_folders_api(request):
                 classroom=classroom,  # Link to actual Classroom model
                 description=description
             )
-            
+
             # Notify ONLY students in this specific classroom
             if classroom:
                 students = User.objects.filter(
@@ -663,7 +664,7 @@ def portfolio_folders_api(request):
                 # Fallback: notify all students (legacy behavior)
                 students = User.objects.filter(role='student').exclude(username='admin')
                 print(f"📢 Notifying {students.count()} students (no specific classroom) about new portfolio")
-            
+
             for student in students:
                 notification = create_notification(
                     recipient=student,
@@ -676,11 +677,11 @@ def portfolio_folders_api(request):
                     print(f"✅ Notification created for student: {student.username}")
                 else:
                     print(f"❌ Failed to create notification for student: {student.username}")
-            
+
             serializer = PortfolioFolderSerializer(folder)
             print(f"Folder created successfully - ID: {folder.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-            
+
         except KeyError as e:
             print(f"Missing required field: {str(e)}")
             return Response({'error': f'Missing required field: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
@@ -695,87 +696,68 @@ def portfolio_folders_api(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 def portfolio_folder_detail_api(request, folder_id):
     """
-    GET: Get folder details
-    PUT: Update folder (teacher only)
-    DELETE: Delete folder (teacher only)
+    GET: Retrieve details of a specific portfolio folder.
+    PUT: Update a specific portfolio folder.
+    DELETE: Delete a specific portfolio folder.
     """
     try:
         folder = PortfolioFolder.objects.get(id=folder_id)
     except PortfolioFolder.DoesNotExist:
         return Response({'error': 'Folder not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
+    # --- Centralized Permissions Check ---
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if request.user.role == 'student':
+        # Students can only view folder details, not modify them.
+        if request.method != 'GET':
+            return Response({'error': 'Permission denied: Students cannot modify folders.'}, status=status.HTTP_403_FORBIDDEN)
+        if folder.classroom != request.user.classroom:
+            return Response({'error': 'You do not have permission to access this folder.'}, status=status.HTTP_403_FORBIDDEN)
+
+    elif request.user.role == 'teacher':
+        if folder.teacher != request.user:
+            return Response({'error': 'You do not have permission to access this folder.'}, status=status.HTTP_403_FORBIDDEN)
+    else:
+        # Other roles have no access.
+        return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+    # --- Method-Specific Logic ---
     if request.method == 'GET':
         serializer = PortfolioFolderSerializer(folder)
         return Response(serializer.data)
-    
+
     elif request.method == 'PUT':
-        if not request.user.is_authenticated or request.user.role != 'teacher':
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
         try:
             data = json.loads(request.body)
-            new_name = data.get('name', folder.name)
-            
-            # Check for duplicate folder name (excluding the current folder, case-sensitive)
-            if new_name != folder.name:  # Only check if name is being changed
-                existing_folder = PortfolioFolder.objects.filter(
-                    teacher=request.user,
-                    name=new_name,  # Case-sensitive comparison (exact match)
-                    class_name=folder.class_name
-                ).exclude(id=folder.id).first()
-                
-                if existing_folder:
-                    return Response({
-                        'error': 'Duplicate folder name',
-                        'detail': f'A folder with the exact name "{new_name}" already exists in {folder.class_name}. Please choose a different name.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
+            new_name = data.get('name', folder.name).strip()
+
+            if not new_name:
+                return Response({'error': 'Folder name cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if new_name != folder.name:
+                if PortfolioFolder.objects.filter(classroom=folder.classroom, name=new_name).exclude(id=folder.id).exists():
+                    return Response({'error': f'A folder named "{new_name}" already exists in this class.'}, status=status.HTTP_400_BAD_REQUEST)
+
             folder.name = new_name
             folder.description = data.get('description', folder.description)
             folder.save()
-            
-            # Notify all students about portfolio update (exclude admin)
-            students = User.objects.filter(role='student').exclude(username='admin')
-            for student in students:
-                create_notification(
-                    recipient=student,
-                    notification_type='portfolio_updated',
-                    title='Portfolio Updated',
-                    message=f'Portfolio "{folder.name}" has been updated',
-                    portfolio=folder
-                )
-            
             serializer = PortfolioFolderSerializer(folder)
             return Response(serializer.data)
+
+        except json.JSONDecodeError:
+            return Response({'error': 'Invalid request format.'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
+            print(f"Error during folder update: {e}")
+            return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     elif request.method == 'DELETE':
-        if not request.user.is_authenticated or request.user.role != 'teacher':
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
-        # Check if folder has any activities
-        activity_count = folder.activities.count()
-        if activity_count > 0:
-            return Response({
-                'error': 'Cannot delete folder with activities',
-                'detail': f'This folder contains {activity_count} activity/activities. Please delete all activities first before deleting the folder.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        folder_name = folder.name
-        
-        # Notify all students about portfolio deletion (exclude admin)
-        students = User.objects.filter(role='student').exclude(username='admin')
-        for student in students:
-            create_notification(
-                recipient=student,
-                notification_type='portfolio_deleted',
-                title='Portfolio Deleted',
-                message=f'Portfolio "{folder_name}" has been deleted'
-            )
-        
+        if folder.activities.count() > 0:
+            return Response({'error': 'Cannot drop a folder with activities. Please remove all activities first.'}, status=status.HTTP_400_BAD_REQUEST)
+
         folder.delete()
-        return Response({'message': 'Folder deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @csrf_exempt
@@ -787,9 +769,20 @@ def portfolio_activities_api(request, folder_id):
     """
     try:
         folder = PortfolioFolder.objects.get(id=folder_id)
+
+        # Authorization check: Ensure the user has permission to view this folder.
+        if request.user.role == 'student':
+            # Students can only access folders in their own classroom.
+            if folder.classroom != request.user.classroom:
+                return Response({'error': 'Permission denied: You can only access folders in your classroom.'}, status=status.HTTP_403_FORBIDDEN)
+        elif request.user.role == 'teacher':
+            # Teachers can only access folders they own.
+            if folder.teacher != request.user:
+                return Response({'error': 'Permission denied: You can only access your own folders.'}, status=status.HTTP_403_FORBIDDEN)
+
     except PortfolioFolder.DoesNotExist:
         return Response({'error': 'Folder not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if request.method == 'GET':
         # Teachers see all activities, students only see published ones
         if request.user.is_authenticated and request.user.role == 'teacher':
@@ -797,24 +790,24 @@ def portfolio_activities_api(request, folder_id):
         else:
             # Students only see published activities
             activities = folder.activities.filter(is_published=True).order_by('-created_at')
-        
+
         serializer = PortfolioActivitySerializer(activities, many=True)
         activities_data = serializer.data
-        
+
         # For students, add submission status and is_late flag
         if request.user.is_authenticated and request.user.role == 'student':
             from django.utils import timezone
             from datetime import datetime, time as dt_time
-            
+
             for activity_data in activities_data:
                 activity_id = activity_data['id']
-                
+
                 # Check if student has submitted
                 submission = StudentSubmission.objects.filter(
                     activity_id=activity_id,
                     student=request.user
                 ).exclude(status='draft').first()
-                
+
                 if submission:
                     activity_data['hasSubmitted'] = True
                     activity_data['isLate'] = submission.is_late
@@ -822,38 +815,38 @@ def portfolio_activities_api(request, folder_id):
                 else:
                     activity_data['hasSubmitted'] = False
                     activity_data['isLate'] = False
-        
+
         return Response(activities_data)
-    
+
     elif request.method == 'POST':
         if not request.user.is_authenticated or request.user.role != 'teacher':
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             data = request.data  # Use request.data instead of json.loads(request.body)
             print(f"Received data: {data}")  # Debug log
             print(f"Request user: {request.user}")
             print(f"Folder: {folder}")
-            
+
             # Validate required fields
             if not data.get('title') or not data.get('title').strip():
                 return Response(
                     {'error': 'Activity Title is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if not data.get('due_date'):
                 return Response(
                     {'error': 'Due Date is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if not data.get('due_time'):
                 return Response(
                     {'error': 'Due Time is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Validate due date is not in the past
             from datetime import date, datetime, time as time_type
             if data.get('due_date'):
@@ -863,7 +856,7 @@ def portfolio_activities_api(request, folder_id):
                         due_date_obj = datetime.strptime(data.get('due_date'), '%Y-%m-%d').date()
                     else:
                         due_date_obj = data.get('due_date')
-                    
+
                     # Check if date is in the past
                     today = date.today()
                     if due_date_obj < today:
@@ -871,7 +864,7 @@ def portfolio_activities_api(request, folder_id):
                             {'error': 'Due date cannot be in the past. Please select today or a future date.'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-                    
+
                     # If date is today, validate time is not in the past (time is now required)
                     if due_date_obj == today:
                         try:
@@ -881,7 +874,7 @@ def portfolio_activities_api(request, folder_id):
                                 due_time_obj = time_type(int(time_parts[0]), int(time_parts[1]))
                             else:
                                 due_time_obj = data.get('due_time')
-                            
+
                             # Check if time is in the past
                             current_time = datetime.now().time()
                             if due_time_obj < current_time:
@@ -901,20 +894,20 @@ def portfolio_activities_api(request, folder_id):
                         {'error': 'Invalid date format. Please use YYYY-MM-DD format.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
+
             # Validate scoring criteria
             import json
             scoring_criteria_str = data.get('scoring_criteria', '[]')
             try:
                 scoring_criteria = json.loads(scoring_criteria_str) if isinstance(scoring_criteria_str, str) else scoring_criteria_str
-                
+
                 # Check if at least one criterion exists
                 if not scoring_criteria or len(scoring_criteria) == 0:
                     return Response(
                         {'error': 'At least one scoring criterion is required'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
+
                 # Validate each criterion
                 for criterion in scoring_criteria:
                     if not criterion.get('name') or not criterion.get('name').strip():
@@ -922,14 +915,14 @@ def portfolio_activities_api(request, folder_id):
                             {'error': 'Criterion name is required'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-                    
+
                     max_score = criterion.get('maxScore')
                     if max_score is None or max_score == '':
                         return Response(
                             {'error': 'Criterion score is required'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-                    
+
                     try:
                         max_score_int = int(max_score)
                         if max_score_int <= 0:
@@ -947,7 +940,7 @@ def portfolio_activities_api(request, folder_id):
                     {'error': 'Invalid scoring criteria format'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Prepare data for serializer
             activity_data = {
                 'folder': folder.id,
@@ -959,17 +952,17 @@ def portfolio_activities_api(request, folder_id):
                 'file_path': data.get('file_path', ''),
                 'scoring_criteria': data.get('scoring_criteria', '[]')  # Add scoring criteria
             }
-            
+
             print(f"Activity data: {activity_data}")
             print(f"Scoring criteria received: {data.get('scoring_criteria')}")
-            
+
             serializer = PortfolioActivitySerializer(data=activity_data)
             if serializer.is_valid():
                 activity = serializer.save()
-                
+
                 # Activity is created as draft (is_published=False by default)
                 # No notifications sent until teacher publishes it
-                
+
                 print(f"Activity created successfully as draft: {serializer.data}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
@@ -995,50 +988,50 @@ def activity_detail_api(request, activity_id):
         activity = PortfolioActivity.objects.get(id=activity_id)
     except PortfolioActivity.DoesNotExist:
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if request.method == 'GET':
         serializer = PortfolioActivitySerializer(activity)
         return Response(serializer.data)
-    
+
     elif request.method == 'PUT':
         # Only teachers can update
         if not request.user.is_authenticated or request.user.role != 'teacher':
             return Response({'error': 'Only teachers can update activities'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             data = request.data
             print(f"Updating activity {activity_id} with data: {data}")
-            
+
             # Check if activity due date has passed or is too close to deadline
             from datetime import date, datetime, time as time_type, timedelta
-            
+
             # Configuration: Minimum hours before due date/time to allow editing
             EDIT_CUTOFF_HOURS = 3  # Teachers must edit at least 3 hours before deadline
-            
+
             if activity.due_date:
                 # Combine due date and time into a single datetime
                 activity_due_date = activity.due_date if isinstance(activity.due_date, date) else datetime.strptime(str(activity.due_date), '%Y-%m-%d').date()
-                
+
                 if activity.due_time:
                     activity_time = activity.due_time if isinstance(activity.due_time, time_type) else datetime.strptime(str(activity.due_time), '%H:%M:%S').time()
                     due_datetime = datetime.combine(activity_due_date, activity_time)
                 else:
                     # If no time specified, use end of day (23:59:59)
                     due_datetime = datetime.combine(activity_due_date, time_type(23, 59, 59))
-                
+
                 # Get current datetime
                 now = datetime.now()
-                
+
                 # Calculate time remaining until deadline
                 time_remaining = due_datetime - now
-                
+
                 # If deadline has passed
                 if time_remaining.total_seconds() <= 0:
                     return Response(
                         {'error': 'Cannot edit activity after the due date/time has passed.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
+
                 # If less than EDIT_CUTOFF_HOURS remaining
                 cutoff_timedelta = timedelta(hours=EDIT_CUTOFF_HOURS)
                 if time_remaining < cutoff_timedelta:
@@ -1047,26 +1040,26 @@ def activity_detail_api(request, activity_id):
                         {'error': f'Cannot edit activity within {EDIT_CUTOFF_HOURS} hours of the deadline. Only {hours_remaining:.1f} hours remaining.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
+
             # Validate required fields if provided
             if 'title' in data and (not data.get('title') or not data.get('title').strip()):
                 return Response(
                     {'error': 'Activity Title cannot be empty'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if 'due_date' in data and not data.get('due_date'):
                 return Response(
                     {'error': 'Due Date cannot be empty'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             if 'due_time' in data and not data.get('due_time'):
                 return Response(
                     {'error': 'Due Time cannot be empty'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Validate due date is not in the past
             from datetime import date, datetime, time as time_type
             if data.get('due_date'):
@@ -1076,7 +1069,7 @@ def activity_detail_api(request, activity_id):
                         due_date_obj = datetime.strptime(data.get('due_date'), '%Y-%m-%d').date()
                     else:
                         due_date_obj = data.get('due_date')
-                    
+
                     # Check if date is in the past
                     today = date.today()
                     if due_date_obj < today:
@@ -1084,7 +1077,7 @@ def activity_detail_api(request, activity_id):
                             {'error': 'Due date cannot be in the past. Please select today or a future date.'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-                    
+
                     # If date is today, validate time is not in the past
                     if due_date_obj == today and data.get('due_time'):
                         try:
@@ -1094,7 +1087,7 @@ def activity_detail_api(request, activity_id):
                                 due_time_obj = time_type(int(time_parts[0]), int(time_parts[1]))
                             else:
                                 due_time_obj = data.get('due_time')
-                            
+
                             # Check if time is in the past
                             current_time = datetime.now().time()
                             if due_time_obj < current_time:
@@ -1114,31 +1107,31 @@ def activity_detail_api(request, activity_id):
                         {'error': 'Invalid date format. Please use YYYY-MM-DD format.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
+
             # Track what changed
             changes = []
             old_due_date = activity.due_date
             old_due_time = activity.due_time
-            
+
             # Update activity fields
             if data.get('title') and data.get('title') != activity.title:
                 changes.append('title')
             activity.title = data.get('title', activity.title)
-            
+
             if data.get('activity_type') and data.get('activity_type') != activity.activity_type:
                 changes.append('type')
             activity.activity_type = data.get('activity_type', activity.activity_type)
-            
+
             if data.get('description') and data.get('description') != activity.description:
                 changes.append('description')
             activity.description = data.get('description', activity.description)
-            
+
             # Check due date changes
             new_due_date = data.get('due_date')
             if new_due_date and str(new_due_date) != str(old_due_date):
                 changes.append('due date')
             activity.due_date = new_due_date if new_due_date else activity.due_date
-            
+
             # Check due time changes
             new_due_time = data.get('due_time')
             # Convert string time to proper format if needed
@@ -1147,7 +1140,7 @@ def activity_detail_api(request, activity_id):
                 pass
             elif new_due_time and new_due_time.lower() == 'none':
                 new_due_time = None
-            
+
             if str(new_due_time) != str(old_due_time):
                 if new_due_time and not old_due_time:
                     changes.append('due time added')
@@ -1156,21 +1149,21 @@ def activity_detail_api(request, activity_id):
                 elif new_due_time and old_due_time:
                     changes.append('due time')
             activity.due_time = new_due_time if new_due_time else None
-            
+
             # Validate scoring criteria if provided
             if data.get('scoring_criteria'):
                 import json
                 scoring_criteria_str = data.get('scoring_criteria')
                 try:
                     scoring_criteria = json.loads(scoring_criteria_str) if isinstance(scoring_criteria_str, str) else scoring_criteria_str
-                    
+
                     # Check if at least one criterion exists
                     if not scoring_criteria or len(scoring_criteria) == 0:
                         return Response(
                             {'error': 'At least one scoring criterion is required'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-                    
+
                     # Validate each criterion
                     for criterion in scoring_criteria:
                         if not criterion.get('name') or not criterion.get('name').strip():
@@ -1178,14 +1171,14 @@ def activity_detail_api(request, activity_id):
                                 {'error': 'Criterion name is required'},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
-                        
+
                         max_score = criterion.get('maxScore')
                         if max_score is None or max_score == '':
                             return Response(
                                 {'error': 'Criterion score is required'},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
-                        
+
                         try:
                             max_score_int = int(max_score)
                             if max_score_int <= 0:
@@ -1203,20 +1196,20 @@ def activity_detail_api(request, activity_id):
                         {'error': 'Invalid scoring criteria format'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
+
                 if data.get('scoring_criteria') != activity.scoring_criteria:
                     changes.append('scoring criteria')
                 activity.scoring_criteria = data.get('scoring_criteria')
-            
+
             activity.save()
-            
+
             # Build notification message based on changes
             if changes:
                 changes_text = ', '.join(changes)
                 update_message = f'Activity "{activity.title}" has been updated. Changes: {changes_text}.'
             else:
                 update_message = f'Activity "{activity.title}" has been updated.'
-            
+
             # Add current due date/time info
             if activity.due_date:
                 from datetime import datetime, time as time_type
@@ -1228,7 +1221,7 @@ def activity_detail_api(request, activity_id):
                         due_date_str = due_date_obj.strftime('%B %d, %Y')
                     else:
                         due_date_str = activity.due_date.strftime('%B %d, %Y')
-                    
+
                     if activity.due_time:
                         # Convert time object to datetime for formatting
                         if isinstance(activity.due_time, time_type):
@@ -1253,7 +1246,7 @@ def activity_detail_api(request, activity_id):
                 except Exception as e:
                     print(f"Error formatting due date/time: {e}")
                     update_message += f' Due: {activity.due_date}'
-            
+
             # Notify all students about activity update (exclude admin)
             students = User.objects.filter(role='student').exclude(username='admin')
             for student in students:
@@ -1264,7 +1257,7 @@ def activity_detail_api(request, activity_id):
                     message=update_message,
                     activity=activity
                 )
-            
+
             print(f"✅ Activity {activity_id} updated successfully")
             serializer = PortfolioActivitySerializer(activity)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1274,20 +1267,20 @@ def activity_detail_api(request, activity_id):
             print(f"❌ Error updating activity: {str(e)}")
             print(error_trace)
             return Response({'error': str(e), 'details': error_trace}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     elif request.method == 'DELETE':
         # Only teachers can delete
         if not request.user.is_authenticated or request.user.role != 'teacher':
             return Response({'error': 'Only teachers can delete activities'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             print(f"Deleting activity {activity_id}")
             activity_title = activity.title
             activity_type = activity.activity_type
-            
+
             # Build detailed deletion message
             delete_message = f'Activity "{activity_title}" ({activity_type}) has been deleted'
-            
+
             if activity.due_date:
                 from datetime import datetime, time as time_type
                 try:
@@ -1298,7 +1291,7 @@ def activity_detail_api(request, activity_id):
                         due_date_str = due_date_obj.strftime('%B %d, %Y')
                     else:
                         due_date_str = activity.due_date.strftime('%B %d, %Y')
-                    
+
                     if activity.due_time:
                         # Convert time object to datetime for formatting
                         if isinstance(activity.due_time, time_type):
@@ -1324,7 +1317,7 @@ def activity_detail_api(request, activity_id):
                     delete_message += f'. It was due on {activity.due_date}.'
             else:
                 delete_message += '.'
-            
+
             # Notify all students about activity deletion (exclude admin)
             students = User.objects.filter(role='student').exclude(username='admin')
             for student in students:
@@ -1334,7 +1327,7 @@ def activity_detail_api(request, activity_id):
                     title='Activity Deleted',
                     message=delete_message
                 )
-            
+
             activity.delete()
             print(f"✅ Activity {activity_id} deleted successfully")
             return Response({'message': 'Activity deleted successfully'}, status=status.HTTP_200_OK)
@@ -1353,30 +1346,30 @@ def publish_activity_api(request, activity_id):
         activity = PortfolioActivity.objects.get(id=activity_id)
     except PortfolioActivity.DoesNotExist:
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Only teachers can publish
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can publish activities'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Check if already published (but allow re-publishing if it was retracted)
         if activity.is_published:
             return Response({'error': 'Activity is already published'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Publish or re-publish the activity
         from django.utils import timezone
         was_retracted = activity.published_at is None  # Check if this is a first-time publish or re-publish
-        
+
         activity.is_published = True
         activity.published_at = timezone.now()
         activity.save()
-        
+
         action = "re-published" if not was_retracted else "published"
         print(f"✅ Activity {activity_id} {action} successfully")
-        
+
         # Notify ONLY students in the activity's classroom
         activity_classroom = activity.folder.classroom
-        
+
         if activity_classroom:
             students = User.objects.filter(
                 role='student',
@@ -1387,7 +1380,7 @@ def publish_activity_api(request, activity_id):
             # Fallback: notify all students if no classroom assigned (legacy behavior)
             students = User.objects.filter(role='student').exclude(username='admin')
             print(f"⚠️ No classroom assigned to folder, notifying all {students.count()} students")
-        
+
         # Build detailed message with due date/time info
         due_info = ""
         if activity.due_date:
@@ -1399,7 +1392,7 @@ def publish_activity_api(request, activity_id):
                     due_date_str = due_date_obj.strftime('%B %d, %Y')
                 else:
                     due_date_str = activity.due_date.strftime('%B %d, %Y')
-                
+
                 if activity.due_time:
                     # Convert time object to datetime for formatting
                     if isinstance(activity.due_time, str):
@@ -1407,7 +1400,7 @@ def publish_activity_api(request, activity_id):
                         time_obj = time_type(int(time_parts[0]), int(time_parts[1]))
                     else:
                         time_obj = activity.due_time
-                    
+
                     # Format time in 12-hour format
                     time_str = datetime.combine(datetime.today(), time_obj).strftime('%I:%M %p')
                     due_info = f" Due: {due_date_str} at {time_str}"
@@ -1416,7 +1409,7 @@ def publish_activity_api(request, activity_id):
             except Exception as e:
                 print(f"Error formatting due date/time: {e}")
                 due_info = f" Due: {activity.due_date}"
-        
+
         for student in students:
             create_notification(
                 recipient=student,
@@ -1426,13 +1419,13 @@ def publish_activity_api(request, activity_id):
                 activity=activity,
                 portfolio=activity.folder
             )
-        
+
         serializer = PortfolioActivitySerializer(activity)
         return Response({
             'message': 'Activity published successfully',
             'activity': serializer.data
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
@@ -1451,26 +1444,26 @@ def retract_activity_api(request, activity_id):
         activity = PortfolioActivity.objects.get(id=activity_id)
     except PortfolioActivity.DoesNotExist:
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Only teachers can retract
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can retract activities'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Check if activity is published
         if not activity.is_published:
             return Response({'error': 'Activity is not published'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Retract the activity (set back to draft)
         activity.is_published = False
         activity.published_at = None
         activity.save()
-        
+
         print(f"✅ Activity {activity_id} retracted successfully")
-        
+
         # Notify ONLY students in the activity's classroom that it has been retracted
         activity_classroom = activity.folder.classroom
-        
+
         if activity_classroom:
             students = User.objects.filter(
                 role='student',
@@ -1481,7 +1474,7 @@ def retract_activity_api(request, activity_id):
             # Fallback: notify all students if no classroom assigned
             students = User.objects.filter(role='student').exclude(username='admin')
             print(f"⚠️ No classroom assigned to folder, notifying all {students.count()} students")
-        
+
         for student in students:
             create_notification(
                 recipient=student,
@@ -1491,13 +1484,13 @@ def retract_activity_api(request, activity_id):
                 activity=activity,
                 portfolio=activity.folder
             )
-        
+
         serializer = PortfolioActivitySerializer(activity)
         return Response({
             'message': 'Activity retracted successfully',
             'activity': serializer.data
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
@@ -1517,19 +1510,19 @@ def activity_submissions_api(request, activity_id):
         activity = PortfolioActivity.objects.get(id=activity_id)
     except PortfolioActivity.DoesNotExist:
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if request.method == 'GET':
         # Check if requesting drafts only
         include_drafts = request.GET.get('include_drafts', 'false').lower() == 'true'
-        
+
         # Teachers see all submissions FROM THEIR CLASSROOM, students see only their own
         if request.user.role == 'teacher':
             # Check if we should show only scored submissions (for Special Progress view)
             show_scored_only = request.GET.get('scored_only', 'false').lower() == 'true'
-            
+
             # Get teacher's classroom(s) for this activity
             activity_classroom = activity.folder.classroom
-            
+
             # Teachers see only final submissions (not drafts) unless specifically requested
             # AND only from students in their assigned classroom
             if include_drafts:
@@ -1542,33 +1535,33 @@ def activity_submissions_api(request, activity_id):
                     activity=activity,
                     student__classroom=activity_classroom  # Filter by classroom
                 ).exclude(status='draft').order_by('-submitted_at')
-            
+
             print(f"🎓 Activity {activity_id} - Classroom: {activity_classroom.name if activity_classroom else 'None'}")
-            
+
             # If scored_only is requested, filter to only scored submissions
             if show_scored_only:
                 all_submissions = all_submissions.filter(status='scored')
                 print(f"📊 Activity {activity_id}: Filtering for SCORED submissions only")
-            
+
             # Get LATEST submission per student (handling resubmissions)
             # Group by student and get the most recent submission for each
             from django.db.models import Max
             latest_submission_ids = []
             student_latest = {}
-            
+
             for submission in all_submissions:
                 student_id = submission.student.id
                 if student_id not in student_latest:
                     student_latest[student_id] = submission.id
                     latest_submission_ids.append(submission.id)
-            
+
             # Filter to only include latest submissions
             submissions = StudentSubmission.objects.filter(
                 id__in=latest_submission_ids
             ).order_by('-submitted_at')
-            
+
             print(f"📊 Activity {activity_id}: Total submissions={all_submissions.count()}, Latest per student={submissions.count()}, Scored only={show_scored_only}")
-            
+
             # Use lightweight serializer for teachers (excludes large file_path)
             from .serializer import StudentSubmissionListSerializer
             serializer = StudentSubmissionListSerializer(submissions, many=True, context={'request': request})
@@ -1576,38 +1569,38 @@ def activity_submissions_api(request, activity_id):
             # Students can request all submissions including drafts
             if include_drafts:
                 submissions = StudentSubmission.objects.filter(
-                    activity=activity, 
+                    activity=activity,
                     student=request.user,
                     is_active=True  # Only show active submissions
                 ).order_by('-submitted_at')
             else:
                 # By default, exclude drafts
                 submissions = StudentSubmission.objects.filter(
-                    activity=activity, 
+                    activity=activity,
                     student=request.user,
                     is_active=True  # Only show active submissions
                 ).exclude(status='draft').order_by('-submitted_at')
             # Use full serializer for students (includes file_path for their own submissions)
             serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
-        
+
         return Response(serializer.data)
-    
+
     elif request.method == 'POST':
         # Only students can submit
         if not request.user.is_authenticated or request.user.role != 'student':
             return Response({'error': 'Only students can submit work'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             data = request.data
             print(f"Received submission data: {data}")
-            
+
             # Check if student already submitted
             existing_submissions = StudentSubmission.objects.filter(
                 activity=activity,
                 student=request.user,
                 is_active=True  # Only check active submissions
             ).order_by('-submitted_at')
-            
+
             # Clean up duplicate drafts - keep only the most recent one
             if existing_submissions.count() > 1:
                 draft_submissions = existing_submissions.filter(status='draft')
@@ -1618,25 +1611,25 @@ def activity_submissions_api(request, activity_id):
                         print(f"🗑️ Deleting duplicate draft submission {draft.id}")
                         draft.delete()
                     print(f"✅ Cleaned up {len(drafts_to_delete)} duplicate draft(s)")
-            
+
             existing_submission = existing_submissions.first()
-            
+
             if existing_submission:
                 from django.utils import timezone
-                
+
                 # Check if this is a draft being updated
                 is_draft = data.get('is_draft', True)
                 if isinstance(is_draft, str):
                     is_draft = is_draft.lower() in ('true', '1', 'yes')
                 else:
                     is_draft = bool(is_draft)
-                
+
                 # If existing submission is a draft and new one is also a draft,
                 # just update it WITHOUT incrementing resubmit count
                 if existing_submission.status == 'draft' and is_draft:
                     print(f"📝 Updating existing draft submission {existing_submission.id}")
                     print(f"📊 Current resubmit_count: {existing_submission.resubmit_count}, last_resubmit_at: {existing_submission.last_resubmit_at}")
-                    
+
                     # Update the draft with new file
                     file_obj = request.FILES.get('file')
                     if file_obj:
@@ -1651,27 +1644,27 @@ def activity_submissions_api(request, activity_id):
                             existing_submission.file_type = 'document'
                         else:
                             existing_submission.file_type = 'file'
-                    
+
                     if 'caption' in data:
                         existing_submission.caption = data.get('caption', '')
                     if 'file_path' in data:
                         existing_submission.file_path = data.get('file_path', '')
-                    
+
                     # IMPORTANT: Preserve resubmit_count and last_resubmit_at when updating draft
                     existing_submission.save()
                     print(f"✅ Draft updated - resubmit_count preserved: {existing_submission.resubmit_count}")
                     print(f"📎 File saved: {existing_submission.file.url if existing_submission.file else 'No file'}")
-                    
+
                     serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
                     print(f"📤 Returning file_url: {serializer.data.get('file_url')}")
                     return Response(serializer.data, status=status.HTTP_200_OK)
-                
+
                 # If existing submission is a draft and we're turning it in (is_draft=False),
                 # this is the FIRST submission, NOT a resubmission - don't increment count
                 if existing_submission.status == 'draft' and not is_draft:
                     print(f"📤 Turning in draft submission {existing_submission.id} for the FIRST time")
                     print(f"📊 Current resubmit_count: {existing_submission.resubmit_count} (should stay 0)")
-                    
+
                     # Update the submission with new data
                     file_obj = request.FILES.get('file')
                     if file_obj:
@@ -1685,18 +1678,18 @@ def activity_submissions_api(request, activity_id):
                             existing_submission.file_type = 'document'
                         else:
                             existing_submission.file_type = 'file'
-                    
+
                     if 'caption' in data:
                         existing_submission.caption = data.get('caption', '')
                     if 'file_path' in data:
                         existing_submission.file_path = data.get('file_path', '')
-                    
+
                     # Set status to unscored (first submission)
                     import pytz
                     manila_tz = pytz.timezone('Asia/Manila')
                     existing_submission.status = 'unscored'
                     existing_submission.submitted_at = timezone.now().astimezone(manila_tz)
-                    
+
                     # Check if late
                     if activity.due_date:
                         from datetime import datetime, time as dt_time
@@ -1709,32 +1702,42 @@ def activity_submissions_api(request, activity_id):
                                 datetime.combine(activity.due_date, dt_time(23, 59, 59))
                             )
                         existing_submission.is_late = timezone.now() > due_datetime
-                    
+
                     # IMPORTANT: Do NOT increment resubmit_count - this is the first submission
                     # resubmit_count should remain 0
                     existing_submission.save()
                     print(f"✅ First submission turned in - resubmit_count: {existing_submission.resubmit_count}")
-                    
+
                     serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
                     return Response(serializer.data, status=status.HTTP_200_OK)
-                
+
                 # This is a TRUE resubmission - student is submitting new work after already submitting
                 print(f"🔄 Resubmission detected for existing submission {existing_submission.id}")
                 print(f"📊 Current resubmit_count: {existing_submission.resubmit_count}")
-                
-                # Check resubmit limit
-                MAX_RESUBMITS = 3
-                if existing_submission.resubmit_count >= MAX_RESUBMITS:
-                    return Response({
-                        'error': f'Maximum resubmit limit ({MAX_RESUBMITS}) reached',
-                        'resubmit_count': existing_submission.resubmit_count,
-                        'max_resubmits': MAX_RESUBMITS
-                    }, status=status.HTTP_400_BAD_REQUEST)
-                
+
+                # Check if this is a portfolio compilation submission (no resubmit limits)
+                is_portfolio_compilation = data.get('is_portfolio_compilation', False)
+                if isinstance(is_portfolio_compilation, str):
+                    is_portfolio_compilation = is_portfolio_compilation.lower() in ('true', '1', 'yes')
+                else:
+                    is_portfolio_compilation = bool(is_portfolio_compilation)
+
+                # Check resubmit limit (only for regular submissions, not portfolio compilation)
+                if not is_portfolio_compilation:
+                    MAX_RESUBMITS = 3
+                    if existing_submission.resubmit_count >= MAX_RESUBMITS:
+                        return Response({
+                            'error': f'Maximum resubmit limit ({MAX_RESUBMITS}) reached',
+                            'resubmit_count': existing_submission.resubmit_count,
+                            'max_resubmits': MAX_RESUBMITS
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    print(f"📋 Portfolio compilation submission - skipping resubmit limit check")
+
                 # Increment resubmit count
                 existing_submission.resubmit_count += 1
                 print(f"✅ Incrementing resubmit_count to: {existing_submission.resubmit_count}")
-                
+
                 # Update existing submission with new data
                 existing_submission.caption = data.get('caption', '')
                 existing_submission.file_path = data.get('file_path', '')
@@ -1744,18 +1747,18 @@ def activity_submissions_api(request, activity_id):
                 current_time = timezone.now().astimezone(manila_tz)
                 existing_submission.last_resubmit_at = current_time
                 existing_submission.submitted_at = current_time  # Update submission time
-                
+
                 # Set status to unscored (whether it was scored before or not)
                 existing_submission.status = 'unscored'
                 existing_submission.score = None
                 existing_submission.feedback = None
                 existing_submission.criteria_scores = None
                 existing_submission.scored_at = None
-                
+
                 # Check if this update is late (if not already marked as late)
                 if not existing_submission.is_late and activity.due_date:
                     from datetime import datetime, time as dt_time
-                    
+
                     now = timezone.now()
                     if activity.due_time:
                         due_datetime = timezone.make_aware(
@@ -1765,14 +1768,14 @@ def activity_submissions_api(request, activity_id):
                         due_datetime = timezone.make_aware(
                             datetime.combine(activity.due_date, dt_time(23, 59, 59))
                         )
-                    
+
                     if now > due_datetime:
                         existing_submission.is_late = True
-                
+
                 existing_submission.save()
-                
+
                 print(f"✅ Resubmission #{existing_submission.resubmit_count} (Version {existing_submission.submission_version}) for student {request.user.username}")
-                
+
                 serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
@@ -1783,23 +1786,23 @@ def activity_submissions_api(request, activity_id):
                     post_to_feed = post_to_feed_raw.lower() in ('true', '1', 'yes')
                 else:
                     post_to_feed = bool(post_to_feed_raw)
-                
+
                 # Check if this is a draft or final submission
                 is_draft = data.get('is_draft', True)  # Default to draft
                 if isinstance(is_draft, str):
                     is_draft = is_draft.lower() in ('true', '1', 'yes')
                 else:
                     is_draft = bool(is_draft)
-                
+
                 # Automatically detect if submission is late (only for final submissions)
                 is_late = False
                 if not is_draft and activity.due_date:
                     from django.utils import timezone
                     from datetime import datetime, time as dt_time
-                    
+
                     # Get current time
                     now = timezone.now()
-                    
+
                     # Create due datetime
                     if activity.due_time:
                         # Combine date and time
@@ -1811,15 +1814,15 @@ def activity_submissions_api(request, activity_id):
                         due_datetime = timezone.make_aware(
                             datetime.combine(activity.due_date, dt_time(23, 59, 59))
                         )
-                    
+
                     # Check if current time is after due datetime
                     is_late = now > due_datetime
                     print(f"📅 Due date check: now={now}, due={due_datetime}, is_late={is_late}")
-                
+
                 # Handle file upload - support both base64 and actual file
                 file_path = data.get('file_path', '')
                 file_obj = request.FILES.get('file')  # Check if actual file was uploaded
-                
+
                 # Determine file type
                 file_type = data.get('file_type', '')
                 if file_obj and not file_type:
@@ -1834,10 +1837,10 @@ def activity_submissions_api(request, activity_id):
                     else:
                         file_type = 'file'
                     print(f"📎 Auto-detected file type: {file_type} from {content_type}")
-                
+
                 # Set status based on draft flag
                 submission_status = 'draft' if is_draft else 'unscored'
-                
+
                 submission = StudentSubmission.objects.create(
                     activity=activity,
                     student=request.user,
@@ -1850,16 +1853,16 @@ def activity_submissions_api(request, activity_id):
                     approval_status='pending' if post_to_feed else 'approved',
                     is_late=is_late
                 )
-                
+
                 print(f"✅ Submission created: ID={submission.id}, status={submission_status}, file_type={file_type}, is_late={is_late}, is_draft={is_draft}")
                 print(f"📎 File saved: {submission.file.url if submission.file else 'No file'}")
                 print(f"📢 POST TO FEED: {post_to_feed}, APPROVAL STATUS: {submission.approval_status}")
                 if post_to_feed:
                     print(f"🔔 This submission should appear in teacher's Notice page!")
-                
+
                 # Get teacher for notifications
                 teacher = activity.folder.teacher
-                
+
                 # Only notify teacher if this is a final submission (not draft)
                 if not is_draft:
                     print(f"📧 Sending 'submission_received' notification to {teacher.username}")
@@ -1871,7 +1874,7 @@ def activity_submissions_api(request, activity_id):
                         submission=submission,
                         activity=activity
                     )
-                
+
                 # If requesting approval, send additional notification
                 if post_to_feed:
                     print(f"📧 Sending 'approval_requested' notification to {teacher.username}")
@@ -1883,7 +1886,7 @@ def activity_submissions_api(request, activity_id):
                         submission=submission,
                         activity=activity
                     )
-                
+
                 # IMPORTANT: Include request context so file_url is properly generated
                 serializer = StudentSubmissionSerializer(submission, context={'request': request})
                 print(f"📤 Returning file_url: {serializer.data.get('file_url')}")
@@ -1904,11 +1907,11 @@ def unscored_submissions_api(request):
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can view unscored submissions'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Clean up duplicate drafts first
         from django.db.models import Count
-        
+
         # Find students with multiple draft submissions for the same activity
         duplicate_drafts = StudentSubmission.objects.filter(
             status='draft',
@@ -1916,7 +1919,7 @@ def unscored_submissions_api(request):
         ).values('student', 'activity').annotate(
             count=Count('id')
         ).filter(count__gt=1)
-        
+
         # Delete older duplicate drafts
         for dup in duplicate_drafts:
             drafts = StudentSubmission.objects.filter(
@@ -1925,7 +1928,7 @@ def unscored_submissions_api(request):
                 status='draft',
                 is_active=True
             ).order_by('-submitted_at')
-            
+
             # Keep the most recent, delete the rest
             drafts_to_delete = drafts[1:]
             deleted_count = 0
@@ -1933,15 +1936,15 @@ def unscored_submissions_api(request):
                 print(f"🗑️ Cleaning up duplicate draft: {draft.id}")
                 draft.delete()
                 deleted_count += 1
-            
+
             if deleted_count > 0:
                 print(f"✅ Cleaned up {deleted_count} duplicate draft(s) for student {dup['student']}")
-        
-        # Get all unscored submissions - explicitly filter by status='unscored' 
+
+        # Get all unscored submissions - explicitly filter by status='unscored'
         # AND exclude any that have scores (double safety check)
         # ALSO include drafts that have resubmit_count > 0 (student is resubmitting)
         from django.db.models import Q, Max
-        
+
         # First, get the latest submission ID for each student-activity pair
         latest_submissions = StudentSubmission.objects.filter(
             Q(status='unscored') | Q(status='draft', resubmit_count__gt=0)
@@ -1952,17 +1955,17 @@ def unscored_submissions_api(request):
         ).values('student', 'activity').annotate(
             latest_id=Max('id')
         )
-        
+
         # Extract the IDs
         latest_ids = [item['latest_id'] for item in latest_submissions]
-        
+
         # Get only the latest submissions (one per student per activity)
         submissions = StudentSubmission.objects.filter(
             id__in=latest_ids
         ).order_by('-submitted_at')
-        
+
         print(f"📊 Unscored submissions query: Found {submissions.count()} unique submissions (one per student)")
-        
+
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
         serializer = StudentSubmissionListSerializer(submissions, many=True, context={'request': request})
@@ -1980,7 +1983,7 @@ def scored_submissions_api(request):
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can view scored submissions'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Get all scored submissions - filter by status='scored' OR has a score
         # This ensures we catch all scored submissions even if status wasn't updated properly
@@ -1989,9 +1992,9 @@ def scored_submissions_api(request):
         ).exclude(
             status='draft'
         ).distinct().order_by('-scored_at', '-submitted_at')
-        
+
         print(f"📊 Scored submissions query: Found {submissions.count()} submissions")
-        
+
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
         serializer = StudentSubmissionListSerializer(submissions, many=True, context={'request': request})
@@ -2010,12 +2013,12 @@ def student_submitted_collection_api(request):
     """
     if not request.user.is_authenticated or request.user.role != 'student':
         return Response({'error': 'Only students can view their submitted collection'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Get ALL submitted work by this student (both scored and unscored)
         # Include submissions that have been approved and posted to collection
         from django.db.models import Q
-        
+
         submissions = StudentSubmission.objects.filter(
             student=request.user,
             submitted_at__isnull=False,  # Only include submissions that have been submitted (not drafts)
@@ -2025,16 +2028,16 @@ def student_submitted_collection_api(request):
             # Include submissions that are approved OR have no approval status (regular activities)
             Q(approval_status='approved') | Q(approval_status__isnull=True)
         ).select_related('activity', 'activity__folder').order_by('-submitted_at')
-        
+
         print(f"📦 Processing {submissions.count()} submitted works for student {request.user.username}")
-        
+
         # Debug: Show what we found
         for sub in submissions:
             print(f"   - Submission #{sub.id}: {sub.activity.title if sub.activity else 'Sketch Pad'} (status: {sub.status}, approval: {sub.approval_status})")
-        
+
         # Use serializer for consistent formatting and timezone handling
         serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
-        
+
         print(f"✅ Successfully formatted {len(serializer.data)} submissions for student {request.user.username}")
         return Response(serializer.data)
     except Exception as e:
@@ -2052,12 +2055,12 @@ def score_submission_api(request, submission_id):
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can score submissions'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         submission = StudentSubmission.objects.get(id=submission_id)
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     try:
         data = request.data
         submission.score = data.get('score')
@@ -2065,7 +2068,7 @@ def score_submission_api(request, submission_id):
         submission.status = 'scored'
         submission.scored_at = timezone.now()
         submission.save()
-        
+
         # Notify student about score
         create_notification(
             recipient=submission.student,
@@ -2075,7 +2078,7 @@ def score_submission_api(request, submission_id):
             submission=submission,
             activity=submission.activity
         )
-        
+
         serializer = StudentSubmissionSerializer(submission)
         return Response(serializer.data)
     except Exception as e:
@@ -2091,31 +2094,31 @@ def pending_approvals_api(request):
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can view pending approvals'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Get all submissions with pending approval for this teacher's classroom ONLY
         from django.db.models import Q
-        
+
         teacher_classroom = request.user.classroom
-        
+
         if not teacher_classroom:
             print(f"⚠️ Teacher {request.user.username} has no assigned classroom")
             return Response([], status=status.HTTP_200_OK)
-        
+
         # Filter by:
         # 1. Pending approval status
         # 2. Student is in the SAME classroom as the teacher
         # 3. Either has activity from teacher's folder OR is a sketch (activity_id is None)
         from django.db.models import Case, When, Value, IntegerField
         from datetime import datetime
-        
+
         # Get all pending submissions
         submissions = StudentSubmission.objects.filter(
             Q(approval_status='pending') &
             Q(student__classroom=teacher_classroom) &  # CRITICAL: Only students in teacher's classroom
             (Q(activity__folder__classroom=teacher_classroom) | Q(activity__isnull=True))
         ).select_related('student', 'activity', 'activity__folder')
-        
+
         # Sort: submissions WITH dates first (newest to oldest), then submissions WITHOUT dates
         submissions = submissions.annotate(
             has_date=Case(
@@ -2124,13 +2127,13 @@ def pending_approvals_api(request):
                 output_field=IntegerField()
             )
         ).order_by('has_date', '-submitted_at')
-        
+
         print(f"\n{'='*60}")
         print(f"📝 PENDING APPROVALS CHECK for teacher: {request.user.username}")
         print(f"{'='*60}")
         print(f"Found {submissions.count()} pending approvals")
         print(f"\n📊 SORTED ORDER (Newest to Oldest):")
-        
+
         # Debug: Print each submission with full details in sorted order
         for index, sub in enumerate(submissions, 1):
             print(f"\n   {index}. 📋 Submission #{sub.id}:")
@@ -2142,9 +2145,9 @@ def pending_approvals_api(request):
             print(f"      Post to Feed: {sub.post_to_feed}")
             print(f"      File Type: {sub.file_type}")
             print(f"      ⏰ Submitted At: {sub.submitted_at if sub.submitted_at else 'NO DATE'}")
-        
+
         print(f"\n{'='*60}\n")
-        
+
         # Serializer will handle timezone conversion automatically
         serializer = StudentSubmissionSerializer(submissions, many=True, context={'request': request})
         return Response(serializer.data)
@@ -2161,25 +2164,25 @@ def approve_submission_api(request, submission_id):
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can approve submissions'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         submission = StudentSubmission.objects.get(id=submission_id)
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     try:
         from .models import NewsfeedPost
-        
+
         data = request.data
         action = data.get('action')  # 'approve' or 'reject'
-        
+
         if action == 'approve':
             submission.approval_status = 'approved'
             submission.post_to_feed = True  # Mark as posted to feed
             submission.save()
-            
+
             print(f"✅ Approved submission {submission_id} for posting to feed")
-            
+
             # Notify student about approval
             activity_title = submission.activity.title if submission.activity else 'Sketch Pad'
             create_notification(
@@ -2190,12 +2193,12 @@ def approve_submission_api(request, submission_id):
                 submission=submission,
                 activity=submission.activity
             )
-            
+
             # Create a newsfeed post (now that it's approved)
             if True:  # Always create post when approved
                 # Check if newsfeed post already exists for this submission
                 existing_post = NewsfeedPost.objects.filter(original_submission=submission).first()
-                
+
                 if not existing_post:
                     # Get the file path - prioritize file field over file_path
                     file_data = None
@@ -2205,9 +2208,9 @@ def approve_submission_api(request, submission_id):
                     elif submission.file_path:
                         # Use file_path if file field is empty (for base64 or legacy data)
                         file_data = submission.file_path
-                    
+
                     print(f"📁 Creating newsfeed post with file: {file_data}")
-                    
+
                     # Create new newsfeed post
                     NewsfeedPost.objects.create(
                         student=submission.student,
@@ -2226,9 +2229,9 @@ def approve_submission_api(request, submission_id):
             submission.approval_status = 'approved'
             submission.post_to_feed = False  # Don't post to feed
             submission.save()
-            
+
             print(f"🚫 Cancelled post request for submission {submission_id}")
-            
+
             # Notify student that request was cancelled
             activity_title = submission.activity.title if submission.activity else 'Sketch Pad'
             create_notification(
@@ -2242,14 +2245,14 @@ def approve_submission_api(request, submission_id):
         elif action == 'reject':
             submission.approval_status = 'rejected'
             submission.save()
-            
+
             # Get rejection reason and details from request
             rejection_reason = data.get('rejectionReason', '')
             rejection_details = data.get('rejectionDetails', '')
-            
+
             # Create detailed rejection message
             activity_title = submission.activity.title if submission.activity else 'your submission'
-            
+
             # Map rejection reason IDs to readable text
             reason_map = {
                 'invalid': 'Invalid submission',
@@ -2258,15 +2261,15 @@ def approve_submission_api(request, submission_id):
                 'lack_of_content': 'Insufficient content',
                 'others': 'Other reasons'
             }
-            
+
             reason_text = reason_map.get(rejection_reason, 'Not specified')
-            
+
             # Build notification message
             if rejection_details:
                 notification_message = f'Your submission for "{activity_title}" was not approved for the newsfeed. Reason: {reason_text}. Details: {rejection_details}'
             else:
                 notification_message = f'Your submission for "{activity_title}" was not approved for the newsfeed. Reason: {reason_text}'
-            
+
             # Notify student about rejection
             create_notification(
                 recipient=submission.student,
@@ -2278,7 +2281,7 @@ def approve_submission_api(request, submission_id):
             )
         else:
             return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         serializer = StudentSubmissionSerializer(submission)
         return Response(serializer.data)
     except Exception as e:
@@ -2308,7 +2311,7 @@ def newsfeed_api(request):
             else:
                 posts = NewsfeedPost.objects.none()
                 print(f"⚠️ User has no classroom, showing no posts")
-        
+
         # Serialize posts with additional data
         posts_data = []
         for post in posts:
@@ -2319,7 +2322,7 @@ def newsfeed_api(request):
             except Exception:
                 likes_count = 0
                 is_liked = False
-            
+
             # Build full URL for file_path if it's a media file
             file_url = post.file_path
             if post.file_path and not post.file_path.startswith(('http://', 'https://', 'data:')):
@@ -2328,7 +2331,7 @@ def newsfeed_api(request):
                     file_url = request.build_absolute_uri(post.file_path)
                 elif not post.file_path.startswith('/'):
                     file_url = request.build_absolute_uri(f'/media/{post.file_path}')
-            
+
             post_dict = {
                 'id': post.id,
                 'student_name': post.student_name,
@@ -2343,7 +2346,7 @@ def newsfeed_api(request):
             }
             print(f"📸 Post {post.id}: file_path = {file_url}")
             posts_data.append(post_dict)
-        
+
         return Response(posts_data)
     except Exception as e:
         print(f"Error fetching newsfeed: {str(e)}")
@@ -2365,7 +2368,7 @@ def post_like_api(request, post_id):
     print(f"🔍 Is authenticated: {request.user.is_authenticated}")
     print(f"🔍 Session key: {request.session.session_key}")
     print(f"🔍 Session data: {dict(request.session)}")
-    
+
     if not request.user.is_authenticated:
         print(f"❌ Like API - User not authenticated")
         print(f"❌ Session exists: {bool(request.session.session_key)}")
@@ -2378,13 +2381,13 @@ def post_like_api(request, post_id):
                 'user': str(request.user)
             }
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from .models import NewsfeedPost, PostLike
-        
+
         post = NewsfeedPost.objects.get(id=post_id)
         liked = request.data.get('liked', True)
-        
+
         if liked:
             # Add like (use get_or_create to avoid duplicates)
             like, created = PostLike.objects.get_or_create(
@@ -2396,7 +2399,7 @@ def post_like_api(request, post_id):
             # Remove like
             deleted_count = PostLike.objects.filter(post=post, user=request.user).delete()[0]
             message = 'Like removed' if deleted_count > 0 else 'Like not found'
-        
+
         # Return updated like count
         return Response({
             'success': True,
@@ -2404,7 +2407,7 @@ def post_like_api(request, post_id):
             'likes_count': post.likes_count,
             'is_liked': liked
         })
-        
+
     except NewsfeedPost.DoesNotExist:
         return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -2427,7 +2430,7 @@ def post_comments_api(request, post_id):
         print(f"🔍 Is authenticated: {request.user.is_authenticated}")
         print(f"🔍 Session key: {request.session.session_key}")
         print(f"🔍 Session data: {dict(request.session)}")
-    
+
     # Allow GET for everyone, but require auth for POST
     if request.method == 'POST' and not request.user.is_authenticated:
         print(f"❌ Comment API - User not authenticated")
@@ -2441,12 +2444,12 @@ def post_comments_api(request, post_id):
                 'user': str(request.user)
             }
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from .models import NewsfeedPost, PostComment
-        
+
         post = NewsfeedPost.objects.get(id=post_id)
-        
+
         if request.method == 'GET':
             # Get all comments for this post
             comments = PostComment.objects.filter(post=post).order_by('created_at')
@@ -2457,22 +2460,22 @@ def post_comments_api(request, post_id):
                 'created_at': comment.created_at.isoformat(),
                 'timestamp': get_time_ago(comment.created_at)
             } for comment in comments]
-            
+
             return Response(comments_data)
-        
+
         elif request.method == 'POST':
             # Add new comment
             text = request.data.get('text', '').strip()
-            
+
             if not text:
                 return Response({'error': 'Comment text is required'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             comment = PostComment.objects.create(
                 post=post,
                 user=request.user,
                 text=text
             )
-            
+
             return Response({
                 'success': True,
                 'message': 'Comment added',
@@ -2484,7 +2487,7 @@ def post_comments_api(request, post_id):
                     'timestamp': 'Just now'
                 }
             }, status=status.HTTP_201_CREATED)
-            
+
     except NewsfeedPost.DoesNotExist:
         return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -2497,14 +2500,14 @@ def post_comments_api(request, post_id):
 def delete_post_api(request, post_id):
     """
     DELETE: Delete a newsfeed post (teacher only)
-    
+
     This endpoint allows teachers to remove inappropriate or unwanted posts from the newsfeed.
     When a post is deleted, all associated likes and comments are automatically removed (CASCADE).
-    
+
     Args:
         request: Django request object
         post_id: ID of the newsfeed post to delete
-        
+
     Returns:
         200: Post deleted successfully
         403: User is not authenticated or not a teacher
@@ -2516,42 +2519,42 @@ def delete_post_api(request, post_id):
         return Response({
             'error': 'Authentication required'
         }, status=status.HTTP_401_UNAUTHORIZED)
-    
+
     if request.user.role != 'teacher':
         return Response({
             'error': 'Only teachers can delete posts'
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Get the post
         post = NewsfeedPost.objects.get(id=post_id)
-        
+
         # Store post info for logging before deletion
         student_name = post.student_name
         post_caption = post.caption[:50] if post.caption else 'No caption'
-        
+
         # Delete the post (CASCADE will delete related likes and comments)
         post.delete()
-        
+
         # Log the deletion
         print(f"✅ Post deleted successfully:")
         print(f"   - Post ID: {post_id}")
         print(f"   - Student: {student_name}")
         print(f"   - Caption: {post_caption}...")
         print(f"   - Deleted by: {request.user.username} (Teacher)")
-        
+
         return Response({
             'success': True,
             'message': 'Post deleted successfully',
             'deleted_post_id': post_id
         }, status=status.HTTP_200_OK)
-        
+
     except NewsfeedPost.DoesNotExist:
         print(f"❌ Post deletion failed: Post {post_id} not found")
         return Response({
             'error': 'Post not found'
         }, status=status.HTTP_404_NOT_FOUND)
-        
+
     except Exception as e:
         print(f"❌ Error deleting post {post_id}: {str(e)}")
         import traceback
@@ -2567,7 +2570,7 @@ def get_time_ago(datetime_obj):
     from django.utils import timezone
     now = timezone.now()
     diff = now - datetime_obj
-    
+
     seconds = diff.total_seconds()
     if seconds < 60:
         return 'Just now'
@@ -2593,20 +2596,20 @@ def submission_detail_api(request, submission_id):
     """
     try:
         submission = StudentSubmission.objects.get(id=submission_id)
-        
+
         # Check permissions - only the student who created it or teacher can modify
         if request.user.role == 'student' and submission.student != request.user:
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         if request.method == 'GET':
             # Return the current submission
             serializer = StudentSubmissionSerializer(submission, context={'request': request})
             return Response(serializer.data)
-        
+
         elif request.method == 'PUT':
             # Update submission
             data = request.data
-            
+
             # Handle file upload (for replacing file)
             file_obj = request.FILES.get('file')
             if file_obj:
@@ -2622,7 +2625,7 @@ def submission_detail_api(request, submission_id):
                 else:
                     submission.file_type = 'file'
                 print(f"📎 File replaced: {file_obj.name} (type: {submission.file_type})")
-            
+
             if 'caption' in data:
                 submission.caption = data['caption']
             if 'post_to_feed' in data:
@@ -2631,12 +2634,12 @@ def submission_detail_api(request, submission_id):
                     submission.post_to_feed = post_to_feed_raw.lower() in ('true', '1', 'yes')
                 else:
                     submission.post_to_feed = bool(post_to_feed_raw)
-                
+
                 # If requesting to post to feed, set approval status to pending
                 if submission.post_to_feed:
                     submission.approval_status = 'pending'
                     print(f"📢 Submission {submission.id} requesting post to feed - approval_status set to pending")
-                    
+
                     # Notify teacher about the post request
                     if submission.activity:
                         teacher = submission.activity.folder.teacher
@@ -2648,16 +2651,16 @@ def submission_detail_api(request, submission_id):
                             submission=submission,
                             activity=submission.activity
                         )
-            
+
             # Check if status is being changed (turning in work)
             if 'status' in data:
                 old_status = submission.status
                 new_status = data['status']
-                
+
                 # Handle resubmit logic - converting back to draft
                 if old_status in ['unscored', 'scored'] and new_status == 'draft':
                     from django.utils import timezone
-                    
+
                     # Check if already scored - cannot resubmit if scored
                     if submission.score is not None:
                         return Response({
@@ -2665,7 +2668,7 @@ def submission_detail_api(request, submission_id):
                             'can_resubmit': False,
                             'reason': 'already_scored'
                         }, status=status.HTTP_400_BAD_REQUEST)
-                    
+
                     # Check resubmit count limit (max 3 resubmissions)
                     MAX_RESUBMITS = 3
                     if submission.resubmit_count >= MAX_RESUBMITS:
@@ -2676,23 +2679,23 @@ def submission_detail_api(request, submission_id):
                             'resubmit_count': submission.resubmit_count,
                             'max_resubmits': MAX_RESUBMITS
                         }, status=status.HTTP_400_BAD_REQUEST)
-                    
+
                     # Increment resubmit count immediately when entering resubmission mode
                     submission.resubmit_count += 1
                     submission.last_resubmit_at = timezone.now()
                     print(f"🔄 Converting to draft for resubmission #{submission.resubmit_count}")
-                
+
                 submission.status = new_status
-                
+
                 # If changing from draft to final submission, ALWAYS update submitted_at to current time
                 if old_status == 'draft' and new_status in ['unscored', 'scored']:
                     from django.utils import timezone
                     from datetime import datetime, time as dt_time
-                    
+
                     # Check if this is a resubmission or first submission
                     # Resubmit count is already incremented when entering resubmission mode (line 2661)
                     # So we just need to validate and log here
-                    
+
                     if submission.last_resubmit_at is not None:
                         # This is a resubmission - count was already incremented when entering resubmission mode
                         print(f"✅ Resubmission #{submission.resubmit_count} being turned in")
@@ -2703,13 +2706,13 @@ def submission_detail_api(request, submission_id):
                         if submission.resubmit_count != 0:
                             print(f"⚠️ WARNING: resubmit_count was {submission.resubmit_count}, resetting to 0 for first submission")
                             submission.resubmit_count = 0
-                    
+
                     # ALWAYS update submitted_at to current time (when student turned in)
                     import pytz
                     manila_tz = pytz.timezone('Asia/Manila')
                     now = timezone.now().astimezone(manila_tz)
                     submission.submitted_at = now
-                    
+
                     activity = submission.activity
                     if activity and activity.due_date:
                         if activity.due_time:
@@ -2720,13 +2723,13 @@ def submission_detail_api(request, submission_id):
                             due_datetime = timezone.make_aware(
                                 datetime.combine(activity.due_date, dt_time(23, 59, 59))
                             )
-                        
+
                         # Check if late based on CURRENT submission time
                         submission.is_late = now > due_datetime
                         print(f"📅 Turning in work: submitted_at={now}, due={due_datetime}, is_late={submission.is_late}")
                     else:
                         print(f"📅 Turning in work: submitted_at={now}")
-                    
+
                     # Notify teacher when work is turned in
                     if activity:
                         teacher = activity.folder.teacher
@@ -2738,7 +2741,7 @@ def submission_detail_api(request, submission_id):
                             submission=submission,
                             activity=activity
                         )
-            
+
             # Legacy support: Check if turning in a draft using is_draft parameter
             is_draft = data.get('is_draft', None)
             if is_draft is not None:
@@ -2746,18 +2749,18 @@ def submission_detail_api(request, submission_id):
                     is_draft = is_draft.lower() in ('true', '1', 'yes')
                 else:
                     is_draft = bool(is_draft)
-                
+
                 # If turning in (is_draft=False), check for late submission and update submitted_at
                 if not is_draft and submission.status == 'draft':
                     from django.utils import timezone
                     from datetime import datetime, time as dt_time
                     import pytz
-                    
+
                     # Update submitted_at to current time in Manila timezone
                     manila_tz = pytz.timezone('Asia/Manila')
                     now = timezone.now().astimezone(manila_tz)
                     submission.submitted_at = now
-                    
+
                     activity = submission.activity
                     if activity and activity.due_date:
                         if activity.due_time:
@@ -2768,20 +2771,20 @@ def submission_detail_api(request, submission_id):
                             due_datetime = timezone.make_aware(
                                 datetime.combine(activity.due_date, dt_time(23, 59, 59))
                             )
-                        
+
                         submission.is_late = now > due_datetime
                         print(f"📅 Legacy is_draft: submitted_at={now}, is_late={submission.is_late}")
-            
+
             submission.save()
             serializer = StudentSubmissionSerializer(submission, context={'request': request})
             return Response(serializer.data)
-        
+
         elif request.method == 'DELETE':
             # Students can hide their own submissions from collection (not permanent delete)
             # Teachers can permanently delete any submission
             if request.user.role == 'student' and submission.student != request.user:
                 return Response({'error': 'You can only manage your own submissions'}, status=status.HTTP_403_FORBIDDEN)
-            
+
             if request.user.role == 'student':
                 # Students: Hide from collection (set is_active=False)
                 submission.is_active = False
@@ -2793,7 +2796,7 @@ def submission_detail_api(request, submission_id):
                 print(f"🗑️ Permanently deleting submission {submission.id} by teacher {request.user.username}")
                 submission.delete()
                 return Response({'message': 'Submission deleted permanently'}, status=status.HTTP_200_OK)
-        
+
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -2814,57 +2817,57 @@ def request_post_approval_api(request, submission_id):
     """
     if not request.user.is_authenticated or request.user.role != 'student':
         return Response({'error': 'Only students can request post approval'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         submission = StudentSubmission.objects.get(id=submission_id, student=request.user)
-        
+
         # Check if already posted
         if submission.post_to_feed:
             return Response({'error': 'This submission is already posted to feed'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Check if there's already a pending approval request
         if submission.approval_status == 'pending':
             return Response({'error': 'You already have a pending approval request for this submission'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = request.data
         caption = data.get('caption', '').strip()
         include_score = data.get('include_score', False)
-        
+
         # Validate caption
         if not caption:
             return Response({'error': 'Caption is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Update submission with new caption and set approval status to pending
         # Also update submitted_at to reflect when approval was requested
         from django.utils import timezone
         import pytz
-        
+
         # Get current time in Asia/Manila timezone
         manila_tz = pytz.timezone('Asia/Manila')
         current_time = timezone.now().astimezone(manila_tz)
-        
+
         submission.caption = caption
         submission.approval_status = 'pending'
         submission.submitted_at = current_time  # Update timestamp to current Manila time
         submission.save()
-        
+
         print(f"📝 Updated submission {submission_id}:")
         print(f"   Caption: {caption}")
         print(f"   Approval status: {submission.approval_status}")
         print(f"   Submitted at: {submission.submitted_at}")
         print(f"   Timezone info: {submission.submitted_at.tzinfo}")
         print(f"   Current Manila time: {current_time}")
-        
+
         # Create notification for teacher
         activity = submission.activity
         teacher = activity.folder.teacher if activity and activity.folder else None
-        
+
         if teacher:
             # Create notification
             notification_message = f'{request.user.username} requests approval to post their work for "{activity.title}"'
             if include_score:
                 notification_message += f' (with score: {submission.score} points)'
-            
+
             create_notification(
                 recipient=teacher,
                 notification_type='approval_requested',
@@ -2873,12 +2876,12 @@ def request_post_approval_api(request, submission_id):
                 submission=submission,
                 activity=activity
             )
-            
+
             print(f"📤 Post approval request created for submission {submission_id}")
             print(f"   Student: {request.user.username}")
             print(f"   Include score: {include_score}")
             print(f"   Caption: {caption[:50]}...")
-            
+
             return Response({
                 'message': 'Post approval request sent successfully',
                 'submission_id': submission.id,
@@ -2886,7 +2889,7 @@ def request_post_approval_api(request, submission_id):
             }, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Teacher not found for this activity'}, status=status.HTTP_404_NOT_FOUND)
-            
+
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -2907,17 +2910,17 @@ def notifications_api(request):
     if not request.user.is_authenticated:
         print(f"❌ Notifications API - User not authenticated")
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.method == 'GET':
         try:
             print(f"📬 Fetching notifications for user: {request.user.username} (ID: {request.user.id}, role: {request.user.role})")
             notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
             print(f"📊 Found {notifications.count()} notifications for user {request.user.username}")
-            
+
             # Debug: Print ALL notifications with recipient info
             for notif in notifications:
                 print(f"  - [{notif.notification_type}] {notif.title} (recipient: {notif.recipient.username}, ID: {notif.recipient.id})")
-            
+
             serializer = NotificationSerializer(notifications, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -2925,13 +2928,13 @@ def notifications_api(request):
             import traceback
             traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     elif request.method == 'PUT':
         try:
             data = request.data
             notification_id = data.get('notification_id')
             mark_all = data.get('mark_all', False)
-            
+
             if mark_all:
                 # Mark all notifications as read
                 Notification.objects.filter(recipient=request.user, is_read=False).update(
@@ -2955,13 +2958,13 @@ def notifications_api(request):
         except Exception as e:
             print(f"Error updating notification: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     elif request.method == 'DELETE':
         try:
             data = request.data
             notification_id = data.get('notification_id')
             delete_all = data.get('delete_all', False)
-            
+
             if delete_all:
                 # Delete all notifications for current user
                 count = Notification.objects.filter(recipient=request.user).count()
@@ -2994,7 +2997,7 @@ def unread_notifications_count_api(request):
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         count = Notification.objects.filter(recipient=request.user, is_read=False).count()
         return Response({'count': count})
@@ -3025,44 +3028,44 @@ def score_submission_api(request, submission_id):
     """
     try:
         from .models import SubmissionScore
-        
+
         submission = StudentSubmission.objects.get(id=submission_id)
-        
+
         # Get scoring data from request
         score = request.data.get('score', 0)
         feedback = request.data.get('feedback', '')
         criteria_scores = request.data.get('criteria_scores', '[]')
-        
+
         print(f"Scoring submission {submission_id}:")
         print(f"  Score: {score}")
         print(f"  Feedback: {feedback}")
         print(f"  Criteria scores: {criteria_scores}")
-        
+
         # Update submission with score, feedback, and criteria scores
         print(f"📝 Before update - Status: {submission.status}, Score: {submission.score}")
-        
+
         submission.score = score
         submission.feedback = feedback
         submission.criteria_scores = criteria_scores  # Save the criteria scores JSON
         submission.status = 'scored'
         submission.scored_at = timezone.now()
         submission.save(update_fields=['score', 'feedback', 'criteria_scores', 'status', 'scored_at'])
-        
+
         # Refresh from database to confirm the save
         submission.refresh_from_db()
         print(f"✅ Submission {submission_id} marked as scored")
         print(f"📝 After update - Status: {submission.status}, Score: {submission.score}, Scored at: {submission.scored_at}")
-        
+
         # Check if there are any remarks and feedback for this submission
         has_remarks = Remark.objects.filter(submission=submission).exists()
         has_feedback = feedback and feedback.strip()
-        
+
         # Send notification to student
         activity_title = submission.activity.title if submission.activity else 'your submission'
-        
+
         # Create specific notification message based on what was added
         notification_parts = []
-        
+
         if has_feedback and has_remarks:
             notification_message = f'Your submission for "{activity_title}" has been scored and includes feedback and output remarks. Check your outputs to view your score and feedback.'
         elif has_feedback:
@@ -3071,7 +3074,7 @@ def score_submission_api(request, submission_id):
             notification_message = f'Your submission for "{activity_title}" has been scored and includes output remarks. Check your outputs to view your score and remarks.'
         else:
             notification_message = f'Your submission for "{activity_title}" has been scored. Check your outputs to view your score.'
-        
+
         create_notification(
             recipient=submission.student,
             notification_type='score_added',
@@ -3080,7 +3083,7 @@ def score_submission_api(request, submission_id):
             submission=submission,
             activity=submission.activity
         )
-        
+
         serializer = StudentSubmissionSerializer(submission)
         return Response({
             'message': 'Submission scored successfully',
@@ -3107,30 +3110,30 @@ def sketch_submission_api(request):
     print(f"User authenticated: {request.user.is_authenticated}")
     print(f"User: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
     print(f"User role: {request.user.role if request.user.is_authenticated else 'N/A'}")
-    
+
     if not request.user.is_authenticated:
         print(f"❌ Authentication failed!")
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.user.role != 'student':
         print(f"❌ User is not a student!")
         return Response({'error': 'Only students can submit sketches'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         data = request.data
         print(f"📝 Data received: caption={data.get('caption', '')[:50]}...")
         print(f"📝 File path length: {len(data.get('file_path', ''))}")
         print(f"📝 File type: {data.get('file_type', 'N/A')}")
-        
+
         # Create a sketch submission (activity_id can be null or use a special "Sketch" activity)
         # For now, we'll create it without an activity or you can create a default "Sketch Pad" activity
         from django.utils import timezone
         import pytz
-        
+
         # Get current time in Asia/Manila timezone
         manila_tz = pytz.timezone('Asia/Manila')
         current_time = timezone.now().astimezone(manila_tz)
-        
+
         submission = StudentSubmission.objects.create(
             activity_id=None,  # No specific activity for sketches
             student=request.user,
@@ -3142,12 +3145,12 @@ def sketch_submission_api(request):
             approval_status='pending',
             submitted_at=current_time  # Set submission timestamp in Manila timezone
         )
-        
+
         print(f"✅ Sketch submission created: ID={submission.id}")
         print(f"📢 POST TO FEED: True, APPROVAL STATUS: pending")
         print(f"⏰ SUBMITTED AT (Manila): {submission.submitted_at}")
         print(f"⏰ SUBMITTED AT (UTC): {submission.submitted_at.astimezone(pytz.UTC)}")
-        
+
         # Notify teacher about sketch submission
         # Get the student's classroom teacher
         student_classroom = request.user.classroom
@@ -3163,9 +3166,9 @@ def sketch_submission_api(request):
             )
         else:
             print(f"⚠️ No teacher found for student's classroom")
-        
+
         print(f"{'='*60}\n")
-        
+
         serializer = StudentSubmissionSerializer(submission)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Exception as e:
@@ -3187,16 +3190,16 @@ def sketches_api(request):
     if not request.user.is_authenticated:
         print(f"❌ Sketches API: User not authenticated")
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.user.role != 'student':
         print(f"❌ Sketches API: User is not a student")
         return Response({'error': 'Only students can manage sketches'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.method == 'GET':
         try:
             from .models import Sketch
             from .serializer import SketchSerializer
-            
+
             # Get all sketches for the current student
             sketches = Sketch.objects.filter(student=request.user).order_by('-created_at')
             print(f"📚 Loaded {sketches.count()} sketches for {request.user.username}")
@@ -3205,24 +3208,24 @@ def sketches_api(request):
         except Exception as e:
             print(f"❌ Error fetching sketches: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     elif request.method == 'POST':
         try:
             from .models import Sketch
             from .serializer import SketchSerializer
-            
+
             data = request.data
             print(f"💾 Saving sketch for {request.user.username}")
             print(f"   Title: {data.get('title', 'Untitled Sketch')}")
             print(f"   Image data length: {len(data.get('image_data', ''))}")
-            
+
             # Create new sketch
             sketch = Sketch.objects.create(
                 student=request.user,
                 title=data.get('title', 'Untitled Sketch'),
                 image_data=data.get('image_data', '')
             )
-            
+
             print(f"✅ Sketch saved: ID={sketch.id}")
             serializer = SketchSerializer(sketch)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -3242,10 +3245,10 @@ def sketch_delete_api(request, sketch_id):
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from .models import Sketch
-        
+
         sketch = Sketch.objects.get(id=sketch_id, student=request.user)
         sketch.delete()
         return Response({'message': 'Sketch deleted successfully'}, status=status.HTTP_200_OK)
@@ -3262,26 +3265,26 @@ def student_progress_list_api(request):
     """Get list of students from teacher's assigned classroom(s) with their progress summary"""
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from django.db.models import Count, Avg, Q
-        
+
         # Get teacher's assigned classrooms
         teacher_classrooms = Classroom.objects.filter(teacher=request.user)
-        
+
         if not teacher_classrooms.exists():
             # Teacher has no assigned classrooms
             return Response([], status=status.HTTP_200_OK)
-        
+
         # Get ONLY students from teacher's assigned classroom(s)
         students = User.objects.filter(
             role='student',
             classroom__in=teacher_classrooms
         ).exclude(username='admin').order_by('last_name', 'first_name')
-        
+
         print(f"🎓 Teacher {request.user.username} has {teacher_classrooms.count()} classroom(s)")
         print(f"👥 Found {students.count()} students in assigned classroom(s)")
-        
+
         # Get class name from query parameter (optional additional filter)
         class_name = request.GET.get('class', None)
         if class_name:
@@ -3292,20 +3295,20 @@ def student_progress_list_api(request):
                 activity__folder__in=class_folders
             ).values_list('student_id', flat=True).distinct()
             students = students.filter(id__in=student_ids)
-        
+
         student_list = []
         for student in students:
             # Get submissions count
             total_submissions = StudentSubmission.objects.filter(student=student).count()
             scored_submissions = StudentSubmission.objects.filter(student=student, status='scored').count()
-            
+
             # Get average score
             avg_score = StudentSubmission.objects.filter(
-                student=student, 
+                student=student,
                 status='scored',
                 score__isnull=False
             ).aggregate(Avg('score'))['score__avg'] or 0
-            
+
             student_list.append({
                 'id': student.id,
                 'student_id': str(student.id),  # Display database ID as student_id (e.g., "28")
@@ -3316,7 +3319,7 @@ def student_progress_list_api(request):
                 'scored_outputs': scored_submissions,
                 'average_score': round(avg_score, 2) if avg_score else 0,
             })
-        
+
         return Response(student_list, status=status.HTTP_200_OK)
     except Exception as e:
         print(f"Error fetching student progress list: {str(e)}")
@@ -3329,23 +3332,23 @@ def student_progress_detail_api(request, student_id):
     """Get detailed progress for a specific student"""
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         # Get student
         student = User.objects.get(id=student_id, role='student')
-        
+
         # Get all submissions for this student
         submissions = StudentSubmission.objects.filter(
             student=student
         ).select_related('activity__folder').order_by('-submitted_at')
-        
+
         # Group submissions by portfolio
         portfolio_data = {}
         for sub in submissions:
             if sub.activity and sub.activity.folder:
                 folder_id = sub.activity.folder.id
                 folder_name = sub.activity.folder.name
-                
+
                 if folder_id not in portfolio_data:
                     portfolio_data[folder_id] = {
                         'portfolio_id': folder_id,
@@ -3353,7 +3356,7 @@ def student_progress_detail_api(request, student_id):
                         'class_name': sub.activity.folder.class_name,
                         'activities': []
                     }
-                
+
                 portfolio_data[folder_id]['activities'].append({
                     'id': sub.id,
                     'activity_id': sub.activity.id,
@@ -3365,13 +3368,13 @@ def student_progress_detail_api(request, student_id):
                     'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
                     'scored_at': sub.scored_at.isoformat() if sub.scored_at else None,
                 })
-        
+
         # Get sketch submissions (no activity)
         sketch_submissions = StudentSubmission.objects.filter(
             student=student,
             activity__isnull=True
         ).order_by('-submitted_at')
-        
+
         response_data = {
             'student': {
                 'id': student.id,
@@ -3402,7 +3405,7 @@ def student_progress_detail_api(request, student_id):
                 ),
             }
         }
-        
+
         return Response(response_data, status=status.HTTP_200_OK)
     except User.DoesNotExist:
         return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -3422,40 +3425,40 @@ def remark_list(request):
         # Get query parameters
         student_id = request.query_params.get('student_id')
         teacher_id = request.query_params.get('teacher_id')
-        
+
         # Filter remarks - exclude submission-linked remarks for both teachers and students
         remarks = Remark.objects.filter(submission__isnull=True)
-        
+
         if student_id:
             remarks = remarks.filter(student_id=student_id)
-        
+
         if teacher_id:
             remarks = remarks.filter(teacher_id=teacher_id)
-        
+
         # For students, only show their own remarks
         if request.user.role == 'student':
             remarks = remarks.filter(student=request.user)
-        
+
         # For teachers, show remarks they created or received
         elif request.user.role == 'teacher':
             remarks = remarks.filter(Q(teacher=request.user) | Q(student=request.user))
-        
+
         serializer = RemarkSerializer(remarks, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     elif request.method == 'POST':
         # Only teachers can create remarks
         if request.user.role != 'teacher':
             return Response({'error': 'Only teachers can create remarks'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Add teacher to the data
         data = request.data.copy()
         data['teacher'] = request.user.id
-        
+
         serializer = RemarkSerializer(data=data)
         if serializer.is_valid():
             remark = serializer.save()
-            
+
             # Create notification for the student
             try:
                 student = User.objects.get(id=data['student'])
@@ -3468,7 +3471,7 @@ def remark_list(request):
                 print(f"Notification sent to student {student.username} for new remark")
             except Exception as e:
                 print(f"Error creating notification: {e}")
-            
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3484,24 +3487,24 @@ def remark_detail(request, pk):
         remark = Remark.objects.get(pk=pk)
     except Remark.DoesNotExist:
         return Response({'error': 'Remark not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Check permissions
     if request.user.role == 'student' and remark.student != request.user:
         return Response({'error': 'You do not have permission to view this remark'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.method == 'GET':
         serializer = RemarkSerializer(remark)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     elif request.method == 'PUT':
         # Only the teacher who created the remark can edit it
         if request.user.role != 'teacher' or remark.teacher != request.user:
             return Response({'error': 'You do not have permission to edit this remark'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         serializer = RemarkSerializer(remark, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            
+
             # Create notification for the student
             try:
                 create_notification(
@@ -3513,21 +3516,21 @@ def remark_detail(request, pk):
                 print(f"Notification sent to student {remark.student.username} for updated remark")
             except Exception as e:
                 print(f"Error creating notification: {e}")
-            
+
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     elif request.method == 'DELETE':
         # Only the teacher who created the remark can delete it
         if request.user.role != 'teacher' or remark.teacher != request.user:
             return Response({'error': 'You do not have permission to delete this remark'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Store student info before deleting
         student = remark.student
         teacher_name = request.user.get_full_name() or request.user.username
-        
+
         remark.delete()
-        
+
         # Create notification for the student
         try:
             create_notification(
@@ -3539,7 +3542,7 @@ def remark_detail(request, pk):
             print(f"Notification sent to student {student.username} for deleted remark")
         except Exception as e:
             print(f"Error creating notification: {e}")
-        
+
         return Response({'message': 'Remark deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
@@ -3552,18 +3555,18 @@ def mark_remark_read(request, pk):
         remark = Remark.objects.get(pk=pk)
     except Remark.DoesNotExist:
         return Response({'error': 'Remark not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Create or get the read status for this user
     read_status, created = RemarkReadStatus.objects.get_or_create(
         remark=remark,
         user=request.user
     )
-    
+
     if created:
         print(f"User {request.user.username} marked remark {pk} as read")
     else:
         print(f"User {request.user.username} already marked remark {pk} as read")
-    
+
     serializer = RemarkSerializer(remark, context={'request': request})
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -3575,16 +3578,16 @@ def convert_draft_to_final_api(request, activity_id, submission_id):
     """Convert a draft submission to a final submission"""
     try:
         submission = StudentSubmission.objects.get(id=submission_id, activity_id=activity_id, student=request.user)
-        
+
         if submission.status != 'draft':
             return Response({'error': 'Submission is not a draft'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Convert to final submission
         submission.status = 'unscored'
         submission.save()
-        
+
         print(f"✅ Converted draft submission {submission_id} to final submission (status='unscored')")
-        
+
         # Notify teacher
         teacher = submission.activity.folder.teacher
         if teacher:
@@ -3596,7 +3599,7 @@ def convert_draft_to_final_api(request, activity_id, submission_id):
                 submission=submission,
                 activity=submission.activity
             )
-        
+
         serializer = StudentSubmissionSerializer(submission, context={'request': request})
         return Response(serializer.data)
     except StudentSubmission.DoesNotExist:
@@ -3617,24 +3620,24 @@ def submission_remarks_api(request, submission_id):
         submission = StudentSubmission.objects.get(pk=submission_id)
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if request.method == 'GET':
         # Get all remarks for this submission
         remarks = Remark.objects.filter(submission=submission).order_by('-created_at')
         serializer = RemarkSerializer(remarks, many=True, context={'request': request})
         return Response(serializer.data)
-    
+
     elif request.method == 'POST':
         # Only teachers can add remarks
         if request.user.role != 'teacher':
             return Response({'error': 'Only teachers can add remarks'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         data = request.data
         text = data.get('text', '').strip()
-        
+
         if not text:
             return Response({'error': 'Remark text is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Create the remark
         remark = Remark.objects.create(
             teacher=request.user,
@@ -3642,7 +3645,7 @@ def submission_remarks_api(request, submission_id):
             submission=submission,
             text=text
         )
-        
+
         # Send notification to student
         activity_title = submission.activity.title if submission.activity else 'your submission'
         create_notification(
@@ -3653,7 +3656,7 @@ def submission_remarks_api(request, submission_id):
             remark=remark,
             submission=submission
         )
-        
+
         serializer = RemarkSerializer(remark, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -3672,21 +3675,21 @@ def submission_remark_detail_api(request, submission_id, remark_id):
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
     except Remark.DoesNotExist:
         return Response({'error': 'Remark not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Only the teacher who created the remark can modify it
     if request.user != remark.teacher:
         return Response({'error': 'You can only modify your own remarks'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.method == 'PUT':
         data = request.data
         text = data.get('text', '').strip()
-        
+
         if not text:
             return Response({'error': 'Remark text is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         remark.text = text
         remark.save()
-        
+
         # Send notification to student about update
         activity_title = submission.activity.title if submission.activity else 'your submission'
         create_notification(
@@ -3697,18 +3700,18 @@ def submission_remark_detail_api(request, submission_id, remark_id):
             remark=remark,
             submission=submission
         )
-        
+
         serializer = RemarkSerializer(remark, context={'request': request})
         return Response(serializer.data)
-    
+
     elif request.method == 'DELETE':
         # Store info before deletion for notification
         student = submission.student
         activity_title = submission.activity.title if submission.activity else 'your submission'
         teacher_name = request.user.username
-        
+
         remark.delete()
-        
+
         # Send notification to student about deletion
         create_notification(
             recipient=student,
@@ -3717,7 +3720,7 @@ def submission_remark_detail_api(request, submission_id, remark_id):
             message=f'{teacher_name} deleted a remark on {activity_title}',
             submission=submission
         )
-        
+
         return Response({'message': 'Remark deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
@@ -3729,11 +3732,11 @@ def student_submission_remarks_api(request):
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
     try:
         # Get all submissions for this student
         submissions = StudentSubmission.objects.filter(student=request.user)
-        
+
         # Get all remarks for these submissions
         all_remarks = []
         for submission in submissions:
@@ -3747,7 +3750,7 @@ def student_submission_remarks_api(request):
                 remark_data['activity_type'] = submission.activity.activity_type if submission.activity else 'General'
                 remark_data['submission_score'] = submission.score
                 all_remarks.append(remark_data)
-        
+
         return Response(all_remarks)
     except Exception as e:
         print(f"Error fetching student submission remarks: {str(e)}")
@@ -3763,79 +3766,90 @@ def request_portfolio_compilation_api(request):
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         data = request.data
         class_name = data.get('class_name')
-        
+
         print(f"📋 Portfolio compilation request for class: {class_name}")
-        
+
         if not class_name:
             return Response({'error': 'class_name is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Create or update compilation request for this class
-        print(f"Creating/updating compilation request...")
+
+        # Find the specific classroom instance
+        try:
+            classroom = Classroom.objects.get(name=class_name, teacher=request.user)
+        except Classroom.DoesNotExist:
+            return Response({'error': f'Classroom "{class_name}" not found or you are not the teacher.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Create or update compilation request for this specific classroom
+        print(f"Creating/updating compilation request for classroom: {classroom.id}")
         compilation_request, created = PortfolioCompilationRequest.objects.get_or_create(
-            class_name=class_name,
+            classroom=classroom,
             requested_by=request.user,
-            defaults={'is_active': True}
+            defaults={'is_active': True, 'class_name': class_name}
         )
         print(f"Compilation request {'created' if created else 'updated'}: {compilation_request.id}")
-        
+
         if not created:
             # Update existing request
             compilation_request.is_active = True
+            compilation_request.class_name = class_name
             compilation_request.requested_at = timezone.now()
             compilation_request.save()
-        
-        # Get ONLY students in the teacher's classroom
-        teacher_classroom = request.user.classroom
-        
-        if not teacher_classroom:
+
+        # Get students from the specific classroom requested
+        if not classroom:
             return Response({
-                'error': 'You are not assigned to any classroom'
+                'error': 'Classroom could not be determined from the request.'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Filter students by the teacher's classroom
-        students = User.objects.filter(
-            role='student',
-            classroom=teacher_classroom
-        ).exclude(username='admin')
-        
-        print(f"📢 Found {students.count()} students in {teacher_classroom.name} to notify")
-        
-        # Create notifications for all students
-        notifications_created = 0
-        for student in students:
-            # Check if notification already exists for this student
-            existing_notification = Notification.objects.filter(
+
+        # Extract section from classroom name (e.g., "Grade 1 - A" -> "A")
+        try:
+            # Split by '-' and take the last part, then strip whitespace
+            classroom_section = classroom.name.split('-')[-1].strip()
+        except (IndexError, AttributeError):
+            # Fallback if name format is unexpected
+            classroom_section = None
+
+        if classroom_section:
+            students = User.objects.filter(
+                Q(role='student') &
+                (
+                    Q(classroom=classroom) |
+                    Q(student_profile__grade_level=classroom.grade_level, student_profile__section=classroom_section)
+                )
+            ).distinct()
+        else:
+            # If section can't be determined, fall back to classroom link only
+            students = User.objects.filter(role='student', classroom=classroom).distinct()
+
+        print(f"📢 Found {students.count()} students in {classroom.name} to notify")
+
+        # Create notifications for all students in a single, efficient query
+        notifications_to_create = [
+            Notification(
                 recipient=student,
                 notification_type='portfolio_compilation',
-                title__contains=class_name
-            ).first()
-            
-            if not existing_notification:
-                notification = create_notification(
-                    recipient=student,
-                    notification_type='portfolio_compilation',
-                    title=f'Portfolio Compilation - {class_name}',
-                    message=f'Your teacher has asked you to start compiling your portfolio for {class_name}.'
-                )
-                if notification:
-                    notifications_created += 1
-                    print(f"✅ Notified student: {student.username}")
-                else:
-                    print(f"❌ Failed to notify student: {student.username}")
-            else:
-                print(f"⏭️ Skipped {student.username} - already has notification")
-        
+                title=f'Portfolio Compilation - {class_name}',
+                message=f'Your teacher has asked you to start compiling your portfolio for {class_name}.'
+            )
+            for student in students
+        ]
+
+        if notifications_to_create:
+            Notification.objects.bulk_create(notifications_to_create)
+            print(f"✅ Successfully created {len(notifications_to_create)} notifications in bulk.")
+
+        notifications_created = len(notifications_to_create)
+
         return Response({
             'message': 'Portfolio compilation request sent successfully',
             'class_name': class_name,
             'students_notified': notifications_created,
             'request_id': compilation_request.id
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         import traceback
         print(f"❌ Error requesting portfolio compilation: {str(e)}")
@@ -3845,30 +3859,67 @@ def request_portfolio_compilation_api(request):
 
 @csrf_exempt
 @api_view(['GET', 'DELETE'])
-def check_portfolio_compilation_status_api(request, class_name):
+def check_portfolio_compilation_status_api(request, classroom_id):
     """
     GET: Check if portfolio compilation has been requested for a class
     DELETE: Drop/cancel portfolio compilation request for a class (teacher only)
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
     if request.method == 'GET':
         try:
-            # Check if there's an active compilation request for this class
+            classroom = None
+            # Handle based on user role
+            if request.user.role == 'student':
+                # Try to get classroom from user directly
+                if hasattr(request.user, 'classroom') and request.user.classroom:
+                    classroom = request.user.classroom
+                    print(f"✅ Found classroom from user.classroom: {classroom.id}")
+                else:
+                    # Try student_profile as fallback
+                    try:
+                        student_profile = request.user.student_profile
+                        classroom = student_profile.classroom
+                        print(f"✅ Found classroom from student_profile: {classroom.id}")
+                    except AttributeError:
+                        print(f"❌ No classroom found for student {request.user.username}")
+                        return Response({'error': 'Student has no classroom assigned.'}, status=status.HTTP_404_NOT_FOUND)
+
+                # Verify classroom ID matches
+                if not classroom or classroom.id != classroom_id:
+                    print(f"⚠️ Classroom mismatch: student classroom={classroom.id if classroom else None}, requested={classroom_id}")
+                    return Response({'error': 'Classroom mismatch for student.'}, status=status.HTTP_403_FORBIDDEN)
+
+            elif request.user.role == 'teacher':
+                try:
+                    classroom = Classroom.objects.get(id=classroom_id, teacher=request.user)
+                    print(f"✅ Found classroom for teacher: {classroom.id}")
+                except Classroom.DoesNotExist:
+                    print(f"❌ Classroom {classroom_id} not found for teacher {request.user.username}")
+                    return Response({'error': 'Classroom not found or you are not the teacher.'}, status=status.HTTP_404_NOT_FOUND)
+
+            else:
+                return Response({'error': 'Unauthorized role.'}, status=status.HTTP_403_FORBIDDEN)
+
+            if not classroom:
+                 return Response({'error': 'Could not determine classroom.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check for an active compilation request tied to the specific classroom
             compilation_request = PortfolioCompilationRequest.objects.filter(
-                class_name=class_name,
+                classroom=classroom,
                 is_active=True
             ).first()
-            
+
             if compilation_request:
                 # Also check if the student has a notification for this
+                class_name_str = f"Grade {classroom.grade_level} - {classroom.section}"
                 has_notification = Notification.objects.filter(
                     recipient=request.user,
                     notification_type='portfolio_compilation',
-                    title__contains=class_name
+                    message__icontains=class_name_str
                 ).exists()
-                
+
                 return Response({
                     'compilation_requested': True,
                     'requested_at': compilation_request.requested_at,
@@ -3879,68 +3930,59 @@ def check_portfolio_compilation_status_api(request, class_name):
                     'compilation_requested': False,
                     'has_notification': False
                 })
-                
+
         except Exception as e:
             print(f"Error checking portfolio compilation status: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     elif request.method == 'DELETE':
         # Only teachers can delete compilation requests
         if request.user.role != 'teacher':
             return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
-            print(f"🗑️ Dropping portfolio compilation for class: {class_name}")
-            
-            # Get the teacher's assigned classroom
-            teacher_classroom = request.user.classroom
-            if not teacher_classroom:
-                return Response({'error': 'You are not assigned to any classroom'}, status=status.HTTP_403_FORBIDDEN)
-            
-            # Verify the class_name matches the teacher's classroom
-            expected_class_name = f"Grade {teacher_classroom.grade_level} - {teacher_classroom.section}"
-            if class_name != expected_class_name:
-                return Response({'error': f'Class name mismatch. Expected: {expected_class_name}, Got: {class_name}'}, status=status.HTTP_403_FORBIDDEN)
-            
-            # Find and deactivate the compilation request (don't filter by requested_by)
+            # Get the classroom object
+            try:
+                classroom = Classroom.objects.get(id=classroom_id, teacher=request.user)
+                class_name = f"Grade {classroom.grade_level} - {classroom.section}"
+                print(f"🗑️ Dropping portfolio compilation for class: {class_name}")
+            except Classroom.DoesNotExist:
+                return Response({'error': 'Classroom not found or you are not the teacher.'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Find and deactivate the compilation request
             compilation_request = PortfolioCompilationRequest.objects.filter(
-                class_name=class_name,
+                classroom=classroom,
                 is_active=True
             ).first()
-            
+
             if not compilation_request:
                 return Response({'error': 'No active compilation request found for this class'}, status=status.HTTP_404_NOT_FOUND)
-            
+
             # Deactivate the request
             compilation_request.is_active = False
             compilation_request.save()
-            
+
             # Delete all portfolio envelopes for this class
             from .models import PortfolioEnvelope
             envelopes_deleted = PortfolioEnvelope.objects.filter(class_name=class_name).delete()[0]
             print(f"🗑️ Deleted {envelopes_deleted} portfolio envelopes")
-            
+
             # Delete old compilation notifications
             deleted_count = Notification.objects.filter(
                 notification_type='portfolio_compilation',
                 title__contains=class_name
             ).delete()[0]
-            
+
             print(f"🗑️ Deleted {deleted_count} old notifications")
-            
-            # Get ONLY students in the teacher's classroom to notify about cancellation
-            # (teacher_classroom already retrieved above)
-            if teacher_classroom:
-                students = User.objects.filter(
-                    role='student',
-                    classroom=teacher_classroom
-                ).exclude(username='admin')
-                print(f"📢 Notifying {students.count()} students in {teacher_classroom.name} about cancellation")
-            else:
-                # Fallback: notify all students if no classroom assigned
-                students = User.objects.filter(role='student').exclude(username='admin')
-                print(f"⚠️ No classroom assigned, notifying all {students.count()} students about cancellation")
-            
+
+            # Get students in the classroom to notify about cancellation
+            students = User.objects.filter(
+                role='student',
+                classroom=classroom
+            ).exclude(username='admin')
+
+            print(f"📢 Notifying {students.count()} students in {class_name} about cancellation")
+
             # Notify students about cancellation
             students_notified = 0
             for student in students:
@@ -3955,9 +3997,9 @@ def check_portfolio_compilation_status_api(request, class_name):
                     print(f"✅ Notified {student.username} about cancellation")
                 else:
                     print(f"❌ Failed to notify {student.username}")
-            
+
             print(f"✅ Compilation request deactivated, {envelopes_deleted} envelopes deleted, {deleted_count} notifications deleted, {students_notified} students notified")
-            
+
             return Response({
                 'message': 'Portfolio compilation request dropped successfully',
                 'class_name': class_name,
@@ -3965,11 +4007,12 @@ def check_portfolio_compilation_status_api(request, class_name):
                 'notifications_deleted': deleted_count,
                 'students_notified': students_notified
             }, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             import traceback
             print(f"❌ Error dropping portfolio compilation: {str(e)}")
             print(f"Traceback: {traceback.format_exc()}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -3979,22 +4022,22 @@ def create_portfolio_envelope_api(request):
     """Create a portfolio envelope for a student"""
     try:
         from .models import PortfolioEnvelope
-        
+
         print(f"📬 Creating portfolio envelope for user: {request.user.username}")
-        
+
         # Get data from request
         title = request.data.get('title')
         student_name = request.data.get('student_name')
         class_name = request.data.get('class_name')
         color = request.data.get('color', '#4F46E5')
         pattern = request.data.get('pattern', 'solid')
-        
+
         # Validate required fields
         if not all([title, student_name, class_name]):
             return Response({
                 'error': 'Missing required fields: title, student_name, class_name'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Create or update envelope
         envelope, created = PortfolioEnvelope.objects.update_or_create(
             student=request.user,
@@ -4006,44 +4049,49 @@ def create_portfolio_envelope_api(request):
                 'pattern': pattern
             }
         )
-        
+
         action = 'created' if created else 'updated'
         print(f"✅ Portfolio envelope {action} for {request.user.username} in {class_name}")
-        
+
         # Notify teacher about the envelope creation/update
         try:
             # Find the teacher who requested the compilation for this class
             from .models import PortfolioCompilationRequest
-            compilation_request = PortfolioCompilationRequest.objects.filter(
-                class_name=class_name,
-                is_active=True
-            ).first()
-            
-            if compilation_request and compilation_request.requested_by:
-                teacher = compilation_request.requested_by
-                
-                # Create notification for teacher
-                notification_title = f'Portfolio Envelope {"Created" if created else "Updated"} - {class_name}'
-                notification_message = f'{student_name} has {"created" if created else "updated"} their portfolio envelope for {class_name}.'
-                
-                notification = create_notification(
-                    recipient=teacher,
-                    notification_type='portfolio_envelope',
-                    title=notification_title,
-                    message=notification_message
-                )
-                
-                if notification:
-                    print(f"✅ Notified teacher {teacher.username} about envelope {action}")
+            # Get classroom by name and student's classroom
+            student_classroom = request.user.classroom
+            if student_classroom:
+                compilation_request = PortfolioCompilationRequest.objects.filter(
+                    classroom=student_classroom,
+                    is_active=True
+                ).first()
+
+                if compilation_request and compilation_request.requested_by:
+                    teacher = compilation_request.requested_by
+
+                    # Create notification for teacher
+                    notification_title = f'Portfolio Envelope {"Created" if created else "Updated"} - {class_name}'
+                    notification_message = f'{student_name} has {"created" if created else "updated"} their portfolio envelope for {class_name}.'
+
+                    notification = create_notification(
+                        recipient=teacher,
+                        notification_type='portfolio_envelope',
+                        title=notification_title,
+                        message=notification_message
+                    )
+
+                    if notification:
+                        print(f"✅ Notified teacher {teacher.username} about envelope {action}")
+                    else:
+                        print(f"❌ Failed to notify teacher {teacher.username}")
                 else:
-                    print(f"❌ Failed to notify teacher {teacher.username}")
+                    print(f"⚠️ No active compilation request found for {class_name}")
             else:
-                print(f"⚠️ No active compilation request found for {class_name}")
-                
+                print(f"⚠️ Student has no classroom assigned")
+
         except Exception as notify_error:
             print(f"⚠️ Error notifying teacher: {str(notify_error)}")
             # Don't fail the envelope creation if notification fails
-        
+
         return Response({
             'message': f'Portfolio envelope {action} successfully',
             'envelope': {
@@ -4056,7 +4104,7 @@ def create_portfolio_envelope_api(request):
                 'created_at': envelope.created_at.isoformat()
             }
         }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         print(f"❌ Error creating portfolio envelope: {str(e)}")
@@ -4070,21 +4118,21 @@ def get_student_envelope_api(request, class_name):
     """Get the student's own portfolio envelope for a class"""
     try:
         from .models import PortfolioEnvelope
-        
+
         print(f"📋 Fetching portfolio envelope for student: {request.user.username} in class: {class_name}")
-        
+
         # Get the student's envelope for this class
         try:
             envelope = PortfolioEnvelope.objects.get(
                 student=request.user,
                 class_name=class_name
             )
-            
+
             # Convert submission time to local timezone if submitted
             submitted_at_local = None
             if envelope.is_submitted and envelope.submitted_at:
                 submitted_at_local = timezone.localtime(envelope.submitted_at).isoformat()
-            
+
             return Response({
                 'envelope': {
                     'id': envelope.id,
@@ -4099,12 +4147,12 @@ def get_student_envelope_api(request, class_name):
                     'updated_at': envelope.updated_at.isoformat()
                 }
             }, status=status.HTTP_200_OK)
-            
+
         except PortfolioEnvelope.DoesNotExist:
             return Response({
                 'error': 'No portfolio envelope found for this class'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
     except Exception as e:
         import traceback
         print(f"❌ Error fetching student envelope: {str(e)}")
@@ -4119,12 +4167,12 @@ def get_student_portfolio_activities_api(request, class_name):
     try:
         from .models import PortfolioActivity, StudentSubmission, PortfolioFolder
         from datetime import datetime, time as datetime_time
-        
+
         print(f"📚 Fetching portfolio activities for student: {request.user.username} in class: {class_name}")
-        
+
         # Get student's classroom
         student_classroom = request.user.classroom
-        
+
         if not student_classroom:
             print(f"⚠️ Student {request.user.username} has no assigned classroom")
             return Response({
@@ -4138,27 +4186,27 @@ def get_student_portfolio_activities_api(request, class_name):
                 'late_count': 0,
                 'missing_count': 0
             }, status=status.HTTP_200_OK)
-        
+
         print(f"✅ Student classroom: {student_classroom.name} (ID: {student_classroom.id})")
-        
+
         # Get ONLY portfolio folders for this student's assigned classroom
         folders = PortfolioFolder.objects.filter(
             classroom=student_classroom,
             class_name=class_name
         )
-        
+
         print(f"📁 Found {folders.count()} folders for classroom {student_classroom.name}")
-        
+
         activity_list = []
         submitted_activities = []
         resubmitted_activities = []
         late_activities = []
         missing_activities = []
-        
+
         for folder in folders:
             # Get only published activities in this folder (students should not see drafts)
             activities = PortfolioActivity.objects.filter(folder=folder, is_published=True).order_by('created_at')
-            
+
             for activity in activities:
                 # Get the LATEST SCORED submission for this activity
                 # This handles resubmissions - we want the most recent SCORED version
@@ -4168,17 +4216,17 @@ def get_student_portfolio_activities_api(request, class_name):
                     is_active=True,
                     status='scored'  # ONLY get scored submissions
                 ).order_by('-submitted_at').first()  # Get the latest scored submission
-                
+
                 # Also check if there are any unscored submissions (for debugging)
                 unscored_count = StudentSubmission.objects.filter(
                     activity=activity,
                     student=request.user,
                     is_active=True
                 ).exclude(status__in=['draft', 'scored']).count()
-                
+
                 if unscored_count > 0:
                     print(f"   📝 Activity {activity.id} has {unscored_count} unscored submission(s) - treating as missing")
-                
+
                 # Get submission file path with better error handling
                 submission_file = None
                 if submission:
@@ -4194,23 +4242,23 @@ def get_student_portfolio_activities_api(request, class_name):
                                     print(f"   ⚠️ File field exists but file not found on disk")
                             except Exception as e:
                                 print(f"   ⚠️ Error checking file: {str(e)}")
-                        
+
                         # Fallback to file_path (for base64 or legacy data)
                         if not submission_file and submission.file_path:
                             submission_file = submission.file_path
                             print(f"   📎 Using file_path (base64): {submission_file[:100]}...")
-                        
+
                         if not submission_file:
                             print(f"   ⚠️ No file found for submission {submission.id}")
                     except Exception as file_error:
                         print(f"⚠️ Error getting submission file for activity {activity.id}: {file_error}")
                         submission_file = None
-                
+
                 # Convert submission time to local timezone if exists
                 local_submitted_time = None
                 submitted_date_str = None
                 submitted_time_str = None
-                
+
                 if submission and submission.submitted_at:
                     try:
                         local_submitted_time = timezone.localtime(submission.submitted_at)
@@ -4218,25 +4266,25 @@ def get_student_portfolio_activities_api(request, class_name):
                         submitted_time_str = local_submitted_time.strftime('%I:%M %p')
                     except Exception as date_error:
                         print(f"⚠️ Error formatting submission date: {date_error}")
-                
+
                 # Determine submission status and category
                 # Since we're ONLY getting scored submissions now, logic is simpler
                 submission_status = 'missing'
                 is_late = False
                 is_resubmitted = False
                 has_pending_submission = False
-                
+
                 # Check if there's a pending (unscored) submission
                 if not submission and unscored_count > 0:
                     has_pending_submission = True
                     submission_status = 'pending'
                     print(f"   ⏳ Activity {activity.id} has pending submission (not scored yet)")
-                
+
                 if submission:
                     # We already filtered for scored submissions only
                     # Check if it's a resubmission
                     is_resubmitted = submission.resubmit_count > 0 if hasattr(submission, 'resubmit_count') else False
-                    
+
                     # Check if submitted late
                     if activity.due_date and submission.submitted_at:
                         try:
@@ -4246,27 +4294,27 @@ def get_student_portfolio_activities_api(request, class_name):
                             else:
                                 # If no time specified, use end of day (23:59:59)
                                 due_datetime_naive = datetime.combine(activity.due_date, datetime_time(23, 59, 59))
-                            
+
                             # Make sure due_datetime is timezone-aware
                             if timezone.is_naive(due_datetime_naive):
                                 due_datetime = timezone.make_aware(due_datetime_naive)
                             else:
                                 due_datetime = due_datetime_naive
-                            
+
                             # Ensure submission.submitted_at is timezone-aware
                             submitted_at = submission.submitted_at
                             if timezone.is_naive(submitted_at):
                                 submitted_at = timezone.make_aware(submitted_at)
-                            
+
                             is_late = submitted_at > due_datetime
                         except Exception as date_error:
                             print(f"⚠️ Error checking late status for activity {activity.id}: {date_error}")
                             is_late = False
-                    
+
                     # Determine status based on flags (only for scored submissions)
                     # Check if this is a compilation submission
                     is_compilation = getattr(submission, 'is_compilation', False)
-                    
+
                     if is_compilation:
                         submission_status = 'submitted_compilation'
                     elif is_resubmitted:
@@ -4275,9 +4323,9 @@ def get_student_portfolio_activities_api(request, class_name):
                         submission_status = 'scored_late'
                     else:
                         submission_status = 'scored'
-                    
+
                     print(f"   ✅ Found SCORED submission: ID={submission.id}, Score={submission.score}, Compilation={is_compilation}, Resubmit={is_resubmitted}, Late={is_late}")
-                
+
                 activity_data = {
                     'id': activity.id,
                     'title': activity.title,
@@ -4306,11 +4354,11 @@ def get_student_portfolio_activities_api(request, class_name):
                     'last_resubmit_at': submission.last_resubmit_at.isoformat() if submission and hasattr(submission, 'last_resubmit_at') and submission.last_resubmit_at else None,
                     'folder_name': folder.name
                 }
-                
+
                 print(f"📝 Activity {activity.id} ({activity.title}): status={submission_status}, late={is_late}, resubmitted={is_resubmitted}")
-                
+
                 activity_list.append(activity_data)
-                
+
                 # Categorize into separate lists
                 # Now we have scored_resubmitted, scored_late, scored, pending, and missing
                 if submission_status == 'scored_resubmitted':
@@ -4337,17 +4385,17 @@ def get_student_portfolio_activities_api(request, class_name):
                             else:
                                 # If no time specified, use end of day (23:59:59)
                                 due_datetime_naive = datetime.combine(activity.due_date, datetime_time(23, 59, 59))
-                            
+
                             # Make sure due_datetime is timezone-aware
                             if timezone.is_naive(due_datetime_naive):
                                 due_datetime = timezone.make_aware(due_datetime_naive)
                             else:
                                 due_datetime = due_datetime_naive
-                            
+
                             # Check if current time is past the due date
                             current_time = timezone.now()
                             is_overdue = current_time > due_datetime
-                            
+
                             if is_overdue:
                                 print(f"   ❌ Activity {activity.id} ({activity.title}) is OVERDUE - adding to missing")
                                 missing_activities.append(activity_data)
@@ -4359,13 +4407,13 @@ def get_student_portfolio_activities_api(request, class_name):
                     else:
                         # No due date set - don't consider it missing
                         print(f"   ℹ️ Activity {activity.id} ({activity.title}) has no due date - skipping from missing")
-        
+
         print(f"✅ Categorized activities:")
         print(f"   - Submitted: {len(submitted_activities)}")
         print(f"   - Resubmitted: {len(resubmitted_activities)}")
         print(f"   - Late: {len(late_activities)}")
         print(f"   - Missing: {len(missing_activities)}")
-        
+
         return Response({
             'all_activities': activity_list,
             'submitted_activities': submitted_activities,
@@ -4378,7 +4426,7 @@ def get_student_portfolio_activities_api(request, class_name):
             'late_count': len(late_activities),
             'missing_count': len(missing_activities)
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         print(f"❌ Error fetching portfolio activities: {str(e)}")
@@ -4394,38 +4442,38 @@ def submit_missing_activity_api(request, activity_id):
         from .models import PortfolioActivity, StudentSubmission
         import base64
         from django.core.files.base import ContentFile
-        
+
         print(f"📝 Submitting missing activity {activity_id} for student: {request.user.username}")
-        
+
         # Get the activity
         activity = PortfolioActivity.objects.get(id=activity_id)
-        
+
         # Get submission data
         file_data = request.data.get('file')
         caption = request.data.get('caption', '')
-        
+
         if not file_data:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Check if submission already exists
         existing_submission = StudentSubmission.objects.filter(
             activity=activity,
             student=request.user
         ).first()
-        
+
         if existing_submission:
             return Response({
                 'error': 'Activity already submitted',
                 'submission_id': existing_submission.id
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Handle file upload
         if file_data.startswith('data:'):
             # Base64 encoded file
             format, filestr = file_data.split(';base64,')
             ext = format.split('/')[-1]
             file_name = f"submission_{request.user.id}_{activity_id}.{ext}"
-            
+
             # Create submission with file
             submission = StudentSubmission.objects.create(
                 activity=activity,
@@ -4449,27 +4497,27 @@ def submit_missing_activity_api(request, activity_id):
                 approval_status='pending',
                 post_to_feed=False
             )
-        
+
         print(f"✅ Missing activity submitted successfully: {submission.id}")
-        
+
         # Notify teacher
         try:
             teacher = activity.folder.teacher
             notification_title = f'Missing Activity Submitted - {activity.title}'
             notification_message = f'{request.user.username} has submitted the missing activity "{activity.title}" for {activity.folder.class_name}.'
-            
+
             notification = create_notification(
                 recipient=teacher,
                 notification_type='submission_created',
                 title=notification_title,
                 message=notification_message
             )
-            
+
             if notification:
                 print(f"✅ Notified teacher {teacher.username}")
         except Exception as notify_error:
             print(f"⚠️ Error notifying teacher: {str(notify_error)}")
-        
+
         return Response({
             'message': 'Activity submitted successfully',
             'submission': {
@@ -4481,7 +4529,7 @@ def submit_missing_activity_api(request, activity_id):
                 'status': submission.status
             }
         }, status=status.HTTP_201_CREATED)
-        
+
     except PortfolioActivity.DoesNotExist:
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -4499,42 +4547,42 @@ def submit_compilation_api(request, activity_id):
         from .models import PortfolioActivity, StudentSubmission
         import base64
         from django.core.files.base import ContentFile
-        
+
         print(f"📝 Submitting compilation for activity {activity_id}, student: {request.user.username}")
-        
+
         # Get the activity
         activity = PortfolioActivity.objects.get(id=activity_id)
-        
+
         # Get submission data
         file_data = request.data.get('file')
         caption = request.data.get('caption', '')
-        
+
         if not file_data:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Check if submission already exists
         existing_submission = StudentSubmission.objects.filter(
             activity=activity,
             student=request.user,
             is_active=True
         ).exclude(status='draft').first()
-        
+
         if existing_submission:
             return Response({
                 'error': 'Activity already submitted',
                 'submission_id': existing_submission.id
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Handle file upload
         if file_data.startswith('data:'):
             # Base64 encoded file
             format, filestr = file_data.split(';base64,')
             ext = format.split('/')[-1]
             file_name = f"compilation_{request.user.id}_{activity_id}.{ext}"
-            
+
             # Determine file type
             file_type = 'image' if 'image' in format else 'pdf' if 'pdf' in format else 'file'
-            
+
             # Create submission with SCORED status so it appears in Activity Compilation
             submission = StudentSubmission.objects.create(
                 activity=activity,
@@ -4565,27 +4613,27 @@ def submit_compilation_api(request, activity_id):
                 is_active=True,
                 is_compilation=True  # Flag to identify compilation submissions
             )
-        
+
         print(f"✅ Compilation submitted successfully: {submission.id} (status: scored)")
-        
+
         # Notify teacher
         try:
             teacher = activity.folder.teacher
             notification_title = f'Portfolio Compilation Submitted - {activity.title}'
             notification_message = f'{request.user.username} has submitted a portfolio compilation for "{activity.title}" in {activity.folder.class_name}.'
-            
+
             notification = create_notification(
                 recipient=teacher,
                 notification_type='submission_created',
                 title=notification_title,
                 message=notification_message
             )
-            
+
             if notification:
                 print(f"✅ Notified teacher {teacher.username}")
         except Exception as notify_error:
             print(f"⚠️ Error notifying teacher: {str(notify_error)}")
-        
+
         return Response({
             'message': 'Compilation submitted successfully',
             'submission': {
@@ -4599,7 +4647,7 @@ def submit_compilation_api(request, activity_id):
                 'score': submission.score
             }
         }, status=status.HTTP_201_CREATED)
-        
+
     except PortfolioActivity.DoesNotExist:
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -4615,34 +4663,34 @@ def get_portfolio_envelopes_api(request, class_name):
     """Get all portfolio envelopes for a class (teacher only)"""
     try:
         from .models import PortfolioEnvelope
-        
+
         print(f"📋 Fetching portfolio envelopes for class: {class_name}")
-        
+
         # Check if user is a teacher
         if request.user.role != 'teacher':
             return Response({
                 'error': 'Only teachers can view portfolio envelopes'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Get all submitted envelopes for this class (only show submitted portfolios to teachers)
         envelopes = PortfolioEnvelope.objects.filter(
             class_name=class_name,
             is_submitted=True
         ).select_related('student')
-        
+
         envelope_list = []
         for envelope in envelopes:
             # Convert UTC time to local timezone (Asia/Manila)
             local_time = timezone.localtime(envelope.created_at)
             submitted_time = timezone.localtime(envelope.submitted_at) if envelope.submitted_at else local_time
-            
+
             # Count activities for this student in this class
             from .models import StudentSubmission, PortfolioFolder
             folders = PortfolioFolder.objects.filter(
                 class_name=class_name,
                 teacher=request.user
             )
-            
+
             activity_count = 0
             for folder in folders:
                 # Count scored submissions and compilation submissions
@@ -4652,7 +4700,7 @@ def get_portfolio_envelopes_api(request, class_name):
                     status='scored',
                     is_active=True
                 ).count()
-            
+
             envelope_list.append({
                 'id': envelope.id,
                 'student_id': envelope.student.id,
@@ -4670,14 +4718,14 @@ def get_portfolio_envelopes_api(request, class_name):
                 'time_created': local_time.strftime('%I:%M %p'),
                 'activity_count': activity_count
             })
-        
+
         print(f"✅ Found {len(envelope_list)} portfolio envelopes for {class_name}")
-        
+
         return Response({
             'envelopes': envelope_list,
             'count': len(envelope_list)
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         print(f"❌ Error fetching portfolio envelopes: {str(e)}")
@@ -4692,17 +4740,17 @@ def get_teacher_student_activities_api(request, class_name, student_id):
     try:
         from .models import PortfolioActivity, StudentSubmission, PortfolioFolder
         from django.contrib.auth import get_user_model
-        
+
         User = get_user_model()
-        
+
         print(f"📚 Teacher fetching activities for student ID: {student_id} in class: {class_name}")
-        
+
         # Check if user is a teacher
         if request.user.role != 'teacher':
             return Response({
                 'error': 'Only teachers can view student activities'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Get the student
         try:
             student = User.objects.get(id=student_id)
@@ -4710,7 +4758,7 @@ def get_teacher_student_activities_api(request, class_name, student_id):
             return Response({
                 'error': 'Student not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Verify student has a classroom assigned
         if not student.classroom:
             print(f"⚠️ Student {student.username} has no assigned classroom")
@@ -4724,23 +4772,23 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                 'missing_count': 0,
                 'student_name': student.username
             }, status=status.HTTP_200_OK)
-        
+
         print(f"✅ Student {student.username} is in classroom: {student.classroom.name} (ID: {student.classroom.id})")
-        
+
         # Get all portfolio folders for this class that belong to the logged-in teacher AND the student's classroom
         folders = PortfolioFolder.objects.filter(
             class_name=class_name,
             teacher=request.user,  # IMPORTANT: Only get folders created by this teacher
             classroom=student.classroom  # IMPORTANT: Only get folders for the student's classroom
         )
-        
+
         print(f"📁 Found {folders.count()} folders for teacher {request.user.username} in classroom {student.classroom.name}")
-        
+
         activity_list = []
         for folder in folders:
             # Get all activities in this folder
             activities = PortfolioActivity.objects.filter(folder=folder).order_by('created_at')
-            
+
             for activity in activities:
                 # Get the LATEST SCORED submission for this activity (matching student endpoint logic)
                 submission = StudentSubmission.objects.filter(
@@ -4749,7 +4797,7 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                     is_active=True,
                     status='scored'  # ONLY get scored submissions
                 ).order_by('-submitted_at').first()  # Get the latest scored submission
-                
+
                 # Get submission file path with better error handling
                 submission_file = None
                 if submission:
@@ -4765,24 +4813,24 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                                     print(f"   ⚠️ File field exists but file not found on disk")
                             except Exception as e:
                                 print(f"   ⚠️ Error checking file: {str(e)}")
-                        
+
                         # Fallback to file_path (for base64 or legacy data)
                         if not submission_file and submission.file_path:
                             submission_file = submission.file_path
                             print(f"   📎 Using file_path (base64): {submission_file[:100]}...")
-                        
+
                         if not submission_file:
                             print(f"   ⚠️ No file found for submission {submission.id}")
                     except Exception as file_error:
                         print(f"⚠️ Error getting submission file for activity {activity.id}: {file_error}")
                         submission_file = None
-                
+
                 # Convert submission time to local timezone if exists
                 local_submitted_time = None
                 submitted_date_str = None
                 submitted_time_str = None
                 submission_date_iso = None
-                
+
                 if submission and submission.submitted_at:
                     try:
                         local_submitted_time = timezone.localtime(submission.submitted_at)
@@ -4791,7 +4839,7 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                         submitted_time_str = local_submitted_time.strftime('%I:%M %p')
                     except Exception as date_error:
                         print(f"⚠️ Error formatting submission date: {date_error}")
-                
+
                 activity_data = {
                     'id': activity.id,
                     'title': activity.title,
@@ -4814,15 +4862,15 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                     'is_scored': submission is not None,  # Add flag for scored status
                     'scored_at': submission.scored_at.isoformat() if submission and hasattr(submission, 'scored_at') and submission.scored_at else None
                 }
-                
+
                 activity_list.append(activity_data)
-        
+
         # Separate submitted and missing activities
         submitted_activities = [a for a in activity_list if a['has_submission']]
         missing_activities = [a for a in activity_list if not a['has_submission']]
-        
+
         print(f"✅ Found {len(submitted_activities)} submitted and {len(missing_activities)} missing activities for student")
-        
+
         return Response({
             'all_activities': activity_list,
             'submitted_activities': submitted_activities,
@@ -4832,7 +4880,7 @@ def get_teacher_student_activities_api(request, class_name, student_id):
             'missing_count': len(missing_activities),
             'student_name': student.username
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         print(f"❌ Error fetching student activities: {str(e)}")
@@ -4846,21 +4894,21 @@ def submit_portfolio_api(request, class_name):
     """Submit a portfolio envelope (student only)"""
     try:
         from .models import PortfolioEnvelope
-        
+
         print(f"📤 Student {request.user.username} submitting portfolio for class: {class_name}")
-        
+
         # Check if user is authenticated
         if not request.user.is_authenticated:
             return Response({
                 'error': 'Authentication required'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Check if user is a student
         if request.user.role != 'student':
             return Response({
                 'error': 'Only students can submit portfolios'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Get the student's envelope for this class
         try:
             envelope = PortfolioEnvelope.objects.get(
@@ -4871,29 +4919,34 @@ def submit_portfolio_api(request, class_name):
             return Response({
                 'error': 'Portfolio envelope not found. Please create your envelope first.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Check if already submitted
         if envelope.is_submitted:
             return Response({
                 'error': 'Portfolio has already been submitted',
                 'submitted_at': envelope.submitted_at.isoformat() if envelope.submitted_at else None
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Mark as submitted
         envelope.is_submitted = True
         envelope.submitted_at = timezone.now()
         envelope.save()
-        
+
         print(f"✅ Portfolio submitted successfully by {request.user.username} for {class_name}")
-        
+
         # Notify teacher about the submission
         try:
             from .models import PortfolioCompilationRequest
-            compilation_request = PortfolioCompilationRequest.objects.filter(
-                class_name=class_name,
-                is_active=True
-            ).first()
-            
+            # Get classroom by name and student's classroom
+            student_classroom = request.user.classroom
+            if student_classroom:
+                compilation_request = PortfolioCompilationRequest.objects.filter(
+                    classroom=student_classroom,
+                    is_active=True
+                ).first()
+            else:
+                compilation_request = None
+
             if compilation_request and compilation_request.requested_by:
                 teacher = compilation_request.requested_by
                 create_notification(
@@ -4905,10 +4958,10 @@ def submit_portfolio_api(request, class_name):
                 print(f"📧 Notification sent to teacher: {teacher.username}")
         except Exception as e:
             print(f"⚠️ Could not send notification to teacher: {str(e)}")
-        
+
         # Convert to local timezone for response
         local_submitted_time = timezone.localtime(envelope.submitted_at)
-        
+
         return Response({
             'success': True,
             'message': 'Portfolio submitted successfully',
@@ -4916,7 +4969,7 @@ def submit_portfolio_api(request, class_name):
             'submitted_date': local_submitted_time.strftime('%b %d, %Y'),
             'submitted_time': local_submitted_time.strftime('%I:%M %p')
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         print(f"❌ Error submitting portfolio: {str(e)}")
@@ -4933,31 +4986,31 @@ def check_activity_edit_deadlines_api(request):
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can check edit deadlines'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from datetime import datetime, timedelta, time as time_type
-        
+
         # Configuration
         EDIT_CUTOFF_HOURS = 3  # Activities can't be edited within 3 hours of deadline
         WARNING_HOUR = 4  # Warn when 4 hours remain (1 hour before edit cutoff)
-        
+
         # Get all published activities for this teacher
         teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
         activities = PortfolioActivity.objects.filter(
             folder__in=teacher_folders,
             is_published=True
         )
-        
+
         now = datetime.now()
         warnings = []
-        
+
         print(f"🔍 Checking {activities.count()} activities for edit deadline warnings...")
         print(f"⏰ Current time: {now.strftime('%Y-%m-%d %H:%M:%S')}")
-        
+
         for activity in activities:
             if not activity.due_date:
                 continue
-            
+
             # Combine due date and time
             activity_due_date = activity.due_date
             if activity.due_time:
@@ -4965,27 +5018,27 @@ def check_activity_edit_deadlines_api(request):
                 due_datetime = datetime.combine(activity_due_date, activity_time)
             else:
                 due_datetime = datetime.combine(activity_due_date, time_type(23, 59, 59))
-            
+
             # Calculate time remaining
             time_remaining = due_datetime - now
             hours_remaining = time_remaining.total_seconds() / 3600
-            
+
             print(f"📊 Activity '{activity.title}': Due {due_datetime.strftime('%Y-%m-%d %H:%M')}, {hours_remaining:.1f} hours remaining")
-            
+
             # Skip if deadline has passed
             if hours_remaining <= 0:
                 print(f"  ⏭️ Skipped: Deadline passed")
                 continue
-            
+
             # Skip if already past edit cutoff
             if hours_remaining <= EDIT_CUTOFF_HOURS:
                 print(f"  ⏭️ Skipped: Already in edit cutoff window ({hours_remaining:.1f} ≤ {EDIT_CUTOFF_HOURS})")
                 continue
-            
+
             # Check if we're at the 1-hour warning mark (4 hours before deadline = 1 hour before edit cutoff)
             if WARNING_HOUR - 0.5 <= hours_remaining <= WARNING_HOUR + 0.5:
                 print(f"  ⚠️ AT WARNING MARK: {hours_remaining:.1f} hours (1 hour before edit cutoff)")
-                
+
                 # Check if notification already sent
                 existing_notification = Notification.objects.filter(
                     recipient=request.user,
@@ -4993,14 +5046,14 @@ def check_activity_edit_deadlines_api(request):
                     activity=activity,
                     created_at__gte=now - timedelta(hours=2)  # Don't send duplicate within 2 hours
                 ).exists()
-                
+
                 if not existing_notification:
                     print(f"  📨 Creating 1-hour warning notification...")
-                    
+
                     # Calculate when editing will be locked
                     edit_deadline = due_datetime - timedelta(hours=EDIT_CUTOFF_HOURS)
                     edit_deadline_str = edit_deadline.strftime('%b %d, %Y at %I:%M %p')
-                    
+
                     # Create notification
                     create_notification(
                         recipient=request.user,
@@ -5010,9 +5063,9 @@ def check_activity_edit_deadlines_api(request):
                         activity=activity,
                         portfolio=activity.folder
                     )
-                    
+
                     print(f"  ✅ 1-hour warning notification created successfully")
-                    
+
                     warnings.append({
                         'activity_id': activity.id,
                         'activity_title': activity.title,
@@ -5022,18 +5075,18 @@ def check_activity_edit_deadlines_api(request):
                     })
                 else:
                     print(f"  ⏭️ Skipped: 1-hour warning already sent")
-            
+
             elif hours_remaining <= EDIT_CUTOFF_HOURS:
                 print(f"  ⏭️ Skipped: Already in edit cutoff window ({hours_remaining:.1f} ≤ {EDIT_CUTOFF_HOURS})")
             else:
                 print(f"  ⏭️ Skipped: Not at 1-hour warning mark yet ({hours_remaining:.1f} hours)")
-        
+
         return Response({
             'success': True,
             'warnings_sent': len(warnings),
             'activities_warned': warnings
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
@@ -5057,53 +5110,53 @@ def user_profile_api(request):
     if not request.user.is_authenticated:
         print(f"❌ Profile API - User not authenticated")
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.method == 'GET':
         try:
             from .serializer import UserProfileSerializer
             serializer = UserProfileSerializer(request.user, context={'request': request})
             profile_data = serializer.data
-            
+
             print(f"✅ Profile loaded for {request.user.username} (Role: {request.user.role})")
             print(f"   Fields returned: {list(profile_data.keys())}")
-            
+
             return Response(profile_data)
         except Exception as e:
             print(f"❌ Error fetching profile: {str(e)}")
             import traceback
             traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     elif request.method == 'PUT':
         try:
             from .serializer import UserProfileSerializer
-            
+
             # Handle profile picture upload
             profile_picture = request.FILES.get('profile_picture')
             if profile_picture:
                 # Validate file size (5MB limit)
                 if profile_picture.size > 5 * 1024 * 1024:
                     return Response({'error': 'File size must be less than 5MB'}, status=status.HTTP_400_BAD_REQUEST)
-                
+
                 # Validate file type
                 allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
                 if profile_picture.content_type not in allowed_types:
                     return Response({'error': 'Invalid file type. Only images are allowed.'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             serializer = UserProfileSerializer(
-                request.user, 
-                data=request.data, 
+                request.user,
+                data=request.data,
                 partial=True,
                 context={'request': request}
             )
-            
+
             if serializer.is_valid():
                 serializer.save()
                 print(f"✅ Profile updated for user: {request.user.username}")
                 return Response(serializer.data)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
+
         except Exception as e:
             print(f"❌ Error updating profile: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -5120,42 +5173,42 @@ def user_settings_api(request):
     if not request.user.is_authenticated:
         print(f"❌ Settings API - User not authenticated")
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     if request.method == 'GET':
         try:
             from .models import UserSettings
             from .serializer import UserSettingsSerializer
-            
+
             # Get or create settings for the user
             settings, created = UserSettings.objects.get_or_create(user=request.user)
-            
+
             if created:
                 print(f"📝 Created new settings for user: {request.user.username}")
-            
+
             serializer = UserSettingsSerializer(settings)
             return Response(serializer.data)
-            
+
         except Exception as e:
             print(f"❌ Error fetching settings: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
     elif request.method == 'PUT':
         try:
             from .models import UserSettings
             from .serializer import UserSettingsSerializer
-            
+
             # Get or create settings for the user
             settings, created = UserSettings.objects.get_or_create(user=request.user)
-            
+
             serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
-            
+
             if serializer.is_valid():
                 serializer.save()
                 print(f"✅ Settings updated for user: {request.user.username}")
                 return Response(serializer.data)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
+
         except Exception as e:
             print(f"❌ Error updating settings: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -5167,37 +5220,37 @@ def change_password_api(request):
     """Change user password"""
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from django.contrib.auth import authenticate
-        
+
         current_password = request.data.get('current_password')
         new_password = request.data.get('new_password')
-        
+
         if not current_password or not new_password:
             return Response({'error': 'Both current and new passwords are required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Verify current password
         user = authenticate(username=request.user.username, password=current_password)
         if not user:
             return Response({'error': 'Current password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Validate new password length
         if len(new_password) < 8:
             return Response({'error': 'Password must be at least 8 characters long'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Set new password
         request.user.set_password(new_password)
         request.user.save()
-        
+
         print(f"✅ Password changed for user: {request.user.username}")
-        
+
         # Update session to prevent logout
         from django.contrib.auth import update_session_auth_hash
         update_session_auth_hash(request, request.user)
-        
+
         return Response({'success': True, 'message': 'Password changed successfully'})
-        
+
     except Exception as e:
         print(f"❌ Error changing password: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -5209,12 +5262,12 @@ def export_user_data_api(request):
     """Export user data"""
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         import json
         from django.core import serializers
         from django.http import HttpResponse
-        
+
         # Collect user data
         user_data = {
             'profile': {
@@ -5228,12 +5281,12 @@ def export_user_data_api(request):
                 'date_joined': request.user.date_joined.isoformat() if request.user.date_joined else None
             }
         }
-        
+
         # Add role-specific data
         if request.user.role == 'teacher':
             user_data['profile']['department'] = request.user.department
             user_data['profile']['years_of_experience'] = request.user.years_of_experience
-            
+
             # Get teacher's activities
             from .models import PortfolioActivity
             activities = PortfolioActivity.objects.filter(folder__teacher=request.user)
@@ -5244,12 +5297,12 @@ def export_user_data_api(request):
                 'max_score': a.max_score,
                 'created_at': a.created_at.isoformat() if a.created_at else None
             } for a in activities]
-            
+
         elif request.user.role == 'student':
             user_data['profile']['grade_level'] = request.user.grade_level
             user_data['profile']['section'] = request.user.section
             user_data['profile']['id_number'] = request.user.id_number
-            
+
             # Get student's submissions
             from .models import StudentSubmission
             submissions = StudentSubmission.objects.filter(student=request.user)
@@ -5259,24 +5312,24 @@ def export_user_data_api(request):
                 'score': s.score,
                 'submitted_at': s.submitted_at.isoformat() if s.submitted_at else None
             } for s in submissions]
-        
+
         # Get user settings
         from .models import UserSettings
         settings = UserSettings.objects.filter(user=request.user).first()
         if settings:
             from .serializer import UserSettingsSerializer
             user_data['settings'] = UserSettingsSerializer(settings).data
-        
+
         # Create JSON response
         response = HttpResponse(
             json.dumps(user_data, indent=2),
             content_type='application/json'
         )
         response['Content-Disposition'] = f'attachment; filename="user_data_{request.user.username}.json"'
-        
+
         print(f"✅ Data exported for user: {request.user.username}")
         return response
-        
+
     except Exception as e:
         print(f"❌ Error exporting data: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -5295,12 +5348,12 @@ def student_list_api(request):
         grade_level = request.query_params.get('grade_level')
         section = request.query_params.get('section')
         search = request.query_params.get('search')
-        
+
         # Filter based on user role
         if request.user.role == 'teacher':
             # Get teacher's assigned classrooms
             teacher_classrooms = Classroom.objects.filter(teacher=request.user)
-            
+
             if teacher_classrooms.exists():
                 # Get students from teacher's classrooms
                 students = User.objects.filter(
@@ -5316,7 +5369,7 @@ def student_list_api(request):
         else:
             # Students can only see themselves
             students = User.objects.filter(id=request.user.id, role='student')
-        
+
         # Apply additional filters
         if grade_level:
             students = students.filter(grade_level=grade_level)
@@ -5330,10 +5383,10 @@ def student_list_api(request):
                 Q(username__icontains=search) |
                 Q(email__icontains=search)
             )
-        
+
         # Order by grade, section, then name
         students = students.order_by('grade_level', 'section', 'last_name', 'first_name')
-        
+
         # Prepare response data
         students_data = []
         for student in students:
@@ -5353,17 +5406,17 @@ def student_list_api(request):
                 } if student.classroom else None,
                 'is_active': student.is_active
             })
-        
+
         return Response({
             'count': len(students_data),
             'students': students_data
         })
-    
+
     elif request.method == 'POST':
         # Only admin and teachers can create students
         if request.user.role not in ['admin', 'teacher']:
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         from .serializer import StudentSerializer
         serializer = StudentSerializer(data=request.data)
         if serializer.is_valid():
@@ -5380,31 +5433,59 @@ def student_detail_api(request, pk):
         student = Student.objects.get(pk=pk)
     except Student.DoesNotExist:
         return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if request.method == 'GET':
         from .serializer import StudentSerializer
         serializer = StudentSerializer(student)
         return Response(serializer.data)
-    
+
     elif request.method == 'PUT':
-        # Only admin and teachers can update students
+        # Only admin and teachers can update folders
         if request.user.role not in ['admin', 'teacher']:
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
-        from .serializer import StudentSerializer
-        serializer = StudentSerializer(student, data=request.data, partial=True)
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = PortfolioFolderSerializer(folder, data=request.data, partial=True) # Allow partial updates
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     elif request.method == 'DELETE':
-        # Only admin can delete students
-        if request.user.role != 'admin':
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
-        student.delete()
-        return Response({'message': 'Student deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        # Ensure only the teacher who owns the folder can delete it
+        if folder.teacher != request.user:
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+        folder.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_folder_api(request, folder_id):
+    try:
+        folder = PortfolioFolder.objects.get(id=folder_id, teacher=request.user)
+        if folder.activities.count() > 0:
+            return Response({'error': 'Cannot delete a folder that contains activities.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Notify students in the class
+        classroom = folder.classroom
+        if classroom:
+            students = classroom.students.all()
+            for student in students:
+                if student.id != request.user.id:
+                    Notification.objects.create(
+                        recipient=student,
+                        title=f'Folder Dropped: {folder.name}',
+                        message=f'Your teacher, {request.user.get_full_name()}, has dropped the folder "{folder.name}".',
+                        notification_type='portfolio_deleted'
+                    )
+
+        folder.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except PortfolioFolder.DoesNotExist:
+        return Response({'error': 'Folder not found or you do not have permission to delete it.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error deleting folder: {e}")
+        return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -5413,22 +5494,22 @@ def students_by_grade_section_api(request):
     """Get students by grade level and section"""
     grade_level = request.query_params.get('grade_level')
     section = request.query_params.get('section')
-    
+
     if not grade_level or not section:
         return Response(
             {'error': 'Both grade_level and section are required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     students = Student.objects.filter(
         grade_level=grade_level,
         section=section,
         is_active=True
     ).order_by('last_name', 'first_name')
-    
+
     from .serializer import StudentListSerializer
     serializer = StudentListSerializer(students, many=True)
-    
+
     return Response({
         'grade_level': grade_level,
         'section': section,
@@ -5444,15 +5525,15 @@ def students_by_grade_section_api(request):
 def student_statistics_api(request):
     """Get comprehensive student statistics"""
     from django.db.models import Avg, Count
-    
+
     # Overall statistics
     total_students = Student.objects.count()
     active_students = Student.objects.filter(is_active=True).count()
-    
+
     # Gender distribution
     gender_stats = Student.objects.values('gender').annotate(count=Count('id'))
     gender_distribution = {stat['gender']: stat['count'] for stat in gender_stats}
-    
+
     # Grade level distribution
     grade_distribution = []
     for grade in range(1, 7):
@@ -5466,26 +5547,26 @@ def student_statistics_api(request):
             'female': students_in_grade.filter(gender='F').count(),
         }
         grade_distribution.append(grade_data)
-    
+
     # Academic performance
     performance = Student.objects.aggregate(
         avg_grade=Avg('current_average'),
         avg_attendance=Avg('attendance_percentage')
     )
-    
+
     # Top performers (top 10)
     top_performers = Student.objects.filter(
         current_average__isnull=False
     ).order_by('-current_average')[:10]
-    
+
     from .serializer import StudentListSerializer
     top_performers_data = StudentListSerializer(top_performers, many=True).data
-    
+
     # Students with low attendance (< 80%)
     low_attendance = Student.objects.filter(
         attendance_percentage__lt=80
     ).count()
-    
+
     return Response({
         'overview': {
             'total_students': total_students,
@@ -5508,13 +5589,13 @@ def student_statistics_api(request):
 def student_search_api(request):
     """Advanced search for students"""
     query = request.query_params.get('q', '')
-    
+
     if not query:
         return Response(
             {'error': 'Search query is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Search in multiple fields
     students = Student.objects.filter(
         Q(student_id__icontains=query) |
@@ -5523,10 +5604,10 @@ def student_search_api(request):
         Q(email__icontains=query) |
         Q(guardian_name__icontains=query)
     ).order_by('grade_level', 'section', 'last_name')
-    
+
     from .serializer import StudentListSerializer
     serializer = StudentListSerializer(students, many=True)
-    
+
     return Response({
         'query': query,
         'count': students.count(),
@@ -5540,19 +5621,19 @@ def update_student_grades_api(request, pk):
     """Update student's current average"""
     if request.user.role not in ['admin', 'teacher']:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         student = Student.objects.get(pk=pk)
     except Student.DoesNotExist:
         return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     new_average = request.data.get('current_average')
     if new_average is None:
         return Response(
             {'error': 'current_average is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     try:
         new_average = float(new_average)
         if new_average < 0 or new_average > 100:
@@ -5562,10 +5643,10 @@ def update_student_grades_api(request, pk):
             {'error': str(e)},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     student.current_average = new_average
     student.save()
-    
+
     from .serializer import StudentSerializer
     serializer = StudentSerializer(student)
     return Response(serializer.data)
@@ -5577,19 +5658,19 @@ def update_student_attendance_api(request, pk):
     """Update student's attendance percentage"""
     if request.user.role not in ['admin', 'teacher']:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         student = Student.objects.get(pk=pk)
     except Student.DoesNotExist:
         return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     new_attendance = request.data.get('attendance_percentage')
     if new_attendance is None:
         return Response(
             {'error': 'attendance_percentage is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     try:
         new_attendance = float(new_attendance)
         if new_attendance < 0 or new_attendance > 100:
@@ -5599,10 +5680,10 @@ def update_student_attendance_api(request, pk):
             {'error': str(e)},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     student.attendance_percentage = new_attendance
     student.save()
-    
+
     from .serializer import StudentSerializer
     serializer = StudentSerializer(student)
     return Response(serializer.data)
@@ -5614,26 +5695,26 @@ def bulk_update_section_api(request):
     """Bulk update section for multiple students"""
     if request.user.role not in ['admin', 'teacher']:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     student_ids = request.data.get('student_ids', [])
     new_section = request.data.get('section')
-    
+
     if not student_ids or not new_section:
         return Response(
             {'error': 'student_ids and section are required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     if new_section not in ['A', 'B']:
         return Response(
             {'error': 'Section must be either A or B'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     updated_count = Student.objects.filter(
         id__in=student_ids
     ).update(section=new_section)
-    
+
     return Response({
         'message': f'Successfully updated {updated_count} students',
         'updated_count': updated_count
@@ -5646,32 +5727,32 @@ def export_students_api(request):
     """Export student data as JSON (can be extended to CSV/Excel)"""
     if request.user.role not in ['admin', 'teacher']:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     # Get filter parameters
     grade_level = request.query_params.get('grade_level')
     section = request.query_params.get('section')
-    
+
     students = Student.objects.all()
-    
+
     if grade_level:
         students = students.filter(grade_level=grade_level)
     if section:
         students = students.filter(section=section)
-    
+
     students = students.order_by('grade_level', 'section', 'last_name', 'first_name')
-    
+
     from .serializer import StudentSerializer
     serializer = StudentSerializer(students, many=True)
-    
+
     # Create JSON response with download headers
     response = HttpResponse(
         json.dumps(serializer.data, indent=2),
         content_type='application/json'
     )
-    
+
     filename = f"students_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
+
     return response
 
 
@@ -5698,12 +5779,12 @@ def classroom_list_api(request):
         else:
             # Admin can see all classrooms
             classrooms = Classroom.objects.all()
-        
+
         classrooms_data = []
         for classroom in classrooms:
             # Get students in this classroom
             students = User.objects.filter(classroom=classroom, role='student').order_by('last_name', 'first_name')
-            
+
             classroom_data = {
                 'id': classroom.id,
                 'name': classroom.name,
@@ -5731,12 +5812,12 @@ def classroom_list_api(request):
                 ]
             }
             classrooms_data.append(classroom_data)
-        
+
         return Response({
             'classrooms': classrooms_data,
             'total': len(classrooms_data)
         })
-        
+
     except Exception as e:
         print(f"Error fetching classrooms: {str(e)}")
         return Response({
@@ -5752,28 +5833,28 @@ def classroom_detail_api(request, classroom_id):
     """
     try:
         classroom = Classroom.objects.get(id=classroom_id)
-        
+
         # Check permissions
         if request.user.role == 'teacher' and classroom.teacher != request.user:
             return Response({
                 'error': 'You do not have permission to view this classroom'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         if request.user.role == 'student' and request.user.classroom != classroom:
             return Response({
                 'error': 'You do not have permission to view this classroom'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         # Get students with more details
         students = User.objects.filter(classroom=classroom, role='student').order_by('last_name', 'first_name')
-        
+
         students_data = []
         for student in students:
             # Get student's recent submissions
             recent_submissions = StudentSubmission.objects.filter(
                 student=student
             ).order_by('-submitted_at')[:5]
-            
+
             students_data.append({
                 'id': student.id,
                 'name': f"{student.first_name} {student.last_name}".strip() or student.username,
@@ -5790,7 +5871,7 @@ def classroom_detail_api(request, classroom_id):
                     } for sub in recent_submissions
                 ]
             })
-        
+
         classroom_data = {
             'id': classroom.id,
             'name': classroom.name,
@@ -5812,9 +5893,9 @@ def classroom_detail_api(request, classroom_id):
             'created_at': classroom.created_at.isoformat(),
             'updated_at': classroom.updated_at.isoformat()
         }
-        
+
         return Response(classroom_data)
-        
+
     except Classroom.DoesNotExist:
         return Response({
             'error': 'Classroom not found'
@@ -5841,10 +5922,10 @@ def user_settings_api(request):
         return Response({
             'error': 'Authentication required'
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from .models import UserSettings
-        
+
         # Get or create user settings
         settings, created = UserSettings.objects.get_or_create(
             user=request.user,
@@ -5864,10 +5945,10 @@ def user_settings_api(request):
                 'date_format': 'MM/DD/YYYY'
             }
         )
-        
+
         if created:
             print(f"✅ Created new settings for user: {request.user.username}")
-        
+
         if request.method == 'GET':
             # Return current settings
             return Response({
@@ -5890,11 +5971,11 @@ def user_settings_api(request):
                     'theme': settings.theme
                 }
             })
-        
+
         elif request.method == 'PUT':
             # Update settings
             data = request.data
-            
+
             # Update notifications
             if 'notifications' in data:
                 notif = data['notifications']
@@ -5903,14 +5984,14 @@ def user_settings_api(request):
                 settings.submission_alerts = notif.get('submissionAlerts', settings.submission_alerts)
                 settings.remark_notifications = notif.get('remarkAlerts', settings.remark_notifications)
                 settings.activity_reminders = notif.get('activityReminders', settings.activity_reminders)
-            
+
             # Update privacy
             if 'privacy' in data:
                 privacy = data['privacy']
                 settings.profile_visibility = privacy.get('profileVisibility', settings.profile_visibility)
                 settings.show_email = privacy.get('showEmail', settings.show_email)
                 settings.show_phone = privacy.get('showPhone', settings.show_phone)
-            
+
             # Update preferences
             if 'preferences' in data:
                 prefs = data['preferences']
@@ -5918,11 +5999,11 @@ def user_settings_api(request):
                 settings.timezone = prefs.get('timezone', settings.timezone)
                 settings.date_format = prefs.get('dateFormat', settings.date_format)
                 settings.theme = prefs.get('theme', settings.theme)
-                
+
                 print(f"🎨 Updated theme for {request.user.username}: {settings.theme}")
-            
+
             settings.save()
-            
+
             # Return updated settings
             return Response({
                 'notifications': {
@@ -5944,7 +6025,7 @@ def user_settings_api(request):
                     'theme': settings.theme
                 }
             })
-    
+
     except Exception as e:
         print(f"❌ Error in user settings API: {str(e)}")
         import traceback
@@ -5953,3 +6034,283 @@ def user_settings_api(request):
             'error': 'Failed to process settings',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# AI Test Endpoint
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ai_test(request):
+    """Test endpoint to verify AI API is working"""
+    return Response({'message': 'AI API is working!'}, status=status.HTTP_200_OK)
+
+
+# AI Question Generation API
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_ai_questions(request):
+    """Generate questions using OpenAI API based on topic, grade level, and question types"""
+    try:
+        # Get data
+        topic = request.data.get('topic', '')
+        grade_level = request.data.get('grade_level', '')
+        num_questions = request.data.get('num_questions', 5)
+        question_types = request.data.get('question_types', [])
+        difficulty = request.data.get('difficulty', 'medium')
+        additional_instructions = request.data.get('additional_instructions', '')
+
+        # Convert to int
+        try:
+            num_questions = int(num_questions)
+        except:
+            num_questions = 5
+
+        # Validate required fields
+        if not topic or not grade_level or not question_types:
+            return Response({
+                'error': 'Missing required fields'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Try to use OpenAI API, fallback to mock if not configured
+        try:
+            content = generate_questions_with_openai(topic, grade_level, num_questions, question_types, difficulty, additional_instructions)
+        except Exception as openai_error:
+            print(f"⚠️ OpenAI API error: {str(openai_error)}, falling back to mock generation")
+            content = generate_realistic_questions(topic, grade_level, num_questions, question_types, difficulty)
+
+        return Response({
+            'content': content,
+            'topic': topic,
+            'grade_level': grade_level,
+            'num_questions': num_questions,
+            'question_types': question_types
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def generate_questions_with_openai(topic, grade_level, num_questions, question_types, difficulty, additional_instructions):
+    """Generate questions using OpenAI API"""
+    import os
+    from openai import OpenAI
+
+    # Get API key from environment
+    api_key = os.getenv('OPENAI_API_KEY')
+
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY not configured in environment")
+
+    client = OpenAI(api_key=api_key)
+
+    # Build question types string
+    types_str = ", ".join(question_types)
+
+    # Build the prompt
+    prompt = f"""Generate exactly {num_questions} educational questions about "{topic}" for {grade_level} students.
+
+Difficulty Level: {difficulty}
+Question Types: {types_str}
+
+Requirements:
+1. Generate EXACTLY {num_questions} questions
+2. Distribute the questions evenly among the selected types: {types_str}
+3. Make questions appropriate for {grade_level} level
+4. Ensure {difficulty} difficulty level
+5. Include correct answers and explanations
+6. Format each question clearly with type label
+
+{f"Additional Instructions: {additional_instructions}" if additional_instructions else ""}
+
+Format the output as follows for each question:
+**Question [number]: [Type]**
+[Question text]
+
+[For Multiple Choice: A) option, B) option, C) option, D) option]
+[For True/False: Statement]
+[For Short Answer: Question prompt]
+[For Essay: Essay prompt with key points]
+
+**Answer:** [Correct answer]
+**Explanation:** [Brief explanation]
+
+---
+
+Generate the questions now:"""
+
+    # Call OpenAI API
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert educational content creator. Generate high-quality, engaging questions that are appropriate for the specified grade level and difficulty."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.7,
+        max_tokens=2000
+    )
+
+    # Extract content
+    content = response.choices[0].message.content
+
+    print(f"✅ Generated {num_questions} questions using OpenAI API")
+    return content
+
+
+def generate_realistic_questions(topic, grade_level, num_questions, question_types, difficulty):
+    """Generate realistic questions based on selected types"""
+
+    questions = []
+    question_count = 0
+    type_list = list(question_types) if question_types else []
+
+    # Cycle through question types to distribute them evenly
+    type_index = 0
+
+    while question_count < num_questions:
+        if not type_list:
+            break
+
+        q_type = str(type_list[type_index % len(type_list)]).strip().lower()
+        type_index += 1
+        question_count += 1
+
+        if q_type == 'multiple_choice':
+            questions.append(generate_multiple_choice(topic, grade_level, difficulty, question_count))
+        elif q_type == 'true_false':
+            questions.append(generate_true_false(topic, grade_level, difficulty, question_count))
+        elif q_type == 'short_answer':
+            questions.append(generate_short_answer(topic, grade_level, difficulty, question_count))
+        elif q_type == 'essay':
+            questions.append(generate_essay(topic, grade_level, difficulty, question_count))
+
+    return "\n\n---\n\n".join(questions)
+
+
+def generate_multiple_choice(topic, grade_level, difficulty, question_num):
+    """Generate a multiple choice question"""
+    return f"""**Question {question_num}: Multiple Choice**
+
+Which of the following best describes {topic}?
+
+A) A fundamental concept that is essential to understanding modern science
+B) A theoretical framework with limited practical applications
+C) An outdated approach no longer used in contemporary practice
+D) A specialized field relevant only to advanced professionals
+
+**Correct Answer: A**
+**Explanation:** {topic} is a core concept that forms the foundation for understanding many related topics and has widespread practical applications."""
+
+
+def generate_true_false(topic, grade_level, difficulty, question_num):
+    """Generate a true/false question"""
+    statements = [
+        f"{topic} is an important concept in {grade_level} education.",
+        f"Understanding {topic} requires advanced mathematical knowledge.",
+        f"{topic} has practical applications in everyday life.",
+        f"{topic} was first introduced in the 21st century."
+    ]
+
+    statement = statements[(question_num - 1) % len(statements)]
+    answer = "True" if (question_num % 2 == 1) else "False"
+
+    return f"""**Question {question_num}: True/False**
+
+{statement}
+
+**Answer: {answer}**"""
+
+
+def generate_short_answer(topic, grade_level, difficulty, question_num):
+    """Generate a short answer question"""
+    return f"""**Question {question_num}: Short Answer**
+
+Briefly explain what {topic} is and provide one example of how it is used.
+
+**Sample Answer:** {topic} is a key concept that refers to [definition]. For example, it can be applied in [real-world context] to achieve [specific outcome]."""
+
+
+def generate_essay(topic, grade_level, difficulty, question_num):
+    """Generate an essay question"""
+    return f"""**Question {question_num}: Essay**
+
+Write a comprehensive essay about {topic}. Your essay should include:
+
+1. **Introduction** - Define {topic} and explain its significance
+2. **Main Points** - Discuss at least 3 key aspects or characteristics
+3. **Examples** - Provide real-world examples or case studies
+4. **Analysis** - Explain how {topic} relates to broader concepts
+5. **Conclusion** - Summarize the importance and implications
+
+**Key Points to Address:**
+- The definition and scope of {topic}
+- Historical or contextual background
+- Current relevance and applications
+- Challenges or limitations
+- Future implications or developments"""
+
+
+def generate_mock_questions(topic, grade_level, num_questions, question_types, difficulty):
+    """Generate mock questions for demonstration purposes"""
+
+    try:
+        print(f"Generating mock questions: topic={topic}, grade={grade_level}, num={num_questions}, types={question_types}")
+        questions = []
+        question_num = 1
+
+        # Simple difficulty mapping
+        difficulty_map = {
+            'easy': 'basic',
+            'medium': 'intermediate',
+            'hard': 'advanced',
+            'mixed': 'mixed'
+        }
+        difficulty_level = difficulty_map.get(difficulty, 'intermediate')
+
+        # Generate questions based on types
+        type_list = list(question_types) if question_types else []
+
+        for q_type in type_list:
+            if question_num > num_questions:
+                break
+
+            q_type = str(q_type).strip().lower()
+
+            if q_type == 'multiple_choice':
+                questions.append(f"Question {question_num}: Multiple Choice\n\nAbout {topic} ({grade_level} level, {difficulty_level}):\n\nA) Option 1\nB) Option 2 (Correct)\nC) Option 3\nD) Option 4\n\nAnswer: B\n")
+                question_num += 1
+
+            elif q_type == 'true_false':
+                questions.append(f"Question {question_num}: True/False\n\n{topic} is important in {grade_level} education.\n\nAnswer: True\n")
+                question_num += 1
+
+            elif q_type == 'short_answer':
+                questions.append(f"Question {question_num}: Short Answer\n\nExplain {topic} briefly.\n\nSample Answer: {topic} is a key concept in {grade_level} studies.\n")
+                question_num += 1
+
+            elif q_type == 'essay':
+                questions.append(f"Question {question_num}: Essay\n\nWrite about {topic}.\n\nKey Points:\n- Definition\n- Importance\n- Applications\n- Conclusion\n")
+                question_num += 1
+
+        # Fill remaining questions if needed
+        while question_num <= num_questions:
+            questions.append(f"Question {question_num}: Comprehension\n\nExplain how {topic} applies to {grade_level} level.\n\nAnswer: {topic} is relevant and applicable in various ways.\n")
+            question_num += 1
+
+        result = "\n---\n".join(questions[:num_questions])
+        print(f"Generated {len(questions)} questions, total length: {len(result)} chars")
+        return result
+
+    except Exception as e:
+        print(f"Error in generate_mock_questions: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
