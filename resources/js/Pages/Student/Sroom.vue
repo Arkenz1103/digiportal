@@ -1302,17 +1302,33 @@
                       <!-- Activity Image/Preview -->
                       <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
                            :style="{ borderColor: `${envelopeDesign.color}40` }">
-                        <img v-if="portfolioActivities[currentActivityIndex].submission_file && portfolioActivities[currentActivityIndex].submission_status !== 'missing'"
+                        <img v-if="portfolioActivities[currentActivityIndex].submission_file && (portfolioActivities[currentActivityIndex].submission_file.startsWith('data:image') || portfolioActivities[currentActivityIndex].submission_file.match(/\.(jpeg|jpg|gif|png|webp)$/i))"
                              :src="portfolioActivities[currentActivityIndex].submission_file"
                              alt="Activity submission"
                              class="w-full h-full object-contain"
                              @error="(e) => { console.error('Image load error:', portfolioActivities[currentActivityIndex].submission_file); e.target.style.display = 'none'; }"
                         />
+                        <div v-else-if="portfolioActivities[currentActivityIndex].submission_file" class="text-center flex flex-col items-center">
+                            <i class="pi pi-file-pdf text-6xl text-red-500 mb-4" v-if="portfolioActivities[currentActivityIndex].submission_file.includes('pdf')"></i>
+                            <i class="pi pi-file text-6xl text-indigo-300 mb-4" v-else></i>
+                            <p class="text-gray-600 font-medium mb-2">File Attached</p>
+                            <a :href="portfolioActivities[currentActivityIndex].submission_file" 
+                               target="_blank" 
+                               class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                                View File
+                            </a>
+                        </div>
                         <div v-else class="text-center flex flex-col items-center">
-                          <i class="pi pi-file text-6xl text-indigo-300 mb-4"></i>
-                          <p class="text-indigo-600 font-medium">
-                            {{ portfolioActivities[currentActivityIndex].submission_status === 'missing' ? 'No Submission' : 'No File Available' }}
-                          </p>
+                          <div v-if="portfolioActivities[currentActivityIndex].submission_status === 'submitted_compilation'" class="flex flex-col items-center">
+                              <i class="pi pi-check-circle text-6xl text-green-500 mb-4"></i>
+                              <p class="text-green-600 font-medium">Activity Compiled</p>
+                          </div>
+                          <div v-else class="flex flex-col items-center">
+                              <i class="pi pi-file text-6xl text-indigo-300 mb-4"></i>
+                              <p class="text-indigo-600 font-medium">
+                                {{ portfolioActivities[currentActivityIndex].submission_status === 'missing' ? 'No Submission' : 'No File Available' }}
+                              </p>
+                          </div>
                         </div>
                       </div>
 
@@ -1323,14 +1339,20 @@
                         </p>
                       </div>
 
-                      <!-- Score and Feedback (hidden for compilation submissions) -->
-                      <div v-if="!portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score !== null && portfolioActivities[currentActivityIndex].submission_score !== undefined"
-                           class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <!-- Score and Feedback -->
+                      <div v-if="portfolioActivities[currentActivityIndex].is_compilation || (portfolioActivities[currentActivityIndex].submission_score !== null && portfolioActivities[currentActivityIndex].submission_score !== undefined)"
+                           class="mb-4 p-4 rounded-lg"
+                           :class="portfolioActivities[currentActivityIndex].is_compilation ? 'bg-purple-50 border border-purple-200' : 'bg-green-50 border border-green-200'">
                         <div class="flex items-center justify-between mb-2">
-                          <span class="text-sm font-medium text-gray-700">Score:</span>
-                          <span class="text-2xl font-bold text-green-700">{{ portfolioActivities[currentActivityIndex].submission_score }}</span>
+                          <span class="text-sm font-medium text-gray-700">Status:</span>
+                          <span class="text-xl font-bold" 
+                                :class="(portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score == null) ? 'text-purple-700' : 'text-green-700'">
+                                {{ (portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score == null) ? 'Compiled' : portfolioActivities[currentActivityIndex].submission_score }}
+                          </span>
                         </div>
-                        <div v-if="portfolioActivities[currentActivityIndex].submission_feedback" class="mt-2 pt-2 border-t border-green-200">
+                        <div v-if="portfolioActivities[currentActivityIndex].submission_feedback" 
+                             class="mt-2 pt-2 border-t"
+                             :class="portfolioActivities[currentActivityIndex].is_compilation ? 'border-purple-200' : 'border-green-200'">
                           <p class="text-sm text-gray-600">
                             <span class="font-medium">Feedback:</span> {{ portfolioActivities[currentActivityIndex].submission_feedback }}
                           </p>
@@ -1491,10 +1513,10 @@
                             </button>
                             <button
                               @click="openSubmitCompilationDialog(activity)"
-                              class="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                              class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
                             >
-                              <i class="pi pi-send"></i>
-                              Submit Now
+                              <i class="pi pi-upload"></i>
+                              Upload & Submit
                             </button>
                           </div>
                           <button
@@ -1502,8 +1524,8 @@
                             @click="compileActivity(activity)"
                             class="ml-4 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
                           >
-                            <i class="pi pi-plus"></i>
-                            Compile Now
+                            <i class="pi pi-upload"></i>
+                            Upload File
                           </button>
                         </div>
                       </div>
@@ -5481,6 +5503,20 @@ const submitTurnInWork = async () => {
     // Determine if this is a compilation submission (from missing activities)
     const isCompilation = !!selectedMissingActivity.value;
 
+    // If this is a compilation (missing activity), first mark it as compiled
+    if (isCompilation) {
+      try {
+        console.log('⚡ Marking activity as compiled before submission...');
+        await axios.post('/student/compile/', {
+          activity_id: activity.id
+        });
+        console.log('✅ Activity marked as compiled');
+      } catch (compileError) {
+        console.error('⚠️ Error marking as compiled:', compileError);
+        // Continue with submission even if compile fails
+      }
+    }
+
     // Submit to API
     const response = await axios.post(`/api/activities/${activity.id}/submissions/`, {
       caption: submissionCaption.value || '',
@@ -5488,10 +5524,8 @@ const submitTurnInWork = async () => {
       file_type: file.type,
       post_to_feed: postOutputOption.value,
       is_late: isLateSubmission,
-      is_draft: false, // ✅ CRITICAL: false = final submission (status will be 'unscored')
-      is_compilation: isCompilation, // ✅ Mark if this is a compilation submission
-      is_portfolio_compilation: isCompilation // ✅ Portfolio compilation has NO resubmit limits
-      // Note: Don't send 'status' - backend sets it automatically based on is_draft
+      is_draft: false, // ✅ CRITICAL: false = final submission
+      is_compilation: isCompilation // Pass this explicitly to ensure backend treats it correctly
     });
 
     if (response.data) {
@@ -5510,15 +5544,15 @@ const submitTurnInWork = async () => {
       // Clear selected missing activity if it was a compilation
       if (isCompilation) {
         selectedMissingActivity.value = null;
-        // Reload portfolio activities to update missing list
+        // Reload portfolio activities to update missing list and compiled count
         await fetchPortfolioActivities();
+        showSuccess('Activity compiled and submitted successfully!', 'Compiled');
       } else {
         // Reload submissions to update the UI for regular activities
         await checkSubmissionStatus(activity.id);
         await loadActivitySubmissions(activity.id);
+        showSuccess('Work submitted successfully!', 'Submitted');
       }
-
-      showSuccess('Work submitted successfully!', 'Submitted');
     }
   } catch (error) {
     console.error('❌ Error submitting work:', error);
@@ -5628,6 +5662,37 @@ const submitCompilation = async () => {
       error.response?.data?.error || 'Failed to submit compilation',
       'Submission Failed'
     );
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Compile activity immediately (mark as compiled)
+const compileActivityNow = async (activity) => {
+  if (!activity) return;
+  
+  try {
+    isSubmitting.value = true;
+    console.log('⚡ Compiling activity now:', activity.id);
+    
+    const response = await axios.post('/student/compile/', {
+      activity_id: activity.id
+    });
+    
+    if (response.data.success) {
+      console.log('✅ Activity compiled successfully');
+      
+      // Update local state immediately for better UX
+      missingActivities.value = missingActivities.value.filter(a => a.id !== activity.id);
+      
+      // Refresh full list from server
+      await fetchPortfolioActivities();
+      
+      showSuccess('Activity compiled successfully! It is now in your Activity Compilation.', 'Compiled');
+    }
+  } catch (error) {
+    console.error('❌ Error compiling activity:', error);
+    showError(error.response?.data?.error || 'Failed to compile activity', 'Error');
   } finally {
     isSubmitting.value = false;
   }

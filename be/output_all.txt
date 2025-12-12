@@ -1,0 +1,52 @@
+Checking submissions...
+ID: 284
+  Student: noah.aguilar (ID: 1021)
+  Activity Raw ID: 137
+  Activity Title: dsad
+  Status: unscored
+  Compiled: False
+  Is Compilation: False
+  File: 
+  Submitted At: None
+------------------------------
+ID: 283
+  Student: noah.aguilar (ID: 1021)
+  Activity Raw ID: 134
+  Activity Title: yyyyyyyy
+  Status: unscored
+  Compiled: False
+  Is Compilation: False
+  File: 
+  Submitted At: None
+------------------------------
+ID: 282
+  Student: noah.aguilar (ID: 1021)
+  Activity Raw ID: 131
+  Activity Title: dawg
+  Status: unscored
+  Compiled: False
+  Is Compilation: False
+  File: 
+  Submitted At: None
+------------------------------
+ID: 273
+  Student: noah.aguilar (ID: 1021)
+  Activity Raw ID: 133
+  Activity Title: fasd
+  Status: unscored
+  Compiled: False
+  Is Compilation: False
+  File: 
+  Submitted At: None
+------------------------------
+ID: 272
+  Student: noah.aguilar (ID: 1021)
+  Activity Raw ID: 158
+  Activity Title: Short Quiz
+  Status: unscored
+  Compiled: False
+  Is Compilation: False
+  File: submissions/2025/12/11/MODULE-ENGLISH1_NBJfDFU.docx
+  Submitted At: 2025-12-11 00:00:43.050583
+------------------------------
+Total submissions: 5

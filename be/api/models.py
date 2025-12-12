@@ -237,6 +237,12 @@ class StudentSubmission(models.Model):
     last_resubmit_at = models.DateTimeField(null=True, blank=True)  # Track last resubmit time
     submitted_at = models.DateTimeField(null=True, blank=True)  # Set when actually turned in, not when draft created
     scored_at = models.DateTimeField(null=True, blank=True)
+    
+    # Portfolio Compilation Fields
+    is_compilation = models.BooleanField(default=False)  # True if this is a portfolio compilation submission
+    compiled = models.BooleanField(default=False)
+    missing = models.BooleanField(default=True)  # True until compiled
+    compiled_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'student_submissions'

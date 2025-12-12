@@ -103,6 +103,7 @@ urlpatterns = [
     path('api/portfolio-envelope/submit-missing/<int:activity_id>/', views.submit_missing_activity_api, name='submit_missing_activity_api'),
     path('api/portfolio-envelope/submit-compilation/<int:activity_id>/', views.submit_compilation_api, name='submit_compilation_api'),
     path('api/portfolio-envelope/submit/<str:class_name>/', views.submit_portfolio_api, name='submit_portfolio_api'),
+    path('student/compile/', views.compile_activity_api, name='compile_activity_api'),
 
     # Profile and Settings API routes
     path('api/user/profile/', views.user_profile_api, name='user_profile_api'),

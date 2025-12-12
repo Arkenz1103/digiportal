@@ -1748,12 +1748,34 @@ def activity_submissions_api(request, activity_id):
                 existing_submission.last_resubmit_at = current_time
                 existing_submission.submitted_at = current_time  # Update submission time
 
-                # Set status to unscored (whether it was scored before or not)
-                existing_submission.status = 'unscored'
-                existing_submission.score = None
-                existing_submission.feedback = None
-                existing_submission.criteria_scores = None
-                existing_submission.scored_at = None
+                # Check for compilation flag from request (to handle detached compilation flows)
+                is_compilation_req = data.get('is_compilation', False)
+                if isinstance(is_compilation_req, str):
+                    is_compilation_req = is_compilation_req.lower() in ('true', '1', 'yes')
+                else:
+                    is_compilation_req = bool(is_compilation_req)
+
+                # Set status logic
+                is_compiled = (existing_submission.compiled if hasattr(existing_submission, 'compiled') else False) or is_compilation_req
+                
+                if is_compiled:
+                    print(f"✅ Updating COMPILED submission - keeping status as SCORED")
+                    existing_submission.status = 'scored'
+                    # Force compilation flags if requested
+                    if is_compilation_req:
+                        existing_submission.compiled = True
+                        existing_submission.is_compilation = True
+                        existing_submission.missing = False
+                        if not existing_submission.compiled_at:
+                             existing_submission.compiled_at = timezone.now()
+                    # Don't reset score if it's compiled (it should be None anyway, or stay as is)
+                else:
+                    # Regular resubmission - reset to unscored
+                    existing_submission.status = 'unscored'
+                    existing_submission.score = None
+                    existing_submission.feedback = None
+                    existing_submission.criteria_scores = None
+                    existing_submission.scored_at = None
 
                 # Check if this update is late (if not already marked as late)
                 if not existing_submission.is_late and activity.due_date:
@@ -1838,8 +1860,18 @@ def activity_submissions_api(request, activity_id):
                         file_type = 'file'
                     print(f"📎 Auto-detected file type: {file_type} from {content_type}")
 
-                # Set status based on draft flag
-                submission_status = 'draft' if is_draft else 'unscored'
+                # Check compilation flag
+                is_compilation_req = data.get('is_compilation', False)
+                if isinstance(is_compilation_req, str):
+                    is_compilation_req = is_compilation_req.lower() in ('true', '1', 'yes')
+                else:
+                    is_compilation_req = bool(is_compilation_req)
+
+                # Set status based on draft flag and compilation
+                if is_compilation_req:
+                    submission_status = 'scored'
+                else:
+                    submission_status = 'draft' if is_draft else 'unscored'
 
                 submission = StudentSubmission.objects.create(
                     activity=activity,
@@ -1850,6 +1882,12 @@ def activity_submissions_api(request, activity_id):
                     file_type=file_type,
                     status=submission_status,
                     post_to_feed=post_to_feed,
+                    
+                    # Compilation fields
+                    is_compilation=is_compilation_req,
+                    compiled=is_compilation_req,
+                    missing=False if is_compilation_req else True,
+                    compiled_at=timezone.now() if is_compilation_req else None,
                     approval_status='pending' if post_to_feed else 'approved',
                     is_late=is_late
                 )
@@ -4210,12 +4248,15 @@ def get_student_portfolio_activities_api(request, class_name):
             for activity in activities:
                 # Get the LATEST SCORED submission for this activity
                 # This handles resubmissions - we want the most recent SCORED version
+                # Get the LATEST SCORED or COMPILED submission for this activity
+                from django.db.models import Q
                 submission = StudentSubmission.objects.filter(
                     activity=activity,
                     student=request.user,
-                    is_active=True,
-                    status='scored'  # ONLY get scored submissions
-                ).order_by('-submitted_at').first()  # Get the latest scored submission
+                    is_active=True
+                ).filter(
+                    Q(status='scored') | Q(compiled=True)
+                ).order_by('-submitted_at').first()
 
                 # Also check if there are any unscored submissions (for debugging)
                 unscored_count = StudentSubmission.objects.filter(
@@ -4313,7 +4354,7 @@ def get_student_portfolio_activities_api(request, class_name):
 
                     # Determine status based on flags (only for scored submissions)
                     # Check if this is a compilation submission
-                    is_compilation = getattr(submission, 'is_compilation', False)
+                    is_compilation = submission.compiled if hasattr(submission, 'compiled') else getattr(submission, 'is_compilation', False)
 
                     if is_compilation:
                         submission_status = 'submitted_compilation'
@@ -4348,7 +4389,7 @@ def get_student_portfolio_activities_api(request, class_name):
                     'is_scored': submission is not None,  # True if scored, False if missing/pending
                     'is_late': is_late,
                     'is_resubmitted': is_resubmitted,
-                    'is_compilation': is_compilation if submission else False,  # True if this is a compilation submission
+                    'is_compilation': is_compilation,  # True if this is a compilation submission
                     'has_pending_submission': has_pending_submission,  # True if submitted but not scored
                     'resubmit_count': submission.resubmit_count if submission and hasattr(submission, 'resubmit_count') else 0,
                     'last_resubmit_at': submission.last_resubmit_at.isoformat() if submission and hasattr(submission, 'last_resubmit_at') and submission.last_resubmit_at else None,
@@ -4361,7 +4402,9 @@ def get_student_portfolio_activities_api(request, class_name):
 
                 # Categorize into separate lists
                 # Now we have scored_resubmitted, scored_late, scored, pending, and missing
-                if submission_status == 'scored_resubmitted':
+                if submission_status == 'submitted_compilation':
+                    submitted_activities.append(activity_data) # Treat compiled as submitted/completed
+                elif submission_status == 'scored_resubmitted':
                     resubmitted_activities.append(activity_data)
                     submitted_activities.append(activity_data)  # Also include in submitted since it's scored
                 elif submission_status == 'scored_late':
@@ -4375,6 +4418,18 @@ def get_student_portfolio_activities_api(request, class_name):
                     print(f"   ⏳ Skipping pending activity from missing list: {activity.title}")
                     pass  # Don't add to any list - it's in limbo waiting for score
                 else:  # truly missing (never submitted)
+                    # Check if there's ANY submission marked as not missing (compiled)
+                    has_compiled_submission = StudentSubmission.objects.filter(
+                        activity=activity,
+                        student=request.user,
+                        is_active=True,
+                        missing=False  # Explicitly check for compiled activities
+                    ).exists()
+                    
+                    if has_compiled_submission:
+                        print(f"   ✅ Activity {activity.id} ({activity.title}) is COMPILED - skipping from missing")
+                        continue  # Skip this activity, it's been compiled
+                    
                     # Only add to missing if the due date has PASSED
                     is_overdue = False
                     if activity.due_date:
@@ -4541,6 +4596,79 @@ def submit_missing_activity_api(request, activity_id):
 
 @csrf_exempt
 @api_view(['POST'])
+def compile_activity_api(request):
+    """
+    POST: Compile an activity (mark as compiled and not missing)
+    """
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
+        
+    activity_id = request.data.get('activity_id')
+    if not activity_id:
+        return Response({'error': 'Activity ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        from .models import PortfolioActivity, StudentSubmission
+        from django.utils import timezone
+        
+        # Get the activity
+        activity = PortfolioActivity.objects.get(id=activity_id)
+        
+        # Get or create submission
+        submission, created = StudentSubmission.objects.get_or_create(
+            student=request.user,
+            activity=activity,
+            defaults={
+                'status': 'scored',
+                'approval_status': 'approved',
+                'is_active': True,
+                'submitted_at': timezone.now(), # Set submitted time for new creates
+                'scored_at': timezone.now()
+            }
+        )
+        
+        # Update fields
+        submission.is_compilation = True  # Mark as compilation submission
+        submission.compiled = True
+        submission.missing = False
+        submission.compiled_at = timezone.now()
+        
+        # Ensure status and timestamps are appropriate
+        if submission.status == 'draft':
+            submission.status = 'scored'
+            
+        if not submission.submitted_at:
+            submission.submitted_at = timezone.now()
+            
+        if not submission.scored_at:
+            submission.scored_at = timezone.now()
+            
+        submission.save()
+        
+        print(f"✅ Activity {activity_id} compiled for user {request.user.username}")
+        
+        return Response({
+            'success': True,
+            'message': 'Activity compiled successfully',
+            'data': {
+                'id': submission.id,
+                'activity_id': activity.id,
+                'compiled': True,
+                'missing': False,
+                'compiled_at': submission.compiled_at.isoformat()
+            }
+        })
+        
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Error compiling activity: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+@api_view(['POST'])
 def submit_compilation_api(request, activity_id):
     """Submit a compilation from portfolio - creates a scored submission for Activity Compilation carousel"""
     try:
@@ -4568,51 +4696,57 @@ def submit_compilation_api(request, activity_id):
         ).exclude(status='draft').first()
 
         if existing_submission:
-            return Response({
-                'error': 'Activity already submitted',
-                'submission_id': existing_submission.id
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Handle file upload
-        if file_data.startswith('data:'):
-            # Base64 encoded file
-            format, filestr = file_data.split(';base64,')
-            ext = format.split('/')[-1]
-            file_name = f"compilation_{request.user.id}_{activity_id}.{ext}"
-
-            # Determine file type
-            file_type = 'image' if 'image' in format else 'pdf' if 'pdf' in format else 'file'
-
-            # Create submission with SCORED status so it appears in Activity Compilation
-            submission = StudentSubmission.objects.create(
-                activity=activity,
-                student=request.user,
-                caption=caption,
-                file=ContentFile(base64.b64decode(filestr), name=file_name),
-                file_path=file_data,  # Keep base64 for compatibility
-                file_type=file_type,
-                status='scored',  # Set as scored to appear in Activity Compilation
-                score=None,  # No score for compilation submissions
-                approval_status='approved',  # Auto-approve compilation submissions
-                post_to_feed=False,
-                is_active=True,
-                is_compilation=True  # Flag to identify compilation submissions
-            )
+            # Update existing submission instead of erroring
+            submission = existing_submission
+            submission.caption = caption
+            # Handle file update logic if needed
+            print(f"🔄 Updating existing submission {submission.id} for compilation")
         else:
-            # Regular file path
-            submission = StudentSubmission.objects.create(
-                activity=activity,
-                student=request.user,
-                caption=caption,
-                file_path=file_data,
-                file_type='file',
-                status='scored',  # Set as scored to appear in Activity Compilation
-                score=None,  # No score for compilation submissions
-                approval_status='approved',
-                post_to_feed=False,
-                is_active=True,
-                is_compilation=True  # Flag to identify compilation submissions
-            )
+             # Handle file upload
+            if file_data.startswith('data:'):
+                # Base64 encoded file
+                format, filestr = file_data.split(';base64,')
+                ext = format.split('/')[-1]
+                file_name = f"compilation_{request.user.id}_{activity_id}.{ext}"
+
+                # Determine file type
+                file_type = 'image' if 'image' in format else 'pdf' if 'pdf' in format else 'file'
+
+                # Create submission with SCORED status so it appears in Activity Compilation
+                submission = StudentSubmission.objects.create(
+                    activity=activity,
+                    student=request.user,
+                    caption=caption,
+                    file=ContentFile(base64.b64decode(filestr), name=file_name),
+                    file_path=file_data,  # Keep base64 for compatibility
+                    file_type=file_type,
+                    status='scored',  # Set as scored to appear in Activity Compilation
+                    score=None,  # No score for compilation submissions
+                    approval_status='approved',  # Auto-approve compilation submissions
+                    post_to_feed=False,
+                    is_active=True
+                )
+            else:
+                # Regular file path
+                submission = StudentSubmission.objects.create(
+                    activity=activity,
+                    student=request.user,
+                    caption=caption,
+                    file_path=file_data,
+                    file_type='file',
+                    status='scored',  # Set as scored to appear in Activity Compilation
+                    score=None,  # No score for compilation submissions
+                    approval_status='approved',
+                    post_to_feed=False,
+                    is_active=True
+                )
+
+        # Update compilation status fields
+        submission.is_compilation = True  # Mark as compilation submission
+        submission.compiled = True
+        submission.missing = False
+        submission.compiled_at = timezone.now()
+        submission.save()
 
         print(f"✅ Compilation submitted successfully: {submission.id} (status: scored)")
 
@@ -4641,10 +4775,12 @@ def submit_compilation_api(request, activity_id):
                 'activity_id': activity.id,
                 'activity_title': activity.title,
                 'caption': submission.caption,
-                'submitted_at': submission.submitted_at.isoformat(),
+                'submitted_at': submission.submitted_at.isoformat() if submission.submitted_at else timezone.now().isoformat(),
                 'scored_at': submission.scored_at.isoformat() if submission.scored_at else None,
                 'status': submission.status,
-                'score': submission.score
+                'score': submission.score,
+                'compiled': True,
+                'missing': False
             }
         }, status=status.HTTP_201_CREATED)
 
