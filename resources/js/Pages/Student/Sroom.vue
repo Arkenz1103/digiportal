@@ -4982,8 +4982,15 @@ const handleResubmit = () => {
   console.log('🔄 Showing resubmission confirmation dialog');
 };
 
-// Confirm resubmission - Enter resubmission mode
+// Confirm resubmission - Enter resubmission mode OR Submit Turn In
 const confirmResubmitAction = async () => {
+  // If we are in Turn In dialog, proceed with final submission (spending a resubmit attempt)
+  if (showTurnInDialog.value) {
+      showResubmitConfirmDialog.value = false;
+      await executeSubmission();
+      return;
+  }
+
   if (!selectedActivity.value || !existingSubmission.value) return;
 
   try {
@@ -5475,8 +5482,35 @@ const editCompilation = (activity) => {
   compileActivity(activity); // Reuse the same function
 };
 
-// Submit work from Turn In dialog (for regular activities AND missing activity compilation)
-const submitTurnInWork = async () => {
+
+
+// Wrapper for Submit (handles confirmation)
+const submitTurnInWork = () => {
+  const activity = selectedActivity.value || selectedMissingActivity.value;
+
+  if (!activity) {
+    showWarning('No activity selected', 'Error');
+    return;
+  }
+
+  if (draftFiles.length === 0) {
+    showWarning('Please add a file first', 'No File');
+    return;
+  }
+
+  const isCompilation = !!selectedMissingActivity.value;
+
+  // Check if this is a resubmission (regular activity, existing submission, not draft)
+  if (!isCompilation && existingSubmission.value && existingSubmission.value.status !== 'draft') {
+      showResubmitConfirmDialog.value = true;
+      return;
+  }
+
+  executeSubmission();
+};
+
+// Actual Submission Logic (renamed from submitTurnInWork)
+const executeSubmission = async () => {
   // Check for either selectedActivity (regular) or selectedMissingActivity (compilation)
   const activity = selectedActivity.value || selectedMissingActivity.value;
 
