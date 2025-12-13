@@ -14,25 +14,25 @@ const isLoadingPending = ref(false);
 // Helper function to format date and time
 const formatDateTime = (dateString) => {
     if (!dateString) return { formatted: 'N/A', daysAgo: '', timestamp: 0 };
-    
+
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now - date);
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffMinutes = Math.floor(diffTime / (1000 * 60));
-    
+
     // Format: Nov 6, 2025 — 10:45 PM
-    const formatted = date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-    }) + ' — ' + date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+    const formatted = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    }) + ' — ' + date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
     });
-    
+
     // Calculate "days ago" text
     let daysAgo = '';
     if (diffMinutes < 1) {
@@ -49,11 +49,11 @@ const formatDateTime = (dateString) => {
         const months = Math.floor(diffDays / 30);
         daysAgo = `${months} month${months !== 1 ? 's' : ''} ago`;
     }
-    
-    return { 
-        formatted, 
-        daysAgo, 
-        timestamp: date.getTime() 
+
+    return {
+        formatted,
+        daysAgo,
+        timestamp: date.getTime()
     };
 };
 
@@ -64,14 +64,14 @@ const loadPendingApprovals = async () => {
         console.log('🔄 Loading pending approvals...');
         const response = await axios.get('/api/submissions/pending-approvals/');
         console.log('📥 API Response:', response.data);
-        
+
         if (response.data) {
             // Map and format submissions (backend already sorted them properly)
             pendingOutputs.value = response.data.map(submission => {
                 // Get image URL from multiple possible sources
                 const imageUrl = submission.file_url || submission.file_path || submission.file || '';
                 const dateInfo = formatDateTime(submission.submitted_at);
-                
+
                 return {
                     id: submission.id,
                     studentName: submission.student_name || submission.student?.username || 'Unknown',
@@ -88,7 +88,7 @@ const loadPendingApprovals = async () => {
                     status: 'Pending'
                 };
             });
-            
+
             console.log('✅ Loaded pending approvals:', pendingOutputs.value.length, 'items');
             console.log('📊 Display order (as received from backend - already sorted):');
             pendingOutputs.value.forEach((item, index) => {
@@ -181,42 +181,42 @@ const previewOutput = (output) => {
 
 const submitFeedback = async (isApproved) => {
     if (!selectedOutput.value) return;
-    
+
     try {
         const action = isApproved ? 'approve' : 'reject';
         const payload = {
             action: action
         };
-        
+
         // Include rejection reason and details if rejecting
         if (!isApproved) {
             payload.rejectionReason = feedbackForm.value.rejectionReason;
             payload.rejectionDetails = feedbackForm.value.rejectionDetails;
         }
-        
+
         const response = await axios.put(`/api/submissions/${selectedOutput.value.id}/approve/`, payload);
-        
+
         if (response.data) {
             console.log(`Submission ${action}d:`, response.data);
-            
+
             // Remove from pending list
             const index = pendingOutputs.value.findIndex(o => o.id === selectedOutput.value.id);
             if (index !== -1) {
                 pendingOutputs.value.splice(index, 1);
             }
-            
+
             showPreviewDialog.value = false;
             showRejectionDialog.value = false;
-            
+
             // Reset form
             feedbackForm.value = {
                 isApproved: false,
                 rejectionReason: '',
                 rejectionDetails: ''
             };
-            
-            const message = isApproved 
-                ? 'Output approved and posted to class feed!' 
+
+            const message = isApproved
+                ? 'Output approved and posted to class feed!'
                 : 'Output rejected. Student has been notified.';
             showSuccess(message, isApproved ? 'Approved' : 'Rejected');
         }
@@ -231,20 +231,20 @@ const cancelRequest = async (output) => {
     if (!confirm(`Are you sure you want to cancel this post request from ${output.studentName}?`)) {
         return;
     }
-    
+
     try {
         // Cancel by rejecting with a specific reason
         const response = await axios.put(`/api/submissions/${output.id}/approve/`, {
             action: 'cancel'
         });
-        
+
         if (response.data) {
             // Remove from pending list
             const index = pendingOutputs.value.findIndex(o => o.id === output.id);
             if (index !== -1) {
                 pendingOutputs.value.splice(index, 1);
             }
-            
+
             showInfo('Post request cancelled', 'Cancelled');
         }
     } catch (error) {
@@ -323,7 +323,7 @@ const cancelRejection = () => {
 
             <!-- Outputs List -->
             <div v-else class="divide-y divide-indigo-100">
-                <div v-for="output in pendingOutputs" :key="output.id" 
+                <div v-for="output in pendingOutputs" :key="output.id"
                     class="p-6 hover:bg-indigo-50/50 transition-colors duration-200 border-l-4 border-transparent hover:border-indigo-400">
                     <div class="flex justify-between items-start gap-4">
                         <div class="flex-1">
@@ -347,7 +347,7 @@ const cancelRejection = () => {
                             </div>
                             <div class="ml-13">
                                 <p class="text-indigo-900/80 text-sm leading-relaxed mb-3">{{ output.description }}</p>
-                                
+
                                 <!-- Submission Date/Time -->
                                 <div class="flex items-center gap-4 text-sm mb-3">
                                     <div class="flex items-center gap-1.5 text-indigo-700/90">
@@ -359,12 +359,12 @@ const cancelRejection = () => {
                                         {{ output.daysAgo }}
                                     </span>
                                 </div>
-                                
+
                                 <div class="mt-3">
                                     <div class="text-sm font-semibold text-indigo-900 mb-2">Student Work:</div>
                                     <div class="flex gap-2 overflow-x-auto pb-2">
                                         <div v-if="output.sampleImages && output.sampleImages.length > 0 && output.sampleImages[0]" class="relative group">
-                                            <img 
+                                            <img
                                                 :src="output.sampleImages[0]"
                                                 class="h-28 w-auto rounded-lg border-2 border-indigo-200 cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all duration-200"
                                                 @click="previewOutput(output)"
@@ -383,11 +383,11 @@ const cancelRejection = () => {
                             </div>
                         </div>
                         <div class="flex flex-col gap-2 flex-shrink-0">
-                            <Button 
-                                label="Review" 
+                            <Button
+                                label="Review"
                                 icon="pi pi-eye"
                                 class="p-button-sm whitespace-nowrap"
-                                style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);" 
+                                style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);"
                                 @click="previewOutput(output)"
                             />
                         </div>
@@ -396,7 +396,7 @@ const cancelRejection = () => {
                 </div>
 
         <!-- Preview Dialog -->
-        <Dialog 
+        <Dialog
             v-model:visible="showPreviewDialog"
             modal
             :closable="true"
@@ -432,13 +432,13 @@ const cancelRejection = () => {
                         <label class="block text-sm font-medium text-indigo-900 mb-2">Student Work</label>
                         <div class="border-2 border-indigo-200 rounded-lg overflow-hidden bg-gray-50">
                             <div class="flex items-center justify-center p-4" style="min-height: 300px;">
-                                <img 
+                                <img
                                     v-if="selectedOutput.sampleImages && selectedOutput.sampleImages.length > 0 && selectedOutput.sampleImages[0]"
-                                    :src="selectedOutput.sampleImages[0]" 
+                                    :src="selectedOutput.sampleImages[0]"
                                     class="w-full h-auto max-h-[500px] object-contain rounded"
                                     :alt="`${selectedOutput.studentName}'s work for ${selectedOutput.title}`"
-                                    @error="(e) => { 
-                                        console.error('Image load error:', e.target.src); 
+                                    @error="(e) => {
+                                        console.error('Image load error:', e.target.src);
                                         console.error('File type:', selectedOutput.file_type);
                                         console.error('File path:', selectedOutput.file_path);
                                     }"
@@ -470,21 +470,21 @@ const cancelRejection = () => {
 
             <template #footer>
                 <div class="mt-6 flex justify-end space-x-3">
-                    <Button 
+                    <Button
                         label="Cancel"
                         class="p-button-secondary"
-                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937; margin-right: 0.5rem;" 
+                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937; margin-right: 0.5rem;"
                         @click="showPreviewDialog = false"
                     />
-                    <Button 
+                    <Button
                         label="Reject"
                         class="p-button-danger"
-                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white; margin-right: 0.5rem;" 
+                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white; margin-right: 0.5rem;"
                         @click="showRejectionReasonsDialog"
                     />
-                    <Button 
+                    <Button
                         label="Approve"
-                        style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; color: white;" 
+                        style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; color: white;"
                         @click="showApprovalConfirmDialog"
                     />
                 </div>
@@ -492,7 +492,7 @@ const cancelRejection = () => {
         </Dialog>
 
         <!-- Rejection Confirmation Dialog -->
-        <Dialog 
+        <Dialog
             v-model:visible="showRejectionDialog"
             modal
             header="Confirm Rejection"
@@ -506,7 +506,7 @@ const cancelRejection = () => {
                     </div>
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Reject this submission?</h3>
                     <p class="text-sm text-gray-600">
-                        This will reject <strong>{{ selectedOutput?.studentName }}'s</strong> work 
+                        This will reject <strong>{{ selectedOutput?.studentName }}'s</strong> work
                         "<strong>{{ selectedOutput?.title }}</strong>".
                     </p>
                 </div>
@@ -562,16 +562,16 @@ const cancelRejection = () => {
 
             <template #footer>
                 <div class="flex justify-end gap-3 px-6 pb-6">
-                    <Button 
+                    <Button
                         label="Cancel"
                         class="p-button-secondary"
-                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;" 
+                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;"
                         @click="cancelRejection"
                     />
-                    <Button 
+                    <Button
                         label="Yes, Reject"
                         :disabled="!feedbackForm.rejectionReason"
-                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;" 
+                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;"
                         @click="confirmRejection"
                     >
                         <i class="pi pi-times mr-2"></i>
@@ -582,7 +582,7 @@ const cancelRejection = () => {
         </Dialog>
 
         <!-- Approval Confirmation Dialog -->
-        <Dialog 
+        <Dialog
             v-model:visible="showApprovalDialog"
             modal
             header="Confirm Approval"
@@ -596,7 +596,7 @@ const cancelRejection = () => {
                     </div>
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Approve this submission?</h3>
                     <p class="text-sm text-gray-600">
-                        This will approve <strong>{{ selectedOutput?.studentName }}'s</strong> work 
+                        This will approve <strong>{{ selectedOutput?.studentName }}'s</strong> work
                         "<strong>{{ selectedOutput?.title }}</strong>" to be posted to the class feed.
                     </p>
                 </div>
@@ -618,15 +618,15 @@ const cancelRejection = () => {
 
             <template #footer>
                 <div class="flex justify-end gap-3 px-6 pb-6">
-                    <Button 
+                    <Button
                         label="Cancel"
                         class="p-button-secondary"
-                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;" 
+                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;"
                         @click="cancelApproval"
                     />
-                    <Button 
+                    <Button
                         label="Yes, Approve"
-                        style="background: linear-gradient(to right, #10b981, #059669); border: none; color: white;" 
+                        style="background: linear-gradient(to right, #10b981, #059669); border: none; color: white;"
                         @click="confirmApproval"
                     >
                         <i class="pi pi-check mr-2"></i>

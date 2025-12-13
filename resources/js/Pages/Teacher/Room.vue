@@ -243,7 +243,6 @@
                                                         </div>
                                                         <div>
                                                             <h3 class="text-lg font-bold text-gray-800">Draft Activities</h3>
-                                                            <p class="text-sm text-gray-600">Activities not yet published to students</p>
                                                         </div>
                                                     </div>
                                                     <span class="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full border border-amber-200 shadow-sm">
@@ -253,83 +252,67 @@
                                             </div>
 
                                             <!-- Table Header -->
-                                            <div class="bg-gray-50 border-b border-gray-200">
-                                                <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                                    <div class="col-span-2">
-                                                        <span>Type</span>
-                                                    </div>
-                                                    <div class="col-span-2">
-                                                        <span>Title</span>
-                                                    </div>
-                                                    <div class="col-span-3">
-                                                        <span>Instructions</span>
-                                                    </div>
-                                                    <div class="col-span-1 text-center">
-                                                        <span>Due Time</span>
-                                                    </div>
-                                                    <div class="col-span-2 text-center">
-                                                        <span>Due Date</span>
-                                                    </div>
-                                                    <div class="col-span-2 text-center">
-                                                        <span>Actions</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+<div class="bg-gray-50 border-b border-gray-200">
+  <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider items-center">
+
+    <div class="col-span-2 text-center">
+      Activity ID#
+    </div>
+
+    <div class="col-span-2 text-center">
+      Title
+    </div>
+
+    <div class="col-span-2 text-center">
+      Type
+    </div>
+
+    <div class="col-span-2 text-center">
+      Due Time
+    </div>
+
+    <div class="col-span-2 text-center">
+      Due Date
+    </div>
+
+    <div class="col-span-2 text-center">
+      Actions
+    </div>
+
+  </div>
+</div>
+
 
                                             <!-- Table Body -->
                                             <div class="divide-y divide-gray-200">
                                                 <div v-for="(activity, index) in draftActivities" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
 
-                                                    <div class="grid grid-cols-12 gap-4 px-6 py-4 items-start cursor-pointer"
+                                                    <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer"
                                                         @click="navigateToActivityOutputs(activity, index)">
-                                                        <!-- Activity Type with Icon -->
-                                                        <div class="col-span-2">
-                                                            <div class="flex items-center gap-2">
-                                                                <div :class="[
-                                                                    'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                                                                    activity.type === 'project' ? 'bg-purple-100' :
-                                                                    activity.type === 'contest' ? 'bg-blue-100' :
-                                                                    activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
-                                                                ]">
-                                                                    <span :class="[
-                                                                        'text-lg font-bold',
-                                                                        activity.type === 'project' ? 'text-purple-600' :
-                                                                        activity.type === 'contest' ? 'text-blue-600' :
-                                                                        activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
-                                                                    ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
-                                                                </div>
-                                                                <span class="text-sm text-gray-700 capitalize truncate">{{ activity.type }}</span>
-                                                            </div>
+                                                        <!-- Activity ID# -->
+                                                        <div class="col-span-2 text-center">
+                                                            <span class="text-sm text-gray-700 font-medium">{{ activity.id }}</span>
                                                         </div>
 
                                                         <!-- Title -->
-                                                        <div class="col-span-2">
-                                                            <div class="font-medium text-gray-900 leading-snug">
-                                                                <div class="truncate" :title="activity.title">{{ activity.title }}</div>
-                                                                <div class="text-xs text-gray-500 mt-0.5">ID: {{ activity.id }}</div>
-                                                            </div>
+                                                        <div class="col-span-2 text-center">
+                                                            <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
                                                         </div>
 
-                                                        <!-- Instructions -->
-                                                        <div class="col-span-3">
-                                                            <div
-                                                                class="text-sm text-gray-600 leading-relaxed"
-                                                                :title="activity.description"
-                                                                style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 4.5rem;"
-                                                            >
-                                                                {{ activity.description || 'No instructions provided' }}
-                                                            </div>
+                                                        <!-- Activity Type -->
+                                                        <div class="col-span-2 text-center">
+                                                            <span class="text-sm text-gray-700 capitalize font-medium">{{ activity.type }}</span>
                                                         </div>
 
                                                         <!-- Due Time -->
-                                                        <div class="col-span-1 text-center self-center">
+                                                        <div class="col-span-2 text-center">
                                                             <span v-if="activity.formattedTime" class="text-sm text-gray-700 font-medium">{{ activity.formattedTime }}</span>
                                                             <span v-else class="text-sm text-gray-400">--:--</span>
                                                         </div>
 
                                                         <!-- Due Date -->
-                                                        <div class="col-span-2 text-center self-center">
+                                                        <div class="col-span-2 text-center">
                                                             <div class="text-sm text-gray-700 font-medium">
                                                                 {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
                                                                 <div v-if="activity.daysLeft" class="text-xs text-gray-500 mt-0.5">{{ activity.daysLeft }}</div>
@@ -337,7 +320,7 @@
                                                         </div>
 
                                                         <!-- Actions -->
-                                                        <div class="col-span-2 flex items-center justify-center gap-2 self-center">
+                                                        <div class="col-span-2 flex items-center justify-center gap-2">
                                                             <!-- Publish Button -->
                                                             <button
                                                                 @click.stop="submitActivity(activity, index)"
@@ -386,7 +369,6 @@
                                                         </div>
                                                         <div>
                                                             <h3 class="text-lg font-bold text-gray-800">Published Activities</h3>
-                                                            <p class="text-sm text-gray-600">Activities visible to students</p>
                                                         </div>
                                                     </div>
                                                     <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full border border-emerald-200 shadow-sm">
@@ -396,83 +378,67 @@
                                             </div>
 
                                             <!-- Table Header -->
-                                            <div class="bg-gray-50 border-b border-gray-200">
-                                                <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                                    <div class="col-span-2">
-                                                        <span>Type</span>
-                                                    </div>
-                                                    <div class="col-span-2">
-                                                        <span>Title</span>
-                                                    </div>
-                                                    <div class="col-span-3">
-                                                        <span>Instructions</span>
-                                                    </div>
-                                                    <div class="col-span-1 text-center">
-                                                        <span>Due Time</span>
-                                                    </div>
-                                                    <div class="col-span-2 text-center">
-                                                        <span>Due Date</span>
-                                                    </div>
-                                                    <div class="col-span-2 text-center">
-                                                        <span>Actions</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+<div class="bg-gray-50 border-b border-gray-200">
+  <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider items-center">
+
+    <div class="col-span-2 text-center">
+      Activity ID#
+    </div>
+
+    <div class="col-span-2 text-center">
+      Title
+    </div>
+
+    <div class="col-span-2 text-center">
+      Type
+    </div>
+
+    <div class="col-span-2 text-center">
+      Due Time
+    </div>
+
+    <div class="col-span-2 text-center">
+      Due Date
+    </div>
+
+    <div class="col-span-2 text-center">
+      Actions
+    </div>
+
+  </div>
+</div>
+
 
                                             <!-- Table Body -->
                                             <div class="divide-y divide-gray-200">
                                                 <div v-for="(activity, index) in publishedActivities" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
 
-                                                    <div class="grid grid-cols-12 gap-4 px-6 py-4 items-start cursor-pointer"
+                                                    <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer"
                                                         @click="navigateToActivityOutputs(activity, index)">
-                                                        <!-- Activity Type with Icon -->
-                                                        <div class="col-span-2">
-                                                            <div class="flex items-center gap-2">
-                                                                <div :class="[
-                                                                    'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                                                                    activity.type === 'project' ? 'bg-purple-100' :
-                                                                    activity.type === 'contest' ? 'bg-blue-100' :
-                                                                    activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
-                                                                ]">
-                                                                    <span :class="[
-                                                                        'text-lg font-bold',
-                                                                        activity.type === 'project' ? 'text-purple-600' :
-                                                                        activity.type === 'contest' ? 'text-blue-600' :
-                                                                        activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
-                                                                    ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
-                                                                </div>
-                                                                <span class="text-sm text-gray-700 capitalize truncate">{{ activity.type }}</span>
-                                                            </div>
+                                                        <!-- Activity ID# -->
+                                                        <div class="col-span-2 text-center">
+                                                            <span class="text-sm text-gray-700 font-medium">{{ activity.id }}</span>
                                                         </div>
 
                                                         <!-- Title -->
-                                                        <div class="col-span-2">
-                                                            <div class="font-medium text-gray-900 leading-snug">
-                                                                <div class="truncate" :title="activity.title">{{ activity.title }}</div>
-                                                                <div class="text-xs text-gray-500 mt-0.5">ID: {{ activity.id }}</div>
-                                                            </div>
+                                                        <div class="col-span-2 text-center">
+                                                            <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
                                                         </div>
 
-                                                        <!-- Instructions -->
-                                                        <div class="col-span-3">
-                                                            <div
-                                                                class="text-sm text-gray-600 leading-relaxed"
-                                                                :title="activity.description"
-                                                                style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; max-height: 4.5rem;"
-                                                            >
-                                                                {{ activity.description || 'No instructions provided' }}
-                                                            </div>
+                                                        <!-- Activity Type -->
+                                                        <div class="col-span-2 text-center">
+                                                            <span class="text-xs text-gray-700 capitalize font-medium">{{ activity.type }}</span>
                                                         </div>
 
                                                         <!-- Due Time -->
-                                                        <div class="col-span-1 text-center self-center">
+                                                        <div class="col-span-2 text-center">
                                                             <span v-if="activity.formattedTime" class="text-sm text-gray-700 font-medium">{{ activity.formattedTime }}</span>
                                                             <span v-else class="text-sm text-gray-400">--:--</span>
                                                         </div>
 
                                                         <!-- Due Date -->
-                                                        <div class="col-span-2 text-center self-center">
+                                                        <div class="col-span-2 text-center">
                                                             <div class="text-sm text-gray-700 font-medium">
                                                                 {{ activity.date ? new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date' }}
                                                                 <div v-if="activity.daysLeft" class="text-xs text-gray-500 mt-0.5">{{ activity.daysLeft }}</div>
@@ -480,8 +446,8 @@
                                                         </div>
 
                                                         <!-- Actions -->
-                                                        <div class="col-span-2 flex items-center justify-center gap-2 self-center">
-                                                            <!-- Retract Button (First) -->
+                                                        <div class="col-span-2 flex items-center justify-center gap-2">
+                                                            <!-- Retract Button -->
                                                             <button
                                                                 @click.stop="retractActivity(activity, index)"
                                                                 :disabled="!activity.is_published"
@@ -491,26 +457,10 @@
                                                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                                         : 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm hover:shadow'
                                                                 ]"
-                                                                :title="!activity.is_published ? 'Already retracted' : 'Retract from students'"
+                                                                :title="!activity.is_published ? 'Not published' : 'Retract from students'"
                                                             >
-                                                                <i class="pi pi-undo text-xs"></i>
+                                                                <i class="pi pi-times text-xs"></i>
                                                                 <span>Retract</span>
-                                                            </button>
-
-                                                            <!-- Edit Button (Second) -->
-                                                            <button
-                                                                @click.stop="editActivity(activity, index)"
-                                                                :disabled="isActivityPastDue(activity)"
-                                                                :class="[
-                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
-                                                                    isActivityPastDue(activity)
-                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
-                                                                ]"
-                                                                :title="isActivityPastDue(activity) ? 'Cannot edit past due activities' : 'Edit activity'"
-                                                            >
-                                                                <i class="pi pi-pencil text-xs"></i>
-                                                                <span>Edit</span>
                                                             </button>
                                                         </div>
                                                     </div>
@@ -1000,7 +950,6 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <h1 class="text-2xl font-bold text-gray-900">My Classroom</h1>
-                                    <p class="text-sm text-gray-600 mt-1">Manage your students, track attendance, and monitor performance</p>
                                 </div>
                                 <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
                                     <span class="text-sm text-gray-500">School Year:</span>
@@ -1483,9 +1432,9 @@
         </Dialog>
 
         <!-- Delete Criteria Confirmation Dialog -->
-        <Dialog v-model:visible="showDeleteCriteriaDialog" 
-                modal 
-                header="Delete Criterion" 
+        <Dialog v-model:visible="showDeleteCriteriaDialog"
+                modal
+                header="Delete Criterion"
                 :style="{ width: '90%', maxWidth: '28rem' }">
             <div class="p-6">
                 <div class="flex items-start gap-4">
@@ -1833,6 +1782,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-900 mb-2">Content</label>
                     <textarea
+                        ref="previewTextareaRef"
                         v-model="previewTempContent"
                         :rows="previewDialogType === 'title' ? 3 : 8"
                         class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-vertical font-mono"
@@ -1916,7 +1866,18 @@
                             >
                         </div>
                         <div>
-                            <label for="editActivityDescription" class="block text-xs font-medium text-gray-700 mb-0.5">Instruction</label>
+                            <div class="flex items-center justify-between mb-0.5">
+                                <label for="editActivityDescription" class="block text-xs font-medium text-gray-700">Instruction</label>
+                                <button
+                                    @click="openPreviewDialog('instruction', editActivityData.description)"
+                                    type="button"
+                                    class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
+                                    title="Expand to edit in larger view"
+                                >
+                                    <i class="pi pi-expand"></i>
+                                    <span>Expand</span>
+                                </button>
+                            </div>
                             <textarea
                                 id="editActivityDescription"
                                 v-model="editActivityData.description"
@@ -2313,6 +2274,7 @@ const previewDialogTitle = ref('');
 const previewContent = ref('');
 const previewCriteriaIndex = ref(null);
 const previewTempContent = ref('');
+const previewTextareaRef = ref(null);
 
 const editActivityData = ref({
     id: null,
@@ -2401,36 +2363,60 @@ const openPreviewDialog = (type, content, index = null) => {
     }
 
     showPreviewDialog.value = true;
+
+    // Focus textarea after dialog opens
+    nextTick(() => {
+        if (previewTextareaRef.value) {
+            previewTextareaRef.value.focus();
+        }
+    });
 };
 
 const savePreviewContent = () => {
     try {
-        // Trim whitespace from input
-        const trimmedContent = previewTempContent.value ? previewTempContent.value.trim() : '';
-        
+        // Get the content (preserve original formatting for instruction)
+        const content = previewTempContent.value || '';
+
         // Validate input based on type
         if (previewDialogType.value === 'title') {
+            const trimmedContent = content.trim();
             if (!trimmedContent) {
                 showError('Title cannot be empty');
                 return;
             }
-            newActivity.value.title = trimmedContent;
+            // Update both new and edit activity data
+            if (showEditDialog.value) {
+                editActivityData.value.title = trimmedContent;
+            } else {
+                newActivity.value.title = trimmedContent;
+            }
         } else if (previewDialogType.value === 'instruction') {
-            // Allow empty but not null/undefined
-            newActivity.value.description = trimmedContent || '';
+            // Preserve original formatting (don't trim) for instruction
+            // Update both new and edit activity data
+            if (showEditDialog.value) {
+                editActivityData.value.description = content;
+            } else {
+                newActivity.value.description = content;
+            }
         } else if (previewDialogType.value === 'criteria') {
+            const trimmedContent = content.trim();
             if (previewCriteriaIndex.value !== null) {
                 if (!trimmedContent) {
                     showError('Criteria name cannot be empty');
                     return;
                 }
-                savedCriteria.value[previewCriteriaIndex.value].name = trimmedContent;
+                // Update the appropriate criteria array
+                if (showEditDialog.value) {
+                    editScoringCriteria.value[previewCriteriaIndex.value].name = trimmedContent;
+                } else {
+                    savedCriteria.value[previewCriteriaIndex.value].name = trimmedContent;
+                }
             }
         }
 
         // Show success feedback
         showSuccess('Changes saved successfully');
-        
+
         // Close the dialog
         closePreviewDialog();
     } catch (error) {

@@ -213,7 +213,6 @@ onMounted(() => {
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-white">My Profile</h1>
-                    <p class="text-white/80 text-sm mt-1">Manage your personal information and preferences</p>
                 </div>
                 <button
                     @click="$emit('navigate', 'StudentNewsfeed')"

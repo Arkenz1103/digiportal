@@ -142,61 +142,36 @@
                 <!-- Activity Detail View -->
                 <div v-if="selectedActivity" class="bg-white rounded-xl shadow-lg p-6 mb-6 border border-indigo-100">
                   <!-- Top Section: Activity Header Card -->
-                  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-                    <!-- Header with Gradient -->
-                    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 px-6 py-4">
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                          <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                            <i class="pi pi-book text-white text-lg"></i>
-                          </div>
-                          <div>
-                            <h2 class="text-xl font-bold text-white">{{ selectedActivity.title }}</h2>
-                            <p class="text-sm text-white/80 mt-0.5">Activity Details</p>
-                          </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                          <span class="px-3 py-1.5 bg-white/20 text-white text-sm font-medium rounded-full">
-                            <i class="pi pi-calendar mr-1.5"></i>
-                            Due: {{ selectedActivity.date }}<span v-if="selectedActivity.formattedTime"> at {{ selectedActivity.formattedTime }}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
+                  <div class="bg-white shadow-sm border-b border-gray-200 mb-4">
                     <!-- Content Area -->
-                    <div class="p-6">
-                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="p-4">
+                      <div class="flex flex-col lg:flex-row gap-6">
                         <!-- Left: Activity Info -->
-                        <div class="lg:col-span-2 space-y-4">
-                          <!-- Type -->
-                          <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                              <i class="pi pi-tag text-indigo-600"></i>
-                            </div>
-                            <div class="flex-1">
-                              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Activity Type</div>
-                              <div class="text-sm font-medium text-gray-900 capitalize">{{ selectedActivity.type }}</div>
-                            </div>
+                        <div class="flex-1 flex flex-col gap-4">
+                          <div class="flex flex-col gap-2">
+                            <p class="text-sm text-black">
+                              <span class="font-bold">Activity Title:</span> {{ selectedActivity.title }}
+                            </p>
+                            <p class="text-sm text-black">
+                              <span class="font-bold">Activity Type:</span> <span class="capitalize">{{ selectedActivity.type || 'Not specified' }}</span>
+                            </p>
+                            <p class="text-sm text-black">
+                              <span class="font-bold">Due date & time:</span> {{ selectedActivity.date || 'No due date set' }}<span v-if="selectedActivity.formattedTime"> at {{ selectedActivity.formattedTime }}</span>
+                            </p>
                           </div>
-
-                          <!-- Instructions -->
-                          <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                              <i class="pi pi-align-left text-indigo-600"></i>
-                            </div>
-                            <div class="flex-1">
-                              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Instructions</div>
-                              <div class="text-sm text-gray-700 leading-relaxed">
-                                {{ selectedActivity.description }}
-                              </div>
+                          <div class="flex flex-col gap-2">
+                            <p class="text-sm text-black">
+                              <span class="font-bold">Instruction:</span>
+                            </p>
+                            <div class="text-sm text-black whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              {{ selectedActivity.description || 'No instructions provided' }}
                             </div>
                           </div>
                         </div>
 
                         <!-- Right: Your Work Card -->
                         <div class="lg:col-span-1">
-                          <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 p-4 h-full">
+                          <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 p-4 w-96 h-auto">
                             <!-- Header -->
                             <div class="mb-4">
                               <div class="flex items-center justify-between mb-3">
@@ -458,44 +433,25 @@
                     </div>
                   </div>
 
-                  <!-- Scoring Criteria Section (Centered) -->
-                  <div class="mb-6 flex justify-center">
-                    <div class="w-full max-w-md">
-                      <div v-if="selectedActivity.scoringCriteria && selectedActivity.scoringCriteria.length > 0" class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-                        <h3 class="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <i class="pi pi-star text-indigo-600"></i>
-                          Scoring Criteria
-                        </h3>
-                        <div class="space-y-2">
-                          <div
-                            v-for="(criterion, index) in selectedActivity.scoringCriteria"
-                            :key="index"
-                            class="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100"
-                          >
-                            <div class="flex items-center gap-2">
-                              <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
-                              <span class="text-sm font-medium text-gray-900">{{ criterion.name }}</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                              <span class="text-sm font-semibold text-indigo-600">{{ criterion.maxScore }}</span>
-                              <span class="text-xs text-gray-500">pts</span>
-                            </div>
-                          </div>
-                          <!-- Total Points -->
-                          <div class="flex items-center justify-between p-3 bg-indigo-100 rounded-lg border border-indigo-200 mt-2">
-                            <span class="text-sm font-semibold text-gray-900">Total Points</span>
-                            <div class="flex items-center gap-1">
-                              <span class="text-base font-bold text-indigo-700">{{ calculateTotalPoints(selectedActivity.scoringCriteria) }}</span>
-                              <span class="text-xs text-gray-600">pts</span>
-                            </div>
-                          </div>
+                  <!-- Scoring Criteria Section (2-Column Layout with Max 2 Rows) -->
+                  <div v-if="!hasScore" class="mb-6">
+                    <div v-if="selectedActivity.scoringCriteria && selectedActivity.scoringCriteria.length > 0" class="bg-white rounded-lg p-4 border border-gray-200">
+                      <h3 class="text-sm font-bold text-gray-900 mb-3">Scoring Criteria:</h3>
+                      <div class="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto">
+                        <div
+                          v-for="(criterion, index) in selectedActivity.scoringCriteria"
+                          :key="index"
+                          class="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        >
+                          <p class="text-xs font-semibold text-gray-700 truncate">{{ criterion.name }}</p>
+                          <p class="text-xs text-gray-600 mt-1">{{ criterion.maxScore }} pts</p>
                         </div>
                       </div>
-                      <div v-else class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div class="flex items-center gap-2 text-gray-600">
-                          <i class="pi pi-info-circle"></i>
-                          <span class="text-sm">No scoring criteria has been set for this activity yet.</span>
-                        </div>
+                    </div>
+                    <div v-else class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div class="flex items-center gap-2 text-gray-600">
+                        <i class="pi pi-info-circle"></i>
+                        <span class="text-sm">No scoring criteria has been set for this activity yet.</span>
                       </div>
                     </div>
                   </div>
@@ -695,20 +651,20 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                       <!-- Table Header -->
                       <div class="bg-gray-50 border-b border-gray-200">
-                        <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div class="col-span-2">
-                            <span>Activity Type</span>
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider items-center">
+                          <div class="col-span-2 text-center">
+                            <span>Activity ID#</span>
                           </div>
-                          <div class="col-span-2">
+                          <div class="col-span-2 text-center">
                             <span>Activity Title</span>
                           </div>
-                          <div class="col-span-3">
-                            <span>Instruction</span>
+                          <div class="col-span-2 text-center">
+                            <span>Type</span>
                           </div>
                           <div class="col-span-2 text-center">
                             <span>Status</span>
                           </div>
-                          <div class="col-span-1 text-center">
+                          <div class="col-span-2 text-center">
                             <span>Due Time</span>
                           </div>
                           <div class="col-span-2 text-center">
@@ -724,43 +680,19 @@
                           @click="openActivity(activity)">
 
                           <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
-                            <!-- Activity Type with Icon -->
-                            <div class="col-span-2">
-                              <div class="flex items-center gap-2">
-                                <div :class="[
-                                  'w-8 h-8 rounded-lg flex items-center justify-center',
-                                  activity.type === 'project' ? 'bg-purple-100' :
-                                  activity.type === 'contest' ? 'bg-blue-100' :
-                                  activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
-                                ]">
-                                  <span :class="[
-                                    'text-lg font-bold',
-                                    activity.type === 'project' ? 'text-purple-600' :
-                                    activity.type === 'contest' ? 'text-blue-600' :
-                                    activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
-                                  ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
-                                </div>
-                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
-                              </div>
+                            <!-- Activity ID# -->
+                            <div class="col-span-2 text-center">
+                              <span class="text-sm text-gray-700 font-medium">{{ activity.id }}</span>
                             </div>
 
                             <!-- Title -->
-                            <div class="col-span-2">
-                              <div class="font-medium text-gray-900">
-                                {{ activity.title }}
-                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
-                              </div>
+                            <div class="col-span-2 text-center">
+                              <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
                             </div>
 
-                            <!-- Instructions -->
-                            <div class="col-span-3">
-                              <div
-                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
-                                :title="activity.description"
-                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
-                              >
-                                {{ activity.description || 'No instructions provided' }}
-                              </div>
+                            <!-- Activity Type -->
+                            <div class="col-span-2 text-center">
+                              <span class="text-sm text-gray-700 capitalize font-medium">{{ activity.type }}</span>
                             </div>
 
                             <!-- Status Badge -->
@@ -778,7 +710,7 @@
                             </div>
 
                             <!-- Due Time -->
-                            <div class="col-span-1 text-center">
+                            <div class="col-span-2 text-center">
                               <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
                               <span v-else class="text-sm text-gray-400">--:--</span>
                             </div>
@@ -828,20 +760,20 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                       <!-- Table Header -->
                       <div class="bg-gray-50 border-b border-gray-200">
-                        <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div class="col-span-2">
-                            <span>Activity Type</span>
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider items-center">
+                          <div class="col-span-2 text-center">
+                            <span>Activity ID#</span>
                           </div>
-                          <div class="col-span-2">
+                          <div class="col-span-2 text-center">
                             <span>Activity Title</span>
                           </div>
-                          <div class="col-span-3">
-                            <span>Instruction</span>
+                          <div class="col-span-2 text-center">
+                            <span>Type</span>
                           </div>
                           <div class="col-span-2 text-center">
                             <span>Status</span>
                           </div>
-                          <div class="col-span-1 text-center">
+                          <div class="col-span-2 text-center">
                             <span>Due Time</span>
                           </div>
                           <div class="col-span-2 text-center">
@@ -857,43 +789,19 @@
                           @click="openActivity(activity)">
 
                           <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
-                            <!-- Activity Type with Icon -->
-                            <div class="col-span-2">
-                              <div class="flex items-center gap-2">
-                                <div :class="[
-                                  'w-8 h-8 rounded-lg flex items-center justify-center',
-                                  activity.type === 'project' ? 'bg-purple-100' :
-                                  activity.type === 'contest' ? 'bg-blue-100' :
-                                  activity.type === 'quiz' ? 'bg-green-100' : 'bg-gray-100'
-                                ]">
-                                  <span :class="[
-                                    'text-lg font-bold',
-                                    activity.type === 'project' ? 'text-purple-600' :
-                                    activity.type === 'contest' ? 'text-blue-600' :
-                                    activity.type === 'quiz' ? 'text-green-600' : 'text-gray-600'
-                                  ]">{{ activity.type.charAt(0).toUpperCase() }}</span>
-                                </div>
-                                <span class="text-sm text-gray-700 capitalize">{{ activity.type }}</span>
-                              </div>
+                            <!-- Activity ID# -->
+                            <div class="col-span-2 text-center">
+                              <span class="text-sm text-gray-700 font-medium">{{ activity.id }}</span>
                             </div>
 
                             <!-- Title -->
-                            <div class="col-span-2">
-                              <div class="font-medium text-gray-900">
-                                {{ activity.title }}
-                                <div class="text-xs text-gray-500">ID: {{ activity.id }}</div>
-                              </div>
+                            <div class="col-span-2 text-center">
+                              <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
                             </div>
 
-                            <!-- Instructions -->
-                            <div class="col-span-3">
-                              <div
-                                class="text-sm text-gray-600 line-clamp-2 leading-relaxed"
-                                :title="activity.description"
-                                style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
-                              >
-                                {{ activity.description || 'No instructions provided' }}
-                              </div>
+                            <!-- Activity Type -->
+                            <div class="col-span-2 text-center">
+                              <span class="text-sm text-gray-700 capitalize font-medium">{{ activity.type }}</span>
                             </div>
 
                             <!-- Status Badge -->
@@ -917,7 +825,7 @@
                             </div>
 
                             <!-- Due Time -->
-                            <div class="col-span-1 text-center">
+                            <div class="col-span-2 text-center">
                               <span v-if="activity.formattedTime" class="text-sm text-gray-700">{{ activity.formattedTime }}</span>
                               <span v-else class="text-sm text-gray-400">--:--</span>
                             </div>
@@ -1323,8 +1231,8 @@
                             <i class="pi pi-file-pdf text-6xl text-red-500 mb-4" v-if="portfolioActivities[currentActivityIndex].submission_file.includes('pdf')"></i>
                             <i class="pi pi-file text-6xl text-indigo-300 mb-4" v-else></i>
                             <p class="text-gray-600 font-medium mb-2">File Attached</p>
-                            <a :href="portfolioActivities[currentActivityIndex].submission_file" 
-                               target="_blank" 
+                            <a :href="portfolioActivities[currentActivityIndex].submission_file"
+                               target="_blank"
                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
                                 View File
                             </a>
@@ -1356,12 +1264,12 @@
                            :class="portfolioActivities[currentActivityIndex].is_compilation ? 'bg-purple-50 border border-purple-200' : 'bg-green-50 border border-green-200'">
                         <div class="flex items-center justify-between mb-2">
                           <span class="text-sm font-medium text-gray-700">Status:</span>
-                          <span class="text-xl font-bold" 
+                          <span class="text-xl font-bold"
                                 :class="(portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score == null) ? 'text-purple-700' : 'text-green-700'">
                                 {{ (portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score == null) ? 'Compiled' : portfolioActivities[currentActivityIndex].submission_score }}
                           </span>
                         </div>
-                        <div v-if="portfolioActivities[currentActivityIndex].submission_feedback" 
+                        <div v-if="portfolioActivities[currentActivityIndex].submission_feedback"
                              class="mt-2 pt-2 border-t"
                              :class="portfolioActivities[currentActivityIndex].is_compilation ? 'border-purple-200' : 'border-green-200'">
                           <p class="text-sm text-gray-600">
@@ -1671,8 +1579,7 @@
             <div class="bg-white shadow-sm border-b border-gray-200 rounded-t-xl -mx-6 -mt-6 px-6 py-4 mb-6">
               <div class="flex items-center justify-between">
                 <div>
-                  <h1 class="text-2xl font-bold text-gray-900">My Classroom</h1>
-                  <p class="text-sm text-gray-600 mt-1">View your classmates and class information</p>
+                  <h1 class="text-2xl font-bold text-gray-900">My Classroom </h1>
                 </div>
                 <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
                   <span class="text-sm text-gray-500">School Year:</span>
@@ -3484,9 +3391,12 @@ const loadFolderActivities = async (folderId) => {
   try {
     const response = await axios.get(`/api/portfolio/folders/${folderId}/activities/`);
     if (response.data) {
+      // Filter only published activities
+      const publishedActivities = response.data.filter(activity => activity.is_published === true);
+
       // Format activities for display and check submission status for each
       const activitiesWithStatus = await Promise.all(
-        response.data.map(async (activity) => {
+        publishedActivities.map(async (activity) => {
           // Check if student has submitted for this activity
           let hasSubmitted = false;
           let isLate = false;
@@ -3577,12 +3487,16 @@ const loadPortfolioFolders = async (classId = null) => {
     console.log('Student API Response:', response.data); // Debug log
 
     if (response.data && Array.isArray(response.data)) {
-      portfolioFolders.value = response.data.map(folder => ({
-        id: folder.id,
-        title: folder.name,
-        items: folder.activities ? folder.activities.length : 0,
-        description: folder.description || ''
-      }));
+      portfolioFolders.value = response.data.map(folder => {
+        // Filter only published activities
+        const publishedActivities = folder.activities ? folder.activities.filter(activity => activity.is_published === true) : [];
+        return {
+          id: folder.id,
+          title: folder.name,
+          items: publishedActivities.length,
+          description: folder.description || ''
+        };
+      });
     } else {
       console.warn('API did not return an array:', response.data);
       portfolioFolders.value = [];
@@ -4815,14 +4729,14 @@ const useSelectedCollectionItem = async () => {
 
   try {
     console.log('📤 Using collection item as draft:', selectedItem.activity_title);
-    
+
     // Fetch the file from the URL
     // Note: If file_path is relative, ensure it works. Usually browsers handle relative to current origin.
     const response = await fetch(selectedItem.file_path);
     if (!response.ok) throw new Error('Failed to fetch file');
-    
+
     const blob = await response.blob();
-    
+
     // Determine mime type and extension
     let mimeType = blob.type;
     let extension = 'bin';
@@ -4836,7 +4750,7 @@ const useSelectedCollectionItem = async () => {
        mimeType = 'application/pdf';
        extension = 'pdf';
     }
-    
+
     // Create a file from the blob
     // Clean title for filename
     const cleanTitle = (selectedItem.activity_title || 'submission').replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -5899,24 +5813,24 @@ const submitCompilation = async () => {
 // Compile activity immediately (mark as compiled)
 const compileActivityNow = async (activity) => {
   if (!activity) return;
-  
+
   try {
     isSubmitting.value = true;
     console.log('⚡ Compiling activity now:', activity.id);
-    
+
     const response = await axios.post('/student/compile/', {
       activity_id: activity.id
     });
-    
+
     if (response.data.success) {
       console.log('✅ Activity compiled successfully');
-      
+
       // Update local state immediately for better UX
       missingActivities.value = missingActivities.value.filter(a => a.id !== activity.id);
-      
+
       // Refresh full list from server
       await fetchPortfolioActivities();
-      
+
       showSuccess('Activity compiled successfully! It is now in your Activity Compilation.', 'Compiled');
     }
   } catch (error) {
@@ -6487,4 +6401,3 @@ const submitNewProduct = async () => {
   --theme-dark: #111827;
 }
 </style>
-  

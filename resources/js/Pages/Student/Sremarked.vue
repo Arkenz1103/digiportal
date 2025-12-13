@@ -4,7 +4,6 @@
       <!-- Header -->
       <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6">
         <h1 class="text-2xl font-bold text-white">My Remarks from Teachers</h1>
-        <p class="text-white/80 text-sm mt-1">View feedback and comments from your teachers</p>
       </div>
 
       <!-- Content -->
@@ -30,19 +29,19 @@
             </div>
             <!-- Tabs -->
             <div class="flex gap-2 border-b border-indigo-200 px-4 pt-2">
-              <button 
+              <button
                 @click="remarksTab = 'all'"
                 class="px-3 py-2 text-sm font-medium transition-colors duration-200"
-                :class="remarksTab === 'all' 
-                  ? 'text-indigo-600 border-b-2 border-indigo-600' 
+                :class="remarksTab === 'all'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600'
                   : 'text-gray-500 hover:text-indigo-600'">
                 All
               </button>
-              <button 
+              <button
                 @click="remarksTab = 'unread'"
                 class="px-3 py-2 text-sm font-medium transition-colors duration-200 flex items-center gap-2"
-                :class="remarksTab === 'unread' 
-                  ? 'text-indigo-600 border-b-2 border-indigo-600' 
+                :class="remarksTab === 'unread'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600'
                   : 'text-gray-500 hover:text-indigo-600'">
                 Unread
                 <span v-if="unreadRemarksCount > 0" class="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
@@ -52,7 +51,7 @@
             </div>
             <div class="p-4 max-h-[700px] overflow-y-auto">
               <div v-if="filteredRemarks.length > 0" class="space-y-3">
-                <div v-for="remark in filteredRemarks" 
+                <div v-for="remark in filteredRemarks"
                      :key="remark.id"
                      @click="openRemarkDetail(remark)"
                      class="bg-white p-4 rounded-xl border-2 hover:shadow-md transition-all duration-200 hover:border-indigo-300 cursor-pointer"
@@ -104,35 +103,35 @@
               </h3>
               <p class="text-xs text-indigo-600 mt-1">Feedback on your submitted work</p>
             </div>
-            
+
             <!-- Tabs for Output Remarks -->
             <div class="flex gap-6 px-4 pt-3 border-b border-indigo-100">
-              <button 
+              <button
                 @click="outputRemarksTab = 'all'"
-                :class="['pb-2 px-1 text-sm font-semibold transition-all duration-200 border-b-2', 
-                         outputRemarksTab === 'all' 
-                           ? 'text-indigo-700 border-indigo-600' 
+                :class="['pb-2 px-1 text-sm font-semibold transition-all duration-200 border-b-2',
+                         outputRemarksTab === 'all'
+                           ? 'text-indigo-700 border-indigo-600'
                            : 'text-gray-500 border-transparent hover:text-indigo-600']">
                 All
               </button>
-              <button 
+              <button
                 @click="outputRemarksTab = 'unread'"
-                :class="['pb-2 px-1 text-sm font-semibold transition-all duration-200 border-b-2 flex items-center gap-2', 
-                         outputRemarksTab === 'unread' 
-                           ? 'text-indigo-700 border-indigo-600' 
+                :class="['pb-2 px-1 text-sm font-semibold transition-all duration-200 border-b-2 flex items-center gap-2',
+                         outputRemarksTab === 'unread'
+                           ? 'text-indigo-700 border-indigo-600'
                            : 'text-gray-500 border-transparent hover:text-indigo-600']">
                 Unread
-                <span v-if="unreadOutputRemarksCount > 0" 
+                <span v-if="unreadOutputRemarksCount > 0"
                       class="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                   {{ unreadOutputRemarksCount }}
                 </span>
               </button>
             </div>
-            
+
             <div class="p-4 max-h-[700px] overflow-y-auto">
               <div v-if="filteredOutputRemarks.length > 0" class="space-y-3">
-                <div v-for="remark in filteredOutputRemarks" 
-                     :key="remark.id" 
+                <div v-for="remark in filteredOutputRemarks"
+                     :key="remark.id"
                      class="bg-white p-4 rounded-xl border-2 border-indigo-100 hover:shadow-md transition-all duration-200 hover:border-indigo-300 hover:scale-[1.02]">
                   <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center gap-3">
@@ -232,7 +231,7 @@ const selectedRemark = ref(null);
 // Load remarks from API
 const loadRemarks = async () => {
   isLoading.value = true;
-  
+
   try {
     // Load general remarks
     const remarksResponse = await axios.get('/api/remarks/');
@@ -253,7 +252,7 @@ const loadRemarks = async () => {
       console.log('Loaded general remarks:', remarks.value.length);
       console.log('Unread remarks:', remarks.value.filter(r => !r.is_read).length);
     }
-    
+
     // Load output-specific remarks (from student's own submissions)
     try {
       const remarksResponse = await axios.get('/api/student/submission-remarks/');
@@ -335,7 +334,7 @@ const getCsrfToken = () => {
 const openRemarkDetail = async (remark) => {
   selectedRemark.value = remark;
   showRemarkDetailDialog.value = true;
-  
+
   // Mark as read when opened
   if (!remark.is_read) {
     try {

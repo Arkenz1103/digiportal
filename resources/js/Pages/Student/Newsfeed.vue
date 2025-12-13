@@ -2,86 +2,58 @@
     <div class="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
         <!-- Main Content -->
         <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-
             <!-- Loading State -->
-            <div v-if="isLoading" class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl shadow-xl border-2 border-teal-100">
-                <div class="relative">
-                    <div class="animate-spin rounded-full h-16 w-16 border-4 border-teal-200"></div>
-                    <div class="absolute top-0 animate-spin rounded-full h-16 w-16 border-t-4 border-teal-600"></div>
+            <div v-if="isLoading" class="flex justify-center items-center py-20">
+                <div class="text-center">
+                    <div class="animate-spin rounded-full h-16 w-16 border-4 border-indigo-600 border-t-transparent mx-auto mb-4"></div>
+                    <p class="text-gray-600">Loading amazing work...</p>
                 </div>
-                <p class="mt-4 text-gray-600 font-medium">Loading amazing content...</p>
             </div>
 
             <!-- Empty State -->
-            <div v-else-if="posts.length === 0" class="text-center py-16 bg-white rounded-2xl shadow-xl border-2 border-teal-100">
-                <div class="max-w-sm mx-auto">
-                    <div class="w-24 h-24 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <i class="pi pi-palette text-4xl text-teal-600"></i>
+            <div v-else-if="posts.length === 0" class="text-center py-20">
+                <div class="bg-white rounded-2xl shadow-xl p-12 max-w-md mx-auto border-2 border-teal-100">
+                    <div class="w-20 h-20 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="pi pi-image text-4xl text-teal-600"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Posts Yet</h3>
-                    <p class="text-gray-600">No posts from your classroom yet. Check back later!</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">No Posts Yet</h3>
+                    <p class="text-gray-600">Approved student artwork will appear here</p>
+                    <p class="text-sm text-gray-500 mt-2">Check back soon for creative submissions!</p>
                 </div>
             </div>
 
             <!-- Posts Feed -->
             <div v-else class="space-y-6">
-                <div v-for="post in posts" :key="post.id" 
+                <!-- Post Card -->
+                <div v-for="post in posts" :key="post.id"
                     class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-teal-100 hover:border-teal-300">
-                    
+
                     <!-- Post Header -->
                     <div class="p-6 pb-4">
                         <div class="flex items-start justify-between">
                             <div class="flex items-center gap-4">
+                                <!-- Avatar -->
                                 <div class="relative">
-                                    <div class="w-14 h-14 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ring-2 ring-teal-200">
+                                    <div :class="getAvatarColor(post.user)"
+                                        class="w-14 h-14 flex items-center justify-center rounded-full text-white font-bold text-lg shadow-lg ring-2 ring-teal-200">
                                         {{ post.user.charAt(0).toUpperCase() }}
                                     </div>
                                     <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-teal-500 rounded-full border-2 border-white"></div>
                                 </div>
+
+                                <!-- User Info -->
                                 <div>
-                                    <h3 class="font-bold text-lg text-gray-800">{{ post.user }}</h3>
-                                    <div class="flex items-center gap-2 text-sm">
-                                        <span class="text-gray-500">{{ post.timestamp }}</span>
-                                        <span v-if="post.activityTitle" class="text-teal-700 font-semibold">
-                                            <i class="pi pi-bookmark-fill text-xs"></i>
+                                    <h3 class="font-bold text-gray-900 text-lg">{{ post.user }}</h3>
+                                    <div class="flex items-center gap-2 text-sm text-gray-500">
+                                        <i class="pi pi-clock text-xs"></i>
+                                        <span>{{ post.timestamp }}</span>
+                                    </div>
+                                    <div v-if="post.activityTitle" class="flex items-center gap-2 mt-1">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r from-teal-100 to-cyan-100 text-teal-800 border border-teal-200">
+                                            <i class="pi pi-bookmark text-[10px] mr-1"></i>
                                             {{ post.activityType }}
                                         </span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 3-Dot Menu -->
-                            <div class="relative">
-                                <button @click="togglePostMenu(post)" 
-                                    class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
-                                    <i class="pi pi-ellipsis-v text-xl"></i>
-                                </button>
-                                
-                                <!-- Dropdown Menu -->
-                                <div v-if="post.showMenu" 
-                                    class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-                                    <div class="py-2">
-                                        <button @click="bookmarkPost(post)" 
-                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                            <i class="pi pi-bookmark text-indigo-600"></i>
-                                            <span class="text-sm font-medium text-gray-700">Save Post</span>
-                                        </button>
-                                        <button @click="reportPost(post)" 
-                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                            <i class="pi pi-flag text-orange-600"></i>
-                                            <span class="text-sm font-medium text-gray-700">Report Content</span>
-                                        </button>
-                                        <button @click="hidePost(post)" 
-                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                            <i class="pi pi-eye-slash text-gray-600"></i>
-                                            <span class="text-sm font-medium text-gray-700">Hide Post</span>
-                                        </button>
-                                        <div class="border-t border-gray-100 my-1"></div>
-                                        <button @click="copyLink(post)" 
-                                            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                                            <i class="pi pi-link text-blue-600"></i>
-                                            <span class="text-sm font-medium text-gray-700">Copy Link</span>
-                                        </button>
+                                        <span class="text-xs text-gray-600 font-medium">{{ post.activityTitle }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -91,213 +63,212 @@
                     <!-- Post Content -->
                     <div class="px-6 pb-4">
                         <p class="text-gray-700 leading-relaxed">{{ post.content }}</p>
-                        <div v-if="post.activityTitle" class="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-teal-100 to-cyan-100 rounded-full border border-teal-200">
-                            <i class="pi pi-tag text-teal-600 text-sm"></i>
-                            <span class="text-sm font-semibold text-teal-800">{{ post.activityTitle }}</span>
-                        </div>
                     </div>
 
                     <!-- Post Image with Placeholder -->
-                    <div v-if="post.image" class="px-6 pb-4">
-                        <div class="relative group cursor-pointer bg-gray-100 rounded-2xl overflow-hidden">
-                            <!-- Smaller aspect ratio container -->
-                            <div class="relative w-full" style="padding-bottom: 50%; min-height: 200px; max-height: 400px;">
-                                <img :src="post.image" 
-                                    :alt="post.content"
-                                    class="absolute inset-0 w-full h-full object-contain bg-gray-50"
-                                    @error="handleImageError"
-                                    loading="lazy">
-                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+                    <div v-if="post.image" class="relative group bg-gray-100">
+                        <!-- Smaller aspect ratio container -->
+                        <div class="relative w-full" style="padding-bottom: 50%; min-height: 200px; max-height: 400px;">
+                            <img :src="post.image"
+                                :alt="post.content"
+                                class="absolute inset-0 w-full h-full object-contain cursor-pointer bg-gray-50"
+                                @click="openImageModal(post.image)"
+                                @error="handleImageError"
+                                loading="lazy">
+                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center pointer-events-none">
+                                <i class="pi pi-search-plus text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></i>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Smaller placeholder for missing image -->
-                    <div v-else-if="post.activityType" class="px-6 pb-4">
-                        <div class="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center" style="min-height: 200px;">
-                            <div class="text-center text-gray-400">
-                                <i class="pi pi-image text-4xl mb-2"></i>
-                                <p class="text-xs font-medium">No image available</p>
-                            </div>
+                    <div v-else-if="post.activityType" class="relative bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center" style="min-height: 200px;">
+                        <div class="text-center text-gray-400">
+                            <i class="pi pi-image text-4xl mb-2"></i>
+                            <p class="text-xs font-medium">No image available</p>
                         </div>
                     </div>
 
-                    <!-- Interaction Bar -->
-                    <div class="px-6 py-4 border-t-2 border-teal-50 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <!-- Like Button -->
-                                <button @click="toggleLike(post)" 
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 group"
-                                    :class="post.isLiked 
-                                        ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 border border-red-200 shadow-md' 
-                                        : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 border border-teal-200 hover:from-teal-100 hover:to-cyan-100'">
-                                    <i class="pi text-lg transition-transform group-hover:scale-110" 
-                                        :class="post.isLiked ? 'pi-heart-fill animate-pulse' : 'pi-heart'"></i>
-                                    <span class="font-semibold">{{ post.likes }}</span>
-                                </button>
-
-                                <!-- Comment Button -->
-                                <button @click="toggleComments(post)"
-                                    :class="post.showComments 
-                                        ? 'bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-700 border border-cyan-200' 
-                                        : 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-200 hover:from-cyan-100 hover:to-blue-100'"
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-300 group">
-                                    <i class="pi pi-comments text-lg transition-transform group-hover:scale-110"></i>
-                                    <span class="font-semibold">{{ post.comments.length }}</span>
-                                </button>
-                            </div>
-
-                            <!-- Bookmark Button -->
-                            <button @click="bookmarkPost(post)" 
-                                :class="post.isBookmarked ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'"
-                                class="transition-colors p-2 hover:bg-amber-50 rounded-full">
-                                <i class="pi text-xl" :class="post.isBookmarked ? 'pi-bookmark-fill' : 'pi-bookmark'"></i>
-                            </button>
+                    <!-- Engagement Stats -->
+                    <div class="px-6 py-3 border-t-2 border-teal-50 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">
+                        <div class="flex items-center justify-between text-sm font-medium">
+                            <span class="flex items-center gap-1.5 text-teal-700">
+                                <i class="pi pi-heart-fill text-red-500 text-sm"></i>
+                                {{ post.likes }} {{ post.likes === 1 ? 'like' : 'likes' }}
+                            </span>
+                            <span class="text-cyan-700">{{ post.comments.length }} {{ post.comments.length === 1 ? 'comment' : 'comments' }}</span>
                         </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="px-6 py-3 border-t-2 border-teal-50 flex items-center gap-2">
+                        <button @click="toggleLike(post)"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-200"
+                            :class="post.isLiked
+                                ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 hover:from-red-100 hover:to-pink-100 border border-red-200'
+                                : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 hover:from-teal-100 hover:to-cyan-100 border border-teal-200'">
+                            <i class="pi text-lg" :class="post.isLiked ? 'pi-heart-fill' : 'pi-heart'"></i>
+                            <span>{{ post.isLiked ? 'Liked' : 'Like' }}</span>
+                        </button>
+
+                        <button @click="toggleComments(post)"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 hover:from-cyan-100 hover:to-blue-100 border border-cyan-200 transition-all duration-200">
+                            <i class="pi pi-comment text-lg"></i>
+                            <span>Comment</span>
+                        </button>
                     </div>
 
                     <!-- Comments Section -->
-                    <div v-if="post.showComments" 
-                        class="px-6 pb-6 border-t-2 border-teal-50 bg-gradient-to-b from-teal-50/30 to-transparent">
-                        <h4 class="font-semibold text-gray-700 mb-4 mt-4 flex items-center gap-2">
-                            <i class="pi pi-comments text-cyan-600"></i>
-                            Comments ({{ post.comments.length }})
-                        </h4>
-                        
-                        <!-- Comment Input -->
-                        <div class="mb-4">
-                            <div class="flex items-start gap-3">
-                                <div class="w-10 h-10 bg-gradient-to-br from-teal-600 to-cyan-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-teal-200 shadow-lg">
-                                    S
+                    <div v-if="post.showComments" class="px-6 pb-6 border-t-2 border-teal-50 bg-gradient-to-b from-teal-50/30 to-transparent">
+                        <!-- Existing Comments -->
+                        <div v-if="post.comments.length > 0" class="mt-4 space-y-3 max-h-96 overflow-y-auto">
+                            <div v-for="comment in post.comments" :key="comment.id"
+                                class="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-white to-teal-50/50 hover:from-teal-50 hover:to-cyan-50 transition-colors border border-teal-100">
+                                <div :class="getAvatarColor(comment.user)"
+                                    class="w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0 ring-2 ring-teal-200">
+                                    {{ comment.user.charAt(0).toUpperCase() }}
                                 </div>
-                                <div class="flex-1">
-                                    <textarea 
-                                        v-model="post.newComment"
-                                        @keydown.enter.ctrl="addComment(post)"
-                                        placeholder="Write a comment... (Ctrl+Enter to post)"
-                                        class="w-full px-4 py-3 border-2 border-teal-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
-                                        rows="2"></textarea>
-                                    <div class="flex items-center justify-between mt-2">
-                                        <span class="text-xs text-gray-500">Press Ctrl+Enter to post</span>
-                                        <button @click="addComment(post)"
-                                            :disabled="!post.newComment || post.newComment.trim() === ''"
-                                            class="px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all text-sm font-semibold shadow-md">
-                                            <i class="pi pi-send mr-2"></i>
-                                            Post Comment
-                                        </button>
+                                <div class="flex-1 min-w-0">
+                                    <div class="bg-white rounded-lg p-3 shadow-md border border-teal-100">
+                                        <p class="font-semibold text-gray-900 text-sm">{{ comment.user }}</p>
+                                        <p class="text-gray-700 mt-1">{{ comment.text }}</p>
+                                    </div>
+                                    <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
+                                        <span>{{ comment.timestamp }}</span>
+                                        <button class="hover:text-teal-600 font-semibold">Like</button>
+                                        <button class="hover:text-cyan-600 font-semibold">Reply</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Comments List -->
-                        <div v-if="post.comments.length > 0" class="space-y-3">
-                            <div v-for="comment in post.comments" :key="comment.id" 
-                                class="flex items-start gap-3 bg-gradient-to-r from-white to-teal-50/50 hover:from-teal-50 hover:to-cyan-50 p-4 rounded-xl border border-teal-100 transition-colors">
-                                <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-teal-200">
-                                    {{ comment.user.charAt(0).toUpperCase() }}
-                                </div>
-                                <div class="flex-1">
-                                    <div class="flex items-center justify-between">
-                                        <p class="font-semibold text-gray-800">{{ comment.user }}</p>
-                                        <span class="text-xs text-gray-400">{{ comment.timestamp || 'Just now' }}</span>
+                        <!-- Add Comment Input -->
+                        <div class="mt-4 flex items-start gap-3">
+                            <div class="bg-gradient-to-br from-teal-600 to-cyan-600 w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0 ring-2 ring-teal-200 shadow-lg">
+                                S
+                            </div>
+                            <div class="flex-1">
+                                <textarea
+                                    v-model="post.newComment"
+                                    @keydown.enter.prevent="addComment(post)"
+                                    placeholder="Write a comment..."
+                                    rows="2"
+                                    class="w-full px-4 py-3 border-2 border-teal-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
+                                ></textarea>
+                                <div class="flex items-center justify-between mt-2">
+                                    <div class="flex items-center gap-2">
+                                        <button class="p-2 text-gray-400 hover:text-teal-600 transition-colors">
+                                            <i class="pi pi-image"></i>
+                                        </button>
+                                        <button class="p-2 text-gray-400 hover:text-amber-600 transition-colors">
+                                            <i class="pi pi-face-smile"></i>
+                                        </button>
                                     </div>
-                                    <p class="text-gray-600 mt-1">{{ comment.text }}</p>
+                                    <button
+                                        @click="addComment(post)"
+                                        :disabled="!post.newComment || post.newComment.trim() === ''"
+                                        class="px-5 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md">
+                                        Post
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Empty State -->
-                        <div v-else class="text-center py-8">
-                            <i class="pi pi-comments text-4xl text-gray-300 mb-2"></i>
-                            <p class="text-gray-400 text-sm">No comments yet. Be the first to comment!</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Image Modal -->
+        <div v-if="selectedImage"
+            @click="selectedImage = null"
+            class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <button @click="selectedImage = null"
+                class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors">
+                <i class="pi pi-times text-3xl"></i>
+            </button>
+            <img :src="selectedImage"
+                class="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                @click.stop>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-import { useToast } from '../../composables/useToast';
-
-const { showSuccess, showError, showInfo, showWarning } = useToast();
+import { ref, onMounted } from 'vue';
+import axios from '../../axios'; // Use configured axios with interceptors
 
 // Define emits
 const emit = defineEmits(['navigate']);
 
 const isLoading = ref(false);
 const posts = ref([]);
-const sidebarCollapsed = ref(false);
-const statsExpanded = ref(false);
-const currentFilter = ref('all');
-const showMobileStats = ref(false);
+const selectedImage = ref(null);
 
-// Computed values for stats
-const totalLikes = computed(() => {
-  return posts.value.reduce((sum, post) => sum + (post.likes || 0), 0);
-});
+// Avatar colors - Modern Blue-Green Theme
+const avatarColors = [
+  'bg-gradient-to-br from-teal-500 to-cyan-600',
+  'bg-gradient-to-br from-cyan-500 to-blue-600',
+  'bg-gradient-to-br from-blue-500 to-indigo-600',
+  'bg-gradient-to-br from-teal-600 to-emerald-600',
+  'bg-gradient-to-br from-amber-500 to-orange-500',
+  'bg-gradient-to-br from-cyan-600 to-teal-700',
+  'bg-gradient-to-br from-blue-600 to-cyan-700',
+  'bg-gradient-to-br from-emerald-500 to-teal-600'
+];
 
-const totalComments = computed(() => {
-  return posts.value.reduce((sum, post) => sum + (post.comments?.length || 0), 0);
-});
+// Get consistent avatar color based on username
+const getAvatarColor = (username) => {
+  const hash = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return avatarColors[hash % avatarColors.length];
+};
 
 // Load newsfeed from API
 const loadNewsfeed = async () => {
   isLoading.value = true;
   try {
-    const response = await axios.get('/api/newsfeed/');
+    const response = await axios.get('/api/newsfeed/', {
+      withCredentials: true
+    });
     if (response.data && Array.isArray(response.data)) {
-      posts.value = response.data.map(post => ({
-        id: post.id,
-        user: post.student_name,
-        content: post.caption || 'No description provided',
-        image: post.file_type === 'image' ? post.file_path : null,
-        likes: post.likes || 0,
-        isLiked: post.is_liked || false,
-        timestamp: getTimeAgo(post.posted_at),
-        activityTitle: post.activity_title,
-        activityType: post.activity_type,
-        comments: [],
-        showComments: false,
-        showMenu: false,
-        isBookmarked: false,
-        newComment: ''
-      }));
-      console.log('✅ Loaded newsfeed:', posts.value);
+      // Map posts and load comments for each
+      const postsPromises = response.data.map(async (post) => {
+        // Load comments for this post
+        let comments = [];
+        try {
+          const commentsResponse = await axios.get(`/api/posts/${post.id}/comments/`, {
+            withCredentials: true
+          });
+          comments = commentsResponse.data || [];
+        } catch (error) {
+          console.error(`Error loading comments for post ${post.id}:`, error);
+        }
+
+        return {
+          id: post.id,
+          user: post.student_name,
+          content: post.caption || 'No description provided',
+          image: post.file_type === 'image' ? post.file_path : null,
+          likes: post.likes || 0,
+          isLiked: post.is_liked || false,
+          timestamp: getTimeAgo(post.posted_at),
+          activityTitle: post.activity_title,
+          activityType: post.activity_type,
+          comments: comments,
+          showComments: false,
+          newComment: ''
+        };
+      });
+
+      posts.value = await Promise.all(postsPromises);
+      console.log('Loaded newsfeed for student:', posts.value);
     } else {
       posts.value = [];
     }
   } catch (error) {
-    console.error('❌ Error loading newsfeed:', error);
-    showError('Failed to load newsfeed posts', 'Error');
+    console.error('Error loading newsfeed:', error);
     posts.value = [];
   } finally {
     isLoading.value = false;
-  }
-};
-
-// Load comments for each post
-const loadComments = async () => {
-  for (const post of posts.value) {
-    try {
-      const response = await axios.get(`/api/posts/${post.id}/comments/`);
-      if (response.data && Array.isArray(response.data)) {
-        post.comments = response.data.map(comment => ({
-          id: comment.id,
-          user: comment.user,
-          text: comment.text,
-          timestamp: comment.timestamp || getTimeAgo(comment.created_at)
-        }));
-      }
-    } catch (error) {
-      console.error(`Error loading comments for post ${post.id}:`, error);
-      showError('Failed to load comments', 'Error');
-    }
   }
 };
 
@@ -307,169 +278,93 @@ const handleImageError = (event) => {
   event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not found%3C/text%3E%3C/svg%3E';
 };
 
-// Toggle like
+// Open image in modal
+const openImageModal = (imageUrl) => {
+  selectedImage.value = imageUrl;
+};
+
+// Helper function to get time ago
+const getTimeAgo = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+
+  if (seconds < 60) return 'Just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+};
+
+// Toggle like functionality
 const toggleLike = async (post) => {
+  const wasLiked = post.isLiked;
+  const wasLikes = post.likes;
+
+  // Optimistic update
+  post.isLiked = !post.isLiked;
+  post.likes += post.isLiked ? 1 : -1;
+
   try {
-    const newLikedState = !post.isLiked;
+    // Send like/unlike to backend
     const response = await axios.post(`/api/posts/${post.id}/like/`, {
-      liked: newLikedState
+      liked: post.isLiked
+    }, {
+      withCredentials: true
     });
-    
-    if (response.data.success) {
-      post.isLiked = newLikedState;
+
+    // Update with actual count from backend
+    if (response.data) {
       post.likes = response.data.likes_count;
-      console.log('✅ Like toggled successfully');
+      post.isLiked = response.data.is_liked;
     }
   } catch (error) {
-    console.error('❌ Error toggling like:', error);
-    if (error.response?.status === 403) {
-      const message = error.response?.data?.message || 'Please log in to like posts';
-      showError(message, 'Authentication Required');
-      if (confirm(`${message}\n\nWould you like to log in now?`)) {
-        emit('navigate', 'Login');
-      }
-    } else {
-      alert('Failed to like post. Please try again.');
-    }
+    console.error('Error toggling like:', error);
+    // Revert on error
+    post.isLiked = wasLiked;
+    post.likes = wasLikes;
+    alert('Failed to update like. Please try again.');
   }
 };
 
-// Toggle comments visibility
+// Toggle comments section
 const toggleComments = (post) => {
   post.showComments = !post.showComments;
 };
 
-// Filter by topic
-const filterByTopic = (topic) => {
-  currentFilter.value = topic;
-  // You can implement actual filtering logic here
-  // For now, just setting the active filter
-  console.log('Filtering by:', topic);
-};
-
-// Add comment
+// Add comment functionality
 const addComment = async (post) => {
   if (!post.newComment || post.newComment.trim() === '') return;
-  
+
+  const commentText = post.newComment.trim();
+
   try {
+    // Send comment to backend
     const response = await axios.post(`/api/posts/${post.id}/comments/`, {
-      text: post.newComment.trim()
+      text: commentText
+    }, {
+      withCredentials: true
     });
-    
-    if (response.data.success) {
-      // Add comment to the list
-      post.comments.push({
-        id: response.data.comment.id,
-        user: response.data.comment.user,
-        text: response.data.comment.text,
-        timestamp: response.data.comment.timestamp || 'Just now'
-      });
-      
-      // Clear input
-      post.newComment = '';
-      
-      console.log('✅ Comment added successfully');
+
+    // Use the comment returned from backend
+    if (response.data && response.data.comment) {
+      post.comments.push(response.data.comment);
     }
+
+    post.newComment = '';
+    console.log('Comment added successfully');
   } catch (error) {
-    console.error('❌ Error adding comment:', error);
-    if (error.response?.status === 403) {
-      const message = error.response?.data?.message || 'Please log in to comment on posts';
-      showError(message, 'Authentication Required');
-      if (confirm(`${message}\n\nWould you like to log in now?`)) {
-        emit('navigate', 'Login');
-      }
-    } else {
-      const errorMsg = error.response?.data?.error || 'Failed to add comment. Please try again.';
-      alert(errorMsg);
-    }
+    console.error('Error adding comment:', error);
+    alert('Failed to add comment. Please try again.');
   }
 };
 
-// Toggle post menu
-const togglePostMenu = (post) => {
-  // Close all other menus
-  posts.value.forEach(p => {
-    if (p.id !== post.id) p.showMenu = false;
-  });
-  post.showMenu = !post.showMenu;
-};
-
-// Bookmark post
-const bookmarkPost = (post) => {
-  post.isBookmarked = !post.isBookmarked;
-  post.showMenu = false;
-  
-  const message = post.isBookmarked ? 'Post saved!' : 'Post removed from saved';
-  console.log(`📌 ${message}`);
-  
-  // You can add API call here to persist bookmark
-  // await axios.post(`/api/posts/${post.id}/bookmark/`, { bookmarked: post.isBookmarked });
-};
-
-// Report post
-const reportPost = (post) => {
-  post.showMenu = false;
-  
-  const reason = prompt('Please tell us why you\'re reporting this post:\n\n1. Inappropriate content\n2. Spam\n3. Harassment\n4. Other\n\nEnter reason:');
-  
-  if (reason) {
-    console.log(`🚩 Post ${post.id} reported: ${reason}`);
-    alert('Thank you for your report. We will review this content.');
-    
-    // Add API call here
-    // await axios.post(`/api/posts/${post.id}/report/`, { reason });
-  }
-};
-
-// Hide post
-const hidePost = (post) => {
-  post.showMenu = false;
-  
-  if (confirm('Hide this post? You won\'t see it in your feed anymore.')) {
-    const index = posts.value.findIndex(p => p.id === post.id);
-    if (index > -1) {
-      posts.value.splice(index, 1);
-      console.log(`👁️‍🗨️ Post ${post.id} hidden`);
-      
-      // Add API call here
-      // await axios.post(`/api/posts/${post.id}/hide/`);
-    }
-  }
-};
-
-// Copy link
-const copyLink = (post) => {
-  post.showMenu = false;
-  
-  const link = `${window.location.origin}/post/${post.id}`;
-  navigator.clipboard.writeText(link).then(() => {
-    alert('Link copied to clipboard!');
-    console.log(`🔗 Link copied: ${link}`);
-  }).catch(err => {
-    console.error('Failed to copy link:', err);
-  });
-};
-
-// Get time ago
-const getTimeAgo = (dateString) => {
-  if (!dateString) return 'Just now';
-  
-  const date = new Date(dateString);
-  const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
-  
-  if (seconds < 60) return 'Just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
-  
-  return date.toLocaleDateString();
-};
-
-// Load data on mount
-onMounted(async () => {
-  await loadNewsfeed();
-  await loadComments();
+// Load on mount
+onMounted(() => {
+  loadNewsfeed();
 });
 </script>
 
@@ -481,30 +376,73 @@ onMounted(async () => {
 .bg-green-500 { background-color: #10b981; }
 .bg-yellow-500 { background-color: #f59e0b; }
 .bg-indigo-500 { background-color: #6366f1; }
+.bg-pink-500 { background-color: #ec4899; }
+.bg-teal-500 { background-color: #14b8a6; }
 
-/* Like button active state */
-.bg-red-50 { background-color: #fef2f2; }
-.text-red-500 { color: #ef4444; }
-
-/* Hover effects */
-.hover\:bg-gray-200:hover { background-color: #e5e7eb; }
-
-/* Responsive images */
-img {
-    max-width: 100%;
-    height: auto;
-    display: block;
+/* Smooth scrollbar for comments */
+.max-h-96::-webkit-scrollbar {
+    width: 6px;
 }
 
-/* Card styling */
-.rounded-xl { border-radius: 1rem; }
-.shadow-lg { 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
-                0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+.max-h-96::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
 }
 
-/* Smooth transitions */
-.transition-colors {
-    transition: background-color 0.2s ease, color 0.2s ease;
+.max-h-96::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
 }
-</style>    
+
+.max-h-96::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Image hover effects */
+.group:hover .group-hover\:bg-black\/10 {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+}
+
+/* Backdrop blur for modal */
+.backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.space-y-6 > div {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Focus styles for accessibility */
+textarea:focus {
+    outline: none;
+}
+
+button:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .max-w-5xl {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+</style>

@@ -35,6 +35,20 @@ const loadActivityFromAPI = async (activityId) => {
             }
         }
 
+        // Format due date and time if available
+        let formattedDateTime = '';
+        if (response.data.due_date) {
+            formattedDateTime = response.data.due_date;
+            if (response.data.due_time) {
+                const [hours, minutes, seconds] = response.data.due_time.split(':');
+                const hour = parseInt(hours);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const displayHour = hour % 12 || 12;
+                const secs = seconds || '00';
+                formattedDateTime = `${response.data.due_date} at ${displayHour}:${minutes}:${secs} ${ampm}`;
+            }
+        }
+
         // Update activity with fresh data from API
         activity.value = {
             ...activity.value,
@@ -42,6 +56,8 @@ const loadActivityFromAPI = async (activityId) => {
             description: response.data.description,
             type: response.data.activity_type,
             dueDate: response.data.due_date,
+            dueTime: response.data.due_time,
+            formattedDateTime: formattedDateTime,
             scoringCriteria: scoringCriteria
         };
 
@@ -1018,19 +1034,48 @@ const getMedalDetails = (rank) => {
     <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
 <!-- Header -->
 <div class="bg-white p-6 md:p-4 shadow-sm border-b border-gray-200">
-    <div class="flex flex-col gap-4">
-        <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block">
-            {{ activity.title }}
-        </h1>
-        <div class="flex flex-col gap-2 ml-2">
-            <p class="text-gray-700 flex items-center gap-2">
-                <i class="pi pi-align-left"></i>
-                <span>Description: <span class="text-justify">{{ activity.description }}</span></span>
-            </p>
-            <p class="text-gray-700 flex items-center gap-2">
-                <i class="pi pi-calendar"></i>
-                <span>Due: {{ activity.dueDate || 'No due date set' }}</span>
-            </p>
+    <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Left: Activity Details -->
+        <div class="flex-1 flex flex-col gap-4">
+            <div class="flex flex-col gap-2">
+                <p class="text-sm text-black">
+                    <span class="font-bold">Activity Title:</span> {{ activity.title }}
+                </p>
+                <p class="text-sm text-black">
+                    <span class="font-bold">Activity Type:</span> <span class="capitalize">{{ activity.type || 'Not specified' }}</span>
+                </p>
+                <p class="text-sm text-black">
+                    <span class="font-bold">Due date & time:</span> {{ activity.formattedDateTime || 'No due date set' }}
+                </p>
+            </div>
+            <div class="flex flex-col gap-2">
+                <p class="text-sm text-black">
+                    <span class="font-bold">Instruction:</span>
+                </p>
+                <div class="text-sm text-black whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    {{ activity.description || 'No instructions provided' }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Scoring Criteria -->
+        <div class="flex-1 lg:border-l lg:border-gray-200 lg:pl-6">
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-sm font-bold text-gray-900">Scoring Criteria:</h3>
+                </div>
+                <div v-if="activity.scoringCriteria && activity.scoringCriteria.length > 0" class="space-y-2 max-h-48 overflow-y-auto">
+                    <div v-for="(criterion, index) in activity.scoringCriteria" :key="index" class="flex items-start gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-semibold text-gray-700 truncate">{{ criterion.name }}</p>
+                            <p class="text-xs text-gray-600">{{ criterion.maxScore }} pts</p>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="text-xs text-gray-500 italic p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    No criteria defined
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1061,7 +1106,6 @@ const getMedalDetails = (rank) => {
                                 </div>
                                 <div>
                                     <h3 class="text-lg font-bold text-gray-900">Unscored Submissions</h3>
-                                    <p class="text-sm text-gray-600">Pending review and scoring</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">
@@ -1309,7 +1353,6 @@ const getMedalDetails = (rank) => {
                                 </div>
                                 <div>
                                     <h3 class="text-lg font-bold text-white">Scored Submissions</h3>
-                                    <p class="text-sm text-white/80">Completed and graded work</p>
                                 </div>
                             </div>
                             <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
