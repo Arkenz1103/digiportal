@@ -660,29 +660,14 @@
                                                     class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
                                                 >
                                                     <i class="pi pi-check-circle"></i>
-                                                    Scored Activities
+                                                    Student's Activitiy Compilation
                                                     <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
                                                           :class="activePortfolioTab === 'scored' ? 'bg-white/20' : 'bg-white/30'">
                                                         {{ scoredActivities.length }}
                                                     </span>
                                                 </button>
-                                                <button
-                                                    @click="activePortfolioTab = 'missing'"
-                                                    :class="activePortfolioTab === 'missing'
-                                                        ? 'bg-indigo-600 text-white shadow-lg'
-                                                        : 'bg-white/30 text-white hover:bg-white/40'"
-                                                    class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200"
-                                                >
-                                                    <i class="pi pi-inbox"></i>
-                                                    Missing Compiled
-                                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                                                          :class="activePortfolioTab === 'missing' ? 'bg-white/20' : 'bg-white/30'">
-                                                        {{ missingCompiledActivities.length }}
-                                                    </span>
-                                                </button>
-                                            </div>
+                                                                                            </div>
 
-                                            <!-- Back Button on the right -->
                                             <button
                                                 @click="selectedEnvelope = null; isEnvelopeOpen = false; studentActivities = []; currentActivityIndex = 0; activePortfolioTab = 'scored'"
                                                 class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
@@ -701,12 +686,10 @@
                                             <i class="pi pi-inbox text-6xl text-white"></i>
                                         </div>
                                         <p class="text-xl font-semibold text-white">
-                                            {{ activePortfolioTab === 'scored' ? 'No scored activities found' : 'No missing compiled activities' }}
+                                            No scored activities found
                                         </p>
                                         <p class="text-sm text-white/80 mt-2">
-                                            {{ activePortfolioTab === 'scored'
-                                                ? 'This student hasn\'t submitted any scored activities yet'
-                                                : 'This student has compiled all missing activities' }}
+                                            This student hasn't submitted any scored activities yet
                                         </p>
                                     </div>
 
@@ -736,12 +719,22 @@
                                             <!-- Activity Image/Preview -->
                                             <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
                                                  :style="{ borderColor: `${selectedEnvelope.color}40` }">
-                                              <img v-if="currentTabActivities[currentActivityIndex].submission_file"
+                                              <img v-if="currentTabActivities[currentActivityIndex].submission_file && (currentTabActivities[currentActivityIndex].submission_file.startsWith('data:image') || currentTabActivities[currentActivityIndex].submission_file.match(/\.(jpeg|jpg|gif|png|webp)$/i))"
                                                    :src="currentTabActivities[currentActivityIndex].submission_file"
                                                    alt="Activity submission"
                                                    class="w-full h-full object-contain"
-                                                   @error="(e) => { e.target.style.display = 'none'; }"
+                                                   @error="(e) => { console.error('Image load error:', currentTabActivities[currentActivityIndex].submission_file); e.target.style.display = 'none'; }"
                                               />
+                                              <div v-else-if="currentTabActivities[currentActivityIndex].submission_file" class="text-center flex flex-col items-center">
+                                                  <i class="pi pi-file-pdf text-6xl text-red-500 mb-4" v-if="currentTabActivities[currentActivityIndex].submission_file.includes('pdf')"></i>
+                                                  <i class="pi pi-file text-6xl text-indigo-300 mb-4" v-else></i>
+                                                  <p class="text-gray-600 font-medium mb-2">File Attached</p>
+                                                  <a :href="currentTabActivities[currentActivityIndex].submission_file"
+                                                     target="_blank"
+                                                     class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                                                      View File
+                                                  </a>
+                                              </div>
                                               <div v-else class="text-center flex flex-col items-center">
                                                 <i class="pi pi-file text-6xl text-gray-300 mb-4"></i>
                                                 <p class="text-gray-500 font-medium">No File</p>
@@ -1489,6 +1482,41 @@
             </div>
         </Dialog>
 
+        <!-- Delete Criteria Confirmation Dialog -->
+        <Dialog v-model:visible="showDeleteCriteriaDialog" 
+                modal 
+                header="Delete Criterion" 
+                :style="{ width: '90%', maxWidth: '28rem' }">
+            <div class="p-6">
+                <div class="flex items-start gap-4">
+                    <div class="mt-1 flex-shrink-0">
+                        <div class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                            <i class="pi pi-exclamation-triangle text-red-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">Delete Criterion</h3>
+                        <p class="mt-1 text-gray-600">
+                            Are you sure you want to delete this criterion? This action cannot be undone.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-3">
+                    <button @click="showDeleteCriteriaDialog = false"
+                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button @click="removeSavedCriterion"
+                        class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                        <i class="pi pi-trash mr-2"></i>
+                        Delete
+                    </button>
+                </div>
+            </template>
+        </Dialog>
+
         <!-- Drop Portfolio Compilation Confirmation Dialog -->
         <Dialog v-model:visible="showDropCompilationDialog"
             modal
@@ -1557,9 +1585,11 @@
                             </Dropdown>
                         </div>
                         <div>
-                            <label for="activityTitle" class="block text-xs font-medium text-gray-700 mb-0.5">
-                                Activity Title <span class="text-red-500">*</span>
-                            </label>
+                            <div class="flex items-center mb-0.5">
+                                <label for="activityTitle" class="block text-xs font-medium text-gray-700">
+                                    Activity Title <span class="text-red-500">*</span>
+                                </label>
+                            </div>
                             <input
                                 id="activityTitle"
                                 v-model="newActivity.title"
@@ -1573,13 +1603,13 @@
                             <div class="flex items-center justify-between mb-0.5">
                                 <label for="activityDescription" class="block text-xs font-medium text-gray-700">Instruction</label>
                                 <button
-                                    @click="() => { setGradeLevelFromClass(); showAIGenerationDialog = true; }"
+                                    @click="openPreviewDialog('instruction', newActivity.description)"
                                     type="button"
                                     class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
-                                    title="Generate questions with AI"
+                                    title="Expand to edit in larger view"
                                 >
-                                    <i class="pi pi-sparkles text-sm"></i>
-                                    <span>AI Generate</span>
+                                    <i class="pi pi-window-maximize text-sm"></i>
+                                    <span>Expand</span>
                                 </button>
                             </div>
                             <textarea
@@ -1587,7 +1617,7 @@
                                 v-model="newActivity.description"
                                 rows="2"
                                 class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                                placeholder="Enter instruction or use AI to generate questions"
+                                placeholder="Enter instruction for the activity"
                             ></textarea>
                         </div>
                         <div>
@@ -1645,18 +1675,30 @@
                                 <div class="flex items-center gap-2">
                                     <div class="w-2 h-2 rounded-full flex-shrink-0"
                                          :class="criterion.isCreated ? 'bg-green-500' : 'bg-indigo-500'"></div>
-                                    <input
-                                        v-model="criterion.name"
-                                        type="text"
-                                        placeholder="Name"
-                                        required
-                                        :disabled="criterion.isCreated && !criterion.isEditing"
-                                        class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        :class="{
-                                            'border-red-300': !criterion.name && !criterion.isCreated,
-                                            'bg-gray-50 cursor-not-allowed': criterion.isCreated && !criterion.isEditing
-                                        }"
-                                    />
+                                    <div class="flex-1 flex items-center gap-1">
+                                        <input
+                                            v-model="criterion.name"
+                                            type="text"
+                                            placeholder="Enter Criteria"
+                                            required
+                                            :disabled="criterion.isCreated && !criterion.isEditing"
+                                            class="flex-1 min-w-0 block w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                            :class="{
+                                                'border-red-300': !criterion.name && !criterion.isCreated,
+                                                'bg-gray-100': criterion.isEditing
+                                            }"
+                                            @input="updateCriteriaName($event, index)"
+                                        />
+                                        <button
+                                            v-if="criterion.isEditing"
+                                            @click="openPreviewDialog('criteria', criterion.name, index)"
+                                            type="button"
+                                            class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                            title="Expand to edit in larger view"
+                                        >
+                                            <i class="pi pi-window-maximize text-sm"></i>
+                                        </button>
+                                    </div>
                                     <input
                                         v-model.number="criterion.maxScore"
                                         type="number"
@@ -1726,7 +1768,7 @@
                                     <!-- Delete Button (only for created criteria not being edited) -->
                                     <button
                                         v-if="criterion.isCreated && !criterion.isEditing"
-                                        @click="removeSavedCriterion(index)"
+                                        @click="confirmDeleteCriterion(index)"
                                         type="button"
                                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         title="Delete criterion"
@@ -1764,6 +1806,59 @@
                             Add Activity
                         </button>
                     </div>
+                </div>
+            </template>
+        </Dialog>
+
+        <!-- Preview/Review Dialog for Long Text Inputs -->
+        <Dialog
+            v-model:visible="showPreviewDialog"
+            :header="previewDialogTitle"
+            :style="{ width: '90vw', maxWidth: '700px' }"
+            :modal="true"
+            :closable="true"
+            :dismissableMask="true"
+            @keydown.escape="closePreviewDialog"
+        >
+            <div class="space-y-4">
+                <!-- Preview Label -->
+                <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <i class="pi pi-info-circle mr-2 text-blue-600"></i>
+                    <span v-if="previewDialogType === 'title'">Edit your activity title with better readability and space.</span>
+                    <span v-else-if="previewDialogType === 'instruction'">Edit your activity instructions with a larger text area for comfortable typing.</span>
+                    <span v-else-if="previewDialogType === 'criteria'">Edit your scoring criteria with improved visibility.</span>
+                </div>
+
+                <!-- Text Area for Editing -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">Content</label>
+                    <textarea
+                        v-model="previewTempContent"
+                        :rows="previewDialogType === 'title' ? 3 : 8"
+                        class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-vertical font-mono"
+                        :placeholder="previewDialogType === 'title' ? 'Enter activity title...' : previewDialogType === 'instruction' ? 'Enter activity instructions...' : 'Enter scoring criteria...'"
+                        @keydown.ctrl.enter="savePreviewContent"
+                        @keydown.meta.enter="savePreviewContent"
+                    ></textarea>
+                </div>
+
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-2">
+                    <button
+                        @click="closePreviewDialog"
+                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    >
+                        <i class="pi pi-times mr-2"></i>
+                        Cancel
+                    </button>
+                    <button
+                        @click="savePreviewContent"
+                        class="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center gap-2"
+                    >
+                        <i class="pi pi-check"></i>
+                        Save & Apply
+                    </button>
                 </div>
             </template>
         </Dialog>
@@ -2086,179 +2181,6 @@
             </div>
         </div>
 
-        <!-- AI Question Generation Dialog -->
-        <Dialog
-            v-model:visible="showAIGenerationDialog"
-            header="Generate Activity with AI"
-            :style="{ width: '90vw', maxWidth: '900px' }"
-            :modal="true"
-            :closable="true"
-            :dismissableMask="true"
-            class="p-0"
-        >
-            <div class="space-y-4 p-6">
-                <!-- Input Section -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Subject/Topic *</label>
-                        <input
-                            v-model="aiPrompt.topic"
-                            type="text"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                            placeholder="e.g., Photosynthesis, World War II, Algebra"
-                        >
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Grade Level *</label>
-                        <div class="flex items-center gap-2">
-                            <select
-                                v-model="aiPrompt.gradeLevel"
-                                :disabled="isGradeLevelLocked"
-                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                :class="{ 'bg-gray-100 cursor-not-allowed': isGradeLevelLocked }"
-                            >
-                                <option value="">Select grade level</option>
-                                <option value="Grade 1">Grade 1</option>
-                                <option value="Grade 2">Grade 2</option>
-                                <option value="Grade 3">Grade 3</option>
-                                <option value="Grade 4">Grade 4</option>
-                                <option value="Grade 5">Grade 5</option>
-                                <option value="Grade 6">Grade 6</option>
-                                <option value="Middle School (7-8)">Middle School (7-8)</option>
-                                <option value="High School (9-12)">High School (9-12)</option>
-                                <option value="College/University">College/University</option>
-                            </select>
-                            <div v-if="isGradeLevelLocked" class="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700 whitespace-nowrap">
-                                <i class="pi pi-lock text-xs"></i>
-                                <span>Auto-filled</span>
-                            </div>
-                        </div>
-                        <p v-if="isGradeLevelLocked" class="text-xs text-gray-500 mt-1">
-                            Grade level is automatically set based on your class assignment
-                        </p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Number of Questions *</label>
-                        <input
-                            v-model.number="aiPrompt.numQuestions"
-                            type="number"
-                            min="1"
-                            max="10"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                        >
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Difficulty Level</label>
-                        <select
-                            v-model="aiPrompt.difficulty"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                        >
-                            <option value="easy">Easy</option>
-                            <option value="medium">Medium</option>
-                            <option value="hard">Hard</option>
-                            <option value="mixed">Mixed</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Question Types -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Question Types *</label>
-                    <div class="flex flex-wrap gap-3">
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" v-model="aiPrompt.types" value="multiple_choice" class="rounded text-indigo-600 w-4 h-4">
-                            <span class="ml-2 text-sm text-gray-700">Multiple Choice</span>
-                        </label>
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" v-model="aiPrompt.types" value="true_false" class="rounded text-indigo-600 w-4 h-4">
-                            <span class="ml-2 text-sm text-gray-700">True/False</span>
-                        </label>
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" v-model="aiPrompt.types" value="short_answer" class="rounded text-indigo-600 w-4 h-4">
-                            <span class="ml-2 text-sm text-gray-700">Short Answer</span>
-                        </label>
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" v-model="aiPrompt.types" value="essay" class="rounded text-indigo-600 w-4 h-4">
-                            <span class="ml-2 text-sm text-gray-700">Essay</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Additional Instructions -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Additional Instructions (Optional)</label>
-                    <textarea
-                        v-model="aiPrompt.additionalInstructions"
-                        rows="2"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-none"
-                        placeholder="Any specific requirements, focus areas, or teaching objectives..."
-                    ></textarea>
-                </div>
-
-                <!-- Loading State -->
-                <div v-if="isGeneratingAI" class="text-center py-6">
-                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-3"></div>
-                    <p class="text-sm text-gray-600">Generating questions with AI, please wait...</p>
-                </div>
-
-                <!-- Generated Content Preview -->
-                <div v-if="generatedContent && !isGeneratingAI" class="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                    <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <i class="pi pi-check-circle text-green-600"></i>
-                        Preview
-                    </h3>
-                    <div class="prose prose-sm max-w-none text-gray-700 bg-white p-3 rounded border border-gray-200 max-h-64 overflow-y-auto">
-                        <div v-html="formatGeneratedContent(generatedContent)"></div>
-                    </div>
-                </div>
-
-                <!-- Error Message -->
-                <div v-if="aiError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
-                    <i class="pi pi-exclamation-circle flex-shrink-0 mt-0.5"></i>
-                    <div>{{ aiError }}</div>
-                </div>
-            </div>
-
-            <template #footer>
-                <div class="flex justify-between items-center gap-2">
-                    <button
-                        @click="showAIGenerationDialog = false"
-                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                    >
-                        Cancel
-                    </button>
-                    <div class="flex gap-2">
-                        <button
-                            v-if="generatedContent && !isGeneratingAI"
-                            @click="regenerateAIQuestions"
-                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 text-sm font-medium"
-                        >
-                            <i class="pi pi-refresh"></i>
-                            Regenerate
-                        </button>
-                        <button
-                            @click="generateAIQuestions"
-                            :disabled="isGeneratingAI || !aiPrompt.topic || !aiPrompt.gradeLevel || aiPrompt.types.length === 0"
-                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <i class="pi pi-sparkles"></i>
-                            {{ generatedContent && !isGeneratingAI ? 'Generate New' : 'Generate Questions' }}
-                        </button>
-                        <button
-                            v-if="generatedContent && !isGeneratingAI"
-                            @click="useGeneratedContent"
-                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm font-medium"
-                        >
-                            <i class="pi pi-check"></i>
-                            Use These Questions
-                        </button>
-                    </div>
-                </div>
-            </template>
-        </Dialog>
         <!-- Drop Folder Confirmation Dialog -->
         <Dialog header="Confirm Drop Folder" v-model:visible="showDropFolderDialog" :modal="true" :style="{ width: '400px' }">
             <div class="p-4">
@@ -2384,6 +2306,14 @@ const savedCriteria = ref([
     { name: '', maxScore: 0, isCreated: false, isEditing: false, originalName: '', originalScore: 0 }
 ]);
 
+// Preview/Review Dialog State
+const showPreviewDialog = ref(false);
+const previewDialogType = ref(null); // 'title', 'instruction', or 'criteria'
+const previewDialogTitle = ref('');
+const previewContent = ref('');
+const previewCriteriaIndex = ref(null);
+const previewTempContent = ref('');
+
 const editActivityData = ref({
     id: null,
     title: '',
@@ -2395,44 +2325,6 @@ const editActivityData = ref({
 
 const editScoringCriteria = ref([]);
 
-// AI Question Generation State
-const showAIGenerationDialog = ref(false);
-const isGeneratingAI = ref(false);
-const generatedContent = ref('');
-const aiError = ref('');
-const isGradeLevelLocked = ref(false);
-const aiPrompt = ref({
-    topic: '',
-    gradeLevel: '',
-    numQuestions: 5,
-    types: [],
-    additionalInstructions: '',
-    difficulty: 'medium'
-});
-
-// Function to extract grade number from class name
-const extractGradeFromClassName = (classNameStr) => {
-    // Examples: "Grade 1 - A", "Grade 4 - B", "Grade 6 - A"
-    const match = classNameStr.match(/Grade\s+(\d+)/);
-    return match ? parseInt(match[1]) : null;
-};
-
-// Function to determine if grade level should be locked
-const isGrade1To3 = computed(() => {
-    const gradeNum = extractGradeFromClassName(className.value);
-    return gradeNum && gradeNum >= 1 && gradeNum <= 3;
-});
-
-// Function to set grade level based on class
-const setGradeLevelFromClass = () => {
-    const gradeNum = extractGradeFromClassName(className.value);
-    if (gradeNum) {
-        aiPrompt.value.gradeLevel = `Grade ${gradeNum}`;
-        // Lock grade level for grades 1-3 (they teach only their section)
-        // Unlock for grades 4-6 (they switch between sections)
-        isGradeLevelLocked.value = isGrade1To3.value;
-    }
-};
 
 // Classroom Management Data
 const classroomStudents = ref([]);
@@ -2492,6 +2384,68 @@ const isActivityFormValid = computed(() => {
 
     return hasTitle && hasDueDate && hasDueTime && hasValidCriteria;
 });
+
+// Preview/Review Dialog Functions
+const openPreviewDialog = (type, content, index = null) => {
+    previewDialogType.value = type;
+    previewContent.value = content;
+    previewTempContent.value = content;
+    previewCriteriaIndex.value = index;
+
+    if (type === 'title') {
+        previewDialogTitle.value = 'Edit Activity Title';
+    } else if (type === 'instruction') {
+        previewDialogTitle.value = 'Edit Activity Instruction';
+    } else if (type === 'criteria') {
+        previewDialogTitle.value = 'Edit Scoring Criteria';
+    }
+
+    showPreviewDialog.value = true;
+};
+
+const savePreviewContent = () => {
+    try {
+        // Trim whitespace from input
+        const trimmedContent = previewTempContent.value ? previewTempContent.value.trim() : '';
+        
+        // Validate input based on type
+        if (previewDialogType.value === 'title') {
+            if (!trimmedContent) {
+                showError('Title cannot be empty');
+                return;
+            }
+            newActivity.value.title = trimmedContent;
+        } else if (previewDialogType.value === 'instruction') {
+            // Allow empty but not null/undefined
+            newActivity.value.description = trimmedContent || '';
+        } else if (previewDialogType.value === 'criteria') {
+            if (previewCriteriaIndex.value !== null) {
+                if (!trimmedContent) {
+                    showError('Criteria name cannot be empty');
+                    return;
+                }
+                savedCriteria.value[previewCriteriaIndex.value].name = trimmedContent;
+            }
+        }
+
+        // Show success feedback
+        showSuccess('Changes saved successfully');
+        
+        // Close the dialog
+        closePreviewDialog();
+    } catch (error) {
+        console.error('Error saving content:', error);
+        showError('Failed to save changes');
+    }
+};
+
+const closePreviewDialog = () => {
+    showPreviewDialog.value = false;
+    previewDialogType.value = null;
+    previewContent.value = '';
+    previewTempContent.value = '';
+    previewCriteriaIndex.value = null;
+};
 
 // Function to create new folder
 const createNewFolder = async () => {
@@ -2902,10 +2856,23 @@ const removeNewCriterion = (index) => {
     savedCriteria.value.splice(index, 1);
 };
 
+// State for delete confirmation dialog
+const showDeleteCriteriaDialog = ref(false);
+const criteriaToDelete = ref(null);
+
+// Open delete confirmation dialog
+const confirmDeleteCriterion = (index) => {
+    criteriaToDelete.value = index;
+    showDeleteCriteriaDialog.value = true;
+};
+
 // Remove a saved criterion (after it's created)
-const removeSavedCriterion = (index) => {
-    if (confirm('Are you sure you want to delete this criterion?')) {
-        savedCriteria.value.splice(index, 1);
+const removeSavedCriterion = () => {
+    if (criteriaToDelete.value !== null) {
+        savedCriteria.value.splice(criteriaToDelete.value, 1);
+        showDeleteCriteriaDialog.value = false;
+        criteriaToDelete.value = null;
+        showSuccess('Criterion deleted successfully');
     }
 };
 
@@ -3189,7 +3156,22 @@ const props = defineProps({
     }
 });
 
-const activeTab = ref('classroom');
+// Check if returning from Outputs/Sprogress to set initial state
+const isReturningFromOutputs = () => {
+    const returnContext = localStorage.getItem('return_to_activities');
+    if (returnContext) {
+        try {
+            const context = JSON.parse(returnContext);
+            const isRecent = context.timestamp && (Date.now() - context.timestamp < 5000);
+            return isRecent && context.showActivities;
+        } catch (error) {
+            console.error('Error checking return context:', error);
+        }
+    }
+    return false;
+};
+
+const activeTab = ref(isReturningFromOutputs() ? 'pupil' : 'classroom');
 
 // Tab configurations
 const tabs = [
@@ -3526,6 +3508,14 @@ const adjustBrightness = (color, percent) => {
     ).toString(16).slice(1);
 };
 
+// Helper function to check if file is an image
+const isImageFile = (filename) => {
+    if (!filename) return false;
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+    const extension = filename.split('.').pop().toLowerCase();
+    return imageExtensions.includes(extension);
+};
+
 // Fetch portfolio envelopes for the class
 const fetchPortfolioEnvelopes = async () => {
     try {
@@ -3824,7 +3814,7 @@ const handleSubjectChange = async (event) => {
 };
 
 // Subject activities state
-const showingActivities = ref(false);
+const showingActivities = ref(isReturningFromOutputs());
 const selectedSubject = ref('');
 const selectedFolderId = ref(null);
 const activities = ref([]);
@@ -4340,94 +4330,10 @@ const confirmDropPortfolioCompilation = async () => {
     }
 };
 
-// AI Question Generation Functions
-const generateAIQuestions = async () => {
-    console.log('🚀 Starting AI question generation...');
-
-    // Validate inputs
-    console.log('Validating inputs:', {
-        topic: aiPrompt.value.topic,
-        gradeLevel: aiPrompt.value.gradeLevel,
-        types: aiPrompt.value.types
-    });
-
-    if (!aiPrompt.value.topic || !aiPrompt.value.gradeLevel || aiPrompt.value.types.length === 0) {
-        aiError.value = 'Please fill in all required fields (Topic, Grade Level, and at least one Question Type)';
-        console.error('❌ Validation failed:', aiError.value);
-        return;
-    }
-
-    isGeneratingAI.value = true;
-    aiError.value = '';
-    generatedContent.value = '';
-
-    try {
-        const payload = {
-            topic: aiPrompt.value.topic,
-            grade_level: aiPrompt.value.gradeLevel,
-            num_questions: aiPrompt.value.numQuestions,
-            question_types: aiPrompt.value.types,
-            difficulty: aiPrompt.value.difficulty,
-            additional_instructions: aiPrompt.value.additionalInstructions
-        };
-
-        console.log('📤 Sending request to /api/ai/generate-questions/ with payload:', payload);
-
-        const response = await axios.post('/api/ai/generate-questions/', payload);
-
-        console.log('📥 Response received:', response.data);
-        generatedContent.value = response.data.content;
-        console.log('✅ AI questions generated successfully');
-    } catch (err) {
-        console.error('❌ Error generating questions:', err);
-        console.error('Error response:', err.response?.data);
-        console.error('Error status:', err.response?.status);
-
-        aiError.value = 'Failed to generate questions. Please try again.';
-        if (err.response?.data?.message) {
-            aiError.value += ` (${err.response.data.message})`;
-        }
-        if (err.response?.status === 404) {
-            aiError.value = 'API endpoint not found. Please refresh the page and try again.';
-        }
-    } finally {
-        isGeneratingAI.value = false;
-    }
-};
-
-const regenerateAIQuestions = () => {
-    generatedContent.value = '';
-    generateAIQuestions();
-};
-
-const useGeneratedContent = () => {
-    if (generatedContent.value) {
-        // Update the activity description with the generated content
-        newActivity.value.description = generatedContent.value;
-        showAIGenerationDialog.value = false;
-        showSuccess('Questions added to activity description', 'Success');
-    }
-};
-
-const formatGeneratedContent = (content) => {
-    // Convert markdown-like content to HTML
-    let html = content
-        .replace(/^### (.*?)$/gm, '<h3 class="font-bold text-lg mt-3 mb-2">$1</h3>')
-        .replace(/^## (.*?)$/gm, '<h2 class="font-bold text-xl mt-4 mb-2">$1</h2>')
-        .replace(/^# (.*?)$/gm, '<h1 class="font-bold text-2xl mt-4 mb-2">$1</h1>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-        .replace(/^- (.*?)$/gm, '<li class="ml-4">$1</li>')
-        .replace(/(<li.*?<\/li>)/s, '<ul class="list-disc">$1</ul>')
-        .replace(/\n\n/g, '</p><p class="mt-2">');
-
-    return '<p class="mt-2">' + html + '</p>';
-};
-
 onMounted(() => {
     // If the pupil's activities tab is active and no folder is selected, auto-select the first one.
-    if (activeTab.value === 'pupil' && folders.value.length > 0 && !selectedFolderId.value) {
-        const firstFolder = folders.value[0];
+    if (activeTab.value === 'pupil' && subjectFolders.value.length > 0 && !selectedFolderId.value) {
+        const firstFolder = subjectFolders.value[0];
         showSubjectActivities(firstFolder.name, firstFolder.id);
         console.log('Automatically selected the first folder:', firstFolder.name);
     }

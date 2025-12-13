@@ -929,7 +929,7 @@ const auth = computed(() => ({
     <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
         <div class="flex">
             <!-- Sidebar -->
-            <div :class="['bg-gradient-to-b from-indigo-600 via-indigo-700 to-blue-800 shadow-2xl sticky top-0 flex flex-col transition-all duration-200 ease-in-out z-10', isCollapsed ? 'w-16' : 'w-64']">
+            <div :class="['bg-gradient-to-b from-indigo-600 via-indigo-700 to-blue-800 shadow-2xl sticky top-0 h-screen flex flex-col transition-all duration-200 ease-in-out z-10', isCollapsed ? 'w-16' : 'w-64']">
                 <!-- Sidebar Header -->
                 <div class="h-[52px] flex items-center justify-end pr-3 border-b border-white/10">
                     <button
@@ -1051,8 +1051,8 @@ const auth = computed(() => ({
             </div>
 
             <!-- Main Content Area -->
-            <div class="flex-1 flex flex-col overflow-hidden w-full min-h-screen">
-                <nav class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 border-b border-indigo-100 h-[52px] z-10 w-full">
+            <div class="flex-1 flex flex-col w-full min-h-screen">
+                <nav class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 border-b border-indigo-100 h-[52px] z-50 w-full">
                     <div class="w-full h-full">
                         <div class="flex justify-between items-center px-4 h-full">
                             <!-- Logo -->

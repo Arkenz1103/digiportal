@@ -397,8 +397,8 @@
                             <i v-else-if="draftFiles.length > 0" class="pi pi-pencil"></i>
                             <i v-else class="pi pi-plus"></i>
                             <span v-if="isSubmitting">Uploading...</span>
-                            <span v-else-if="draftFiles.length > 0">Edit Output</span>
-                            <span v-else>Add or create</span>
+                            <span v-else-if="draftFiles.length > 0">Edit Upload File</span>
+                            <span v-else>Upload File</span>
                           </button>
 
                           <!-- Turn In Button (Show if not submitted OR in resubmission mode) -->
@@ -574,8 +574,18 @@
                     <div
                       v-for="item in submittedCollection"
                       :key="item.id"
-                      @click="openPreviewDialog(item)"
-                      class="bg-white rounded-xl border-2 border-gray-200 hover:border-indigo-400 hover:shadow-md transition-all duration-200 cursor-pointer"
+                      @click="isSelectMode ? toggleSubmissionSelection(item.id) : openPreviewDialog(item)"
+                      @keydown.enter.prevent="isSelectMode ? toggleSubmissionSelection(item.id) : openPreviewDialog(item)"
+                      @keydown.space.prevent="isSelectMode ? toggleSubmissionSelection(item.id) : openPreviewDialog(item)"
+                      tabindex="0"
+                      role="button"
+                      :aria-pressed="isSelectMode ? selectedSubmissions.includes(item.id) : undefined"
+                      class="rounded-xl border-2 transition-all duration-200 cursor-pointer"
+                      :class="[
+                        isSelectMode && selectedSubmissions.includes(item.id)
+                          ? 'bg-indigo-50 border-indigo-600 shadow-md transform scale-[1.01]'
+                          : 'bg-white border-gray-200 hover:border-indigo-400 hover:shadow-md hover:bg-indigo-50/10'
+                      ]"
                     >
                       <div class="flex items-center gap-6 p-5">
                         <!-- Checkbox (Select Mode) -->
@@ -583,6 +593,7 @@
                           <input
                             type="checkbox"
                             :checked="selectedSubmissions.includes(item.id)"
+
                             @change="toggleSubmissionSelection(item.id)"
                             @click.stop
                             class="w-5 h-5 text-indigo-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
@@ -2774,19 +2785,62 @@
           </div>
 
           <!-- Submitted Collection Tab -->
-          <div v-else-if="activeUploadTab === 'collection'" class="flex flex-col items-center justify-center py-12">
-            <div class="text-center space-y-4">
-              <div class="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                <i class="pi pi-folder text-green-600 text-3xl"></i>
-              </div>
-              <div>
-                <h4 class="text-lg font-semibold text-gray-900 mb-2">Submitted Collection</h4>
-                <p class="text-sm text-gray-500 mb-6">Reuse from your previous submissions</p>
-              </div>
-              <div class="px-6 py-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p class="text-sm text-gray-600 italic">Coming soon...</p>
-              </div>
-            </div>
+          <div v-else-if="activeUploadTab === 'collection'" class="p-4 h-[400px] overflow-y-auto">
+             <div v-if="loadingCollection" class="flex flex-col items-center justify-center py-20">
+               <i class="pi pi-spin pi-spinner text-4xl text-purple-600 mb-4"></i>
+               <p class="text-gray-500">Loading collection...</p>
+             </div>
+             <div v-else-if="submittedCollection.length === 0" class="flex flex-col items-center justify-center py-20 text-gray-500">
+               <i class="pi pi-folder-open text-4xl mb-3 text-gray-300"></i>
+               <p>No submitted work found in your collection.</p>
+             </div>
+             <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+               <div
+                 v-for="item in submittedCollection"
+                 :key="item.id"
+                 @click="selectCollectionItem(item)"
+                 class="group relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all duration-200"
+                 :class="[
+                   selectedCollectionId === item.id
+                     ? 'border-purple-500 ring-2 ring-purple-200 shadow-md'
+                     : 'border-gray-200 hover:border-purple-300 hover:shadow-sm'
+                 ]"
+               >
+                 <!-- Thumbnail/Preview -->
+                 <div class="aspect-square bg-gray-100 flex items-center justify-center p-2">
+                   <img
+                     v-if="item.file_type === 'image'"
+                     :src="item.file_path"
+                     class="w-full h-full object-cover rounded"
+                     alt="Submission"
+                   />
+                   <div v-else class="text-center">
+                     <i class="pi pi-file text-3xl text-gray-400 mb-2"></i>
+                     <span class="text-xs uppercase font-bold text-gray-500 block">{{ item.file_type || 'FILE' }}</span>
+                   </div>
+                 </div>
+
+                 <!-- Selection Overlay -->
+                 <div
+                   v-if="selectedCollectionId === item.id"
+                   class="absolute inset-0 bg-purple-500 bg-opacity-10 z-10 flex items-center justify-center"
+                 >
+                   <div class="bg-white rounded-full p-2 shadow-sm">
+                     <i class="pi pi-check text-purple-600 font-bold"></i>
+                   </div>
+                 </div>
+
+                 <!-- Info Overlay (always visible at bottom) -->
+                 <div class="absolute bottom-0 left-0 right-0 bg-white bg-opacity-95 p-2 text-xs border-t border-gray-100">
+                   <div class="font-medium truncate text-gray-800" :title="item.activity_title">
+                     {{ item.activity_title }}
+                   </div>
+                   <div class="text-gray-500 text-[10px] mt-0.5">
+                     {{ formatSketchDate(item.submitted_at) }}
+                   </div>
+                 </div>
+               </div>
+             </div>
           </div>
         </div>
       </div>
@@ -2798,6 +2852,15 @@
             class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
           >
             Cancel
+          </button>
+          <button
+            v-if="activeUploadTab === 'collection' && selectedCollectionId"
+            @click="useSelectedCollectionItem"
+            :disabled="isSubmitting"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2 shadow-sm"
+          >
+            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+            <span v-else>Use Selection</span>
           </button>
           <button
             v-if="activeUploadTab === 'sketch' && selectedSketchId"
@@ -3276,6 +3339,12 @@ const isLoadingActivities = ref(false);
 // Student submissions
 const studentSubmissions = ref([]);
 
+// Submitted collection state
+const submittedCollection = ref([]);
+const isLoadingCollection = ref(false);
+const loadingCollection = isLoadingCollection; // Alias for template compatibility
+const showSubmittedCollection = ref(false);
+
 // File upload state
 const selectedFile = ref(null);
 const previewUrl = ref(null);
@@ -3313,11 +3382,6 @@ const existingSubmission = ref(null);
 const hasScore = ref(false);
 const submissionScore = ref(null);
 
-
-// Submitted Collection state
-const showSubmittedCollection = ref(false);
-const submittedCollection = ref([]);
-const isLoadingCollection = ref(false);
 
 // Draft submission state
 const draftSubmission = ref(null);
@@ -4551,22 +4615,32 @@ const uploadTabs = [
 const mySketches = ref([]);
 const loadingSketches = ref(false);
 const selectedSketchId = ref(null);
+const selectedCollectionId = ref(null);
 const activeSketchSubTab = ref('sketches');
 
 // Watch for dialog opening to load sketches
 watch(showUploadDialog, async (newValue) => {
-  if (newValue && activeUploadTab.value === 'sketch') {
-    await loadMySketches();
+  if (newValue) {
+    if (activeUploadTab.value === 'sketch') {
+      await loadMySketches();
+    } else if (activeUploadTab.value === 'collection') {
+      await loadSubmittedCollection();
+    }
   }
 });
 
 // Watch for tab changes to load sketches when switching to sketch tab
 watch(activeUploadTab, async (newValue) => {
-  if (newValue === 'sketch' && showUploadDialog.value) {
-    await loadMySketches();
+  if (showUploadDialog.value) {
+    if (newValue === 'sketch') {
+      await loadMySketches();
+    } else if (newValue === 'collection') {
+      await loadSubmittedCollection();
+    }
   }
   // Reset selected sketch when changing tabs
   selectedSketchId.value = null;
+  selectedCollectionId.value = null;
   // Reset to sketches sub-tab
   activeSketchSubTab.value = 'sketches';
 });
@@ -4720,6 +4794,127 @@ const useSelectedSketch = async () => {
       error.response?.data?.error || 'Failed to use sketch',
       'Error'
     );
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Select a collection item
+const selectCollectionItem = (item) => {
+  selectedCollectionId.value = item.id;
+};
+
+// Use selected collection item as submission
+const useSelectedCollectionItem = async () => {
+  if (!selectedCollectionId.value) return;
+
+  const selectedItem = submittedCollection.value.find(i => i.id === selectedCollectionId.value);
+  if (!selectedItem) return;
+
+  isSubmitting.value = true;
+
+  try {
+    console.log('📤 Using collection item as draft:', selectedItem.activity_title);
+    
+    // Fetch the file from the URL
+    // Note: If file_path is relative, ensure it works. Usually browsers handle relative to current origin.
+    const response = await fetch(selectedItem.file_path);
+    if (!response.ok) throw new Error('Failed to fetch file');
+    
+    const blob = await response.blob();
+    
+    // Determine mime type and extension
+    let mimeType = blob.type;
+    let extension = 'bin';
+    if (selectedItem.file_type === 'image') {
+      if (mimeType.includes('jpeg')) extension = 'jpg';
+      else if (mimeType.includes('png')) extension = 'png';
+      else if (mimeType.includes('gif')) extension = 'gif';
+      else if (mimeType.includes('webp')) extension = 'webp';
+      else extension = 'png';
+    } else if (selectedItem.file_type === 'pdf') {
+       mimeType = 'application/pdf';
+       extension = 'pdf';
+    }
+    
+    // Create a file from the blob
+    // Clean title for filename
+    const cleanTitle = (selectedItem.activity_title || 'submission').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const file = new File([blob], `${cleanTitle}.${extension}`, { type: mimeType });
+
+    // Create FormData for file upload as DRAFT
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('caption', selectedItem.activity_title || 'Submitted Collection Work');
+    formData.append('post_to_feed', false);
+    formData.append('is_draft', true);
+
+    // Check if there's already a draft or resubmission in progress
+    const existingDraftId = draftFiles.value.length > 0 ? draftFiles.value[0].id : draftSubmission.value?.id;
+    let uploadResponse;
+
+    if (existingDraftId) {
+      console.log('📝 Updating existing draft with collection item:', existingDraftId);
+      uploadResponse = await axios.put(
+        `/api/submissions/${existingDraftId}/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    } else {
+      console.log('📝 Creating new draft with collection item');
+      uploadResponse = await axios.post(
+        `/api/activities/${selectedActivity.value.id}/submissions/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+    }
+
+    console.log('✅ Collection item saved as draft:', uploadResponse.data);
+
+    // Store draft submission
+    draftSubmission.value = uploadResponse.data;
+
+    // Use file_url from backend
+    const filePath = uploadResponse.data.file_url || uploadResponse.data.file_path || uploadResponse.data.file;
+    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+
+    // Update draft files
+    draftFiles.value = [{
+      id: uploadResponse.data.id,
+      name: selectedItem.activity_title || 'Submitted work',
+      type: uploadResponse.data.file_type,
+      path: cacheBustedPath,
+      resubmit_count: uploadResponse.data.resubmit_count || 0
+    }];
+
+    // Handle flow
+    if (isReplacingFile.value) {
+      showUploadDialog.value = false;
+      isReplacingFile.value = false;
+      selectedCollectionId.value = null;
+
+      // Reopen preview with the new file
+      await viewDraftFile(draftFiles.value[0]);
+
+      showSuccess('File replaced successfully!', 'Updated');
+    } else {
+      // Normal upload flow - close dialogs
+      showSuccess('Collection item added as draft!', 'Saved');
+      showUploadDialog.value = false;
+      selectedCollectionId.value = null;
+    }
+
+  } catch (error) {
+    console.error('❌ Error using collection item:', error);
+    showError('Failed to use collection item', 'Error');
   } finally {
     isSubmitting.value = false;
   }
@@ -6292,3 +6487,4 @@ const submitNewProduct = async () => {
   --theme-dark: #111827;
 }
 </style>
+  
