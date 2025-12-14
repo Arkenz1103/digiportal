@@ -156,7 +156,7 @@
 
                                                 <!-- Dropdown Menu -->
                                                 <div v-if="activeFolderMenuIndex === folder.id" class="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-md shadow-lg z-20 py-1">
-                                                    <a @click.stop="openUpdateFolderModal(folder)" href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                                    <a @click.stop="openUpdateFolderModal(folder)" href="#" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                                         <i class="pi pi-pencil mr-2"></i> Update
                                                     </a>
                                                     <div v-tooltip.left="folder.items > 0 ? 'Cannot drop a folder with activities' : 'Drop Folder'">
@@ -285,7 +285,7 @@
 
                                             <!-- Table Body -->
                                             <div class="divide-y divide-gray-200">
-                                                <div v-for="(activity, index) in draftActivities" :key="activity.id"
+                                                <div v-for="(activity, index) in draftActivities.slice(0, displayedDraftCount)" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
 
                                                     <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer"
@@ -297,7 +297,7 @@
 
                                                         <!-- Title -->
                                                         <div class="col-span-2 text-center">
-                                                            <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
+                                                            <span class="font-medium text-gray-900 whitespace-normal break-words" :title="activity.title">{{ activity.title }}</span>
                                                         </div>
 
                                                         <!-- Activity Type -->
@@ -357,6 +357,13 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        <!-- Load More Button for Draft Activities -->
+                                        <div v-if="displayedDraftCount < draftActivities.length" class="p-4 text-center border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                                            <button @click="displayedDraftCount += itemsPerPage" class="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto">
+                                                <i class="pi pi-chevron-down"></i>
+                                                <span>Load More ({{ draftActivities.length - displayedDraftCount }} more)</span>
+                                            </button>
+                                        </div>
 
                                         <!-- Published Activities Table -->
                                         <div v-if="publishedActivities.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -411,7 +418,7 @@
 
                                             <!-- Table Body -->
                                             <div class="divide-y divide-gray-200">
-                                                <div v-for="(activity, index) in publishedActivities" :key="activity.id"
+                                                <div v-for="(activity, index) in publishedActivities.slice(0, displayedPublishedCount)" :key="activity.id"
                                                     class="group hover:bg-gray-50 transition-colors duration-150">
 
                                                     <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer"
@@ -423,7 +430,7 @@
 
                                                         <!-- Title -->
                                                         <div class="col-span-2 text-center">
-                                                            <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
+                                                            <span class="font-medium text-gray-900 whitespace-normal break-words" :title="activity.title">{{ activity.title }}</span>
                                                         </div>
 
                                                         <!-- Activity Type -->
@@ -459,13 +466,20 @@
                                                                 ]"
                                                                 :title="!activity.is_published ? 'Not published' : 'Retract from students'"
                                                             >
-                                                                <i class="pi pi-times text-xs"></i>
+                                                                <i class="pi pi-undo text-xs"></i>
                                                                 <span>Retract</span>
                                                             </button>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
+                                        </div>
+                                        <!-- Load More Button for Published Activities -->
+                                        <div v-if="displayedPublishedCount < publishedActivities.length" class="p-4 text-center border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                                            <button @click="displayedPublishedCount += itemsPerPage" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto">
+                                                <i class="pi pi-chevron-down"></i>
+                                                <span>Load More ({{ publishedActivities.length - displayedPublishedCount }} more)</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </template>
@@ -2038,16 +2052,15 @@
                 header="Retract Activity"
                 :style="{ width: '90%', maxWidth: '28rem' }">
             <div class="p-6">
-                <div class="flex items-start gap-4">
-                    <div class="mt-1 flex-shrink-0">
-                        <div class="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                            <i class="pi pi-undo text-orange-600 text-xl"></i>
-                        </div>
+                <div class="text-center">
+                    <div class="mx-auto flex-shrink-0 h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
+                        <i class="pi pi-undo text-orange-600 text-2xl"></i>
                     </div>
-                    <div>
-                        <h3 class="text-lg font-medium text-gray-900">Retract Activity from Students</h3>
-                        <p class="mt-1 text-gray-600">
-                            Are you sure you want to retract "<span class="font-medium">{{ activityToRetract?.title }}</span>"?
+                    <h3 class="mt-5 text-lg font-semibold text-gray-900">Retract Activity from Students</h3>
+                    <div class="mt-2">
+                        <p class="text-sm text-gray-500">
+                            Are you sure you want to retract "<span class="font-bold text-gray-700 break-words">{{ activityToRetract?.title }}</span>"?
+                            <br><br>
                             Students will no longer be able to see or submit this activity. You can publish it again later.
                         </p>
                     </div>
@@ -3248,6 +3261,78 @@ watch(isSidebarCollapsed, (newValue) => {
     // console.log('Sidebar collapsed state changed to:', newValue);
 });
 
+// Watch for active tab changes to manage folder selection
+watch(activeTab, (newTab) => {
+    if (newTab === 'portfolio') {
+        // Save current folder selection before clearing (when switching to portfolio tab)
+        lastSelectedSubject.value = selectedSubject.value;
+        lastSelectedFolderId.value = selectedFolderId.value;
+
+        // Clear folder selection when switching to Portfolio Compilation tab
+        selectedSubject.value = '';
+        selectedFolderId.value = null;
+        showingActivities.value = false;
+
+        // Dispatch event to clear sidebar folder active state
+        window.dispatchEvent(new CustomEvent('folderSelected', {
+            detail: {
+                subject: null,
+                classItem: selectedClass.value
+            }
+        }));
+        console.log('📂 Cleared folder selection when switching to portfolio tab');
+    } else if (newTab === 'pupil') {
+        // Returning to Student's Activities tab
+        if (lastSelectedSubject.value && lastSelectedFolderId.value) {
+            // Restore from portfolio tab
+            selectedSubject.value = lastSelectedSubject.value;
+            selectedFolderId.value = lastSelectedFolderId.value;
+            showingActivities.value = true;
+
+            // Dispatch event to restore sidebar folder active state
+            window.dispatchEvent(new CustomEvent('folderSelected', {
+                detail: {
+                    subject: lastSelectedSubject.value,
+                    classItem: selectedClass.value
+                }
+            }));
+            console.log('📂 Restored folder selection when returning from portfolio tab');
+        } else if (activitiesTabSelectedSubject.value && activitiesTabSelectedFolderId.value) {
+            // Restore from classroom tab
+            selectedSubject.value = activitiesTabSelectedSubject.value;
+            selectedFolderId.value = activitiesTabSelectedFolderId.value;
+            showingActivities.value = true;
+
+            // Dispatch event to restore sidebar folder active state
+            window.dispatchEvent(new CustomEvent('folderSelected', {
+                detail: {
+                    subject: activitiesTabSelectedSubject.value,
+                    classItem: selectedClass.value
+                }
+            }));
+            console.log('📂 Restored Activities tab folder selection when returning from Classroom');
+        }
+    } else if (newTab === 'classroom') {
+        // Switching to Student's Classroom tab - save Activities folder selection
+        activitiesTabSelectedSubject.value = selectedSubject.value;
+        activitiesTabSelectedFolderId.value = selectedFolderId.value;
+
+        // Clear folder selection when switching to Classroom tab
+        selectedSubject.value = '';
+        selectedFolderId.value = null;
+        showingActivities.value = false;
+
+        // Dispatch event to clear sidebar folder active state
+        window.dispatchEvent(new CustomEvent('folderSelected', {
+            detail: {
+                subject: null,
+                classItem: selectedClass.value
+            }
+        }));
+        console.log('📂 Cleared folder selection when switching to Classroom tab');
+    }
+});
+
 // Toggle activity action menu
 const toggleActivityMenu = (event, activity, index) => {
     event.stopPropagation();
@@ -3805,6 +3890,17 @@ const selectedSubject = ref('');
 const selectedFolderId = ref(null);
 const activities = ref([]);
 const isLoadingActivities = ref(false);
+const itemsPerPage = 5;
+const displayedDraftCount = ref(itemsPerPage);
+const displayedPublishedCount = ref(itemsPerPage);
+
+// Store last selected folder to restore when returning from Portfolio tab
+const lastSelectedSubject = ref('');
+const lastSelectedFolderId = ref(null);
+
+// Store Activities tab folder selection separately to persist when switching to Classroom
+const activitiesTabSelectedSubject = ref('');
+const activitiesTabSelectedFolderId = ref(null);
 
 // Computed properties to separate draft and published activities
 const draftActivities = computed(() => {
@@ -3821,6 +3917,15 @@ const backToFolders = () => {
     selectedSubject.value = '';
     selectedFolderId.value = null;
     activities.value = [];
+
+    // Dispatch event to clear sidebar folder active state
+    window.dispatchEvent(new CustomEvent('folderSelected', {
+        detail: {
+            subject: null,
+            classItem: selectedClass.value
+        }
+    }));
+    console.log('📂 Cleared folder selection when clicking Back to Folders');
 
     // Clear saved view state
     localStorage.removeItem('teacher_current_view');
@@ -3843,6 +3948,15 @@ const showSubjectActivities = async (subjectName, folderId) => {
         selectedFolderId: folderId
     }));
     console.log('💾 Saved teacher view state: Activities for', subjectName);
+
+    // Dispatch event to update MainLayout sidebar active state
+    window.dispatchEvent(new CustomEvent('folderSelected', {
+        detail: {
+            subject: subjectName,
+            classItem: selectedClass.value
+        }
+    }));
+    console.log('📂 Dispatched folderSelected event for sidebar sync');
 
     // Load activities from database
     await loadActivities(folderId);

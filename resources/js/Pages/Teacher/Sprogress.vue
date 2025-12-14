@@ -13,7 +13,7 @@
                     </p>
                 </div>
             </div>
-            
+
             <!-- Page Title -->
             <div class="mt-6 md:mt-8">
                 <h2 class="text-2xl md:text-3xl font-bold text-white">Student Progress Tracking</h2>
@@ -25,33 +25,33 @@
             <!-- Search Section with Back Button -->
             <div class="mb-8 flex items-center justify-between">
                 <div class="relative" style="width: 350px;">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         v-model="searchQuery"
-                        placeholder="Search by student name or ID..." 
+                        placeholder="Search by student name or ID..."
                         class="w-full pl-10 pr-10 py-2 rounded-lg border-2 border-indigo-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm text-gray-700 placeholder-gray-400 text-sm"
                     />
                     <div class="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500">
                         <i class="pi pi-search text-sm"></i>
                     </div>
                     <div v-if="searchQuery" class="absolute right-3 top-1/2 -translate-y-1/2">
-                        <button 
+                        <button
                             @click="searchQuery = ''"
                             class="text-gray-400 hover:text-gray-600 transition-colors">
                             <i class="pi pi-times text-xs"></i>
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Back Button on the right -->
-                <button 
+                <button
                     @click="goBackToRoom"
                     class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all shadow-sm">
                     <i class="pi pi-arrow-left text-sm"></i>
                     <span class="text-sm font-medium">Back to Activities</span>
                 </button>
             </div>
-            
+
             <!-- Search Results Info -->
             <div v-if="searchQuery" class="mb-4">
                 <p v-if="filteredStudents.length === 0" class="text-sm text-gray-500 ml-2">
@@ -74,7 +74,7 @@
                 </div>
 
                 <!-- Student Items -->
-                <div v-for="(student, index) in filteredStudents" :key="student.id" 
+                <div v-for="(student, index) in filteredStudents" :key="student.id"
                     class="group flex items-center px-6 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 border-b border-indigo-100 transition-all duration-300 hover:shadow-md">
                     <div class="w-16">
                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center border-2 border-indigo-200">
@@ -97,7 +97,7 @@
                         </div>
                     </div>
                     <div class="flex-1 flex justify-center">
-                        <button 
+                        <button
                             class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                             @click="viewOutputs(student)">
                             <span class="flex items-center gap-2">
@@ -107,7 +107,7 @@
                         </button>
                     </div>
                     <div class="w-48 flex items-center justify-center">
-                        <button 
+                        <button
                             class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                             @click="viewDetails(student)">
                             <span class="flex items-center gap-2">
@@ -136,13 +136,13 @@
                                     <p class="text-sm text-indigo-600">Student ID: {{ selectedStudent?.id }}</p>
                                 </div>
                             </div>
-                            <button 
-                                @click="closeOutputsDialog" 
+                            <button
+                                @click="closeOutputsDialog"
                                 class="p-2 rounded-full hover:bg-indigo-100 text-indigo-600 transition-all duration-200 hover:rotate-90 transform">
                                 <i class="pi pi-times text-xl"></i>
                             </button>
                         </div>
-                        
+
                         <!-- Dialog Content -->
                         <div class="flex-1 p-6 overflow-y-auto bg-gradient-to-br from-gray-50 to-indigo-50/30">
                             <!-- Loading State -->
@@ -150,24 +150,24 @@
                                 <div class="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
                                 <p class="text-indigo-600 font-medium">Loading outputs...</p>
                             </div>
-                            
+
                             <div v-else class="flex flex-col items-center">
                                 <!-- Subject Tabs -->
                                 <div class="w-full max-w-3xl mb-6">
                                     <div class="flex space-x-1.5 bg-gradient-to-r from-indigo-50 to-violet-50 p-1.5 rounded-lg shadow-sm border border-indigo-200">
-                                        <button 
-                                            v-for="subject in subjects" 
+                                        <button
+                                            v-for="subject in subjects"
                                             :key="subject.id"
                                             @click="selectedSubject = subject.id"
                                             class="flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 transform"
-                                            :class="selectedSubject === subject.id 
-                                                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md scale-105' 
+                                            :class="selectedSubject === subject.id
+                                                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md scale-105'
                                                 : 'text-indigo-700 hover:text-indigo-900 hover:bg-white/60 hover:shadow-sm hover:scale-102'">
                                             {{ subject.name }}
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Image Gallery with Navigation -->
                                 <div class="relative w-full max-w-3xl">
                                     <!-- Empty State -->
@@ -180,16 +180,16 @@
                                             This student hasn't submitted any outputs for {{ selectedSubject === 'all' ? 'any subject' : 'this subject' }} yet.
                                         </p>
                                     </div>
-                                    
+
                                     <!-- Minimized View (Grid of thumbnails) -->
                                     <div v-else-if="isMinimizedView" class="grid grid-cols-4 gap-4">
-                                        <div 
-                                            v-for="(output, index) in getCurrentSubjectOutputs()" 
+                                        <div
+                                            v-for="(output, index) in getCurrentSubjectOutputs()"
                                             :key="index"
                                             @click="expandImage(index)"
                                             class="relative group cursor-pointer bg-white rounded-xl overflow-hidden aspect-square hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-indigo-300">
-                                            <img 
-                                                :src="output.url || output" 
+                                            <img
+                                                :src="output.url || output"
                                                 :alt="output.title || `Output ${index + 1}`"
                                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                             >
@@ -219,13 +219,13 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Expanded View (Single full-size image) -->
                                     <div v-else class="flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl p-4 min-h-[350px] shadow-inner">
                                         <div class="relative">
-                                            <img 
-                                                :src="currentImage.url || currentImage" 
-                                                :alt="currentImage.title || 'Student output'" 
+                                            <img
+                                                :src="currentImage.url || currentImage"
+                                                :alt="currentImage.title || 'Student output'"
                                                 class="max-w-full h-auto max-h-[380px] rounded-xl shadow-2xl border-4 border-white"
                                             >
                                             <!-- Counter badge -->
@@ -247,29 +247,29 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Navigation Buttons (only show in expanded view) -->
                                     <div v-if="!isMinimizedView">
-                                        <button 
-                                            @click="prevImage" 
+                                        <button
+                                            @click="prevImage"
                                             class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-md hover:bg-white transition-colors"
                                             :disabled="currentImageIndex === 0"
                                             :class="{ 'opacity-50 cursor-not-allowed': currentImageIndex === 0 }">
                                             <i class="pi pi-chevron-left"></i>
                                         </button>
-                                        
-                                        <button 
-                                            @click="nextImage" 
+
+                                        <button
+                                            @click="nextImage"
                                             class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-md hover:bg-white transition-colors"
                                             :disabled="currentImageIndex === getCurrentSubjectOutputs().length - 1"
                                             :class="{ 'opacity-50 cursor-not-allowed': currentImageIndex === getCurrentSubjectOutputs().length - 1 }">
                                             <i class="pi pi-chevron-right"></i>
                                         </button>
                                     </div>
-                                    
+
                                     <!-- Back to Grid Button (only show in expanded view) -->
                                     <div v-if="!isMinimizedView" class="mt-4 text-center">
-                                        <button 
+                                        <button
                                             @click="showMinimizedView"
                                             class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors duration-200 flex items-center gap-2 mx-auto">
                                             <i class="pi pi-th-large"></i>
@@ -277,7 +277,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Image Details (only show in expanded view) -->
                                 <div v-if="!isMinimizedView" class="mt-6 w-full">
                                     <div class="flex justify-between items-center mb-4">
@@ -296,7 +296,7 @@
                                                 </p>
                                                 <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().title }}</p>
                                             </div>
-                                            
+
                                             <!-- Type -->
                                             <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
                                                 <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
@@ -305,7 +305,7 @@
                                                 </p>
                                                 <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().type }}</p>
                                             </div>
-                                            
+
                                             <!-- Submitted Date & Time -->
                                             <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
                                                 <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
@@ -322,7 +322,7 @@
                                                     Originally: {{ new Date(currentImage.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }}
                                                 </p>
                                             </div>
-                                            
+
                                             <!-- Score -->
                                             <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
                                                 <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
@@ -331,7 +331,7 @@
                                                 </p>
                                                 <p class="font-bold text-2xl text-indigo-700">{{ getCurrentAssignment().score }}</p>
                                             </div>
-                                            
+
                                             <!-- Status -->
                                             <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100 col-span-2">
                                                 <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
@@ -340,7 +340,7 @@
                                                 </p>
                                                 <div class="flex flex-wrap gap-2">
                                                     <!-- Main status -->
-                                                    <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm" 
+                                                    <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm"
                                                           :class="{
                                                               'bg-green-100 text-green-800 border-2 border-green-300': getCurrentAssignment().status === 'Scored',
                                                               'bg-blue-100 text-blue-800 border-2 border-blue-300': getCurrentAssignment().status === 'Submitted',
@@ -432,7 +432,7 @@ const filteredStudents = computed(() => {
     if (!searchQuery.value) {
         return students.value;
     }
-    
+
     const query = searchQuery.value.toLowerCase();
     return students.value.filter(student => {
         const nameMatch = student.name.toLowerCase().includes(query);
@@ -460,42 +460,42 @@ const subjects = ref([
 // Student outputs organized by folder (loaded from API)
 const studentOutputs = ref({
     mapeh: [
-        { 
-            url: 'https://images.unsplash.com/photo-1578926375605-eaf7559b1458?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60', 
+        {
+            url: 'https://images.unsplash.com/photo-1578926375605-eaf7559b1458?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
             date: new Date('2025-05-15'),
             title: 'Art Project - Watercolor Painting'
         },
-        { 
-            url: 'https://images.unsplash.com/photo-1588072432836-e10032774350?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60', 
+        {
+            url: 'https://images.unsplash.com/photo-1588072432836-e10032774350?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
             date: new Date('2025-05-10'),
             title: 'Art History Quiz #1'
         },
-        { 
-            url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60', 
+        {
+            url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
             date: new Date('2025-05-05'),
             title: 'Sketchbook Assignment'
         },
-        { 
-            url: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60', 
+        {
+            url: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
             date: new Date('2025-05-01'),
             title: 'Modern Art Quiz'
         }
     ],
     english: [
-        { 
-            url: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60', 
+        {
+            url: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
             date: new Date('2025-05-14'),
             title: 'Essay - My Summer Vacation'
         },
-        { 
-            url: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60', 
+        {
+            url: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
             date: new Date('2025-05-08'),
             title: 'Book Report - Charlotte\'s Web'
         }
     ],
     math: [
-        { 
-            url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60', 
+        {
+            url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
             date: new Date('2025-05-12'),
             title: 'Addition and Subtraction Worksheet'
         }
@@ -505,7 +505,7 @@ const studentOutputs = ref({
 // Combined outputs for 'All' tab, sorted by most recent
 const allOutputs = computed(() => {
     const combined = [];
-    
+
     // Combine all outputs with subject info
     Object.entries(studentOutputs.value).forEach(([subject, outputs]) => {
         outputs.forEach(output => {
@@ -515,7 +515,7 @@ const allOutputs = computed(() => {
             });
         });
     });
-    
+
     // Sort by date (most recent first)
     return combined.sort((a, b) => b.date - a.date);
 });
@@ -523,56 +523,56 @@ const allOutputs = computed(() => {
 // Sample assignments data organized by subject
 const assignments = ref({
     mapeh: [
-        { 
-            title: 'Art Project - Watercolor Painting', 
-            date: 'May 1, 2025', 
-            score: '9/10', 
+        {
+            title: 'Art Project - Watercolor Painting',
+            date: 'May 1, 2025',
+            score: '9/10',
             status: 'Graded',
             description: 'Watercolor landscape painting assignment'
         },
-        { 
-            title: 'Art History Quiz #1', 
-            date: 'May 5, 2025', 
-            score: '8/10', 
+        {
+            title: 'Art History Quiz #1',
+            date: 'May 5, 2025',
+            score: '8/10',
             status: 'Graded',
             description: 'Quiz on Renaissance art history'
         },
-        { 
-            title: 'Sketchbook Assignment', 
-            date: 'May 10, 2025', 
-            score: 'Pending', 
+        {
+            title: 'Sketchbook Assignment',
+            date: 'May 10, 2025',
+            score: 'Pending',
             status: 'Submitted',
             description: 'Daily sketchbook entries for one week'
         },
-        { 
-            title: 'Modern Art Quiz', 
-            date: 'May 15, 2025', 
-            score: '10/10', 
+        {
+            title: 'Modern Art Quiz',
+            date: 'May 15, 2025',
+            score: '10/10',
             status: 'Graded',
             description: 'Quiz on 20th century modern art movements'
         }
     ],
     english: [
-        { 
-            title: 'Essay - My Summer Vacation', 
-            date: 'May 2, 2025', 
-            score: '9/10', 
+        {
+            title: 'Essay - My Summer Vacation',
+            date: 'May 2, 2025',
+            score: '9/10',
             status: 'Graded',
             description: 'Personal narrative essay assignment'
         },
-        { 
-            title: 'Book Report - Charlotte\'s Web', 
-            date: 'May 8, 2025', 
-            score: '8/10', 
+        {
+            title: 'Book Report - Charlotte\'s Web',
+            date: 'May 8, 2025',
+            score: '8/10',
             status: 'Graded',
             description: 'Literary analysis book report'
         }
     ],
     math: [
-        { 
-            title: 'Addition and Subtraction Worksheet', 
-            date: 'May 3, 2025', 
-            score: '10/10', 
+        {
+            title: 'Addition and Subtraction Worksheet',
+            date: 'May 3, 2025',
+            score: '10/10',
             status: 'Graded',
             description: 'Basic arithmetic operations practice'
         }
@@ -582,7 +582,7 @@ const assignments = ref({
 // Combined assignments for 'All' tab
 const allAssignments = computed(() => {
     const combined = [];
-    
+
     // Combine all assignments with subject info
     Object.entries(assignments.value).forEach(([subject, assignmentList]) => {
         assignmentList.forEach(assignment => {
@@ -592,7 +592,7 @@ const allAssignments = computed(() => {
             });
         });
     });
-    
+
     // Sort by date (most recent first)
     return combined.sort((a, b) => new Date(b.date) - new Date(a.date));
 });
@@ -614,32 +614,32 @@ const currentImage = computed(() => {
 const getCurrentAssignment = () => {
     const outputs = getCurrentSubjectOutputs();
     const currentOutput = outputs[currentImageIndex.value];
-    
+
     if (!currentOutput) {
-        return { 
-            title: 'Assignment', 
-            date: 'N/A', 
-            score: 'N/A', 
-            status: 'N/A', 
-            description: 'No description available' 
+        return {
+            title: 'Assignment',
+            date: 'N/A',
+            score: 'N/A',
+            status: 'N/A',
+            description: 'No description available'
         };
     }
-    
+
     // Format the data from the actual submission
     console.log('📊 getCurrentAssignment - currentOutput:', currentOutput);
-    
+
     // Use total_score and max_score if available, otherwise calculate from criteria_scores
     let scoreDisplay = 'Not scored';
     let totalScore = currentOutput.total_score;
     let maxScore = currentOutput.max_score;
-    
+
     // If max_score is missing or is default 10, try to calculate from criteria_scores
     if (currentOutput.criteria_scores && (!maxScore || maxScore === 10)) {
         try {
-            const criteria = typeof currentOutput.criteria_scores === 'string' 
-                ? JSON.parse(currentOutput.criteria_scores) 
+            const criteria = typeof currentOutput.criteria_scores === 'string'
+                ? JSON.parse(currentOutput.criteria_scores)
                 : currentOutput.criteria_scores;
-            
+
             if (Array.isArray(criteria) && criteria.length > 0) {
                 totalScore = criteria.reduce((sum, c) => sum + (parseInt(c.score) || 0), 0);
                 maxScore = criteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0);
@@ -649,9 +649,9 @@ const getCurrentAssignment = () => {
             console.error('Error parsing criteria_scores:', error);
         }
     }
-    
+
     // Display the score
-    if (totalScore !== null && totalScore !== undefined && 
+    if (totalScore !== null && totalScore !== undefined &&
         maxScore !== null && maxScore !== undefined) {
         const total = parseInt(totalScore);
         const max = parseInt(maxScore);
@@ -665,16 +665,16 @@ const getCurrentAssignment = () => {
             scoreDisplay = `${scoreValue}/10`;
         }
     }
-    
+
     const submittedDate = currentOutput.date ? new Date(currentOutput.date) : null;
-    
+
     return {
         title: currentOutput.title || 'Activity',
         type: currentOutput.activity_type || 'N/A',
-        date: submittedDate ? submittedDate.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+        date: submittedDate ? submittedDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         }) : 'N/A',
         time: submittedDate ? submittedDate.toLocaleTimeString('en-US', {
             hour: '2-digit',
@@ -730,7 +730,7 @@ const viewDetails = (student) => {
         className: 'Grade 1 - A', // You can make this dynamic based on current class
         timestamp: new Date().toISOString()
     }));
-    
+
     // Navigate to progress page
     emit('navigate', 'TeacherProgress');
 };
@@ -742,18 +742,18 @@ const calculateTotalOutputs = async (studentId) => {
         for (const folder of portfolioFolders.value) {
             const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
             const activities = activitiesResponse.data || [];
-            
+
             for (const activity of activities) {
                 try {
                     const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                     const submissions = submissionsResponse.data || [];
-                    
+
                     // Count only submissions from THIS student
-                    const studentSubmissions = submissions.filter(sub => 
+                    const studentSubmissions = submissions.filter(sub =>
                         sub.student.id === studentId || sub.student.username === studentId
                     );
                     totalOutputs += studentSubmissions.length;
-                    
+
                     if (studentSubmissions.length > 0) {
                         console.log(`Activity ${activity.id}: Student ${studentId} has ${studentSubmissions.length} submission(s)`);
                     }
@@ -779,12 +779,12 @@ const calculateCompletedActivities = async (studentId) => {
         for (const folder of portfolioFolders.value) {
             const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
             const activities = activitiesResponse.data || [];
-            
+
             for (const activity of activities) {
                 try {
                     const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                     const submissions = submissionsResponse.data || [];
-                    
+
                     // Check if this student has submitted
                     const hasSubmitted = submissions.some(sub => sub.student.id === studentId || sub.student.username === studentId);
                     if (hasSubmitted) {
@@ -813,7 +813,7 @@ const updateStudentProgress = async () => {
         student.completedActivities = totalOutputs; // Keep for compatibility
         student.progress = 100; // Not used anymore but keep for compatibility
     }
-    
+
     console.log('Updated student outputs:', students.value);
 };
 
@@ -823,7 +823,7 @@ const loadPortfolioFolders = async () => {
         const response = await axios.get('/api/portfolio/folders/');
         if (response.data) {
             portfolioFolders.value = response.data;
-            
+
             // Update subjects based on folders
             subjects.value = [
                 { id: 'all', name: 'All' },
@@ -832,9 +832,9 @@ const loadPortfolioFolders = async () => {
                     name: folder.name
                 }))
             ];
-            
+
             console.log('Loaded portfolio folders:', portfolioFolders.value);
-            
+
             // Update student progress after loading folders
             await updateStudentProgress();
         }
@@ -849,32 +849,32 @@ const loadStudentSubmissions = async (studentId) => {
     isLoadingOutputs.value = true;
     console.log('🔍 Loading submissions for student DATABASE ID:', studentId);
     console.log('   (This should be a number like 2 or 3, NOT "STD003")');
-    
+
     try {
         // Clear previous outputs
         studentOutputs.value = {};
-        
+
         // Load submissions for each folder
         for (const folder of portfolioFolders.value) {
             try {
                 // Get activities for this folder
                 const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
                 const activities = activitiesResponse.data || [];
-                
+
                 // Get submissions for each activity
                 const folderOutputs = [];
                 console.log(`📁 Folder "${folder.name}" has ${activities.length} activities`);
-                
+
                 for (const activity of activities) {
                     try {
                         // Request ALL submissions (submitted, late, resubmitted - with or without score)
                         const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                         const submissions = submissionsResponse.data || [];
-                        
+
                         console.log(`📝 Activity ${activity.id} - ${activity.title}:`);
                         console.log(`   Total submissions returned by API: ${submissions.length}`);
                         console.log(`   Looking for student ID: ${studentId}`);
-                        
+
                         // Debug: Show all submission student IDs
                         if (submissions.length > 0) {
                             console.log('   Submission student IDs:', submissions.map(s => ({
@@ -884,12 +884,12 @@ const loadStudentSubmissions = async (studentId) => {
                                 student_id: s.student_id
                             })));
                         }
-                        
+
                         // Filter submissions for THIS specific student only
                         const studentSubmissions = submissions.filter(submission => {
                             // Get the student identifier from the submission
                             let submissionStudentId = null;
-                            
+
                             if (submission.student) {
                                 if (typeof submission.student === 'object') {
                                     // Student is an object, use database ID for matching
@@ -901,31 +901,31 @@ const loadStudentSubmissions = async (studentId) => {
                             } else if (submission.student_id) {
                                 submissionStudentId = submission.student_id;
                             }
-                            
+
                             // Compare with the target student database ID
-                            const match = submissionStudentId === studentId || 
+                            const match = submissionStudentId === studentId ||
                                          Number(submissionStudentId) === Number(studentId);
-                            
+
                             console.log('   🔍 Checking submission:', {
                                 submission_student_obj: submission.student,
                                 extracted_id: submissionStudentId,
                                 looking_for: studentId,
                                 match: match
                             });
-                            
+
                             if (match) {
                                 console.log('   ✅ Match found!');
                             }
                             return match;
                         });
-                        
+
                         console.log(`   ✅ Filtered: ${studentSubmissions.length} submissions for student ${studentId}`);
-                        
+
                         // Add only this student's submissions to outputs
                         studentSubmissions.forEach((submission, idx) => {
                             // Get file URL - check both file_url and file_path
                             const fileUrl = submission.file_url || submission.file_path;
-                            
+
                             console.log(`   📄 Processing submission ${idx + 1}/${studentSubmissions.length}:`, {
                                 id: submission.id,
                                 file_type: submission.file_type,
@@ -936,7 +936,7 @@ const loadStudentSubmissions = async (studentId) => {
                                 resubmit_count: submission.resubmit_count,
                                 is_late: submission.is_late
                             });
-                            
+
                             if (submission.file_type === 'image' && fileUrl) {
                                 folderOutputs.push({
                                     url: fileUrl,
@@ -978,7 +978,7 @@ const loadStudentSubmissions = async (studentId) => {
                         showError(`Failed to load submissions for activity ${activity.id}`, 'Error');
                     }
                 }
-                
+
                 // Store outputs by folder id
                 console.log(`📊 Folder "${folder.name}" summary: ${folderOutputs.length} total outputs collected`);
                 if (folderOutputs.length > 0) {
@@ -992,7 +992,7 @@ const loadStudentSubmissions = async (studentId) => {
                 showError(`Failed to load activities for folder ${folder.id}`, 'Error');
             }
         }
-        
+
         console.log('📦 Total loaded student outputs:', studentOutputs.value);
     } catch (error) {
         console.error('❌ Error loading student submissions:', error);
@@ -1007,14 +1007,14 @@ const viewOutputs = async (student) => {
     console.log('Student ID (display):', student.id);
     console.log('Student DB ID:', student.dbId);
     console.log('Student object:', JSON.stringify(student, null, 2));
-    
+
     selectedStudent.value = student;
     currentImageIndex.value = 0; // Reset to first image
     selectedSubject.value = 'all'; // Reset to 'All' subject
     isMinimizedView.value = true; // Start with minimized view
     expandedImageIndex.value = null; // Reset expanded image
     showOutputsDialog.value = true;
-    
+
     // Load student submissions using database ID, not display ID
     await loadStudentSubmissions(student.dbId || student.id);
 };
@@ -1025,7 +1025,7 @@ const loadStudents = async () => {
         // Get class context from localStorage (set by Room.vue)
         const classContext = localStorage.getItem('progress_class_context');
         let classParam = '';
-        
+
         if (classContext) {
             try {
                 const context = JSON.parse(classContext);
@@ -1037,7 +1037,7 @@ const loadStudents = async () => {
                 console.error('Error parsing class context:', e);
             }
         }
-        
+
         const response = await axios.get(`/api/students/progress/${classParam}`);
         if (response.data) {
             students.value = response.data.map(student => ({
@@ -1049,8 +1049,8 @@ const loadStudents = async () => {
                 email: student.email,
                 totalActivities: student.total_outputs,
                 completedActivities: student.scored_outputs,
-                progress: student.total_outputs > 0 
-                    ? Math.round((student.scored_outputs / student.total_outputs) * 100) 
+                progress: student.total_outputs > 0
+                    ? Math.round((student.scored_outputs / student.total_outputs) * 100)
                     : 0,
                 averageScore: student.average_score
             }));
@@ -1065,10 +1065,10 @@ const loadStudents = async () => {
 // Function to handle class change event
 const handleClassChange = (event) => {
     console.log('🔄 Class changed in Sprogress, clearing view state and navigating...', event.detail);
-    
+
     // Clear the teacher view state so Room shows folders view
     localStorage.removeItem('teacher_current_view');
-    
+
     // Navigate back to TeacherRoom when class is changed
     emit('navigate', 'TeacherRoom');
 };
@@ -1078,7 +1078,7 @@ onMounted(() => {
     loadClassName();
     loadStudents();
     loadPortfolioFolders();
-    
+
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
 });
@@ -1104,7 +1104,7 @@ const goBackToRoom = () => {
     // Get class context from localStorage
     const classContext = localStorage.getItem('progress_class_context');
     console.log('Going back with class context:', classContext);
-    
+
     if (classContext) {
         try {
             const context = JSON.parse(classContext);
@@ -1123,7 +1123,7 @@ const goBackToRoom = () => {
             console.error('Error:', e);
         }
     }
-    
+
     emit('navigate', 'TeacherRoom');
 };
 </script>

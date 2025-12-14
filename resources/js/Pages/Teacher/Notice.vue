@@ -10,6 +10,8 @@ import Button from 'primevue/button';
 
 const pendingOutputs = ref([]);
 const isLoadingPending = ref(false);
+const itemsPerPage = 5;
+const displayedPendingCount = ref(itemsPerPage);
 
 // Helper function to format date and time
 const formatDateTime = (dateString) => {
@@ -69,7 +71,37 @@ const loadPendingApprovals = async () => {
             // Map and format submissions (backend already sorted them properly)
             pendingOutputs.value = response.data.map(submission => {
                 // Get image URL from multiple possible sources
-                const imageUrl = submission.file_url || submission.file_path || submission.file || '';
+                let imageUrl = submission.file_url || submission.file_path || submission.file || '';
+                const fileType = submission.file_type || 'unknown';
+
+                // Check if file is actually an image
+                const isImageFile = imageUrl && (
+                    imageUrl.toLowerCase().endsWith('.jpg') ||
+                    imageUrl.toLowerCase().endsWith('.jpeg') ||
+                    imageUrl.toLowerCase().endsWith('.png') ||
+                    imageUrl.toLowerCase().endsWith('.gif') ||
+                    imageUrl.toLowerCase().endsWith('.webp') ||
+                    imageUrl.toLowerCase().endsWith('.svg') ||
+                    fileType.toLowerCase().startsWith('image')
+                );
+
+                // Validate and fix image URL only if it's an image file
+                let finalImageUrl = '';
+                if (isImageFile && imageUrl) {
+                    // If it's a data URL, use it as-is
+                    if (imageUrl.startsWith('data:')) {
+                        finalImageUrl = imageUrl;
+                    }
+                    // If it's a relative path, prepend the API base URL
+                    else if (!imageUrl.startsWith('http')) {
+                        finalImageUrl = `http://localhost:8000${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+                    }
+                    // If it's already an absolute URL, use it
+                    else {
+                        finalImageUrl = imageUrl;
+                    }
+                }
+
                 const dateInfo = formatDateTime(submission.submitted_at);
 
                 return {
@@ -82,9 +114,10 @@ const loadPendingApprovals = async () => {
                     daysAgo: dateInfo.daysAgo,
                     timestamp: dateInfo.timestamp,
                     rawDate: submission.submitted_at,
-                    sampleImages: imageUrl ? [imageUrl] : [],
+                    sampleImages: finalImageUrl ? [finalImageUrl] : [],
                     file_path: imageUrl,
-                    file_type: submission.file_type || 'image',
+                    file_type: fileType,
+                    isImageFile: isImageFile,
                     status: 'Pending'
                 };
             });
@@ -94,6 +127,7 @@ const loadPendingApprovals = async () => {
             pendingOutputs.value.forEach((item, index) => {
                 console.log(`   ${index + 1}. ${item.studentName} - ${item.title} - ${item.submittedDate} (${item.rawDate || 'NO DATE'})`);
             });
+            displayedPendingCount.value = itemsPerPage;
         }
     } catch (error) {
         console.error('❌ Error loading pending approvals:', error);
@@ -323,7 +357,7 @@ const cancelRejection = () => {
 
             <!-- Outputs List -->
             <div v-else class="divide-y divide-indigo-100">
-                <div v-for="output in pendingOutputs" :key="output.id"
+                <div v-for="output in pendingOutputs.slice(0, displayedPendingCount)" :key="output.id"
                     class="p-6 hover:bg-indigo-50/50 transition-colors duration-200 border-l-4 border-transparent hover:border-indigo-400">
                     <div class="flex justify-between items-start gap-4">
                         <div class="flex-1">
@@ -363,18 +397,30 @@ const cancelRejection = () => {
                                 <div class="mt-3">
                                     <div class="text-sm font-semibold text-indigo-900 mb-2">Student Work:</div>
                                     <div class="flex gap-2 overflow-x-auto pb-2">
-                                        <div v-if="output.sampleImages && output.sampleImages.length > 0 && output.sampleImages[0]" class="relative group">
+                                        <!-- Image File Display -->
+                                        <div v-if="output.isImageFile && output.sampleImages && output.sampleImages.length > 0 && output.sampleImages[0]" class="relative group cursor-pointer">
                                             <img
                                                 :src="output.sampleImages[0]"
-                                                class="h-28 w-auto rounded-lg border-2 border-indigo-200 cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all duration-200"
+                                                class="h-28 w-auto rounded-lg border-2 border-indigo-200 cursor-pointer hover:border-indigo-500 hover:shadow-xl transition-all duration-300 group-hover:scale-105"
                                                 @click="previewOutput(output)"
-                                                @error="(e) => { console.error('Image failed to load:', output.sampleImages[0]); e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23ddd\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\'%3ENo Image%3C/text%3E%3C/svg%3E'; }"
+                                                @error="(e) => { console.error('Image failed to load:', output.sampleImages[0]); }"
                                                 :alt="`${output.studentName}'s work for ${output.title}`"
+                                                :title="`Click to preview ${output.studentName}'s work`"
                                             />
-                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors duration-200 flex items-center justify-center">
-                                                <i class="pi pi-search-plus text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xl"></i>
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all duration-300 flex items-center justify-center">
+                                                <div class="flex flex-col items-center gap-1">
+                                                    <i class="pi pi-search-plus text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-2xl drop-shadow-lg"></i>
+                                                    <span class="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300 font-medium">Click to Preview</span>
+                                                </div>
                                             </div>
                                         </div>
+                                        <!-- Non-Image File Display -->
+                                        <div v-else-if="output.file_path && !output.isImageFile" class="relative group cursor-pointer h-28 w-28 rounded-lg border-2 border-indigo-200 bg-indigo-50 flex flex-col items-center justify-center hover:bg-indigo-100 hover:border-indigo-500 hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                                            <i class="pi pi-file text-3xl text-indigo-600 mb-1"></i>
+                                            <span class="text-xs text-indigo-700 font-medium text-center px-1 truncate">{{ output.file_type || 'File' }}</span>
+                                            <span class="text-xs text-gray-500 mt-1">{{ output.file_path.split('/').pop().substring(0, 12) }}...</span>
+                                        </div>
+                                        <!-- No File Display -->
                                         <div v-else class="h-28 w-28 rounded-lg border-2 border-indigo-200 bg-gray-100 flex items-center justify-center">
                                             <i class="pi pi-image text-3xl text-gray-400"></i>
                                         </div>
@@ -393,6 +439,17 @@ const cancelRejection = () => {
                         </div>
                     </div>
                 </div>
+                </div>
+
+                <!-- Load More Button -->
+                <div v-if="displayedPendingCount < pendingOutputs.length" class="p-6 text-center border-t border-indigo-100 bg-indigo-50/50">
+                    <button
+                        @click="displayedPendingCount += itemsPerPage"
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto"
+                    >
+                        <i class="pi pi-chevron-down"></i>
+                        <span>Load More ({{ pendingOutputs.length - displayedPendingCount }} more)</span>
+                    </button>
                 </div>
 
         <!-- Preview Dialog -->

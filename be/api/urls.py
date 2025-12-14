@@ -62,6 +62,8 @@ urlpatterns = [
     # Post interaction routes (likes and comments)
     path('api/posts/<int:post_id>/like/', views.post_like_api, name='post_like_api'),
     path('api/posts/<int:post_id>/comments/', views.post_comments_api, name='post_comments_api'),
+    path('api/posts/<int:post_id>/comments/<int:comment_id>/like/', views.comment_like_api, name='comment_like_api'),
+    path('api/posts/<int:post_id>/comments/<int:comment_id>/replies/', views.comment_reply_api, name='comment_reply_api'),
     path('api/posts/<int:post_id>/delete/', views.delete_post_api, name='delete_post_api'),
 
     # Sketch submission route
@@ -95,8 +97,8 @@ urlpatterns = [
     path('api/notifications/portfolio-compilation/<int:classroom_id>/', views.check_portfolio_compilation_status_api, name='check_portfolio_compilation_status_api'),
 
     # Portfolio Envelope routes
-    path('api/portfolio-envelope/create/', views.create_portfolio_envelope_api, name='create_portfolio_envelope_api'),
     path('api/portfolio-envelope/student/<str:class_name>/', views.get_student_envelope_api, name='get_student_envelope_api'),
+    path('api/portfolio-envelope/create/', views.create_portfolio_envelope_api, name='create_portfolio_envelope_api'),
     path('api/portfolio-envelope/<str:class_name>/', views.get_portfolio_envelopes_api, name='get_portfolio_envelopes_api'),
     path('api/portfolio-envelope/activities/<str:class_name>/', views.get_student_portfolio_activities_api, name='get_student_portfolio_activities_api'),
     path('api/portfolio-envelope/teacher-activities/<str:class_name>/<int:student_id>/', views.get_teacher_student_activities_api, name='get_teacher_student_activities_api'),
@@ -118,6 +120,7 @@ urlpatterns = [
     # Classroom routes
     path('api/classrooms/', views.classroom_list_api, name='classroom_list_api'),
     path('api/classrooms/<int:classroom_id>/', views.classroom_detail_api, name='classroom_detail_api'),
+
 
     # AI routes
     path('api/ai/test/', views.ai_test, name='ai_test'),

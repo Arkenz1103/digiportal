@@ -1039,22 +1039,8 @@ const getMedalDetails = (rank) => {
         <div class="flex-1 flex flex-col gap-4">
             <div class="flex flex-col gap-2">
                 <p class="text-sm text-black">
-                    <span class="font-bold">Activity Title:</span> {{ activity.title }}
-                </p>
-                <p class="text-sm text-black">
-                    <span class="font-bold">Activity Type:</span> <span class="capitalize">{{ activity.type || 'Not specified' }}</span>
-                </p>
-                <p class="text-sm text-black">
                     <span class="font-bold">Due date & time:</span> {{ activity.formattedDateTime || 'No due date set' }}
                 </p>
-            </div>
-            <div class="flex flex-col gap-2">
-                <p class="text-sm text-black">
-                    <span class="font-bold">Instruction:</span>
-                </p>
-                <div class="text-sm text-black whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    {{ activity.description || 'No instructions provided' }}
-                </div>
             </div>
         </div>
 
@@ -1345,19 +1331,40 @@ const getMedalDetails = (rank) => {
                 <!-- Scored Submissions Section -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <!-- Section Header -->
-                    <div class="bg-gradient-to-r from-green-600 to-green-500 px-6 py-4 border-b border-green-300">
+                    <div class="bg-white px-6 py-4 border-b border-gray-200">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                    <i class="pi pi-check-circle text-white text-lg"></i>
+                                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                    <i class="pi pi-check-circle text-gray-600 text-lg"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-lg font-bold text-white">Scored Submissions</h3>
+                                    <h3 class="text-lg font-bold text-gray-900">Scored Submissions</h3>
                                 </div>
                             </div>
-                            <span class="px-3 py-1 bg-white/20 text-white text-sm font-medium rounded-full">
-                                {{ scoredSubmissions.length }} Submission{{ scoredSubmissions.length !== 1 ? 's' : '' }}
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button @click="toggleView('list')"
+                                        :class="[
+                                            'p-2 rounded-lg transition-all duration-200',
+                                            viewMode === 'list'
+                                                ? 'bg-white/30 text-white'
+                                                : 'text-white/70 hover:text-white'
+                                        ]"
+                                        title="List View"
+                                >
+                                    <i class="pi pi-bars text-lg"></i>
+                                </button>
+                                <button @click="toggleView('card')"
+                                        :class="[
+                                            'p-2 rounded-lg transition-all duration-200',
+                                            viewMode === 'card'
+                                                ? 'bg-white/30 text-white'
+                                                : 'text-white/70 hover:text-white'
+                                        ]"
+                                        title="Grid View"
+                                >
+                                    <i class="pi pi-th-large text-lg"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -1399,8 +1406,8 @@ const getMedalDetails = (rank) => {
                                 <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center">
                                     <!-- Name -->
                                     <div class="col-span-3 flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                                            <span class="text-sm font-bold text-green-600">
+                                        <div class="h-10 w-10 rounded-full bg-white flex items-center justify-center">
+                                            <span class="text-sm font-bold text-gray-600">
                                                 {{ submission.name.charAt(0).toUpperCase() }}
                                             </span>
                                         </div>
@@ -1731,32 +1738,13 @@ const getMedalDetails = (rank) => {
                                                 <span class="text-gray-500">Submitted:</span>
                                                 <div class="text-right">
                                                     <div class="font-medium">{{ formatSubmissionDate(selectedSubmission.submitted_at) }}</div>
-                                                    <div class="text-xs text-gray-400">{{ formatSubmissionTime(selectedSubmission.submitted_at) }}</div>
+                                                    <div class="text-xs text-gray-400 mt-0.5">{{ formatSubmissionTime(selectedSubmission.submitted_at) }}</div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Activity Details -->
-                                <div class="bg-white p-5 rounded-xl border-2 border-indigo-100">
-                                    <div class="space-y-3">
-                                        <div>
-                                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Activity Type:</p>
-                                            <p class="text-gray-900 text-sm capitalize">{{ selectedSubmission.activityType || 'N/A' }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Activity Title:</p>
-                                            <p class="text-gray-900 text-sm">{{ selectedSubmission.activityTitle || 'N/A' }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Description:</p>
-                                            <p class="text-gray-900 text-sm">
-                                                {{ selectedSubmission.caption || 'No description provided.' }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 

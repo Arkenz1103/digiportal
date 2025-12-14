@@ -108,7 +108,6 @@
                                 ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 hover:from-red-100 hover:to-pink-100 border border-red-200'
                                 : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 hover:from-teal-100 hover:to-cyan-100 border border-teal-200'">
                             <i class="pi text-lg" :class="post.isLiked ? 'pi-heart-fill' : 'pi-heart'"></i>
-                            <span>{{ post.isLiked ? 'Liked' : 'Like' }}</span>
                         </button>
 
                         <button @click="toggleComments(post)"
@@ -135,8 +134,52 @@
                                     </div>
                                     <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
                                         <span>{{ comment.timestamp }}</span>
-                                        <button class="hover:text-teal-600 font-semibold">Like</button>
-                                        <button class="hover:text-cyan-600 font-semibold">Reply</button>
+                                        <button @click="toggleCommentLike(post, comment)" class="hover:text-red-600 font-semibold transition-colors flex items-center gap-1">
+                                            <i class="pi text-xs" :class="comment.isLiked ? 'pi-heart-fill text-red-500' : 'pi-heart'"></i>
+                                            <span v-if="comment.likes > 0">{{ comment.likes }}</span>
+                                        </button>
+                                        <button @click="toggleReplyInput(comment)" class="hover:text-cyan-600 font-semibold transition-colors">Reply</button>
+                                    </div>
+                                    <!-- Reply Input -->
+                                    <div v-if="comment.showReplyInput" class="mt-3 flex items-start gap-2">
+                                        <div class="bg-gradient-to-br from-teal-600 to-cyan-600 w-8 h-8 flex items-center justify-center rounded-full text-white font-bold text-xs flex-shrink-0">
+                                            S
+                                        </div>
+                                        <div class="flex-1">
+                                            <textarea
+                                                v-model="comment.replyText"
+                                                @keydown.enter.prevent="addReply(post, comment)"
+                                                placeholder="Write a reply..."
+                                                rows="2"
+                                                class="w-full px-3 py-2 border-2 border-teal-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none text-sm"
+                                            ></textarea>
+                                            <div class="flex items-center justify-end gap-2 mt-2">
+                                                <button @click="toggleReplyInput(comment)" class="px-3 py-1 text-gray-600 hover:text-gray-800 text-sm font-medium">Cancel</button>
+                                                <button
+                                                    @click="addReply(post, comment)"
+                                                    :disabled="!comment.replyText || comment.replyText.trim() === ''"
+                                                    class="px-3 py-1 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all text-sm">
+                                                    Reply
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Replies -->
+                                    <div v-if="comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0" class="mt-3 space-y-2 pl-4 border-l-2 border-teal-200">
+                                        <div v-for="(reply, idx) in comment.replies" :key="`reply-${reply.id}-${idx}`" class="flex items-start gap-2">
+                                            <div :class="getAvatarColor(reply.user)" class="w-8 h-8 flex items-center justify-center rounded-full text-white font-bold text-xs flex-shrink-0">
+                                                {{ reply.user.charAt(0).toUpperCase() }}
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="bg-gray-50 rounded-lg p-2">
+                                                    <p class="font-semibold text-gray-900 text-xs">{{ reply.user }}</p>
+                                                    <p class="text-gray-700 text-sm mt-0.5">{{ reply.text }}</p>
+                                                </div>
+                                                <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                                    <span>{{ reply.timestamp }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -238,7 +281,17 @@ const loadNewsfeed = async () => {
           const commentsResponse = await axios.get(`/api/posts/${post.id}/comments/`, {
             withCredentials: true
           });
-          comments = commentsResponse.data || [];
+          comments = (commentsResponse.data || []).map(comment => ({
+            id: comment.id,
+            user: comment.user,
+            text: comment.text,
+            timestamp: comment.timestamp || getTimeAgo(comment.created_at),
+            likes: comment.likes || 0,
+            isLiked: comment.is_liked || false,
+            replies: comment.replies || [],
+            showReplyInput: false,
+            replyText: ''
+          }));
         } catch (error) {
           console.error(`Error loading comments for post ${post.id}:`, error);
         }
@@ -359,6 +412,98 @@ const addComment = async (post) => {
   } catch (error) {
     console.error('Error adding comment:', error);
     alert('Failed to add comment. Please try again.');
+  }
+};
+
+// Toggle comment like functionality
+const toggleCommentLike = async (post, comment) => {
+  const wasLiked = comment.isLiked;
+  const wasLikes = comment.likes || 0;
+
+  // Optimistic update
+  comment.isLiked = !comment.isLiked;
+  comment.likes = (comment.likes || 0) + (comment.isLiked ? 1 : -1);
+
+  try {
+    // Send comment like to backend
+    const response = await axios.post(`/api/posts/${post.id}/comments/${comment.id}/like/`, {
+      liked: comment.isLiked
+    }, {
+      withCredentials: true
+    });
+
+    // Update with actual count from backend
+    if (response.data) {
+      comment.likes = response.data.likes_count || 0;
+      comment.isLiked = response.data.is_liked || false;
+    }
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    // Revert on error
+    comment.isLiked = wasLiked;
+    comment.likes = wasLikes;
+  }
+};
+
+// Toggle reply input visibility
+const toggleReplyInput = (comment) => {
+  comment.showReplyInput = !comment.showReplyInput;
+  if (!comment.showReplyInput) {
+    comment.replyText = '';
+  }
+};
+
+// Add reply to comment
+const addReply = async (post, comment) => {
+  if (!comment.replyText || comment.replyText.trim() === '') return;
+
+  const replyText = comment.replyText.trim();
+  console.log(`📤 Sending reply to post ${post.id}, comment ${comment.id}`);
+
+  try {
+    // Send reply to backend
+    const response = await axios.post(`/api/posts/${post.id}/comments/${comment.id}/replies/`, {
+      text: replyText
+    }, {
+      withCredentials: true
+    });
+
+    console.log('📥 Reply response:', response.data);
+
+    // Add reply to comment
+    if (response.data && response.data.reply) {
+      // Ensure replies array exists
+      if (!comment.replies) {
+        comment.replies = [];
+      }
+
+      const newReply = {
+        id: response.data.reply.id,
+        user: response.data.reply.user,
+        text: response.data.reply.text,
+        timestamp: response.data.reply.timestamp || getTimeAgo(response.data.reply.created_at)
+      };
+
+      // Push the reply to the array
+      comment.replies.push(newReply);
+
+      console.log('✅ Reply added to UI:', newReply);
+      console.log('📝 Total replies for comment:', comment.replies.length);
+      console.log('📝 Comment replies array:', comment.replies);
+
+      // Force Vue reactivity by reassigning
+      comment.replies = [...comment.replies];
+    } else {
+      console.error('❌ Invalid reply response structure:', response.data);
+    }
+
+    comment.replyText = '';
+    comment.showReplyInput = false;
+    console.log('✅ Reply added successfully');
+  } catch (error) {
+    console.error('❌ Error adding reply:', error);
+    console.error('Error response:', error.response?.data);
+    alert('Failed to add reply. Please try again.');
   }
 };
 

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings, Student
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings, Student, Classroom
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -12,7 +12,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer for user profile with role-specific fields"""
     profile_picture_url = serializers.SerializerMethodField()
     student_id = serializers.CharField(source='id_number', read_only=True)
-    
+
     class Meta:
         model = User
         fields = [
@@ -22,18 +22,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'grade_level', 'section', 'student_id'
         ]
         read_only_fields = ['id', 'username', 'role', 'id_number']
-    
+
     def get_profile_picture_url(self, obj):
         if obj.profile_picture:
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.profile_picture.url)
         return None
-    
+
     def to_representation(self, instance):
         """Return only role-appropriate fields"""
         data = super().to_representation(instance)
-        
+
         # Remove fields based on role
         if instance.role == 'student':
             # Remove teacher-specific fields for students
@@ -45,7 +45,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             fields_to_remove = ['grade_level', 'section', 'student_id']
             for field in fields_to_remove:
                 data.pop(field, None)
-        
+
         return data
 
 
@@ -59,7 +59,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 
 class LessonPlanSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    
+
     class Meta:
         model = LessonPlan
         fields = '__all__'
@@ -69,11 +69,11 @@ class LessonPlanSerializer(serializers.ModelSerializer):
 class PortfolioActivitySerializer(serializers.ModelSerializer):
     # Override scoring_criteria to handle JSON parsing for GET requests
     scoring_criteria = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    
+
     def to_representation(self, instance):
         """Convert model instance to JSON - parse scoring_criteria"""
         data = super().to_representation(instance)
-        
+
         # Parse scoring_criteria from JSON string to array
         if data.get('scoring_criteria'):
             try:
@@ -84,9 +84,9 @@ class PortfolioActivitySerializer(serializers.ModelSerializer):
                 data['scoring_criteria'] = []
         else:
             data['scoring_criteria'] = []
-        
+
         return data
-    
+
     class Meta:
         model = PortfolioActivity
         fields = '__all__'
@@ -96,7 +96,7 @@ class PortfolioActivitySerializer(serializers.ModelSerializer):
 class PortfolioFolderSerializer(serializers.ModelSerializer):
     activities = PortfolioActivitySerializer(many=True, read_only=True)
     teacher = UserSerializer(read_only=True)
-    
+
     class Meta:
         model = PortfolioFolder
         fields = '__all__'
@@ -113,13 +113,13 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     display_status = serializers.SerializerMethodField()
     submitted_at = serializers.SerializerMethodField()
-    
+
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
-    
+
     def get_activity_type(self, obj):
         return obj.activity.activity_type if obj.activity else 'Sketch'
-    
+
     def get_total_score(self, obj):
         # First try to calculate from criteria_scores JSON
         if obj.criteria_scores:
@@ -131,7 +131,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
             except:
                 pass
         return obj.score  # Fallback to simple score
-    
+
     def get_max_score(self, obj):
         # First try to calculate from criteria_scores JSON
         if obj.criteria_scores:
@@ -143,7 +143,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
             except:
                 pass
         return 10  # Default max score
-    
+
     def get_file_url(self, obj):
         """Return the proper file URL - prefer actual file over base64"""
         if obj.file:
@@ -154,17 +154,17 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
             return obj.file.url
         # Fallback to file_path (base64 or old data)
         return obj.file_path
-    
+
     def get_submitted_at(self, obj):
         """Return submitted_at in Manila timezone"""
         if not obj.submitted_at:
             return None
-        
+
         from django.utils import timezone
         import pytz
-        
+
         manila_tz = pytz.timezone('Asia/Manila')
-        
+
         # Convert to Manila timezone
         if timezone.is_naive(obj.submitted_at):
             # If naive, assume UTC and add 8 hours
@@ -173,10 +173,10 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
         else:
             # If aware, convert to Manila timezone
             manila_time = obj.submitted_at.astimezone(manila_tz)
-        
+
         # Return ISO format string
         return manila_time.isoformat()
-    
+
     def get_display_status(self, obj):
         """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""
         # For teachers, always show 'Submitted' for the original submission
@@ -190,7 +190,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
         elif obj.status == 'scored':
             return 'Scored'
         return obj.status.title()
-    
+
     class Meta:
         model = StudentSubmission
         fields = '__all__'
@@ -207,7 +207,7 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     max_score = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
     display_status = serializers.SerializerMethodField()
-    
+
     def get_file_url(self, obj):
         """Return file URL if file exists, otherwise return file_path (base64)"""
         if obj.file:
@@ -216,13 +216,13 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.file.url)
             return obj.file.url
         return obj.file_path  # Fallback to base64
-    
+
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
-    
+
     def get_activity_type(self, obj):
         return obj.activity.activity_type if obj.activity else 'Sketch'
-    
+
     def get_total_score(self, obj):
         # First try to calculate from criteria_scores JSON
         if obj.criteria_scores:
@@ -233,17 +233,17 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
                 return total
             except:
                 pass
-        
+
         # Fallback to detailed_score if available
         if hasattr(obj, 'detailed_score') and obj.detailed_score:
             detailed = obj.detailed_score
-            total = (detailed.creativity_score + 
-                    detailed.technical_skill_score + 
+            total = (detailed.creativity_score +
+                    detailed.technical_skill_score +
                     detailed.requirements_score)
             return total
-        
+
         return obj.score  # Final fallback to simple score
-    
+
     def get_max_score(self, obj):
         # First try to calculate from criteria_scores JSON
         if obj.criteria_scores:
@@ -254,17 +254,17 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
                 return max_total
             except:
                 pass
-        
+
         # Fallback to detailed_score if available
         if hasattr(obj, 'detailed_score') and obj.detailed_score:
             detailed = obj.detailed_score
-            max_total = (detailed.creativity_max + 
-                        detailed.technical_skill_max + 
+            max_total = (detailed.creativity_max +
+                        detailed.technical_skill_max +
                         detailed.requirements_max)
             return max_total
-        
+
         return 10  # Default max score
-    
+
     def get_display_status(self, obj):
         """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""
         # For teachers, always show 'Submitted' for the original submission
@@ -278,7 +278,7 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
         elif obj.status == 'scored':
             return 'Scored'
         return obj.status.title()
-    
+
     class Meta:
         model = StudentSubmission
         fields = '__all__'  # Include all fields including file_path
@@ -288,7 +288,7 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
 class SketchSerializer(serializers.ModelSerializer):
     """Serializer for student sketches"""
     student = UserSerializer(read_only=True)
-    
+
     class Meta:
         model = Sketch
         fields = '__all__'
@@ -297,7 +297,7 @@ class SketchSerializer(serializers.ModelSerializer):
 
 class NewsfeedPostSerializer(serializers.ModelSerializer):
     """Serializer for newsfeed posts"""
-    
+
     class Meta:
         model = NewsfeedPost
         fields = '__all__'
@@ -306,7 +306,7 @@ class NewsfeedPostSerializer(serializers.ModelSerializer):
 
 class NotificationSerializer(serializers.ModelSerializer):
     """Serializer for notifications"""
-    
+
     class Meta:
         model = Notification
         fields = '__all__'
@@ -321,12 +321,12 @@ class RemarkSerializer(serializers.ModelSerializer):
     student_username = serializers.CharField(source='student.username', read_only=True)
     student_id = serializers.CharField(source='student.username', read_only=True)
     is_read = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Remark
         fields = ['id', 'teacher', 'teacher_name', 'teacher_username', 'student', 'student_name', 'student_username', 'student_id', 'text', 'is_read', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_is_read(self, obj):
         """Check if the current user has read this remark"""
         request = self.context.get('request')
@@ -340,7 +340,7 @@ class StudentSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
     grade_section = serializers.ReadOnlyField()
     user_username = serializers.CharField(source='user.username', read_only=True)
-    
+
     class Meta:
         model = Student
         fields = [
@@ -360,10 +360,21 @@ class StudentListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing students"""
     full_name = serializers.ReadOnlyField()
     grade_section = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Student
         fields = [
-            'id', 'student_id', 'full_name', 'grade_section', 
+            'id', 'student_id', 'full_name', 'grade_section',
             'gender', 'current_average', 'attendance_percentage', 'is_active'
         ]
+
+class ClassroomSerializer(serializers.ModelSerializer):
+    """Serializer for Classroom model"""
+    teacher = UserSerializer(read_only=True)
+    student_count = serializers.IntegerField(read_only=True)
+    is_full = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Classroom
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']

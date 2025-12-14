@@ -1757,7 +1757,7 @@ def activity_submissions_api(request, activity_id):
 
                 # Set status logic
                 is_compiled = (existing_submission.compiled if hasattr(existing_submission, 'compiled') else False) or is_compilation_req
-                
+
                 if is_compiled:
                     print(f"✅ Updating COMPILED submission - keeping status as SCORED")
                     existing_submission.status = 'scored'
@@ -1882,7 +1882,7 @@ def activity_submissions_api(request, activity_id):
                     file_type=file_type,
                     status=submission_status,
                     post_to_feed=post_to_feed,
-                    
+
                     # Compilation fields
                     is_compilation=is_compilation_req,
                     compiled=is_compilation_req,
@@ -2484,20 +2484,41 @@ def post_comments_api(request, post_id):
         }, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        from .models import NewsfeedPost, PostComment
+        from .models import NewsfeedPost, PostComment, PostCommentLike
 
         post = NewsfeedPost.objects.get(id=post_id)
 
         if request.method == 'GET':
             # Get all comments for this post
             comments = PostComment.objects.filter(post=post).order_by('created_at')
-            comments_data = [{
-                'id': comment.id,
-                'user': comment.user.username,
-                'text': comment.text,
-                'created_at': comment.created_at.isoformat(),
-                'timestamp': get_time_ago(comment.created_at)
-            } for comment in comments]
+            comments_data = []
+
+            for comment in comments:
+                # Get replies for this comment
+                replies = comment.replies.all().order_by('created_at')
+                replies_data = [{
+                    'id': reply.id,
+                    'user': reply.user.username,
+                    'text': reply.text,
+                    'created_at': reply.created_at.isoformat(),
+                    'timestamp': get_time_ago(reply.created_at)
+                } for reply in replies]
+
+                # Get likes count for this comment
+                likes_count = comment.likes.count()
+                is_liked = PostCommentLike.objects.filter(comment=comment, user=request.user).exists() if request.user.is_authenticated else False
+
+                comment_data = {
+                    'id': comment.id,
+                    'user': comment.user.username,
+                    'text': comment.text,
+                    'created_at': comment.created_at.isoformat(),
+                    'timestamp': get_time_ago(comment.created_at),
+                    'likes': likes_count,
+                    'is_liked': is_liked,
+                    'replies': replies_data
+                }
+                comments_data.append(comment_data)
 
             return Response(comments_data)
 
@@ -2530,6 +2551,138 @@ def post_comments_api(request, post_id):
         return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"Error with comments: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def comment_like_api(request, post_id, comment_id):
+    """
+    POST: Toggle like on a comment
+    Body: { "liked": true/false }
+    """
+    print(f"\n❤️ Comment Like API called for post {post_id}, comment {comment_id}")
+    print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
+
+    if not request.user.is_authenticated:
+        print(f"❌ User not authenticated")
+        return Response({
+            'error': 'Authentication required',
+            'message': 'Please log in to like comments'
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        from .models import NewsfeedPost, PostComment, PostCommentLike
+
+        post = NewsfeedPost.objects.get(id=post_id)
+        comment = PostComment.objects.get(id=comment_id, post=post)
+        liked = request.data.get('liked', True)
+
+        print(f"✅ Found post {post_id} and comment {comment_id}")
+        print(f"Liked: {liked}")
+
+        if liked:
+            # Add like (use get_or_create to avoid duplicates)
+            like, created = PostCommentLike.objects.get_or_create(
+                comment=comment,
+                user=request.user
+            )
+            print(f"✅ Like created: {created}")
+        else:
+            # Remove like
+            deleted_count, _ = PostCommentLike.objects.filter(
+                comment=comment,
+                user=request.user
+            ).delete()
+            print(f"✅ Like deleted: {deleted_count}")
+
+        # Get updated like count
+        likes_count = comment.likes.count()
+        is_liked = PostCommentLike.objects.filter(comment=comment, user=request.user).exists()
+
+        print(f"✅ Updated likes_count: {likes_count}, is_liked: {is_liked}")
+
+        return Response({
+            'success': True,
+            'likes_count': likes_count,
+            'is_liked': is_liked
+        }, status=status.HTTP_200_OK)
+
+    except PostComment.DoesNotExist:
+        print(f"❌ Comment {comment_id} not found")
+        return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+    except NewsfeedPost.DoesNotExist:
+        print(f"❌ Post {post_id} not found")
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Error toggling comment like: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def comment_reply_api(request, post_id, comment_id):
+    """
+    POST: Add a reply to a comment
+    Body: { "text": "reply text" }
+    """
+    print(f"\n💬 Comment Reply API called for post {post_id}, comment {comment_id}")
+    print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
+    print(f"Request data: {request.data}")
+
+    if not request.user.is_authenticated:
+        print(f"❌ User not authenticated")
+        return Response({
+            'error': 'Authentication required',
+            'message': 'Please log in to reply to comments'
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        from .models import NewsfeedPost, PostComment, PostCommentReply
+
+        post = NewsfeedPost.objects.get(id=post_id)
+        comment = PostComment.objects.get(id=comment_id, post=post)
+
+        text = request.data.get('text', '').strip()
+        print(f"Reply text: {text}")
+
+        if not text:
+            print(f"❌ Reply text is empty")
+            return Response({'error': 'Reply text is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create reply as a nested comment
+        reply = PostCommentReply.objects.create(
+            comment=comment,
+            user=request.user,
+            text=text
+        )
+
+        print(f"✅ Reply created with ID: {reply.id}")
+
+        return Response({
+            'success': True,
+            'message': 'Reply added',
+            'reply': {
+                'id': reply.id,
+                'user': reply.user.username,
+                'text': reply.text,
+                'created_at': reply.created_at.isoformat(),
+                'timestamp': get_time_ago(reply.created_at)
+            }
+        }, status=status.HTTP_201_CREATED)
+
+    except PostComment.DoesNotExist:
+        print(f"❌ Comment {comment_id} not found")
+        return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+    except NewsfeedPost.DoesNotExist:
+        print(f"❌ Post {post_id} not found")
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Error adding reply: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -4425,11 +4578,11 @@ def get_student_portfolio_activities_api(request, class_name):
                         is_active=True,
                         missing=False  # Explicitly check for compiled activities
                     ).exists()
-                    
+
                     if has_compiled_submission:
                         print(f"   ✅ Activity {activity.id} ({activity.title}) is COMPILED - skipping from missing")
                         continue  # Skip this activity, it's been compiled
-                    
+
                     # Only add to missing if the due date has PASSED
                     is_overdue = False
                     if activity.due_date:
@@ -4602,18 +4755,18 @@ def compile_activity_api(request):
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
-        
+
     activity_id = request.data.get('activity_id')
     if not activity_id:
         return Response({'error': 'Activity ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
     try:
         from .models import PortfolioActivity, StudentSubmission
         from django.utils import timezone
-        
+
         # Get the activity
         activity = PortfolioActivity.objects.get(id=activity_id)
-        
+
         # Get or create submission
         submission, created = StudentSubmission.objects.get_or_create(
             student=request.user,
@@ -4626,27 +4779,27 @@ def compile_activity_api(request):
                 'scored_at': timezone.now()
             }
         )
-        
+
         # Update fields
         submission.is_compilation = True  # Mark as compilation submission
         submission.compiled = True
         submission.missing = False
         submission.compiled_at = timezone.now()
-        
+
         # Ensure status and timestamps are appropriate
         if submission.status == 'draft':
             submission.status = 'scored'
-            
+
         if not submission.submitted_at:
             submission.submitted_at = timezone.now()
-            
+
         if not submission.scored_at:
             submission.scored_at = timezone.now()
-            
+
         submission.save()
-        
+
         print(f"✅ Activity {activity_id} compiled for user {request.user.username}")
-        
+
         return Response({
             'success': True,
             'message': 'Activity compiled successfully',
@@ -4658,7 +4811,7 @@ def compile_activity_api(request):
                 'compiled_at': submission.compiled_at.isoformat()
             }
         })
-        
+
     except PortfolioActivity.DoesNotExist:
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:

@@ -853,16 +853,17 @@ onMounted(async () => {
     // Initialize expanded classes state
     initializeExpandedClasses();
 
-    // Restore selected subject from localStorage
-    const savedSubject = localStorage.getItem('digiportal_selected_subject');
+    // Restore selected class from localStorage (but NOT the selected subject/folder)
+    // This ensures only the class shows as active on page refresh, not the specific folder
     const savedClass = localStorage.getItem('digiportal_selected_class');
-    if (savedSubject && savedClass) {
+    if (savedClass) {
         try {
             const classData = JSON.parse(savedClass);
-            selectedSubject.value = savedSubject;
             selectedClassForSubject.value = classData;
-            // Expand the class that has the selected subject
+            // Expand the class that was previously selected
             expandedClassId.value = classData.id;
+            // Do NOT restore selectedSubject - it should be cleared on page refresh
+            selectedSubject.value = null;
         } catch (e) {
             console.error('Error parsing saved class data:', e);
         }
@@ -908,6 +909,18 @@ onMounted(async () => {
     window.addEventListener('userDataChanged', handleUserDataChange);
     window.addEventListener('userLoggedOut', handleUserLogout);
 
+    // Listen for folder selection from Room.vue to update sidebar active state
+    window.addEventListener('folderSelected', (event) => {
+        const { subject, classItem } = event.detail;
+        console.log('📂 Folder selected event received:', subject, 'in class:', classItem?.name);
+        selectedSubject.value = subject;
+        selectedClassForSubject.value = classItem;
+        // Expand the class that has the selected subject
+        if (classItem?.id) {
+            expandedClassId.value = classItem.id;
+        }
+    });
+
     // Debug: Log user data
     console.log('MainLayout mounted, user data:', currentUser.value);
 });
@@ -917,6 +930,7 @@ onUnmounted(() => {
     window.removeEventListener('storage', handleStorageChange);
     window.removeEventListener('userDataChanged', handleUserDataChange);
     window.removeEventListener('userLoggedOut', handleUserLogout);
+    window.removeEventListener('folderSelected', () => {});
 });
 
 // Computed auth for template compatibility

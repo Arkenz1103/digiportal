@@ -46,12 +46,12 @@ const loadUserProfile = async () => {
     try {
         const response = await axios.get('/api/user/profile/');
         user.value = response.data;
-        
+
         // Set profile picture preview if exists
         if (response.data.profile_picture_url) {
             profilePicturePreview.value = response.data.profile_picture_url;
         }
-        
+
         console.log('✅ User profile loaded:', user.value);
     } catch (error) {
         console.error('❌ Error loading profile:', error);
@@ -67,21 +67,21 @@ const handleProfilePictureChange = (event) => {
             showError('File size must be less than 5MB', 'File Too Large');
             return;
         }
-        
+
         if (!file.type.startsWith('image/')) {
             showError('Please select an image file', 'Invalid File Type');
             return;
         }
-        
+
         profilePictureFile.value = file;
-        
+
         // Create preview
         const reader = new FileReader();
         reader.onload = (e) => {
             profilePicturePreview.value = e.target.result;
         };
         reader.readAsDataURL(file);
-        
+
         showInfo('Profile picture selected. Click "Save" to update.', 'Picture Selected');
     }
 };
@@ -97,10 +97,10 @@ const saveProfile = async () => {
         showError('Please fill in all required fields', 'Validation Error');
         return;
     }
-    
+
     try {
         isSavingProfile.value = true;
-        
+
         const formData = new FormData();
         formData.append('first_name', user.value.first_name);
         formData.append('last_name', user.value.last_name);
@@ -112,22 +112,22 @@ const saveProfile = async () => {
         if (profilePictureFile.value) {
             formData.append('profile_picture', profilePictureFile.value);
         }
-        
+
         const response = await axios.put('/api/user/profile/', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             }
         });
-        
+
         user.value = response.data;
         if (response.data.profile_picture_url) {
             profilePicturePreview.value = response.data.profile_picture_url;
         }
-        
+
         showSuccess('Profile updated successfully!', 'Saved');
         isEditingProfile.value = false;
         profilePictureFile.value = null;
-        
+
         console.log('✅ Profile saved:', user.value);
     } catch (error) {
         console.error('❌ Error saving profile:', error);
@@ -161,25 +161,25 @@ const changePassword = async () => {
         showError('Please fill in all password fields', 'Validation Error');
         return;
     }
-    
+
     if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
         showError('New passwords do not match', 'Validation Error');
         return;
     }
-    
+
     if (passwordForm.value.newPassword.length < 8) {
         showError('Password must be at least 8 characters long', 'Validation Error');
         return;
     }
-    
+
     try {
         isChangingPassword.value = true;
-        
+
         const response = await axios.post('/api/user/change-password/', {
             current_password: passwordForm.value.currentPassword,
             new_password: passwordForm.value.newPassword
         });
-        
+
         showSuccess('Password changed successfully!', 'Success');
         showPasswordDialog.value = false;
         passwordForm.value = {
@@ -187,7 +187,7 @@ const changePassword = async () => {
             newPassword: '',
             confirmPassword: ''
         };
-        
+
         console.log('✅ Password changed');
     } catch (error) {
         console.error('❌ Error changing password:', error);
@@ -239,7 +239,7 @@ onMounted(() => {
         <!-- Main Content -->
         <div class="w-full bg-white/80 flex-1">
             <div class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-                
+
                 <!-- Profile Picture Section -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-indigo-100">
@@ -248,13 +248,13 @@ onMounted(() => {
                             <h2 class="text-lg font-semibold text-gray-900">Profile Picture</h2>
                         </div>
                     </div>
-                    
+
                     <div class="p-6">
                         <div class="flex items-center gap-6">
                             <!-- Profile Picture Display -->
                             <div class="relative">
                                 <div class="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-                                    <img 
+                                    <img
                                         v-if="profilePicturePreview || user.profile_picture"
                                         :src="profilePicturePreview || user.profile_picture"
                                         alt="Profile"
@@ -272,14 +272,14 @@ onMounted(() => {
                                     <i class="pi pi-camera text-xs"></i>
                                 </button>
                             </div>
-                            
+
                             <!-- Profile Info -->
                             <div class="flex-1">
                                 <h3 class="text-xl font-bold text-gray-900">{{ user.first_name }} {{ user.last_name }}</h3>
                                 <p class="text-gray-600">{{ user.email }}</p>
                                 <p class="text-sm text-indigo-600 mt-1">{{ user.role === 'teacher' ? 'Teacher' : user.role }}</p>
                             </div>
-                            
+
                             <!-- Hidden file input -->
                             <input
                                 type="file"
@@ -324,7 +324,7 @@ onMounted(() => {
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Full Name -->
@@ -338,7 +338,7 @@ onMounted(() => {
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
                                 />
                             </div>
-                            
+
                             <!-- Email Address -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
@@ -350,19 +350,21 @@ onMounted(() => {
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
                                 />
                             </div>
-                            
+
                             <!-- Phone Number -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                                 <input
                                     v-model="user.phone_number"
+                                    @input="user.phone_number = user.phone_number.replace(/\D/g, '').slice(0, 13)"
                                     :disabled="!isEditingProfile"
                                     type="tel"
                                     placeholder="+123-456-7890"
+                                    maxlength="13"
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
                                 />
                             </div>
-                            
+
                             <!-- Teacher ID (Read-only) -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Teacher ID</label>
@@ -376,7 +378,7 @@ onMounted(() => {
                                     ]"
                                 />
                             </div>
-                            
+
                             <!-- Department -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Department</label>
@@ -390,7 +392,7 @@ onMounted(() => {
                                     ]"
                                 />
                             </div>
-                            
+
                             <!-- Years of Experience -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
@@ -402,7 +404,7 @@ onMounted(() => {
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
                                 />
                             </div>
-                            
+
                             <!-- Bio (Full Width) -->
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Bio</label>
@@ -426,7 +428,7 @@ onMounted(() => {
                             <h2 class="text-lg font-semibold text-gray-900">Account Settings</h2>
                         </div>
                     </div>
-                    
+
                     <div class="p-6 space-y-4">
                         <!-- Change Password -->
                         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -441,7 +443,7 @@ onMounted(() => {
                                 Change
                             </button>
                         </div>
-                        
+
                         <!-- Account Status -->
                         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                             <div>
@@ -462,7 +464,7 @@ onMounted(() => {
         </div>
 
         <!-- Change Password Dialog -->
-        <Dialog 
+        <Dialog
             v-model:visible="showPasswordDialog"
             modal
             header="Change Password"
@@ -480,7 +482,7 @@ onMounted(() => {
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                 </div>
-                
+
                 <!-- New Password -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
@@ -491,7 +493,7 @@ onMounted(() => {
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                 </div>
-                
+
                 <!-- Confirm Password -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
@@ -502,7 +504,7 @@ onMounted(() => {
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                 </div>
-                
+
                 <!-- Password Requirements -->
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p class="text-xs text-blue-800 font-medium mb-1">Password Requirements:</p>
@@ -513,7 +515,7 @@ onMounted(() => {
                     </ul>
                 </div>
             </div>
-            
+
             <template #footer>
                 <div class="flex justify-end gap-2">
                     <Button
@@ -533,7 +535,7 @@ onMounted(() => {
         </Dialog>
 
         <!-- Account Status Dialog -->
-        <Dialog 
+        <Dialog
             v-model:visible="showAccountStatusDialog"
             modal
             header="Account Status"
@@ -552,7 +554,7 @@ onMounted(() => {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="space-y-2">
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <span class="text-sm text-gray-700">Email Verified</span>
@@ -568,7 +570,7 @@ onMounted(() => {
                     </div>
                 </div>
             </div>
-            
+
             <template #footer>
                 <div class="flex justify-end">
                     <Button

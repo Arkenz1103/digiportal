@@ -430,13 +430,20 @@
                           </div>
                         </div>
                       </div>
+                      <!-- Load More Button for Submitted -->
+                      <div v-if="displayedSubmittedCount < folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length" class="p-4 text-center border-t border-gray-200 bg-gray-50">
+                        <button @click="displayedSubmittedCount += itemsPerPage" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto">
+                          <i class="pi pi-chevron-down"></i>
+                          <span>Load More ({{ folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length - displayedSubmittedCount }} more)</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   <!-- Scoring Criteria Section (2-Column Layout with Max 2 Rows) -->
                   <div v-if="!hasScore" class="mb-6">
                     <div v-if="selectedActivity.scoringCriteria && selectedActivity.scoringCriteria.length > 0" class="bg-white rounded-lg p-4 border border-gray-200">
-                      <h3 class="text-sm font-bold text-gray-900 mb-3">Scoring Criteria:</h3>
+                      <h3 class="text-sm font-bold text-gray-900">Scoring Criteria:</h3>
                       <div class="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto">
                         <div
                           v-for="(criterion, index) in selectedActivity.scoringCriteria"
@@ -589,7 +596,7 @@
                           <!-- Activity Title -->
                           <div class="flex-1 min-w-[140px]">
                             <div class="text-gray-500 text-xs mb-1 font-medium">Activity Title:</div>
-                            <div class="text-gray-900 font-bold">{{ item.activity_title }}</div>
+                            <div class="text-gray-900 font-bold whitespace-normal break-words">{{ item.activity_title }}</div>
                           </div>
 
                           <!-- Submitted Date/Time -->
@@ -675,7 +682,7 @@
 
                       <!-- Table Body - Pending/Missing Activities Only -->
                       <div class="divide-y divide-gray-200">
-                        <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'pending' || getActivityStatus(a) === 'missing')" :key="activity.id"
+                        <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'pending' || getActivityStatus(a) === 'missing').slice(0, displayedPendingCount)" :key="activity.id"
                           class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
                           @click="openActivity(activity)">
 
@@ -687,7 +694,7 @@
 
                             <!-- Title -->
                             <div class="col-span-2 text-center">
-                              <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
+                              <span class="font-medium text-gray-900 whitespace-normal break-words" :title="activity.title">{{ activity.title }}</span>
                             </div>
 
                             <!-- Activity Type -->
@@ -784,7 +791,7 @@
 
                       <!-- Table Body - Submitted Activities Only -->
                       <div class="divide-y divide-gray-200">
-                        <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted')" :key="activity.id"
+                        <div v-for="(activity, index) in folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').slice(0, displayedSubmittedCount)" :key="activity.id"
                           class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
                           @click="openActivity(activity)">
 
@@ -796,7 +803,7 @@
 
                             <!-- Title -->
                             <div class="col-span-2 text-center">
-                              <span class="font-medium text-gray-900 truncate max-w-xs inline-block" :title="activity.title">{{ activity.title }}</span>
+                              <span class="font-medium text-gray-900 whitespace-normal break-words" :title="activity.title">{{ activity.title }}</span>
                             </div>
 
                             <!-- Activity Type -->
@@ -844,6 +851,13 @@
                           </div>
                         </div>
                       </div>
+                      <!-- Load More Button for Submitted -->
+                      <div v-if="displayedSubmittedCount < folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length" class="p-4 text-center border-t border-gray-200 bg-gray-50">
+                        <button @click="displayedSubmittedCount += itemsPerPage" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto">
+                          <i class="pi pi-chevron-down"></i>
+                          <span>Load More ({{ folderActivities.filter(a => getActivityStatus(a) === 'submitted' || getActivityStatus(a) === 'resubmitted').length - displayedSubmittedCount }} more)</span>
+                        </button>
+                      </div>
                     </div>
                     </div>
                     <!-- End Submitted Outputs Section -->
@@ -856,7 +870,7 @@
                 <!-- Header with title -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                   <div>
-                    <h2 class="text-xl md:text-2xl font-bold text-gray-900">My Activities</h2>
+                    <h2 class="text-xl font-bold text-gray-900">My Activities</h2>
                   </div>
                 </div>
 
@@ -1393,7 +1407,7 @@
                     <!-- Missing Activities List -->
                     <div class="space-y-4">
                       <div v-for="activity in missingActivities" :key="activity.id"
-                           class="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-6 hover:shadow-lg transition-all">
+                           class="bg-orange-50 border border-orange-200 rounded-xl p-6 hover:bg-orange-100 transition-colors">
                         <div class="flex items-start justify-between">
                           <div class="flex-1">
                             <div class="flex items-center gap-3 mb-3">
@@ -1404,7 +1418,7 @@
                                 {{ activity.folder_name }}
                               </span>
                             </div>
-                            <h4 class="text-xl font-bold text-gray-900 mb-2">{{ activity.title }}</h4>
+                            <h4 class="text-xl font-bold text-gray-900 whitespace-normal break-words mb-2">{{ activity.title }}</h4>
                             <p class="text-gray-600 mb-4">{{ activity.description }}</p>
                             <div class="flex items-center gap-4 text-sm text-gray-500">
                               <span v-if="activity.due_date">
@@ -1515,15 +1529,9 @@
             <!-- Calendar Header -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h2 class="text-xl font-bold text-gray-900">NOVEMBER 2025</h2>
-              <div class="flex gap-4 items-center">
-                <span class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-indigo-100"></div>
-                  <span class="text-sm text-gray-600">Class Day</span>
-                </span>
-                <span class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-gray-100"></div>
-                  <span class="text-sm text-gray-600">No Class</span>
-                </span>
+              <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
+                <span class="text-sm text-gray-500">School Year:</span>
+                <span class="text-sm font-medium text-indigo-700">2024-2025</span>
               </div>
             </div>
 
@@ -1636,7 +1644,7 @@
                       v-model="classmateSearchQuery"
                       type="text"
                       placeholder="Search classmates by name..."
-                      class="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                      class="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                     />
                     <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                   </div>
@@ -1744,32 +1752,24 @@
           <div v-else class="bg-white rounded-lg border border-indigo-100 p-4">
             <div class="flex flex-col gap-4">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <!-- Image Preview for Images -->
-                  <div v-if="previewUrl" class="h-16 w-16 relative rounded overflow-hidden">
-                    <img
-                      :src="previewUrl"
-                      alt="Preview"
-                      class="w-full h-full object-cover"
-                    />
-                  </div>
-                  <!-- File Icon for Documents -->
-                  <div v-else class="h-16 w-16 bg-indigo-50/30 rounded flex items-center justify-center">
-                    <i class="pi pi-file-pdf text-2xl text-indigo-700"></i>
-                  </div>
-                  <div>
-                    <p class="font-medium text-gray-900">{{ selectedFile.name }}</p>
-                    <p class="text-sm text-gray-500">
-                      {{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB
-                    </p>
-                  </div>
+                <!-- Image Preview for Images -->
+                <div v-if="previewUrl" class="h-16 w-16 relative rounded overflow-hidden">
+                  <img
+                    :src="previewUrl"
+                    alt="Preview"
+                    class="w-full h-full object-cover"
+                  />
                 </div>
-                <button
-                  @click="clearFile"
-                  class="text-gray-500 hover:text-red-500 p-2 rounded-full hover:bg-gray-100"
-                >
-                  <i class="pi pi-times"></i>
-                </button>
+                <!-- File Icon for Documents -->
+                <div v-else class="h-16 w-16 bg-indigo-50/30 rounded flex items-center justify-center">
+                  <i class="pi pi-file-pdf text-2xl text-indigo-700"></i>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900">{{ selectedFile.name }}</p>
+                  <p class="text-sm text-gray-500">
+                    {{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB
+                  </p>
+                </div>
               </div>
 
               <!-- File Preview -->
@@ -1830,7 +1830,7 @@
                      class="bg-red-50 border border-red-200 rounded-lg p-4 hover:bg-red-100 transition-colors">
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
-                            <h4 class="font-semibold text-gray-900 mb-1">{{ activity.title }}</h4>
+                            <h4 class="font-semibold text-gray-900 whitespace-normal break-words mb-1">{{ activity.title }}</h4>
                             <p class="text-sm text-gray-600 mb-2">{{ activity.description }}</p>
                             <div class="flex items-center gap-4 text-xs text-gray-500">
                                 <span v-if="activity.due_date">
@@ -3242,6 +3242,9 @@ const selectedActivity = ref(null);
 // Folder activities data
 const folderActivities = ref([]);
 const isLoadingActivities = ref(false);
+const itemsPerPage = 5;
+const displayedPendingCount = ref(itemsPerPage);
+const displayedSubmittedCount = ref(itemsPerPage);
 
 // Student submissions
 const studentSubmissions = ref([]);
@@ -3900,36 +3903,77 @@ const calculateTotalScore = (criteriaScoresJson) => {
 
 // Function to open activity with all details
 const openActivity = async (activity) => {
-  selectedActivity.value = activity;
+  try {
+    // Fetch complete activity details from API to ensure we have all data
+    const response = await axios.get(`/api/activities/${activity.id}/`);
+    const activityData = response.data;
 
-  // Reset score state when opening new activity
-  hasScore.value = false;
-  submissionScore.value = null;
-
-  // Save current view state to localStorage
-  localStorage.setItem('student_current_view', JSON.stringify({
-    activeTab: activeTab.value,
-    selectedFolder: selectedFolder.value,
-    selectedActivity: {
-      id: activity.id,
-      title: activity.title
+    // Parse scoring criteria if it exists
+    let scoringCriteria = [];
+    if (activityData.scoring_criteria) {
+      try {
+        scoringCriteria = typeof activityData.scoring_criteria === 'string'
+          ? JSON.parse(activityData.scoring_criteria)
+          : activityData.scoring_criteria;
+      } catch (error) {
+        console.error('Error parsing scoring criteria:', error);
+      }
     }
-  }));
-  console.log('💾 Saved view state: Tab:', activeTab.value, 'Activity:', activity.title);
 
-  // Use the hasSubmitted status from the activity object if available
-  if (activity.hasSubmitted !== undefined) {
-    hasSubmittedWork.value = activity.hasSubmitted;
-  } else {
-    // Otherwise, check submission status from API
+    // Format due time if available
+    let formattedTime = '';
+    if (activityData.due_time) {
+      const [hours, minutes] = activityData.due_time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      formattedTime = `${displayHour}:${minutes} ${ampm}`;
+    }
+
+    // Set the complete activity data
+    selectedActivity.value = {
+      id: activityData.id,
+      title: activityData.title,
+      type: activityData.activity_type,
+      description: activityData.description,
+      date: activityData.due_date ? new Date(activityData.due_date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }) : '',
+      dueDate: activityData.due_date,
+      dueTime: activityData.due_time,
+      formattedTime: formattedTime,
+      scoringCriteria: scoringCriteria
+    };
+
+    // Reset score state when opening new activity
+    hasScore.value = false;
+    submissionScore.value = null;
+
+    // Save current view state to localStorage
+    localStorage.setItem('student_current_view', JSON.stringify({
+      activeTab: activeTab.value,
+      selectedFolder: selectedFolder.value,
+      selectedActivity: {
+        id: activity.id,
+        title: activity.title
+      }
+    }));
+    console.log('💾 Saved view state: Tab:', activeTab.value, 'Activity:', activity.title);
+
+    // Check submission status from API
     await checkSubmissionStatus(activity.id);
+
+    // Load submissions for this activity
+    await loadActivitySubmissions(activity.id);
+
+    // Load draft submissions separately
+    await loadDraftSubmissions(activity.id);
+  } catch (error) {
+    console.error('Error opening activity:', error);
+    showError('Failed to load activity details', 'Error');
   }
-
-  // Load submissions for this activity
-  await loadActivitySubmissions(activity.id);
-
-  // Load draft submissions separately
-  await loadDraftSubmissions(activity.id);
 };
 
 // Load draft submissions for the current activity

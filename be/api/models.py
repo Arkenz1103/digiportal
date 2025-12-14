@@ -16,6 +16,10 @@ class Classroom(models.Model):
     teacher = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='taught_classrooms', limit_choices_to={'role': 'teacher'})
 
+    # Archiving fields
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -237,7 +241,7 @@ class StudentSubmission(models.Model):
     last_resubmit_at = models.DateTimeField(null=True, blank=True)  # Track last resubmit time
     submitted_at = models.DateTimeField(null=True, blank=True)  # Set when actually turned in, not when draft created
     scored_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Portfolio Compilation Fields
     is_compilation = models.BooleanField(default=False)  # True if this is a portfolio compilation submission
     compiled = models.BooleanField(default=False)
@@ -360,6 +364,36 @@ class PostComment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} commented on post {self.post.id}"
+
+
+class PostCommentLike(models.Model):
+    """Like model for post comments"""
+    comment = models.ForeignKey(PostComment, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'post_comment_likes'
+        unique_together = ['comment', 'user']
+
+    def __str__(self):
+        return f"{self.user.username} likes comment {self.comment.id}"
+
+
+class PostCommentReply(models.Model):
+    """Reply model for post comments"""
+    comment = models.ForeignKey(PostComment, on_delete=models.CASCADE, related_name='replies')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_replies')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'post_comment_replies'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.user.username} replied to comment {self.comment.id}"
 
 
 class Remark(models.Model):
