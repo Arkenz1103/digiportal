@@ -501,13 +501,13 @@ const sideBarItems = computed(() => {
             { label: 'Home', icon: 'pi pi-home', route: 'TeacherHome' },
             { label: 'Remarks', icon: 'pi pi-comments', route: 'TeacherRemarks' },
             { label: 'Notice', icon: 'pi pi-check-circle', route: 'TeacherNotice' },
-            { label: 'Archived', icon: 'pi pi-inbox', route: 'TeacherArchived' },
+            // { label: 'Archived', icon: 'pi pi-inbox', route: 'TeacherArchived' },
         ],
         student: [
             { label: 'Home', icon: 'pi pi-home', route: 'StudentNewsfeed' },
             { label: 'Sketch', icon: 'pi pi-pencil', route: 'StudentSketch' },
             { label: 'Remarked', icon: 'pi pi-comments', route: 'StudentRemarked' },
-            { label: 'Archived', icon: 'pi pi-inbox', route: 'StudentArchived' },
+            // { label: 'Archived', icon: 'pi pi-inbox', route: 'StudentArchived' },
         ],
     };
 

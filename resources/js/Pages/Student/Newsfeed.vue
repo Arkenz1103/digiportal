@@ -198,15 +198,8 @@
                                     rows="2"
                                     class="w-full px-4 py-3 border-2 border-teal-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
                                 ></textarea>
-                                <div class="flex items-center justify-between mt-2">
-                                    <div class="flex items-center gap-2">
-                                        <button class="p-2 text-gray-400 hover:text-teal-600 transition-colors">
-                                            <i class="pi pi-image"></i>
-                                        </button>
-                                        <button class="p-2 text-gray-400 hover:text-amber-600 transition-colors">
-                                            <i class="pi pi-face-smile"></i>
-                                        </button>
-                                    </div>
+                                <div class="flex items-center justify-end mt-2">
+
                                     <button
                                         @click="addComment(post)"
                                         :disabled="!post.newComment || post.newComment.trim() === ''"

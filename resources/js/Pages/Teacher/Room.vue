@@ -12,41 +12,6 @@
                         Teacher: {{ currentUser.name }}
                     </p>
                 </div>
-                <div class="relative settings-dropdown" ref="settingsRef">
-                    <button
-                        @click.stop="toggleSettingsDropdown"
-                        type="button"
-                        class="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
-                        aria-label="Settings"
-                        aria-haspopup="true"
-                        :aria-expanded="showSettingsDropdown"
-                    >
-                        <i class="pi pi-cog text-lg"></i>
-                    </button>
-
-                    <transition
-                        enter-active-class="transition ease-out duration-100"
-                        enter-from-class="transform opacity-0 scale-95"
-                        enter-to-class="transform opacity-100 scale-100"
-                        leave-active-class="transition ease-in duration-75"
-                        leave-from-class="transform opacity-100 scale-100"
-                        leave-to-class="transform opacity-0 scale-95"
-                    >
-                        <div
-                            v-if="showSettingsDropdown"
-                            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden"
-                        >
-                            <button
-                                @click="showArchiveDialog = true"
-                                type="button"
-                                class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
-                            >
-                                <i class="pi pi-archive"></i>
-                                <span>Archive Class</span>
-                            </button>
-                        </div>
-                    </transition>
-                </div>
             </div>
 
             <!-- Navigation Tabs -->
@@ -832,7 +797,7 @@
                             <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                 <!-- Table Header -->
                                 <div class="bg-white border-b border-gray-200 px-6 py-4">
-                                    <div class="grid grid-cols-4 gap-4 text-gray-700 font-semibold text-sm">
+                                    <div class="grid grid-cols-5 gap-4 text-gray-700 font-semibold text-sm">
                                         <div class="flex items-center gap-2">
                                             <i class="pi pi-user"></i>
                                             Student Name
@@ -849,6 +814,10 @@
                                             <i class="pi pi-clock"></i>
                                             Time Created
                                         </div>
+                                        <div class="flex items-center gap-2">
+                                            <i class="pi pi-check-circle"></i>
+                                            Status
+                                        </div>
                                     </div>
                                 </div>
 
@@ -861,7 +830,7 @@
                                         @click="viewStudentEnvelope(student)"
                                         class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150 cursor-pointer"
                                     >
-                                        <div class="grid grid-cols-4 gap-4 items-center text-sm">
+                                        <div class="grid grid-cols-5 gap-4 items-center text-sm">
                                             <div class="flex items-center gap-3">
                                                 <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
                                                     {{ student.name.charAt(0) }}
@@ -871,6 +840,10 @@
                                             <div class="text-gray-700 font-mono">{{ student.idNumber }}</div>
                                             <div class="text-gray-700">{{ student.dateCreated }}</div>
                                             <div class="text-gray-700">{{ student.timeCreated }}</div>
+                                            <div>
+                                                <span v-if="student.isSubmitted" class="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Done</span>
+                                                <span v-else class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">In Progress</span>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -3604,7 +3577,7 @@ const fetchPortfolioEnvelopes = async () => {
             portfolioStudents.value = response.data.envelopes.map(env => ({
                 id: env.id,
                 student_id: env.student_id, // Add student_id for fetching activities
-                name: env.student_name,
+                name: env.student_name || env.name,
                 idNumber: env.id_number,
                 dateCreated: env.date_created,
                 timeCreated: env.time_created,
@@ -3612,7 +3585,10 @@ const fetchPortfolioEnvelopes = async () => {
                 title: env.title,
                 color: env.color,
                 pattern: env.pattern,
-                className: env.class_name || props.className || className.value
+                className: env.class_name || props.className || className.value,
+                isSubmitted: env.is_submitted,
+                status: env.status || (env.is_submitted ? 'Done' : 'In Progress'),
+                submittedAt: env.submitted_at
             }));
 
             console.log(`✅ Loaded ${portfolioStudents.value.length} portfolio envelopes`);

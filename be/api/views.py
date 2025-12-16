@@ -4350,6 +4350,82 @@ def get_student_envelope_api(request, class_name):
         print(f"Traceback: {traceback.format_exc()}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@csrf_exempt
+@api_view(['GET'])
+def get_portfolio_envelopes_api(request, class_name):
+    """Get all portfolio envelopes for a specific class (Teacher view)"""
+    try:
+        from .models import PortfolioEnvelope, Classroom
+
+        print(f"📋 Fetching all portfolio envelopes for class: {class_name}")
+
+        # Check teacher permissions
+        if not request.user.is_authenticated or request.user.role != 'teacher':
+             return Response({'error': 'Only teachers can view all envelopes'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get the teacher's classroom for this class_name
+        teacher_classroom = Classroom.objects.filter(
+            teacher=request.user,
+            name=class_name
+        ).first()
+
+        if not teacher_classroom:
+            print(f"⚠️ Teacher {request.user.username} does not have a classroom named {class_name}")
+            return Response({
+                'envelopes': []
+            }, status=status.HTTP_200_OK)
+
+        print(f"📚 Found teacher's classroom: {teacher_classroom.name} (ID: {teacher_classroom.id})")
+
+        # Get envelopes ONLY for students who are actually assigned to this classroom
+        # This ensures we filter by the student's actual classroom assignment, not just the class_name in the envelope
+        envelopes = PortfolioEnvelope.objects.filter(
+            class_name=class_name,
+            student__classroom=teacher_classroom  # Filter by student's actual classroom assignment
+        ).select_related('student', 'student__classroom').order_by('-updated_at')
+        
+        envelope_data = []
+        for env in envelopes:
+            # Format dates
+            from django.utils import timezone
+            local_created = timezone.localtime(env.created_at)
+            date_created = local_created.strftime('%b %d, %Y')
+            time_created = local_created.strftime('%I:%M %p')
+            
+            # Get student ID
+            student_id = env.student.id
+            id_number = env.student.id_number if hasattr(env.student, 'id_number') else 'N/A'
+
+            # Determine status based on is_submitted flag
+            status_text = 'Done' if env.is_submitted else 'In Progress'
+
+            envelope_data.append({
+                'id': env.id,
+                'student_id': student_id,
+                'student_name': env.student_name,
+                'id_number': id_number,
+                'date_created': date_created,
+                'time_created': time_created,
+                'title': env.title,
+                'color': env.color,
+                'pattern': env.pattern,
+                'class_name': env.class_name,
+                'is_submitted': env.is_submitted,
+                'status': status_text,
+                'submitted_at': env.submitted_at.isoformat() if env.submitted_at else None
+            })
+
+        print(f"✅ Found {len(envelope_data)} envelopes for class {class_name} (filtered by student's classroom assignment)")
+
+        return Response({
+            'envelopes': envelope_data
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        import traceback
+        print(f"❌ Error fetching portfolio envelopes: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @csrf_exempt
 @api_view(['GET'])
@@ -4466,6 +4542,7 @@ def get_student_portfolio_activities_api(request, class_name):
                 submission_status = 'missing'
                 is_late = False
                 is_resubmitted = False
+                is_compilation = False  # Initialize is_compilation before the if block
                 has_pending_submission = False
 
                 # Check if there's a pending (unscored) submission
@@ -4949,9 +5026,9 @@ def submit_compilation_api(request, activity_id):
 @csrf_exempt
 @api_view(['GET'])
 def get_portfolio_envelopes_api(request, class_name):
-    """Get all portfolio envelopes for a class (teacher only)"""
+    """Get all portfolio envelopes for a class (teacher only) - filtered by student's actual classroom assignment"""
     try:
-        from .models import PortfolioEnvelope
+        from .models import PortfolioEnvelope, Classroom
 
         print(f"📋 Fetching portfolio envelopes for class: {class_name}")
 
@@ -4961,11 +5038,27 @@ def get_portfolio_envelopes_api(request, class_name):
                 'error': 'Only teachers can view portfolio envelopes'
             }, status=status.HTTP_403_FORBIDDEN)
 
-        # Get all submitted envelopes for this class (only show submitted portfolios to teachers)
+        # Get the teacher's classroom for this class_name
+        teacher_classroom = Classroom.objects.filter(
+            teacher=request.user,
+            name=class_name
+        ).first()
+
+        if not teacher_classroom:
+            print(f"⚠️ Teacher {request.user.username} does not have a classroom named {class_name}")
+            return Response({
+                'envelopes': [],
+                'count': 0
+            }, status=status.HTTP_200_OK)
+
+        print(f"📚 Found teacher's classroom: {teacher_classroom.name} (ID: {teacher_classroom.id})")
+
+        # Get all envelopes for students who are actually assigned to this classroom
+        # This ensures we filter by the student's actual classroom assignment, not just the class_name in the envelope
         envelopes = PortfolioEnvelope.objects.filter(
             class_name=class_name,
-            is_submitted=True
-        ).select_related('student')
+            student__classroom=teacher_classroom  # Filter by student's actual classroom assignment
+        ).select_related('student', 'student__classroom')
 
         envelope_list = []
         for envelope in envelopes:
@@ -4990,25 +5083,30 @@ def get_portfolio_envelopes_api(request, class_name):
                     is_active=True
                 ).count()
 
+            # Determine status based on is_submitted flag
+            status_text = 'Done' if envelope.is_submitted else 'In Progress'
+
             envelope_list.append({
                 'id': envelope.id,
                 'student_id': envelope.student.id,
                 'student_name': envelope.student_name,
                 'name': envelope.student_name,  # Add 'name' field for consistency
                 'student_username': envelope.student.username,
-                'id_number': envelope.student.id,  # Use database primary key as ID number
+                'id_number': envelope.student.id_number if envelope.student.id_number else str(envelope.student.id),
                 'title': envelope.title,
                 'color': envelope.color,
                 'pattern': envelope.pattern,
                 'class_name': class_name,
+                'is_submitted': envelope.is_submitted,
+                'status': status_text,
                 'created_at': local_time.isoformat(),
-                'submitted_at': submitted_time.isoformat(),
+                'submitted_at': submitted_time.isoformat() if envelope.is_submitted else None,
                 'date_created': local_time.strftime('%b %d, %Y'),
                 'time_created': local_time.strftime('%I:%M %p'),
                 'activity_count': activity_count
             })
 
-        print(f"✅ Found {len(envelope_list)} portfolio envelopes for {class_name}")
+        print(f"✅ Found {len(envelope_list)} portfolio envelopes for {class_name} (filtered by student's classroom assignment)")
 
         return Response({
             'envelopes': envelope_list,

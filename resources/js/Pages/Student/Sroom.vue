@@ -12,19 +12,7 @@
             Student: {{ currentUser.name }}
           </p>
         </div>
-        <div class="relative settings-dropdown" ref="settingsRef">
-          <button @click.stop="toggleSettingsDropdown" type="button" class="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 hover:shadow-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500" aria-label="Settings" aria-haspopup="true" :aria-expanded="showSettingsDropdown">
-            <i class="pi pi-cog text-lg"></i>
-          </button>
-          <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-            <div v-if="showSettingsDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden">
-              <button @click="showArchiveDialog = true" type="button" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2">
-                <i class="pi pi-archive"></i>
-                <span>Archive Class</span>
-              </button>
-            </div>
-          </transition>
-        </div>
+
       </div>
 
       <!-- Navigation Tabs -->
@@ -1511,7 +1499,7 @@
               </div>
               <h2 class="text-2xl font-bold text-gray-800">Portfolio Compilation Ready</h2>
               <p class="text-gray-600 mt-3 max-w-md mx-auto">Your teacher has requested you to start compiling your portfolio. Click the button below to begin organizing your work and achievements.</p>
-              <button @click="startPortfolioCompilation" class="w-full sm:w-auto mt-8 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 transform hover:scale-105">
+              <button @click="startPortfolioCompilation" class="w-full sm:w-auto mt-8 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 transform hover:scale-105 mx-auto">
                 <i class="pi pi-play-circle text-xl"></i>
                 <span>Start Portfolio Compilation</span>
               </button>
@@ -2288,7 +2276,7 @@
                         <input
                             v-model="envelopeDesign.className"
                             type="text"
-                            :placeholder="props.className"
+                            :placeholder="actualClassName"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                     </div>
@@ -2380,7 +2368,7 @@
                                     {{ envelopeDesign.studentName || 'Student Name' }}
                                 </p>
                                 <p class="text-sm text-white/80" style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
-                                    {{ envelopeDesign.className || props.className }}
+                                    {{ envelopeDesign.className || actualClassName }}
                                 </p>
                             </div>
                         </div>
@@ -5417,7 +5405,8 @@ const envelopePatterns = [
 const startPortfolioCompilation = () => {
   // Initialize with current user data
   envelopeDesign.value.studentName = currentUser.value.name;
-  envelopeDesign.value.className = props.className;
+  // Use actualClassName which correctly prioritizes: selectedClass > currentUser.classroom > props.className
+  envelopeDesign.value.className = actualClassName.value;
 
   // Show the envelope designer
   showEnvelopeDesigner.value = true;
@@ -5455,11 +5444,11 @@ const confirmSaveEnvelope = async () => {
   console.log('Saving envelope design:', envelopeDesign.value);
 
   try {
-    // Save to backend
+    // Save to backend - use actualClassName as fallback which correctly prioritizes student's classroom
     const response = await axios.post('/api/portfolio-envelope/create/', {
       title: envelopeDesign.value.title,
       student_name: envelopeDesign.value.studentName,
-      class_name: envelopeDesign.value.className || props.className,
+      class_name: envelopeDesign.value.className || actualClassName.value,
       color: envelopeDesign.value.color,
       pattern: envelopeDesign.value.pattern
     });
@@ -5481,8 +5470,8 @@ const confirmSaveEnvelope = async () => {
 // Edit envelope design
 const editEnvelopeDesign = async () => {
   try {
-    // Fetch existing envelope data
-    const classNameValue = props.className;
+    // Fetch existing envelope data - use actualClassName which correctly prioritizes student's classroom
+    const classNameValue = actualClassName.value;
     console.log('Checking for existing envelope in class (from fetch):', classNameValue); // Debugging line
     if (!classNameValue) {
       console.error('Class name is missing, cannot fetch portfolio envelope.');
@@ -5505,7 +5494,7 @@ const editEnvelopeDesign = async () => {
     console.error('❌ Error loading envelope data:', error);
     // If no envelope found, use default values
     envelopeDesign.value.studentName = currentUser.value.name;
-    envelopeDesign.value.className = props.className;
+    envelopeDesign.value.className = actualClassName.value;
   }
 
   showEnvelopeDesigner.value = true;
@@ -5525,7 +5514,8 @@ const toggleEnvelope = async () => {
 // Fetch portfolio activities
 const fetchPortfolioActivities = async () => {
   try {
-    const classNameValue = props.className;
+    // Use actualClassName which correctly prioritizes student's classroom
+    const classNameValue = actualClassName.value;
     const response = await axios.get(`/api/portfolio-envelope/activities/${encodeURIComponent(classNameValue)}/`);
 
     if (response.data) {
@@ -5575,7 +5565,8 @@ const previousActivity = () => {
 const confirmSubmitPortfolio = async () => {
   try {
     isSubmittingPortfolio.value = true;
-    const classNameValue = props.className;
+    // Use actualClassName which correctly prioritizes student's classroom
+    const classNameValue = actualClassName.value;
 
     console.log('📤 Submitting portfolio for class:', classNameValue);
 
@@ -6005,7 +5996,8 @@ const submitMissingActivity = async () => {
 // Check if student has existing envelope
 const checkExistingEnvelope = async () => {
   try {
-    const classNameValue = props.className;
+    // Use actualClassName which correctly prioritizes student's classroom
+    const classNameValue = actualClassName.value;
     console.log('Checking for existing envelope in class (from checkExistingEnvelope):', classNameValue); // Debugging line
     if (!classNameValue) {
       console.error('Class name is missing, cannot fetch portfolio envelope.');
