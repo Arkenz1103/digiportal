@@ -44,8 +44,11 @@ urlpatterns = [
 
     # Submission API routes
     path('api/activities/<int:activity_id>/submissions/', views.activity_submissions_api, name='activity_submissions_api'),
+    path('api/activities/<int:activity_id>/submissions/upload-files/', views.upload_submission_files_api, name='upload_submission_files_api'),
     path('api/activities/<int:activity_id>/submissions/<int:submission_id>/convert-to-final/', views.convert_draft_to_final_api, name='convert_draft_to_final_api'),
     path('api/submissions/<int:submission_id>/', views.submission_detail_api, name='submission_detail_api'),
+    path('api/submissions/<int:submission_id>/files/', views.submission_files_api, name='submission_files_api'),
+    path('api/submissions/<int:submission_id>/files/<int:file_id>/', views.submission_file_detail_api, name='submission_file_detail_api'),
     path('api/submissions/unscored/', views.unscored_submissions_api, name='unscored_submissions_api'),
     path('api/submissions/scored/', views.scored_submissions_api, name='scored_submissions_api'),
     path('api/submissions/<int:submission_id>/score/', views.score_submission_api, name='score_submission_api'),

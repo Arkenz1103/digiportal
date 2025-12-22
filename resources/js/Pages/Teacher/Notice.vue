@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useToast } from '../../composables/useToast';
 
@@ -24,15 +24,17 @@ const formatDateTime = (dateString) => {
     const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffMinutes = Math.floor(diffTime / (1000 * 60));
 
-    // Format: Nov 6, 2025 — 10:45 PM
-    const formatted = date.toLocaleDateString('en-US', {
+    // Format: Nov 6, 2025 — 10:45 PM (Manila Time)
+    const formatted = date.toLocaleDateString('en-PH', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
-    }) + ' — ' + date.toLocaleTimeString('en-US', {
+        year: 'numeric',
+        timeZone: 'Asia/Manila'
+    }) + ' — ' + date.toLocaleTimeString('en-PH', {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZone: 'Asia/Manila'
     });
 
     // Calculate "days ago" text
@@ -70,62 +72,80 @@ const loadPendingApprovals = async () => {
         if (response.data) {
             // Map and format submissions (backend already sorted them properly)
             pendingOutputs.value = response.data.map(submission => {
-                // Get image URL from multiple possible sources
-                let imageUrl = submission.file_url || submission.file_path || submission.file || '';
-                const fileType = submission.file_type || 'unknown';
+                // Check if submission has multiple files
+                const submissionFiles = submission.files || [];
+                let sampleImages = [];
+                let fileTypes = [];
 
-                // Check if file is actually an image
-                const isImageFile = imageUrl && (
-                    imageUrl.toLowerCase().endsWith('.jpg') ||
-                    imageUrl.toLowerCase().endsWith('.jpeg') ||
-                    imageUrl.toLowerCase().endsWith('.png') ||
-                    imageUrl.toLowerCase().endsWith('.gif') ||
-                    imageUrl.toLowerCase().endsWith('.webp') ||
-                    imageUrl.toLowerCase().endsWith('.svg') ||
-                    fileType.toLowerCase().startsWith('image')
-                );
+                if (submissionFiles.length > 0) {
+                    // Process multiple files
+                    submissionFiles.forEach(file => {
+                        let fileUrl = file.file_url || file.file_path || '';
+                        const fileType = file.file_type || 'unknown';
+                        
+                        // Build proper URL
+                        if (fileUrl && !fileUrl.startsWith('http') && !fileUrl.startsWith('data:')) {
+                            fileUrl = `http://localhost:8000${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                        }
+                        
+                        if (fileUrl) {
+                            sampleImages.push(fileUrl);
+                            fileTypes.push(fileType);
+                        }
+                    });
+                } else {
+                    // Fallback to single file from main submission
+                    let imageUrl = submission.file_url || submission.file_path || submission.file || '';
+                    const fileType = submission.file_type || 'unknown';
 
-                // Validate and fix image URL only if it's an image file
-                let finalImageUrl = '';
-                if (isImageFile && imageUrl) {
-                    // If it's a data URL, use it as-is
-                    if (imageUrl.startsWith('data:')) {
-                        finalImageUrl = imageUrl;
+                    // Check if file is actually an image
+                    const isImageFile = imageUrl && (
+                        imageUrl.toLowerCase().endsWith('.jpg') ||
+                        imageUrl.toLowerCase().endsWith('.jpeg') ||
+                        imageUrl.toLowerCase().endsWith('.png') ||
+                        imageUrl.toLowerCase().endsWith('.gif') ||
+                        imageUrl.toLowerCase().endsWith('.webp') ||
+                        imageUrl.toLowerCase().endsWith('.svg') ||
+                        fileType.toLowerCase().startsWith('image')
+                    );
+
+                    // Build proper URL
+                    if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+                        imageUrl = `http://localhost:8000${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
                     }
-                    // If it's a relative path, prepend the API base URL
-                    else if (!imageUrl.startsWith('http')) {
-                        finalImageUrl = `http://localhost:8000${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
-                    }
-                    // If it's already an absolute URL, use it
-                    else {
-                        finalImageUrl = imageUrl;
+
+                    if (imageUrl) {
+                        sampleImages.push(imageUrl);
+                        fileTypes.push(fileType);
                     }
                 }
 
-                const dateInfo = formatDateTime(submission.submitted_at);
+                const dateInfo = formatDateTime(submission.post_requested_at || submission.submitted_at);
 
                 return {
                     id: submission.id,
                     studentName: submission.student_name || submission.student?.username || 'Unknown',
                     title: submission.activity_title || 'Untitled',
                     subject: submission.activity_type || 'Unknown',
-                    description: submission.caption || 'No caption provided',
+                    description: submission.post_caption || submission.caption || 'No caption provided',
                     submittedDate: dateInfo.formatted,
                     daysAgo: dateInfo.daysAgo,
                     timestamp: dateInfo.timestamp,
-                    rawDate: submission.submitted_at,
-                    sampleImages: finalImageUrl ? [finalImageUrl] : [],
-                    file_path: imageUrl,
-                    file_type: fileType,
-                    isImageFile: isImageFile,
-                    status: 'Pending'
+                    rawDate: submission.post_requested_at || submission.submitted_at,
+                    sampleImages: sampleImages,
+                    fileTypes: fileTypes,
+                    file_path: submission.file_url || submission.file_path,
+                    file_type: submission.file_type || (fileTypes.length > 0 ? fileTypes[0] : 'unknown'),
+                    isImageFile: fileTypes.some(t => t === 'image'),
+                    status: 'Pending',
+                    files: submissionFiles
                 };
             });
 
             console.log('✅ Loaded pending approvals:', pendingOutputs.value.length, 'items');
             console.log('📊 Display order (as received from backend - already sorted):');
             pendingOutputs.value.forEach((item, index) => {
-                console.log(`   ${index + 1}. ${item.studentName} - ${item.title} - ${item.submittedDate} (${item.rawDate || 'NO DATE'})`);
+                console.log(`   ${index + 1}. ${item.studentName} - ${item.title} - ${item.submittedDate} - ${item.sampleImages.length} files`);
             });
             displayedPendingCount.value = itemsPerPage;
         }
@@ -194,6 +214,7 @@ const showPreviewDialog = ref(false);
 const showRejectionDialog = ref(false);
 const showApprovalDialog = ref(false);
 const selectedOutput = ref(null);
+const currentFileIndex = ref(0); // For navigating multiple files
 const feedbackForm = ref({
     isApproved: false,
     rejectionReason: '',
@@ -210,8 +231,61 @@ const rejectionReasons = [
 
 const previewOutput = (output) => {
     selectedOutput.value = output;
+    currentFileIndex.value = 0; // Reset to first file
     showPreviewDialog.value = true;
 };
+
+// Navigate to previous file
+const previousOutputFile = () => {
+    if (currentFileIndex.value > 0) {
+        currentFileIndex.value--;
+    }
+};
+
+// Navigate to next file
+const nextOutputFile = () => {
+    const totalFiles = selectedOutput.value?.sampleImages?.length || 1;
+    if (currentFileIndex.value < totalFiles - 1) {
+        currentFileIndex.value++;
+    }
+};
+
+// Get current file to display
+const currentOutputFile = computed(() => {
+    if (!selectedOutput.value) return null;
+    const images = selectedOutput.value.sampleImages || [];
+    if (images.length > 0) {
+        return images[currentFileIndex.value] || images[0];
+    }
+    return null;
+});
+
+// Get current file type
+const currentOutputFileType = computed(() => {
+    if (!selectedOutput.value) return 'unknown';
+    const fileTypes = selectedOutput.value.fileTypes || [];
+    if (fileTypes.length > 0) {
+        return fileTypes[currentFileIndex.value] || fileTypes[0] || 'unknown';
+    }
+    return selectedOutput.value.file_type || 'unknown';
+});
+
+// Check if current file is an image
+const isCurrentFileImage = computed(() => {
+    const fileType = currentOutputFileType.value;
+    const fileUrl = currentOutputFile.value || '';
+    return fileType === 'image' || 
+           fileUrl.toLowerCase().endsWith('.jpg') ||
+           fileUrl.toLowerCase().endsWith('.jpeg') ||
+           fileUrl.toLowerCase().endsWith('.png') ||
+           fileUrl.toLowerCase().endsWith('.gif') ||
+           fileUrl.toLowerCase().endsWith('.webp');
+});
+
+// Get total files count
+const totalOutputFiles = computed(() => {
+    return selectedOutput.value?.sampleImages?.length || 0;
+});
 
 const submitFeedback = async (isApproved) => {
     if (!selectedOutput.value) return;
@@ -386,7 +460,7 @@ const cancelRejection = () => {
                                 <div class="flex items-center gap-4 text-sm mb-3">
                                     <div class="flex items-center gap-1.5 text-indigo-700/90">
                                         <i class="pi pi-clock text-xs"></i>
-                                        <span class="font-medium">Submitted on:</span>
+                                        <span class="font-medium">Requested on:</span>
                                         <span>{{ output.submittedDate }}</span>
                                     </div>
                                     <span v-if="output.daysAgo" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
@@ -482,36 +556,93 @@ const cancelRejection = () => {
                         <p class="mt-1 text-indigo-900">{{ selectedOutput.title }}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#0E1836]">Description</label>
+                        <label class="block text-sm font-medium text-[#0E1836]">Caption</label>
                         <p class="mt-1 text-[#0E1836]">{{ selectedOutput.description }}</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-indigo-900 mb-2">Student Work</label>
                         <div class="border-2 border-indigo-200 rounded-lg overflow-hidden bg-gray-50">
-                            <div class="flex items-center justify-center p-4" style="min-height: 300px;">
+                            <div class="flex items-center justify-center p-4 relative" style="min-height: 300px;">
+                                <!-- Navigation Arrows (only show if multiple files) -->
+                                <div v-if="totalOutputFiles > 1" class="absolute inset-0 flex items-center justify-between px-2 pointer-events-none z-10">
+                                    <!-- Previous Button -->
+                                    <button
+                                        @click="previousOutputFile"
+                                        :disabled="currentFileIndex === 0"
+                                        class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                        :class="currentFileIndex === 0 ? '' : 'hover:scale-110'"
+                                    >
+                                        <i class="pi pi-chevron-left text-indigo-600"></i>
+                                    </button>
+                                    
+                                    <!-- Next Button -->
+                                    <button
+                                        @click="nextOutputFile"
+                                        :disabled="currentFileIndex >= totalOutputFiles - 1"
+                                        class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                        :class="currentFileIndex >= totalOutputFiles - 1 ? '' : 'hover:scale-110'"
+                                    >
+                                        <i class="pi pi-chevron-right text-indigo-600"></i>
+                                    </button>
+                                </div>
+
+                                <!-- File Counter (only show if multiple files) -->
+                                <div v-if="totalOutputFiles > 1" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+                                    <div class="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+                                        {{ currentFileIndex + 1 }} / {{ totalOutputFiles }}
+                                    </div>
+                                </div>
+
+                                <!-- Image Display -->
                                 <img
-                                    v-if="selectedOutput.sampleImages && selectedOutput.sampleImages.length > 0 && selectedOutput.sampleImages[0]"
-                                    :src="selectedOutput.sampleImages[0]"
+                                    v-if="currentOutputFile && isCurrentFileImage"
+                                    :src="currentOutputFile"
                                     class="w-full h-auto max-h-[500px] object-contain rounded"
                                     :alt="`${selectedOutput.studentName}'s work for ${selectedOutput.title}`"
                                     @error="(e) => {
                                         console.error('Image load error:', e.target.src);
-                                        console.error('File type:', selectedOutput.file_type);
-                                        console.error('File path:', selectedOutput.file_path);
+                                        console.error('File type:', currentOutputFileType);
                                     }"
                                 />
+                                <!-- PDF Display -->
+                                <div v-else-if="currentOutputFile && currentOutputFileType === 'pdf'" class="flex flex-col items-center justify-center text-red-600">
+                                    <i class="pi pi-file-pdf text-8xl mb-4"></i>
+                                    <span class="text-lg font-medium">PDF Document</span>
+                                    <a :href="currentOutputFile" target="_blank" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                                        <i class="pi pi-external-link mr-2"></i>View PDF
+                                    </a>
+                                </div>
+                                <!-- Document Display -->
+                                <div v-else-if="currentOutputFile && currentOutputFileType === 'document'" class="flex flex-col items-center justify-center text-blue-600">
+                                    <i class="pi pi-file-word text-8xl mb-4"></i>
+                                    <span class="text-lg font-medium">Document</span>
+                                    <a :href="currentOutputFile" target="_blank" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                                        <i class="pi pi-external-link mr-2"></i>View Document
+                                    </a>
+                                </div>
+                                <!-- No file data -->
                                 <div v-else class="text-center py-12">
                                     <i class="pi pi-image text-6xl text-gray-400 mb-4"></i>
-                                    <p class="text-gray-600 text-lg font-medium">No image available</p>
-                                    <p class="text-sm text-gray-500 mt-2">File type: {{ selectedOutput.file_type || 'Unknown' }}</p>
+                                    <p class="text-gray-600 text-lg font-medium">No file available</p>
+                                    <p class="text-sm text-gray-500 mt-2">File type: {{ currentOutputFileType || 'Unknown' }}</p>
                                     <p class="text-xs text-gray-400 mt-1">The student's work could not be displayed</p>
                                 </div>
                             </div>
-                            <div class="p-3 bg-indigo-50 border-t border-indigo-200 text-center">
+                            <div class="p-3 bg-indigo-50 border-t border-indigo-200 flex items-center justify-between">
                                 <p class="text-sm font-medium text-indigo-900">
                                     <i class="pi pi-user mr-2"></i>
                                     {{ selectedOutput.studentName }}'s Work
+                                    <span v-if="totalOutputFiles > 1" class="text-indigo-600 ml-2">({{ totalOutputFiles }} files)</span>
                                 </p>
+                                <a 
+                                    v-if="currentOutputFile"
+                                    :href="currentOutputFile" 
+                                    target="_blank" 
+                                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+                                >
+                                    <i class="pi pi-external-link"></i>
+                                    View File
+                                </a>
                             </div>
                         </div>
                     </div>

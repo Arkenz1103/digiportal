@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings, Student, Classroom
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, SubmissionFile, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings, Student, Classroom
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -87,6 +87,15 @@ class PortfolioActivitySerializer(serializers.ModelSerializer):
 
         return data
 
+    classroom_id = serializers.SerializerMethodField()
+    classroom_name = serializers.SerializerMethodField()
+
+    def get_classroom_id(self, obj):
+        return obj.folder.classroom.id if obj.folder and obj.folder.classroom else None
+
+    def get_classroom_name(self, obj):
+        return obj.folder.classroom.name if obj.folder and obj.folder.classroom else "General"
+
     class Meta:
         model = PortfolioActivity
         fields = '__all__'
@@ -103,6 +112,24 @@ class PortfolioFolderSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
+class SubmissionFileSerializer(serializers.ModelSerializer):
+    """Serializer for individual submission files"""
+    file_url = serializers.SerializerMethodField()
+
+    def get_file_url(self, obj):
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return obj.file_path
+
+    class Meta:
+        model = SubmissionFile
+        fields = ['id', 'file', 'file_path', 'file_type', 'file_name', 'file_size', 'order', 'file_url', 'created_at']
+        read_only_fields = ['id', 'created_at', 'file_url']
+
+
 class StudentSubmissionSerializer(serializers.ModelSerializer):
     student = UserSerializer(read_only=True)
     student_name = serializers.CharField(source='student.username', read_only=True)
@@ -113,6 +140,28 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     display_status = serializers.SerializerMethodField()
     submitted_at = serializers.SerializerMethodField()
+    post_requested_at = serializers.SerializerMethodField()
+    files = serializers.SerializerMethodField()  # Changed to method to filter by post_file_ids
+
+    def get_files(self, obj):
+        """Return files - filter by post_file_ids if this is a pending approval"""
+        from .models import SubmissionFile
+        import json
+        
+        # Get all files for this submission
+        all_files = obj.files.all()
+        
+        # If this submission has post_file_ids set (pending approval), filter to only those files
+        if obj.post_file_ids and obj.approval_status == 'pending':
+            try:
+                selected_ids = json.loads(obj.post_file_ids) if isinstance(obj.post_file_ids, str) else obj.post_file_ids
+                if selected_ids:
+                    all_files = all_files.filter(id__in=selected_ids)
+                    print(f"📁 Filtering files for submission {obj.id}: {len(selected_ids)} selected out of {obj.files.count()} total")
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"⚠️ Error parsing post_file_ids: {e}")
+        
+        return SubmissionFileSerializer(all_files, many=True, context=self.context).data
 
     def get_activity_title(self, obj):
         return obj.activity.title if obj.activity else 'Sketch Pad'
@@ -177,6 +226,28 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
         # Return ISO format string
         return manila_time.isoformat()
 
+    def get_post_requested_at(self, obj):
+        """Return post_requested_at in Manila timezone"""
+        if not obj.post_requested_at:
+            return None
+
+        from django.utils import timezone
+        import pytz
+
+        manila_tz = pytz.timezone('Asia/Manila')
+
+        # Convert to Manila timezone
+        if timezone.is_naive(obj.post_requested_at):
+            # If naive, assume UTC and add 8 hours
+            from datetime import timedelta
+            manila_time = manila_tz.localize(obj.post_requested_at + timedelta(hours=8))
+        else:
+            # If aware, convert to Manila timezone
+            manila_time = obj.post_requested_at.astimezone(manila_tz)
+
+        # Return ISO format string
+        return manila_time.isoformat()
+
     def get_display_status(self, obj):
         """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""
         # For teachers, always show 'Submitted' for the original submission
@@ -194,7 +265,7 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentSubmission
         fields = '__all__'
-        read_only_fields = ['id', 'submitted_at', 'scored_at', 'resubmit_count', 'last_resubmit_at', 'file_url']
+        read_only_fields = ['id', 'submitted_at', 'scored_at', 'resubmit_count', 'last_resubmit_at', 'file_url', 'post_requested_at']
 
 
 class StudentSubmissionListSerializer(serializers.ModelSerializer):
@@ -207,6 +278,29 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     max_score = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
     display_status = serializers.SerializerMethodField()
+    submitted_at = serializers.SerializerMethodField()
+
+    def get_submitted_at(self, obj):
+        """Return submitted_at in Manila timezone"""
+        if not obj.submitted_at:
+            return None
+
+        from django.utils import timezone
+        import pytz
+
+        manila_tz = pytz.timezone('Asia/Manila')
+
+        # Convert to Manila timezone
+        if timezone.is_naive(obj.submitted_at):
+            # If naive, assume UTC and add 8 hours
+            from datetime import timedelta
+            manila_time = manila_tz.localize(obj.submitted_at + timedelta(hours=8))
+        else:
+            # If aware, convert to Manila timezone
+            manila_time = obj.submitted_at.astimezone(manila_tz)
+
+        # Return ISO format string
+        return manila_time.isoformat()
 
     def get_file_url(self, obj):
         """Return file URL if file exists, otherwise return file_path (base64)"""

@@ -65,9 +65,56 @@
                         <p class="text-gray-700 leading-relaxed">{{ post.content }}</p>
                     </div>
 
-                    <!-- Post Image with Placeholder -->
-                    <div v-if="post.image" class="relative group bg-gray-100">
-                        <!-- Smaller aspect ratio container -->
+                    <!-- Post Images with Navigation -->
+                    <div v-if="post.files && post.files.length > 0" class="relative group bg-gray-100">
+                        <!-- Image container -->
+                        <div class="relative w-full" style="padding-bottom: 50%; min-height: 200px; max-height: 400px;">
+                            <img :src="getCurrentFile(post).file_path"
+                                :alt="post.content"
+                                class="absolute inset-0 w-full h-full object-contain cursor-pointer bg-gray-50"
+                                @click="openImageModal(getCurrentFile(post).file_path)"
+                                @error="handleImageError"
+                                loading="lazy">
+                            
+                            <!-- Navigation Arrows (only show if multiple files) -->
+                            <div v-if="post.files.length > 1" class="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
+                                <!-- Previous Button -->
+                                <button
+                                    @click.stop="previousPostFile(post)"
+                                    :disabled="post.currentFileIndex === 0"
+                                    class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed z-10"
+                                    :class="post.currentFileIndex === 0 ? '' : 'hover:scale-110'"
+                                >
+                                    <i class="pi pi-chevron-left text-teal-600"></i>
+                                </button>
+                                
+                                <!-- Next Button -->
+                                <button
+                                    @click.stop="nextPostFile(post)"
+                                    :disabled="post.currentFileIndex >= post.files.length - 1"
+                                    class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed z-10"
+                                    :class="post.currentFileIndex >= post.files.length - 1 ? '' : 'hover:scale-110'"
+                                >
+                                    <i class="pi pi-chevron-right text-teal-600"></i>
+                                </button>
+                            </div>
+
+                            <!-- File Counter (only show if multiple files) -->
+                            <div v-if="post.files.length > 1" class="absolute top-3 right-3 z-10">
+                                <div class="bg-black/60 text-white px-3 py-1 rounded-full text-xs font-medium">
+                                    {{ post.currentFileIndex + 1 }} / {{ post.files.length }}
+                                </div>
+                            </div>
+
+                            <!-- Zoom overlay -->
+                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center pointer-events-none">
+                                <i class="pi pi-search-plus text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Legacy single image support -->
+                    <div v-else-if="post.image" class="relative group bg-gray-100">
                         <div class="relative w-full" style="padding-bottom: 50%; min-height: 200px; max-height: 400px;">
                             <img :src="post.image"
                                 :alt="post.content"
@@ -294,6 +341,8 @@ const loadNewsfeed = async () => {
           user: post.student_name,
           content: post.caption || 'No description provided',
           image: post.file_type === 'image' ? post.file_path : null,
+          files: post.files || [],
+          currentFileIndex: 0,
           likes: post.likes || 0,
           isLiked: post.is_liked || false,
           timestamp: getTimeAgo(post.posted_at),
@@ -508,6 +557,28 @@ const openImageModal = (imageUrl) => {
 const handleImageError = (event) => {
   console.error('Failed to load image:', event.target.src);
   event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EImage not found%3C/text%3E%3C/svg%3E';
+};
+
+// Get current file for a post
+const getCurrentFile = (post) => {
+  if (post.files && post.files.length > 0) {
+    return post.files[post.currentFileIndex || 0];
+  }
+  return { file_path: post.image, file_type: 'image' };
+};
+
+// Navigate to previous file in post
+const previousPostFile = (post) => {
+  if (post.currentFileIndex > 0) {
+    post.currentFileIndex--;
+  }
+};
+
+// Navigate to next file in post
+const nextPostFile = (post) => {
+  if (post.files && post.currentFileIndex < post.files.length - 1) {
+    post.currentFileIndex++;
+  }
 };
 
 // Load on mount

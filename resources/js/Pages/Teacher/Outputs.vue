@@ -12,7 +12,9 @@ const { showSuccess, showError, showInfo, showWarning } = useToast();
 const activity = ref({
     title: 'Student Activity',
     description: 'View student submissions for this activity',
-    id: null
+    id: null,
+    class: null, // Add class property
+    subject: null
 });
 
 // Load activity data from API
@@ -58,10 +60,16 @@ const loadActivityFromAPI = async (activityId) => {
             dueDate: response.data.due_date,
             dueTime: response.data.due_time,
             formattedDateTime: formattedDateTime,
-            scoringCriteria: scoringCriteria
+            scoringCriteria: scoringCriteria,
+            class: response.data.classroom_name || activity.value.class // Get from API, fallback to existing
         };
 
         console.log('✅ Activity updated from API:', activity.value);
+        
+        // After activity is fully updated (including class), load class members
+        if (activity.value.class) {
+            await loadClassMembers();
+        }
     } catch (error) {
         console.error('❌ Error loading activity from API:', error);
     }
@@ -96,7 +104,8 @@ onMounted(async () => {
             type: parsedActivity.type,
             dueDate: parsedActivity.dueDate,
             scoringCriteria: parsedActivity.scoringCriteria,
-            subject: parsedActivity.subject  // Add subject field
+            subject: parsedActivity.subject,
+            class: parsedActivity.class // Load class from localStorage
         };
         console.log('✅ Loaded activity from localStorage:', activity.value);
 
@@ -107,8 +116,13 @@ onMounted(async () => {
     }
 
     // Load submissions for this specific activity
-    loadUnscoredSubmissions();
-    loadScoredSubmissions();
+    await Promise.all([
+        loadUnscoredSubmissions(),
+        loadScoredSubmissions()
+    ]);
+    
+    // Load class members to calculate incomplete submissions
+    loadClassMembers();
 
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
@@ -151,7 +165,128 @@ const studentOutputs = ref({});
 
 const submissions = ref([]);
 const scoredSubmissionsData = ref([]);
+const classMembers = ref([]); // Store all students in the class
+const currentTab = ref('submitted'); // 'submitted', 'scored', 'incomplete'
 const isLoadingSubmissions = ref(false);
+const isClassMembersLoaded = ref(false);
+const visibleIncompleteCount = ref(10); // Number of students to show initially in Incomplete tab
+
+// Load class members from API
+const loadClassMembers = async () => {
+    if (!activity.value.class || activity.value.class === 'General') {
+        console.warn('⚠️ Invalid or missing class information:', activity.value.class);
+        return;
+    }
+
+    try {
+        console.log('🔍 Fetching class members for:', activity.value.class);
+        
+        let grade = '';
+        let section = '';
+
+        // Parsing "Grade 3 - B" or "Grade 3-B"
+        if (activity.value.class.includes(' - ')) {
+            const parts = activity.value.class.split(' - ');
+            grade = parts[0].trim();
+            section = parts[1].trim();
+        } else if (activity.value.class.includes('-')) {
+            const parts = activity.value.class.split('-');
+            grade = parts[0].trim();
+            section = parts[1].trim();
+        }
+
+        if (grade && section) {
+            console.log(`📡 API Request: /api/students/?grade_level=${grade}&section=${section}`);
+            const response = await axios.get('/api/students/', {
+                params: {
+                    grade_level: grade,
+                    section: section
+                }
+            });
+            
+            if (response.data && response.data.students) {
+                console.log('✅ Loaded class members:', response.data.students.length);
+                classMembers.value = response.data.students;
+                isClassMembersLoaded.value = true;
+            } else if (Array.isArray(response.data)) {
+                classMembers.value = response.data;
+                isClassMembersLoaded.value = true;
+            }
+        } else {
+            console.warn('⚠️ Could not parse grade and section from:', activity.value.class);
+        }
+    } catch (error) {
+        console.error('❌ Error loading class members:', error);
+    }
+};
+
+// Calculate incomplete submissions (students who haven't submitted)
+const incompleteSubmissions = computed(() => {
+    if (!classMembers.value || !classMembers.value.length) return [];
+    
+    // Get IDs of students who have submitted (either scored or unscored)
+    const submittedStudentIds = new Set([
+        ...submissions.value.map(s => String(s.studentId)),
+        ...scoredSubmissionsData.value.map(s => String(s.studentId))
+    ]);
+    
+    // Logic for Pending vs Missing
+    const now = new Date();
+    let isPastDue = false;
+    if (activity.value.dueDate) {
+        try {
+            // activity.value.dueDate is YYYY-MM-DD
+            // activity.value.dueTime is HH:MM:SS
+            const dateStr = activity.value.dueDate;
+            const timeStr = activity.value.dueTime || '23:59:59';
+            // Construct a proper ISO string for parsing to avoid browser-specific behavior
+            const dueDateTime = new Date(`${dateStr}T${timeStr}`);
+            isPastDue = now > dueDateTime;
+        } catch (e) {
+            console.error("❌ Error calculating due date status:", e);
+        }
+    }
+    
+    // Filter class members who are NOT in the submitted set
+    const list = classMembers.value.filter(student => !submittedStudentIds.has(String(student.id)))
+        .map(student => ({
+            id: `missing-${student.id}`, // specific ID for this list
+            studentPk: student.id,
+            studentIdNumber: student.id || 'N/A', // Use student.id as the ID number
+            name: student.name || student.username || 'Unknown',
+            // Add other necessary fields for the simplified view
+            status: isPastDue ? 'Missing' : 'Pending',
+            avatar: student.profile_picture || null,
+            email: student.email || 'No email available'
+        }));
+
+    // Sort alphabetically by last name
+    return list.sort((a, b) => {
+        // Extract last name (assuming format: "FirstName LastName" or "LastName, FirstName")
+        const getLastName = (fullName) => {
+            const parts = fullName.trim().split(/\s+/);
+            // If name has multiple parts, take the last part as last name
+            return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+        };
+        
+        const lastNameA = getLastName(a.name);
+        const lastNameB = getLastName(b.name);
+        return lastNameA.localeCompare(lastNameB);
+    });
+});
+
+// Paginated incomplete submissions
+const displayedIncompleteSubmissions = computed(() => {
+    return incompleteSubmissions.value.slice(0, visibleIncompleteCount.value);
+});
+
+const hasMoreIncomplete = computed(() => {
+    return visibleIncompleteCount.value < incompleteSubmissions.value.length;
+});
+
+const loadMoreIncomplete = () => {
+    visibleIncompleteCount.value += 10;
+};
 
 // Load unscored submissions from API
 const loadUnscoredSubmissions = async () => {
@@ -172,15 +307,17 @@ const loadUnscoredSubmissions = async () => {
 
             submissions.value = filteredSubmissions.map(submission => {
                 const submittedDate = new Date(submission.submitted_at);
-                const dateStr = submittedDate.toLocaleDateString('en-US', {
+                const dateStr = submittedDate.toLocaleDateString('en-PH', {
                     year: 'numeric',
                     month: 'short',
-                    day: 'numeric'
+                    day: 'numeric',
+                    timeZone: 'Asia/Manila'
                 });
-                const timeStr = submittedDate.toLocaleTimeString('en-US', {
+                const timeStr = submittedDate.toLocaleTimeString('en-PH', {
                     hour: 'numeric',
                     minute: '2-digit',
-                    hour12: true
+                    hour12: true,
+                    timeZone: 'Asia/Manila'
                 });
 
                 console.log('📊 Submission data:', {
@@ -235,15 +372,17 @@ const loadScoredSubmissions = async () => {
 
             scoredSubmissionsData.value = filteredSubmissions.map(submission => {
                 const submittedDate = new Date(submission.scored_at || submission.submitted_at);
-                const dateStr = submittedDate.toLocaleDateString('en-US', {
+                const dateStr = submittedDate.toLocaleDateString('en-PH', {
                     year: 'numeric',
                     month: 'short',
-                    day: 'numeric'
+                    day: 'numeric',
+                    timeZone: 'Asia/Manila'
                 });
-                const timeStr = submittedDate.toLocaleTimeString('en-US', {
+                const timeStr = submittedDate.toLocaleTimeString('en-PH', {
                     hour: 'numeric',
                     minute: '2-digit',
-                    hour12: true
+                    hour12: true,
+                    timeZone: 'Asia/Manila'
                 });
 
                 return {
@@ -332,15 +471,77 @@ const viewSubmission = async (submission) => {
         file_path_length: submission.file_path?.length
     });
 
-    // Use the submission data directly (it already has file_path and file_type)
-    selectedSubmission.value = {
-        ...submission,
-        newRemark: '',
-        rank: null
-    };
+    // Load full submission details including all files
+    try {
+        const response = await axios.get(`/api/submissions/${submission.id}/`);
+        console.log('📥 Full submission data:', response.data);
+
+        // Check if submission has multiple files
+        const submissionFiles = response.data.files || [];
+        
+        // Use the submission data directly (it already has file_path and file_type)
+        selectedSubmission.value = {
+            ...submission,
+            ...response.data,
+            newRemark: '',
+            rank: null,
+            files: submissionFiles,
+            currentFileIndex: 0, // Start with first file
+            totalFiles: submissionFiles.length || 1
+        };
+
+        console.log(`📁 Submission has ${selectedSubmission.value.totalFiles} file(s)`);
+    } catch (error) {
+        console.error('❌ Error loading submission details:', error);
+        // Fallback to basic submission data
+        selectedSubmission.value = {
+            ...submission,
+            newRemark: '',
+            rank: null,
+            files: [],
+            currentFileIndex: 0,
+            totalFiles: 1
+        };
+    }
 
     showSubmissionDialog.value = true;
 };
+
+// Navigate to previous file
+const previousFile = () => {
+    if (selectedSubmission.value && selectedSubmission.value.currentFileIndex > 0) {
+        selectedSubmission.value.currentFileIndex--;
+    }
+};
+
+// Navigate to next file
+const nextFile = () => {
+    if (selectedSubmission.value && selectedSubmission.value.currentFileIndex < selectedSubmission.value.totalFiles - 1) {
+        selectedSubmission.value.currentFileIndex++;
+    }
+};
+
+// Get current file to display
+const currentFile = computed(() => {
+    if (!selectedSubmission.value) return null;
+    
+    // If submission has multiple files array
+    if (selectedSubmission.value.files && selectedSubmission.value.files.length > 0) {
+        const file = selectedSubmission.value.files[selectedSubmission.value.currentFileIndex];
+        return {
+            file_path: file.file_url || file.file_path,
+            file_type: file.file_type,
+            caption: file.file_name || selectedSubmission.value.caption
+        };
+    }
+    
+    // Fallback to main submission file
+    return {
+        file_path: selectedSubmission.value.file_path,
+        file_type: selectedSubmission.value.file_type,
+        caption: selectedSubmission.value.caption
+    };
+});
 
 const editRemarks = () => {
     isEditingRemarks.value = true;
@@ -592,10 +793,11 @@ const formatSubmissionDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
+        return date.toLocaleDateString('en-PH', {
             year: 'numeric',
             month: 'short',
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'Asia/Manila'
         });
     } catch (error) {
         return 'Invalid Date';
@@ -607,10 +809,11 @@ const formatSubmissionTime = (dateString) => {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', {
+        return date.toLocaleTimeString('en-PH', {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: true
+            hour12: true,
+            timeZone: 'Asia/Manila'
         });
     } catch (error) {
         return '';
@@ -1037,10 +1240,33 @@ const getMedalDetails = (rank) => {
     <div class="flex flex-col lg:flex-row gap-6">
         <!-- Left: Activity Details -->
         <div class="flex-1 flex flex-col gap-4">
-            <div class="flex flex-col gap-2">
+            <!-- Activity Title -->
+            <div class="flex flex-col gap-1">
+                <p class="text-sm text-black">
+                    <span class="font-bold">Activity Title:</span> {{ activity.title || 'Activity' }}
+                </p>
+            </div>
+
+            <!-- Activity Type -->
+            <div class="flex flex-col gap-1">
+                <p class="text-sm text-black">
+                    <span class="font-bold">Activity Type:</span> {{ activity.type || 'N/A' }}
+                </p>
+            </div>
+
+            <!-- Due Date -->
+            <div class="flex flex-col gap-1">
                 <p class="text-sm text-black">
                     <span class="font-bold">Due date & time:</span> {{ activity.formattedDateTime || 'No due date set' }}
                 </p>
+            </div>
+
+            <!-- Instructions/Description -->
+            <div class="flex flex-col gap-2">
+                <p class="text-sm font-bold text-black">Instruction:</p>
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-32 overflow-y-auto">
+                    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{{ activity.description || 'No instructions provided' }}</p>
+                </div>
             </div>
         </div>
 
@@ -1081,505 +1307,291 @@ const getMedalDetails = (rank) => {
                     </button>
                 </div>
 
-                <!-- Unscored Submissions Section -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <!-- Section Header -->
-                    <div class="bg-white px-6 py-4 border-b border-gray-200">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                    <i class="pi pi-clock text-indigo-600 text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-lg font-bold text-gray-900">Unscored Submissions</h3>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-                                    {{ unscoredSubmissions.length }} Submission{{ unscoredSubmissions.length !== 1 ? 's' : '' }}
+                <!-- Tabbed Interface for Submissions -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <!-- Tabs Header -->
+                    <div class="flex border-b border-gray-200">
+                        <button
+                            @click="currentTab = 'submitted'"
+                            class="flex-1 py-4 text-sm font-medium text-center transition-colors relative focus:outline-none"
+                            :class="currentTab === 'submitted' ? 'text-indigo-600 bg-indigo-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+                        >
+                            <span class="flex items-center justify-center gap-2">
+                                <i class="pi pi-inbox"></i>
+                                Submitted
+                                <span v-if="unscoredSubmissions.length > 0" class="bg-indigo-100 text-indigo-700 py-0.5 px-2 rounded-full text-xs font-bold">
+                                    {{ unscoredSubmissions.length }}
                                 </span>
-                                <div class="flex items-center rounded-lg bg-gray-100 p-1">
-                                    <!-- List View Button -->
-                                    <button @click="toggleView('list')"
-                                            :class="[
-                                                'p-2 rounded-lg transition-all duration-200',
-                                                viewMode === 'list'
-                                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                                    : 'text-gray-600 hover:text-gray-900'
-                                            ]"
-                                    >
-                                        <i class="pi pi-list text-base"></i>
-                                    </button>
-                                    <!-- Card View Button -->
-                                    <button @click="toggleView('card')"
-                                            :class="[
-                                                'p-2 rounded-lg transition-all duration-200',
-                                                viewMode === 'card'
-                                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                                    : 'text-gray-600 hover:text-gray-900'
-                                            ]"
-                                    >
-                                        <i class="pi pi-th-large text-base"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Loading State -->
-                <div v-if="isLoadingSubmissions" class="flex justify-center items-center py-12">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                </div>
-
-                <!-- Empty State -->
-                <div v-else-if="unscoredSubmissions.length === 0" class="text-center py-12">
-                    <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-gray-500">No unscored submissions yet.</p>
-                </div>
-
-                <!-- List View -->
-                <template v-else-if="viewMode === 'list'">
-                    <!-- Table Header -->
-                    <div class="bg-gray-50 border-b border-gray-200">
-                        <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            <div class="col-span-3">
-                                <span>Name</span>
-                            </div>
-                            <div class="col-span-2">
-                                <span>ID Number</span>
-                            </div>
-                            <div class="col-span-2">
-                                <span>Status</span>
-                            </div>
-                            <div class="col-span-3">
-                                <span>Submitted At (Date & Time)</span>
-                            </div>
-                            <div class="col-span-2 text-center">
-                                <span>Score</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Table Body -->
-                    <div class="divide-y divide-gray-200">
-                        <div v-for="submission in unscoredSubmissions" :key="submission.id"
-                            class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
-                            @click="viewSubmission(submission)"
+                            </span>
+                            <div v-if="currentTab === 'submitted'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"></div>
+                        </button>
+                        <button
+                            @click="currentTab = 'scored'"
+                            class="flex-1 py-4 text-sm font-medium text-center transition-colors relative focus:outline-none"
+                            :class="currentTab === 'scored' ? 'text-indigo-600 bg-indigo-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
                         >
-                            <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center">
-                                <!-- Name -->
-                                <div class="col-span-3 flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                        <span class="text-sm font-bold text-indigo-600">
-                                            {{ submission.name.charAt(0).toUpperCase() }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium text-gray-900">{{ submission.name }}</div>
-                                        <div v-if="studentOutputs[submission.id]?.rank" class="mt-1">
-                                            <span :class="['rank-badge', `rank-${studentOutputs[submission.id].rank}`]">
-                                                {{ studentOutputs[submission.id].rank }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- ID Number -->
-                                <div class="col-span-2">
-                                    <span class="text-sm text-gray-700">{{ submission.studentId }}</span>
-                                </div>
-
-                                <!-- Status -->
-                                <div class="col-span-2">
-                                    <span
-                                        v-if="submission.resubmit_count > 0"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
-                                    >
-                                        <i class="pi pi-refresh text-xs"></i>
-                                        <span>Resubmitted</span>
-                                        <span class="text-xs">({{ submission.resubmit_count }}x)</span>
-                                    </span>
-                                    <span
-                                        v-else-if="submission.is_late"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
-                                    >
-                                        <i class="pi pi-clock text-xs"></i>
-                                        <span>Submitted late</span>
-                                    </span>
-                                    <span
-                                        v-else
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
-                                    >
-                                        <i class="pi pi-check-circle text-xs"></i>
-                                        <span>{{ submission.status || 'Submitted' }}</span>
-                                    </span>
-                                </div>
-
-                                <!-- Date & Time -->
-                                <div class="col-span-3">
-                                    <div class="text-sm text-gray-700">{{ submission.date }}</div>
-                                    <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
-                                </div>
-
-                                <!-- Score -->
-                                <div class="col-span-2 text-center">
-                                    <span class="text-sm text-gray-400">-</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- Card View -->
-                <template v-else>
-                    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 bg-white rounded-xl">
-                        <div v-for="submission in unscoredSubmissions" :key="submission.id"
-                            class="rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-all transform hover:-translate-y-1 duration-200 cursor-pointer group"
-                            style="background-color: #f9fafb; border-color: #e0e7ff;"
-                            @click="viewSubmission(submission)"
+                            <span class="flex items-center justify-center gap-2">
+                                <i class="pi pi-check-circle"></i>
+                                Scored
+                                <span v-if="scoredSubmissions.length > 0" class="bg-green-100 text-green-700 py-0.5 px-2 rounded-full text-xs font-bold">
+                                    {{ scoredSubmissions.length }}
+                                </span>
+                            </span>
+                            <div v-if="currentTab === 'scored'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"></div>
+                        </button>
+                        <button
+                            @click="currentTab = 'incomplete'"
+                            class="flex-1 py-4 text-sm font-medium text-center transition-colors relative focus:outline-none"
+                            :class="currentTab === 'incomplete' ? 'text-indigo-600 bg-indigo-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
                         >
-                            <!-- Activity Output Preview with Gradient Overlay -->
-                            <div class="relative h-64 overflow-hidden bg-white">
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent z-10"></div>
-                                <div class="w-full h-full flex items-center justify-center bg-white border-b-2 border-indigo-100 p-4">
-                                    <div class="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
-                                        <!-- Image Display -->
-                                        <img v-if="submission.file_type === 'image' && submission.file_path && submission.file_path.length > 0"
-                                            :src="submission.file_path.startsWith('http') || submission.file_path.startsWith('/media') || submission.file_path.startsWith('data:') ? submission.file_path : `data:image/png;base64,${submission.file_path}`"
-                                            :alt="submission.caption || 'Student submission'"
-                                            class="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
-                                            style="max-height: 100%; max-width: 100%; object-fit: contain;"
-                                        />
-                                        <!-- PDF Display -->
-                                        <div v-else-if="submission.file_type === 'pdf' && submission.file_path" class="flex flex-col items-center justify-center text-red-600">
-                                            <i class="pi pi-file-pdf text-6xl mb-3"></i>
-                                            <span class="text-sm font-medium">PDF Document</span>
-                                            <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
-                                        </div>
-                                        <!-- Word Document Display -->
-                                        <div v-else-if="submission.file_type === 'document' && submission.file_path" class="flex flex-col items-center justify-center text-blue-600">
-                                            <i class="pi pi-file-word text-6xl mb-3"></i>
-                                            <span class="text-sm font-medium">Word Document</span>
-                                            <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
-                                        </div>
-                                        <!-- No file data - minimal message -->
-                                        <div v-else class="flex flex-col items-center justify-center text-gray-400 px-4 text-center">
-                                            <p class="text-sm">{{ submission.caption || 'No file data available' }}</p>
-                                            <p class="text-xs mt-2 text-gray-300">Student needs to resubmit</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status Badge -->
-                                <div class="absolute top-3 left-3">
-                                    <span :class="[
-                                        'px-3 py-1.5 text-xs font-medium rounded-full shadow-sm',
-                                        submission.resubmit_count > 0 ? 'bg-blue-400/90 text-white' :
-                                        submission.is_late ? 'bg-orange-400/90 text-white' :
-                                        submission.status === 'Submitted' ? 'bg-green-400/90 text-white' :
-                                        submission.status === 'Scored' ? 'bg-purple-400/90 text-white' :
-                                        'bg-gray-400/90 text-white'
-                                    ]">
-                                        <span v-if="submission.resubmit_count > 0">Resubmitted ({{ submission.resubmit_count }}x)</span>
-                                        <span v-else>{{ submission.status }}</span>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Submission Info -->
-                            <div class="p-4 space-y-4" style="background-color: #f9fafb;">
-                                <!-- Student Info with Avatar -->
-                                <div class="flex items-center space-x-3">
-                                    <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm font-medium"
-                                         style="background-color: #e0e7ff; color: #111827;">
-                                        {{ submission.name.charAt(0) }}
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
-                                            <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
-                                            <span v-if="submission.resubmit_count > 0" class="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-medium flex-shrink-0">
-                                                Resubmitted ({{ submission.resubmit_count }}x)
-                                            </span>
-                                            <span v-else-if="submission.is_late" class="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium flex-shrink-0">
-                                                Late Submitted
-                                            </span>
-                                        </div>
-                                        <p class="text-xs text-gray-500 truncate">ID: {{ submission.studentId }}</p>
-                                    </div>
-                                </div>
-
-                                <!-- Submission Details with Icons -->
-                                <div class="pt-3 border-t flex items-center justify-between text-sm"
-                                     style="border-color: #e0e7ff;">
-                                    <div class="flex items-center text-gray-500">
-                                        <i class="pi pi-calendar mr-2" style="color: #6366f1;"></i>
-                                        <div>
-                                            <div>{{ submission.date }}</div>
-                                            <div class="text-xs text-gray-400 mt-0.5">{{ submission.time }}</div>
-                                        </div>
-                                    </div>
-                                    <button class="transition-colors hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-indigo-50">
-                                        <i class="pi pi-eye"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                            <span class="flex items-center justify-center gap-2">
+                                <i class="pi pi-exclamation-circle"></i>
+                                Incomplete
+                                <span v-if="incompleteSubmissions.length > 0" class="bg-red-100 text-red-700 py-0.5 px-2 rounded-full text-xs font-bold">
+                                    {{ incompleteSubmissions.length }}
+                                </span>
+                            </span>
+                            <div v-if="currentTab === 'incomplete'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"></div>
+                        </button>
                     </div>
-                </template>
-                </div>
 
-                <!-- Scored Submissions Section -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <!-- Section Header -->
-                    <div class="bg-white px-6 py-4 border-b border-gray-200">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                    <i class="pi pi-check-circle text-gray-600 text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-lg font-bold text-gray-900">Scored Submissions</h3>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <button @click="toggleView('list')"
-                                        :class="[
-                                            'p-2 rounded-lg transition-all duration-200',
-                                            viewMode === 'list'
-                                                ? 'bg-white/30 text-white'
-                                                : 'text-white/70 hover:text-white'
-                                        ]"
-                                        title="List View"
-                                >
-                                    <i class="pi pi-bars text-lg"></i>
-                                </button>
-                                <button @click="toggleView('card')"
-                                        :class="[
-                                            'p-2 rounded-lg transition-all duration-200',
-                                            viewMode === 'card'
-                                                ? 'bg-white/30 text-white'
-                                                : 'text-white/70 hover:text-white'
-                                        ]"
-                                        title="Grid View"
-                                >
-                                    <i class="pi pi-th-large text-lg"></i>
-                                </button>
-                            </div>
+                    <!-- Filter & View Controls -->
+                    <div class="px-6 py-3 border-b border-gray-200 bg-gray-50/30 flex justify-between items-center">
+                        <div class="text-sm text-gray-500">
+                            Showing {{ 
+                                currentTab === 'submitted' ? unscoredSubmissions.length : 
+                                currentTab === 'scored' ? scoredSubmissions.length : 
+                                incompleteSubmissions.length 
+                            }} students
+                        </div>
+                        <div v-if="currentTab !== 'incomplete'" class="flex items-center rounded-lg bg-white border border-gray-200 p-1 shadow-sm">
+                            <button @click="toggleView('list')"
+                                    :class="['p-1.5 rounded-md transition-all', viewMode === 'list' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50']"
+                                    title="List View">
+                                <i class="pi pi-list"></i>
+                            </button>
+                            <button @click="toggleView('card')"
+                                    :class="['p-1.5 rounded-md transition-all', viewMode === 'card' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50']"
+                                    title="Card View">
+                                <i class="pi pi-th-large"></i>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Empty State -->
-                    <div v-if="scoredSubmissions.length === 0" class="text-center py-12">
-                        <i class="pi pi-inbox text-4xl text-gray-400 mb-4"></i>
-                        <p class="text-gray-500">No scored submissions yet.</p>
-                    </div>
-
-                    <!-- List View -->
-                    <template v-else-if="viewMode === 'list'">
-                        <!-- Table Header -->
-                        <div class="bg-gray-50 border-b border-gray-200">
-                            <div class="grid grid-cols-12 gap-3 px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                <div class="col-span-3">
-                                    <span>Name</span>
-                                </div>
-                                <div class="col-span-2">
-                                    <span>ID Number</span>
-                                </div>
-                                <div class="col-span-2">
-                                    <span>Status</span>
-                                </div>
-                                <div class="col-span-3">
-                                    <span>Scored At (Date & Time)</span>
-                                </div>
-                                <div class="col-span-2 text-center">
-                                    <span>Score</span>
-                                </div>
-                            </div>
+                    <!-- Content Area -->
+                    <div class="min-h-[300px] relative">
+                        <!-- Loading State -->
+                        <div v-if="isLoadingSubmissions" class="absolute inset-0 flex justify-center items-center bg-white/80 z-10">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
                         </div>
 
-                        <!-- Table Body -->
-                        <div class="divide-y divide-gray-200">
-                            <div v-for="submission in scoredSubmissions" :key="submission.id"
-                                class="group hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
-                                @click="viewSubmission(submission)"
-                            >
-                                <div class="grid grid-cols-12 gap-3 px-6 py-4 items-center">
-                                    <!-- Name -->
-                                    <div class="col-span-3 flex items-center gap-3">
-                                        <div class="h-10 w-10 rounded-full bg-white flex items-center justify-center">
-                                            <span class="text-sm font-bold text-gray-600">
-                                                {{ submission.name.charAt(0).toUpperCase() }}
-                                            </span>
+                        <!-- Empty States -->
+                        <div v-if="(currentTab === 'submitted' && unscoredSubmissions.length === 0) || 
+                                   (currentTab === 'scored' && scoredSubmissions.length === 0) || 
+                                   (currentTab === 'incomplete' && incompleteSubmissions.length === 0)" 
+                             class="flex flex-col items-center justify-center py-20 text-center">
+                            <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                <i :class="['pi text-3xl text-gray-300', 
+                                    currentTab === 'submitted' ? 'pi-inbox' : 
+                                    currentTab === 'scored' ? 'pi-check-circle' : 'pi-user']"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900">
+                                {{ currentTab === 'submitted' ? 'No new submissions' : 
+                                   currentTab === 'scored' ? 'No scored submissions' : 
+                                   (!isClassMembersLoaded ? 'Loading students...' : 'All students have submitted') }}
+                            </h3>
+                            <p class="text-gray-500 mt-1 max-w-xs">
+                                {{ currentTab === 'submitted' ? 'Great job! You have reviewed all current submissions.' : 
+                                   currentTab === 'scored' ? 'Graded work will appear here.' : 
+                                   (!isClassMembersLoaded ? 'Checking class roster...' : 'Everyone in the class has turned in their work.') }}
+                            </p>
+                        </div>
+
+                        <!-- Lists -->
+                        <template v-else>
+                            <!-- List View -->
+                            <div v-if="viewMode === 'list'">
+                                <!-- Table Header -->
+                                <div class="bg-gray-50/50 border-b border-gray-100 grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    <template v-if="currentTab === 'incomplete'">
+                                        <div class="col-span-3">Student Name</div>
+                                        <div class="col-span-2">ID Number</div>
+                                        <div class="col-span-5">Contact Info</div>
+                                        <div class="col-span-2">Status</div>
+                                    </template>
+                                    <template v-else>
+                                        <div class="col-span-4">Student Name</div>
+                                        <div class="col-span-3">Status</div>
+                                        <div class="col-span-3">Date Submitted</div>
+                                        <div class="col-span-2 text-center">
+                                            {{ currentTab === 'scored' ? 'Score' : 'Action' }}
                                         </div>
-                                        <div>
-                                            <div class="font-medium text-gray-900">{{ submission.name }}</div>
-                                            <div v-if="studentOutputs[submission.id]?.rank" class="mt-1">
-                                                <span :class="['rank-badge', `rank-${studentOutputs[submission.id].rank}`]">
-                                                    {{ studentOutputs[submission.id].rank }}
+                                    </template>
+                                </div>
+
+                                <div class="divide-y divide-gray-100">
+                                    <div v-for="item in (currentTab === 'submitted' ? unscoredSubmissions : currentTab === 'scored' ? scoredSubmissions : displayedIncompleteSubmissions)" 
+                                         :key="item.id"
+                                         class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors"
+                                         :class="{'cursor-pointer': currentTab !== 'incomplete'}"
+                                         @click="currentTab !== 'incomplete' ? viewSubmission(item) : null"
+                                    >
+                                        <template v-if="currentTab === 'incomplete'">
+                                            <!-- Name & Avatar -->
+                                            <div class="col-span-3 flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm bg-gray-100 text-gray-600">
+                                                    {{ item.name.charAt(0).toUpperCase() }}
+                                                </div>
+                                                <div class="font-medium text-gray-900">{{ item.name }}</div>
+                                            </div>
+
+                                            <!-- ID Number -->
+                                            <div class="col-span-2 text-sm text-gray-600">
+                                                {{ item.studentIdNumber }}
+                                            </div>
+
+                                            <!-- Contact Info -->
+                                            <div class="col-span-5 text-sm text-gray-500 italic truncate" :title="item.email">
+                                                {{ item.email }}
+                                            </div>
+
+                                            <!-- Status -->
+                                            <div class="col-span-2">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap"
+                                                      :class="item.status === 'Missing' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-yellow-100 text-yellow-800 border-yellow-200'">
+                                                    <i :class="['pi mr-1 text-[10px]', item.status === 'Missing' ? 'pi-times-circle' : 'pi-clock']"></i>
+                                                    {{ item.status }}
                                                 </span>
                                             </div>
+                                        </template>
+                                        <template v-else>
+                                            <!-- Standard View for Submitted/Scored -->
+                                            <!-- Name & Avatar -->
+                                            <div class="col-span-4 flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm bg-indigo-100 text-indigo-700">
+                                                    {{ item.name.charAt(0).toUpperCase() }}
+                                                </div>
+                                                <div>
+                                                    <div class="font-medium text-gray-900">{{ item.name }}</div>
+                                                    <div class="text-xs text-gray-500">{{ item.studentId || 'No ID' }}</div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Status Badge -->
+                                            <div class="col-span-3">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border"
+                                                      :class="{
+                                                          'bg-blue-50 text-blue-700 border-blue-200': item.resubmit_count > 0,
+                                                          'bg-orange-50 text-orange-700 border-orange-200': item.is_late && !item.resubmit_count,
+                                                          'bg-green-50 text-green-700 border-green-200': item.status === 'Submitted' || item.status === 'Scored'
+                                                      }">
+                                                    <i v-if="item.resubmit_count > 0" class="pi pi-refresh mr-1 text-[10px]"></i>
+                                                    <i v-else-if="item.is_late" class="pi pi-clock mr-1 text-[10px]"></i>
+                                                    <i v-else class="pi pi-check-circle mr-1 text-[10px]"></i>
+                                                    {{ item.resubmit_count > 0 ? 'Resubmitted' : (item.is_late ? 'Late' : item.status || 'Submitted') }}
+                                                </span>
+                                            </div>
+
+                                            <!-- Date Submitted -->
+                                            <div class="col-span-3 text-sm text-gray-600">
+                                                <div class="font-medium text-gray-900">{{ item.date }}</div>
+                                                <div class="text-xs text-gray-500">{{ item.time }}</div>
+                                            </div>
+
+                                            <!-- Score / Action -->
+                                            <div class="col-span-2 flex justify-center">
+                                                <div v-if="currentTab === 'scored'" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+                                                    {{ item.score }} pts
+                                                </div>
+                                                <button v-else class="p-2 text-gray-400 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-colors">
+                                                    <i class="pi pi-chevron-right"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Load More Button for Incomplete Tab -->
+                                <div v-if="currentTab === 'incomplete' && hasMoreIncomplete" class="px-6 py-4 bg-gray-50/30 border-t border-gray-100 flex justify-center">
+                                    <button 
+                                        @click="loadMoreIncomplete"
+                                        class="px-6 py-2 text-sm font-semibold text-indigo-600 bg-white border border-indigo-200 rounded-full hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm flex items-center gap-2"
+                                    >
+                                        <i class="pi pi-plus text-xs"></i>
+                                        Load More Students
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Card View -->
+                            <div v-else class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                <div v-for="item in (currentTab === 'submitted' ? unscoredSubmissions : currentTab === 'scored' ? scoredSubmissions : incompleteSubmissions)" 
+                                     :key="item.id"
+                                     class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all transform hover:-translate-y-1 duration-200 group"
+                                     :class="{'cursor-pointer': currentTab !== 'incomplete'}"
+                                     @click="currentTab !== 'incomplete' ? viewSubmission(item) : null"
+                                >
+                                    <!-- Preview Area -->
+                                    <div class="aspect-video bg-gray-100 relative overflow-hidden group-hover:opacity-95 transition-opacity">
+                                        <template v-if="currentTab === 'incomplete'">
+                                            <div class="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400">
+                                                <i class="pi pi-user text-4xl mb-2 opacity-50"></i>
+                                                <span class="text-xs font-medium uppercase tracking-wide">Not Submitted</span>
+                                            </div>
+                                        </template>
+                                        <template v-else>
+                                            <div class="w-full h-full flex items-center justify-center bg-white">
+                                                <img v-if="item.file_type === 'image' && item.file_path" 
+                                                     :src="item.file_path.startsWith('http') || item.file_path.startsWith('data:') ? item.file_path : `data:image/png;base64,${item.file_path}`" 
+                                                     class="w-full h-full object-contain p-2" />
+                                                <div v-else class="flex flex-col items-center justify-center text-gray-500">
+                                                    <i :class="['pi text-4xl mb-2', item.file_type === 'pdf' ? 'pi-file-pdf text-red-500' : 'pi-file text-blue-500']"></i>
+                                                    <span class="text-xs font-medium">{{ item.file_type || 'Document' }}</span>
+                                                </div>
+                                            </div>
+                                            <!-- Overlay gradient -->
+                                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        </template>
+
+                                        <!-- Status Badge (Top Left) -->
+                                        <div v-if="currentTab !== 'incomplete'" class="absolute top-3 left-3">
+                                            <span class="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md shadow-sm"
+                                                  :class="{
+                                                      'bg-blue-500 text-white': item.resubmit_count > 0,
+                                                      'bg-orange-500 text-white': item.is_late && !item.resubmit_count,
+                                                      'bg-green-500 text-white': item.status === 'Submitted' || item.status === 'Scored'
+                                                  }">
+                                                {{ item.resubmit_count > 0 ? 'Resubmitted' : (item.is_late ? 'Late' : item.status) }}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <!-- ID Number -->
-                                    <div class="col-span-2">
-                                        <span class="text-sm text-gray-700">{{ submission.studentId }}</span>
-                                    </div>
-
-                                    <!-- Status -->
-                                    <div class="col-span-2">
-                                        <span
-                                            v-if="submission.resubmit_count > 0"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 text-xs font-medium"
-                                        >
-                                            <i class="pi pi-refresh text-xs"></i>
-                                            <span>Resubmitted</span>
-                                            <span class="text-xs">({{ submission.resubmit_count }}x)</span>
-                                        </span>
-                                        <span
-                                            v-else-if="submission.is_late"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 text-xs font-medium"
-                                        >
-                                            <i class="pi pi-clock text-xs"></i>
-                                            <span>Submitted late</span>
-                                        </span>
-                                        <span
-                                            v-else
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-xs font-medium"
-                                        >
-                                            <i class="pi pi-check-circle text-xs"></i>
-                                            <span>{{ submission.status || 'Submitted' }}</span>
-                                        </span>
-                                    </div>
-
-                                    <!-- Date & Time -->
-                                    <div class="col-span-3">
-                                        <div class="text-sm text-gray-700">{{ submission.date }}</div>
-                                        <div class="text-xs text-gray-500 mt-0.5">{{ submission.time }}</div>
-                                    </div>
-
-                                    <!-- Score -->
-                                    <div class="col-span-2 text-center">
-                                        <span v-if="submission.score !== null && submission.score !== undefined" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 text-green-800 text-sm font-bold">
-                                            <i class="pi pi-star-fill text-xs"></i>
-                                            {{ submission.score }}
-                                        </span>
-                                        <span v-else class="text-sm text-gray-400">-</span>
+                                    <!-- Card Content -->
+                                    <div class="p-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                                                 :class="currentTab === 'incomplete' ? 'bg-gray-100 text-gray-600' : 'bg-indigo-100 text-indigo-700'">
+                                                {{ item.name.charAt(0).toUpperCase() }}
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <h4 class="text-sm font-semibold text-gray-900 truncate">{{ item.name }}</h4>
+                                                <div class="flex items-center text-xs text-gray-500 mt-0.5">
+                                                    <i v-if="currentTab !== 'incomplete'" class="pi pi-calendar mr-1 opacity-70"></i>
+                                                    <span class="truncate">
+                                                        {{ currentTab === 'incomplete' ? 'Missing work' : item.date }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <!-- Score on Card -->
+                                            <div v-if="currentTab === 'scored'" class="shrink-0 font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded text-xs">
+                                                {{ item.score }}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </template>
-
-                    <!-- Card View -->
-                    <template v-else>
-                        <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 bg-white rounded-xl">
-                            <div v-for="submission in scoredSubmissions" :key="submission.id"
-                                class="rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-all transform hover:-translate-y-1 duration-200 cursor-pointer group"
-                                style="background-color: #f9fafb; border-color: #e0e7ff;"
-                                @click="viewSubmission(submission)"
-                            >
-                                <!-- Activity Output Preview with Gradient Overlay -->
-                                <div class="relative h-64 overflow-hidden bg-white">
-                                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent z-10"></div>
-                                    <div class="w-full h-full flex items-center justify-center bg-white border-b-2 border-indigo-100 p-4">
-                                        <div class="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
-                                            <!-- Image Display -->
-                                            <img v-if="submission.file_type === 'image' && submission.file_path && submission.file_path.length > 0"
-                                                :src="submission.file_path.startsWith('http') || submission.file_path.startsWith('/media') || submission.file_path.startsWith('data:') ? submission.file_path : `data:image/png;base64,${submission.file_path}`"
-                                                :alt="submission.caption || 'Student submission'"
-                                                class="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
-                                                style="max-height: 100%; max-width: 100%; object-fit: contain;"
-                                            />
-                                            <!-- PDF Display -->
-                                            <div v-else-if="submission.file_type === 'pdf' && submission.file_path" class="flex flex-col items-center justify-center text-red-600">
-                                                <i class="pi pi-file-pdf text-6xl mb-3"></i>
-                                                <span class="text-sm font-medium">PDF Document</span>
-                                                <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
-                                            </div>
-                                            <!-- Word Document Display -->
-                                            <div v-else-if="submission.file_type === 'document' && submission.file_path" class="flex flex-col items-center justify-center text-blue-600">
-                                                <i class="pi pi-file-word text-6xl mb-3"></i>
-                                                <span class="text-sm font-medium">Word Document</span>
-                                                <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
-                                            </div>
-                                            <!-- No file data - minimal message -->
-                                            <div v-else class="flex flex-col items-center justify-center text-gray-400 px-4 text-center">
-                                                <p class="text-sm">{{ submission.caption || 'No file data available' }}</p>
-                                                <p class="text-xs mt-2 text-gray-300">Student needs to resubmit</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Status Badge -->
-                                    <div class="absolute top-3 left-3">
-                                        <span
-                                            v-if="submission.resubmit_count > 0"
-                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-blue-400/90 text-white flex items-center gap-1.5"
-                                        >
-                                            <i class="pi pi-refresh text-xs"></i>
-                                            <span>Resubmitted</span>
-                                            <span class="text-xs">({{ submission.resubmit_count }}x)</span>
-                                        </span>
-                                        <span
-                                            v-else-if="submission.is_late"
-                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-orange-400/90 text-white flex items-center gap-1.5"
-                                        >
-                                            <i class="pi pi-clock text-xs"></i>
-                                            <span>Submitted late</span>
-                                        </span>
-                                        <span
-                                            v-else
-                                            class="px-3 py-1.5 text-xs font-medium rounded-full shadow-sm bg-green-400/90 text-white flex items-center gap-1.5"
-                                        >
-                                            <i class="pi pi-check-circle text-xs"></i>
-                                            <span>{{ submission.status || 'Submitted' }}</span>
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <!-- Submission Info -->
-                                <div class="p-4 space-y-4" style="background-color: #f9fafb;">
-                                    <!-- Student Info with Avatar -->
-                                    <div class="flex items-center space-x-3">
-                                        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm font-medium"
-                                             style="background-color: #e0e7ff; color: #111827;">
-                                            {{ submission.name.charAt(0) }}
-                                        </div>
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-center gap-2">
-                                                <p class="text-sm font-medium text-gray-900 truncate">{{ submission.name }}</p>
-                                            </div>
-                                            <p class="text-xs text-gray-500 truncate">ID: {{ submission.studentId }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Score Display -->
-                                    <div v-if="submission.score !== null && submission.score !== undefined" class="flex items-center justify-between">
-                                        <div class="flex items-center text-gray-500">
-                                            <i class="pi pi-star mr-2" style="color: #6366f1;"></i>
-                                            <span class="text-sm font-medium text-indigo-700">Score: {{ submission.score }}</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Submission Details with Icons -->
-                                    <div class="pt-3 border-t flex items-center justify-between text-sm"
-                                         style="border-color: #e0e7ff;">
-                                        <div class="flex items-center text-gray-500">
-                                            <i class="pi pi-calendar mr-2" style="color: #6366f1;"></i>
-                                            <div>
-                                                <div>{{ submission.date }}</div>
-                                                <div class="text-xs text-gray-400 mt-0.5">{{ submission.time }}</div>
-                                            </div>
-                                        </div>
-                                        <button class="transition-colors hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-indigo-50">
-                                            <i class="pi pi-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
+                        </template>
+                    </div>
                 </div>
             </div>
 
@@ -1640,24 +1652,54 @@ const getMedalDetails = (rank) => {
                             <div class="lg:col-span-2">
                                 <div class="bg-white rounded-xl overflow-hidden border-2 border-indigo-100" style="height: 400px;">
                                     <div class="w-full h-full flex items-center justify-center p-4 bg-white relative">
+                                        <!-- Navigation Arrows (only show if multiple files) -->
+                                        <div v-if="selectedSubmission.totalFiles > 1" class="absolute inset-0 flex items-center justify-between px-2 pointer-events-none z-10">
+                                            <!-- Previous Button -->
+                                            <button
+                                                @click="previousFile"
+                                                :disabled="selectedSubmission.currentFileIndex === 0"
+                                                class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                :class="selectedSubmission.currentFileIndex === 0 ? '' : 'hover:scale-110'"
+                                            >
+                                                <i class="pi pi-chevron-left text-indigo-600"></i>
+                                            </button>
+                                            
+                                            <!-- Next Button -->
+                                            <button
+                                                @click="nextFile"
+                                                :disabled="selectedSubmission.currentFileIndex >= selectedSubmission.totalFiles - 1"
+                                                class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                :class="selectedSubmission.currentFileIndex >= selectedSubmission.totalFiles - 1 ? '' : 'hover:scale-110'"
+                                            >
+                                                <i class="pi pi-chevron-right text-indigo-600"></i>
+                                            </button>
+                                        </div>
+
+                                        <!-- File Counter (only show if multiple files) -->
+                                        <div v-if="selectedSubmission.totalFiles > 1" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+                                            <div class="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+                                                {{ selectedSubmission.currentFileIndex + 1 }} / {{ selectedSubmission.totalFiles }}
+                                            </div>
+                                        </div>
+
                                         <!-- Image Display -->
-                                        <img v-if="selectedSubmission.file_type === 'image' && selectedSubmission.file_path && selectedSubmission.file_path.length > 0"
-                                            :src="selectedSubmission.file_path.startsWith('http') || selectedSubmission.file_path.startsWith('/media') || selectedSubmission.file_path.startsWith('data:') ? selectedSubmission.file_path : `data:image/png;base64,${selectedSubmission.file_path}`"
-                                            :alt="selectedSubmission.caption || 'Student submission'"
+                                        <img v-if="currentFile && currentFile.file_type === 'image' && currentFile.file_path && currentFile.file_path.length > 0"
+                                            :src="currentFile.file_path.startsWith('http') || currentFile.file_path.startsWith('/media') || currentFile.file_path.startsWith('data:') ? currentFile.file_path : `data:image/png;base64,${currentFile.file_path}`"
+                                            :alt="currentFile.caption || 'Student submission'"
                                             class="max-h-full max-w-full object-contain"
                                             style="max-height: 100%; max-width: 100%; object-fit: contain;"
                                         />
                                         <!-- PDF Display -->
-                                        <div v-else-if="selectedSubmission.file_type === 'pdf' && selectedSubmission.file_path" class="flex flex-col items-center justify-center text-red-600">
+                                        <div v-else-if="currentFile && currentFile.file_type === 'pdf' && currentFile.file_path" class="flex flex-col items-center justify-center text-red-600">
                                             <i class="pi pi-file-pdf text-8xl mb-4"></i>
                                             <span class="text-lg font-medium">PDF Document</span>
-                                            <span class="text-sm text-gray-500 mt-2">{{ selectedSubmission.caption || 'Untitled' }}</span>
+                                            <span class="text-sm text-gray-500 mt-2">{{ currentFile.caption || 'Untitled' }}</span>
                                         </div>
                                         <!-- Word Document Display -->
-                                        <div v-else-if="selectedSubmission.file_type === 'document' && selectedSubmission.file_path" class="flex flex-col items-center justify-center text-blue-600">
+                                        <div v-else-if="currentFile && currentFile.file_type === 'document' && currentFile.file_path" class="flex flex-col items-center justify-center text-blue-600">
                                             <i class="pi pi-file-word text-8xl mb-4"></i>
                                             <span class="text-lg font-medium">Word Document</span>
-                                            <span class="text-sm text-gray-500 mt-2">{{ selectedSubmission.caption || 'Untitled' }}</span>
+                                            <span class="text-sm text-gray-500 mt-2">{{ currentFile.caption || 'Untitled' }}</span>
                                         </div>
                                         <!-- No file data - minimal text only -->
                                         <div v-else class="flex flex-col items-center justify-center text-gray-400 px-6 text-center">
@@ -1695,6 +1737,18 @@ const getMedalDetails = (rank) => {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                                
+                                <!-- View File Button -->
+                                <div v-if="currentFile && currentFile.file_path" class="mt-4">
+                                    <a
+                                        :href="currentFile.file_path"
+                                        target="_blank"
+                                        class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
+                                    >
+                                        <i class="pi pi-external-link"></i>
+                                        <span>View File</span>
+                                    </a>
                                 </div>
                             </div>
 

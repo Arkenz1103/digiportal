@@ -233,6 +233,9 @@ class StudentSubmission(models.Model):
     criteria_scores = models.TextField(null=True, blank=True)  # JSON string of criteria scores
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='unscored')
     post_to_feed = models.BooleanField(default=False)
+    post_file_ids = models.TextField(null=True, blank=True)  # JSON array of file IDs selected for posting
+    post_caption = models.TextField(null=True, blank=True)  # Caption for the post to feed request
+    post_requested_at = models.DateTimeField(null=True, blank=True)  # When the post was requested
     approval_status = models.CharField(max_length=50, choices=APPROVAL_CHOICES, default='approved')
     is_active = models.BooleanField(default=True)  # Track if submission is active
     is_late = models.BooleanField(default=False)  # Track if submission was submitted after due date
@@ -254,6 +257,31 @@ class StudentSubmission(models.Model):
     def __str__(self):
         activity_title = self.activity.title if self.activity else 'Sketch Pad'
         return f"{self.student.username} - {activity_title} ({self.status})"
+
+
+class SubmissionFile(models.Model):
+    """Individual file attached to a student submission - supports multiple files per submission"""
+    submission = models.ForeignKey(StudentSubmission, on_delete=models.CASCADE, related_name='files')
+    file = models.FileField(upload_to='submissions/%Y/%m/%d/', null=True, blank=True)
+    file_path = models.TextField(null=True, blank=True)  # For base64 compatibility
+    file_type = models.CharField(max_length=50, null=True, blank=True)
+    file_name = models.CharField(max_length=255, null=True, blank=True)
+    file_size = models.IntegerField(null=True, blank=True)  # Size in bytes
+    order = models.IntegerField(default=0)  # For ordering files
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'submission_files'
+        ordering = ['order', 'created_at']
+
+    def __str__(self):
+        return f"File {self.file_name} for submission {self.submission_id}"
+
+    @property
+    def file_url(self):
+        if self.file:
+            return self.file.url
+        return self.file_path
 
 
 class SubmissionScore(models.Model):
@@ -298,7 +326,7 @@ class NewsfeedPost(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='newsfeed_posts')
     student_name = models.CharField(max_length=255)
     caption = models.TextField(blank=True, null=True)
-    file_path = models.TextField(blank=True, null=True)  # Base64 encoded image/file
+    file_path = models.TextField(blank=True, null=True)  # Base64 encoded image/file (legacy - single file)
     file_type = models.CharField(max_length=50, default='image')
     activity_title = models.CharField(max_length=255, blank=True, null=True)
     activity_type = models.CharField(max_length=100, blank=True, null=True)
@@ -333,6 +361,23 @@ class NewsfeedPost(models.Model):
     def comments_count(self):
         """Get total number of comments for this post"""
         return self.comments.count()
+
+
+class NewsfeedPostFile(models.Model):
+    """Individual file attached to a newsfeed post - supports multiple files per post"""
+    post = models.ForeignKey(NewsfeedPost, on_delete=models.CASCADE, related_name='files')
+    file_path = models.TextField(blank=True, null=True)
+    file_type = models.CharField(max_length=50, default='image')
+    file_name = models.CharField(max_length=255, null=True, blank=True)
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'newsfeed_post_files'
+        ordering = ['order', 'created_at']
+
+    def __str__(self):
+        return f"File {self.file_name} for post {self.post_id}"
 
 
 class PostLike(models.Model):

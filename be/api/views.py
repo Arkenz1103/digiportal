@@ -12,8 +12,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from inertia import render as inertia_render
 from .middleware import teacher_required, student_required
-from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest, NewsfeedPost, PostLike, PostComment, Student, Classroom
-from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, NotificationSerializer, RemarkSerializer
+from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission, SubmissionFile, Notification, Remark, RemarkReadStatus, PortfolioCompilationRequest, NewsfeedPost, PostLike, PostComment, Student, Classroom
+from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, SubmissionFileSerializer, NotificationSerializer, RemarkSerializer
 import json
 import os
 
@@ -2238,30 +2238,80 @@ def approve_submission_api(request, submission_id):
                 existing_post = NewsfeedPost.objects.filter(original_submission=submission).first()
 
                 if not existing_post:
-                    # Get the file path - prioritize file field over file_path
-                    file_data = None
-                    if submission.file:
-                        # If file is a FileField, get its URL
-                        file_data = submission.file.url if hasattr(submission.file, 'url') else str(submission.file)
+                    from .models import NewsfeedPostFile, SubmissionFile
+                    import json
+                    
+                    # Get selected file IDs (only these files should be posted)
+                    selected_file_ids = []
+                    if submission.post_file_ids:
+                        try:
+                            selected_file_ids = json.loads(submission.post_file_ids) if isinstance(submission.post_file_ids, str) else submission.post_file_ids
+                        except (json.JSONDecodeError, TypeError):
+                            selected_file_ids = []
+                    
+                    # Get the caption from post_caption or fallback to submission caption
+                    post_caption = submission.post_caption or submission.caption or ''
+                    
+                    # Get files to post
+                    files_to_post = []
+                    if selected_file_ids:
+                        # Get only the selected files
+                        files_to_post = list(SubmissionFile.objects.filter(id__in=selected_file_ids, submission=submission))
+                        print(f"📁 Using {len(files_to_post)} selected files for newsfeed post")
+                    elif submission.files.exists():
+                        # Fallback to all files if no selection
+                        files_to_post = list(submission.files.all())
+                        print(f"📁 Using all {len(files_to_post)} files for newsfeed post")
+                    
+                    # Get primary file for legacy single-file support
+                    primary_file_data = None
+                    primary_file_type = submission.file_type or 'image'
+                    
+                    if files_to_post:
+                        first_file = files_to_post[0]
+                        if first_file.file:
+                            primary_file_data = first_file.file.url if hasattr(first_file.file, 'url') else str(first_file.file)
+                        elif first_file.file_path:
+                            primary_file_data = first_file.file_path
+                        primary_file_type = first_file.file_type or 'image'
+                    elif submission.file:
+                        primary_file_data = submission.file.url if hasattr(submission.file, 'url') else str(submission.file)
                     elif submission.file_path:
-                        # Use file_path if file field is empty (for base64 or legacy data)
-                        file_data = submission.file_path
+                        primary_file_data = submission.file_path
 
-                    print(f"📁 Creating newsfeed post with file: {file_data}")
+                    print(f"📁 Creating newsfeed post with primary file: {primary_file_data}")
 
                     # Create new newsfeed post
-                    NewsfeedPost.objects.create(
+                    newsfeed_post = NewsfeedPost.objects.create(
                         student=submission.student,
                         student_name=submission.student.username,
-                        caption=submission.caption or '',
-                        file_path=file_data,
-                        file_type=submission.file_type,
+                        caption=post_caption,
+                        file_path=primary_file_data,
+                        file_type=primary_file_type,
                         activity_title=submission.activity.title if submission.activity else 'Sketch Pad',
                         activity_type=submission.activity.activity_type if submission.activity else 'Sketch',
-                        classroom=submission.student.classroom,  # Set classroom for filtering
+                        classroom=submission.student.classroom,
                         original_submission=submission
                     )
-                    print(f"✅ Created newsfeed post for submission {submission_id} with file: {file_data}")
+                    
+                    # Create NewsfeedPostFile entries for each selected file
+                    for index, sub_file in enumerate(files_to_post):
+                        file_url = None
+                        if sub_file.file:
+                            file_url = sub_file.file.url if hasattr(sub_file.file, 'url') else str(sub_file.file)
+                        elif sub_file.file_path:
+                            file_url = sub_file.file_path
+                        
+                        NewsfeedPostFile.objects.create(
+                            post=newsfeed_post,
+                            file_path=file_url,
+                            file_type=sub_file.file_type or 'image',
+                            file_name=sub_file.file_name,
+                            order=index
+                        )
+                        print(f"   📎 Added file {index + 1}: {sub_file.file_name}")
+                    
+                    print(f"✅ Created newsfeed post {newsfeed_post.id} with {len(files_to_post)} files")
         elif action == 'cancel':
             # Cancel/remove the post request - reset to approved without posting
             submission.approval_status = 'approved'
@@ -2370,19 +2420,50 @@ def newsfeed_api(request):
                 elif not post.file_path.startswith('/'):
                     file_url = request.build_absolute_uri(f'/media/{post.file_path}')
 
+            # Get all files for this post
+            post_files = []
+            try:
+                for pf in post.files.all():
+                    pf_url = pf.file_path
+                    if pf.file_path and not pf.file_path.startswith(('http://', 'https://', 'data:')):
+                        if pf.file_path.startswith('/media/'):
+                            pf_url = request.build_absolute_uri(pf.file_path)
+                        elif not pf.file_path.startswith('/'):
+                            pf_url = request.build_absolute_uri(f'/media/{pf.file_path}')
+                    post_files.append({
+                        'id': pf.id,
+                        'file_path': pf_url,
+                        'file_type': pf.file_type,
+                        'file_name': pf.file_name,
+                        'order': pf.order
+                    })
+            except Exception as e:
+                print(f"⚠️ Error loading files for post {post.id}: {e}")
+            
+            # If no files in the new table, use the legacy single file
+            if not post_files and file_url:
+                post_files = [{
+                    'id': 0,
+                    'file_path': file_url,
+                    'file_type': post.file_type,
+                    'file_name': None,
+                    'order': 0
+                }]
+
             post_dict = {
                 'id': post.id,
                 'student_name': post.student_name,
                 'caption': post.caption,
                 'file_path': file_url,
                 'file_type': post.file_type,
+                'files': post_files,
                 'activity_title': post.activity_title,
                 'activity_type': post.activity_type,
                 'posted_at': post.posted_at.isoformat(),
                 'likes': likes_count,
                 'is_liked': is_liked,
             }
-            print(f"📸 Post {post.id}: file_path = {file_url}")
+            print(f"📸 Post {post.id}: {len(post_files)} files")
             posts_data.append(post_dict)
 
         return Response(posts_data)
@@ -2828,8 +2909,27 @@ def submission_detail_api(request, submission_id):
 
                 # If requesting to post to feed, set approval status to pending
                 if submission.post_to_feed:
+                    from django.utils import timezone
+                    
                     submission.approval_status = 'pending'
+                    submission.post_requested_at = timezone.now()  # Set the request timestamp
                     print(f"📢 Submission {submission.id} requesting post to feed - approval_status set to pending")
+                    print(f"⏰ Post requested at: {submission.post_requested_at}")
+
+                    # Save selected file IDs for posting (only these files will be shown to teacher)
+                    if 'post_file_ids' in data:
+                        import json
+                        post_file_ids = data['post_file_ids']
+                        if isinstance(post_file_ids, list):
+                            submission.post_file_ids = json.dumps(post_file_ids)
+                        else:
+                            submission.post_file_ids = post_file_ids
+                        print(f"📁 Selected files for posting: {submission.post_file_ids}")
+
+                    # Save post caption
+                    if 'post_caption' in data:
+                        submission.post_caption = data['post_caption']
+                        print(f"📝 Post caption: {submission.post_caption}")
 
                     # Notify teacher about the post request
                     if submission.activity:
@@ -2995,6 +3095,219 @@ def submission_detail_api(request, submission_id):
         error_trace = traceback.format_exc()
         print(f"❌ Error in submission_detail_api: {str(e)}")
         print(error_trace)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def upload_submission_files_api(request, activity_id):
+    """
+    POST: Upload multiple files for a submission (student only)
+    Creates or updates a draft submission with multiple files
+    """
+    if not request.user.is_authenticated or request.user.role != 'student':
+        return Response({'error': 'Only students can upload files'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        activity = PortfolioActivity.objects.get(id=activity_id)
+        files = request.FILES.getlist('files')
+
+        if not files:
+            return Response({'error': 'No files provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        print(f"📤 Uploading {len(files)} file(s) for activity {activity_id}")
+
+        # Get or create draft submission
+        existing_submission = StudentSubmission.objects.filter(
+            activity=activity,
+            student=request.user,
+            is_active=True
+        ).order_by('-submitted_at').first()
+
+        if existing_submission and existing_submission.status == 'draft':
+            submission = existing_submission
+            print(f"📝 Using existing draft submission {submission.id}")
+        elif existing_submission and existing_submission.status in ['unscored', 'scored']:
+            # Check if can resubmit
+            if existing_submission.score is not None:
+                return Response({'error': 'Cannot modify scored submission'}, status=status.HTTP_400_BAD_REQUEST)
+            submission = existing_submission
+            print(f"📝 Using existing submission {submission.id} for file update")
+        else:
+            # Create new draft submission
+            submission = StudentSubmission.objects.create(
+                activity=activity,
+                student=request.user,
+                status='draft',
+                is_active=True
+            )
+            print(f"📝 Created new draft submission {submission.id}")
+
+        # Process each file
+        uploaded_files = []
+        for index, file_obj in enumerate(files):
+            # Detect file type
+            content_type = file_obj.content_type
+            if content_type.startswith('image/'):
+                file_type = 'image'
+            elif content_type == 'application/pdf':
+                file_type = 'pdf'
+            elif content_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                file_type = 'document'
+            else:
+                file_type = 'file'
+
+            # Create SubmissionFile record
+            submission_file = SubmissionFile.objects.create(
+                submission=submission,
+                file=file_obj,
+                file_type=file_type,
+                file_name=file_obj.name,
+                file_size=file_obj.size,
+                order=index
+            )
+            uploaded_files.append(submission_file)
+            print(f"📎 File {index + 1}: {file_obj.name} ({file_type})")
+
+        # Also update the main submission file field with the first file for backward compatibility
+        if files and not submission.file:
+            first_file = files[0]
+            submission.file = first_file
+            content_type = first_file.content_type
+            if content_type.startswith('image/'):
+                submission.file_type = 'image'
+            elif content_type == 'application/pdf':
+                submission.file_type = 'pdf'
+            elif content_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                submission.file_type = 'document'
+            else:
+                submission.file_type = 'file'
+            submission.save()
+
+        serializer = StudentSubmissionSerializer(submission, context={'request': request})
+        return Response({
+            'submission': serializer.data,
+            'uploaded_count': len(uploaded_files),
+            'message': f'Successfully uploaded {len(uploaded_files)} file(s)'
+        }, status=status.HTTP_201_CREATED)
+
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        import traceback
+        print(f"❌ Error uploading files: {str(e)}")
+        print(traceback.format_exc())
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'POST'])
+def submission_files_api(request, submission_id):
+    """
+    GET: List all files for a submission
+    POST: Add new file(s) to a submission
+    """
+    try:
+        submission = StudentSubmission.objects.get(id=submission_id)
+
+        # Check permissions
+        if request.user.role == 'student' and submission.student != request.user:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        if request.method == 'GET':
+            files = submission.files.all()
+            serializer = SubmissionFileSerializer(files, many=True, context={'request': request})
+            return Response(serializer.data)
+
+        elif request.method == 'POST':
+            if request.user.role != 'student' or submission.student != request.user:
+                return Response({'error': 'Only the submission owner can add files'}, status=status.HTTP_403_FORBIDDEN)
+
+            files = request.FILES.getlist('files')
+            if not files:
+                return Response({'error': 'No files provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get current max order
+            max_order = submission.files.count()
+
+            uploaded_files = []
+            for index, file_obj in enumerate(files):
+                content_type = file_obj.content_type
+                if content_type.startswith('image/'):
+                    file_type = 'image'
+                elif content_type == 'application/pdf':
+                    file_type = 'pdf'
+                elif content_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                    file_type = 'document'
+                else:
+                    file_type = 'file'
+
+                submission_file = SubmissionFile.objects.create(
+                    submission=submission,
+                    file=file_obj,
+                    file_type=file_type,
+                    file_name=file_obj.name,
+                    file_size=file_obj.size,
+                    order=max_order + index
+                )
+                uploaded_files.append(submission_file)
+
+            serializer = SubmissionFileSerializer(uploaded_files, many=True, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in submission_files_api: {str(e)}")
+        print(traceback.format_exc())
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'DELETE'])
+def submission_file_detail_api(request, submission_id, file_id):
+    """
+    GET: Get a specific file details
+    DELETE: Remove a file from submission
+    """
+    try:
+        submission = StudentSubmission.objects.get(id=submission_id)
+        submission_file = SubmissionFile.objects.get(id=file_id, submission=submission)
+
+        # Check permissions
+        if request.user.role == 'student' and submission.student != request.user:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        if request.method == 'GET':
+            serializer = SubmissionFileSerializer(submission_file, context={'request': request})
+            return Response(serializer.data)
+
+        elif request.method == 'DELETE':
+            if request.user.role != 'student' or submission.student != request.user:
+                return Response({'error': 'Only the submission owner can delete files'}, status=status.HTTP_403_FORBIDDEN)
+
+            # Delete the file
+            file_name = submission_file.file_name
+            submission_file.delete()
+
+            # Reorder remaining files
+            remaining_files = submission.files.all().order_by('order')
+            for index, f in enumerate(remaining_files):
+                if f.order != index:
+                    f.order = index
+                    f.save()
+
+            return Response({'message': f'File "{file_name}" deleted successfully'}, status=status.HTTP_200_OK)
+
+    except StudentSubmission.DoesNotExist:
+        return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
+    except SubmissionFile.DoesNotExist:
+        return Response({'error': 'File not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in submission_file_detail_api: {str(e)}")
+        print(traceback.format_exc())
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -5732,9 +6045,9 @@ def student_list_api(request):
     """List students - for teachers, only show students from their assigned classroom(s)"""
     if request.method == 'GET':
         # Get query parameters
-        grade_level = request.query_params.get('grade_level')
-        section = request.query_params.get('section')
-        search = request.query_params.get('search')
+        grade_level = request.query_params.get('grade_level', '').strip() or None
+        section = request.query_params.get('section', '').strip() or None
+        search = request.query_params.get('search', '').strip() or None
 
         # Filter based on user role
         if request.user.role == 'teacher':
@@ -5759,9 +6072,31 @@ def student_list_api(request):
 
         # Apply additional filters
         if grade_level:
-            students = students.filter(grade_level=grade_level)
+            # Handle "Grade 3" -> 3 for Classroom matching
+            gl_query = Q(grade_level__iexact=grade_level)
+            
+            # Try to extract integer from "Grade 3" or direct digit
+            extracted_grade = None
+            if isinstance(grade_level, str) and 'Grade ' in grade_level:
+                try:
+                    parts = grade_level.split('Grade ')
+                    if len(parts) > 1 and parts[1].strip().isdigit():
+                        extracted_grade = int(parts[1].strip())
+                except (IndexError, ValueError):
+                    pass
+            elif str(grade_level).isdigit():
+                extracted_grade = int(grade_level)
+                
+            if extracted_grade is not None:
+                # Match against User string OR Classroom integer OR simple digit string
+                gl_query |= Q(classroom__grade_level=extracted_grade)
+                gl_query |= Q(grade_level=str(extracted_grade))
+                gl_query |= Q(grade_level__iexact=f"Grade {extracted_grade}")
+                
+            students = students.filter(gl_query)
+
         if section:
-            students = students.filter(section=section)
+            students = students.filter(Q(section=section) | Q(classroom__section=section))
         if search:
             students = students.filter(
                 Q(id_number__icontains=search) |
@@ -5779,6 +6114,7 @@ def student_list_api(request):
         for student in students:
             students_data.append({
                 'id': student.id,
+                'name': f"{student.first_name} {student.last_name}".strip() or student.username,
                 'student_id': student.id_number,
                 'first_name': student.first_name,
                 'last_name': student.last_name,

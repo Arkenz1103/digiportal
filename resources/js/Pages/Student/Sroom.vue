@@ -167,7 +167,12 @@
                                   <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
                                     <i class="pi pi-briefcase text-white text-sm"></i>
                                   </div>
-                                  <h3 class="text-base font-bold text-gray-800">Your Work</h3>
+                                  <div>
+                                    <h3 class="text-base font-bold text-gray-800">Your Work</h3>
+                                    <span v-if="draftFiles.length > 0 && (!hasSubmittedWork || isResubmitting)" class="text-xs text-gray-500">
+                                      {{ draftFiles.length }} file{{ draftFiles.length > 1 ? 's' : '' }} attached
+                                    </span>
+                                  </div>
                                 </div>
 
                                 <!-- Status Badge (Main Design) -->
@@ -246,7 +251,7 @@
                             </div>
 
                             <!-- Files Display (Draft or Submitted) -->
-                            <div v-if="draftFiles.length > 0 || (hasSubmittedWork && studentSubmissions.length > 0)" class="mb-3 space-y-2">
+                            <div v-if="draftFiles.length > 0 || (hasSubmittedWork && studentSubmissions.length > 0)" class="mb-3 space-y-2 max-h-48 overflow-y-auto">
                           <!-- Show draft files if not submitted OR in resubmission mode -->
                           <div
                             v-if="!hasSubmittedWork || isResubmitting"
@@ -297,17 +302,18 @@
                             </button>
                           </div>
 
-                          <!-- Show submitted files (not clickable) - only when NOT in resubmission mode -->
-                          <div
+                          <!-- Show submitted files (clickable for preview) - only when NOT in resubmission mode -->
+                          <button
                             v-else-if="hasSubmittedWork && !isResubmitting && studentSubmissions.length > 0"
-                            v-for="submission in studentSubmissions.slice(0, 1)"
+                            v-for="submission in studentSubmissions"
                             :key="submission.activityId"
-                            class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200"
+                            @click="viewDraftFile(submission)"
+                            class="flex items-center gap-2 p-2 bg-white rounded-lg border border-indigo-200 hover:border-indigo-300 transition-all group w-full text-left"
                           >
-                            <!-- Thumbnail (Not clickable - disabled) -->
+                            <!-- Thumbnail (Clickable) -->
                             <div
-                              class="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden opacity-70"
-                              :class="submission.isImage ? 'bg-gray-100' : 'bg-gray-100'"
+                              class="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
+                              :class="submission.isImage ? 'bg-gray-100' : 'bg-indigo-100'"
                             >
                               <img
                                 v-if="submission.isImage && submission.previewUrl"
@@ -320,48 +326,49 @@
                                 class="w-full h-full flex items-center justify-center"
                                 :style="submission.isImage && submission.previewUrl ? 'display: none;' : ''"
                               >
-                                <i v-if="submission.isImage" class="pi pi-image text-gray-500 text-lg"></i>
-                                <i v-else class="pi pi-file text-gray-500 text-lg"></i>
+                                <i v-if="submission.isImage" class="pi pi-image text-indigo-600 text-lg"></i>
+                                <i v-else class="pi pi-file text-gray-600 text-lg"></i>
                               </div>
                             </div>
 
-                            <!-- File Info (Not clickable) -->
+                            <!-- File Info (Clickable) -->
                             <div class="flex-1 min-w-0">
-                              <p class="text-xs font-medium text-gray-700 truncate">{{ submission.caption || 'Submitted work' }}</p>
+                              <p class="text-xs font-medium text-gray-900 truncate">{{ submission.caption || 'Submitted work' }}</p>
                               <p class="text-xs text-gray-500">Submitted</p>
                             </div>
 
-                            <!-- Lock Icon (Submitted) -->
+                            <!-- View Icon (Submitted) -->
                             <div class="w-6 h-6 flex items-center justify-center">
-                              <i class="pi pi-lock text-gray-400 text-sm"></i>
+                              <i class="pi pi-eye text-indigo-600 text-sm"></i>
                             </div>
-                          </div>
+                          </button>
                         </div>
 
                         <!-- Action Buttons (Always visible) -->
                         <div class="space-y-2">
-                          <!-- Hidden File Input - Single file only -->
+                          <!-- Hidden File Input - Multiple files -->
                           <input
                             type="file"
                             ref="autoSaveFileInput"
                             @change="handleAutoSaveFileUpload"
                             accept="image/*,.pdf,.doc,.docx"
+                            multiple
                             class="hidden"
                           />
 
-                          <!-- Add/Edit Button (Show if not submitted OR in resubmission mode) -->
+                          <!-- Add/Upload Button (Show if not submitted OR in resubmission mode) -->
                           <button
                             v-if="!hasSubmittedWork || isResubmitting"
-                            @click="draftFiles.length > 0 ? viewDraftFile(draftFiles[0]) : (isReplacingFile = false, showUploadDialog = true)"
+                            @click="isReplacingFile = false; showUploadDialog = true"
                             :disabled="isSubmitting"
                             class="w-full px-4 py-2 bg-white border-2 border-indigo-200 rounded-lg text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
-                            <i v-else-if="draftFiles.length > 0" class="pi pi-pencil"></i>
+                            <i v-else-if="draftFiles.length > 0" class="pi pi-plus-circle"></i>
                             <i v-else class="pi pi-plus"></i>
                             <span v-if="isSubmitting">Uploading...</span>
-                            <span v-else-if="draftFiles.length > 0">Edit Upload File</span>
-                            <span v-else>Upload File</span>
+                            <span v-else-if="draftFiles.length > 0">Add More Files</span>
+                            <span v-else>Upload Files</span>
                           </button>
 
                           <!-- Turn In Button (Show if not submitted OR in resubmission mode) -->
@@ -397,7 +404,7 @@
                             <!-- Post to Feed Button -->
                             <button
                               v-if="existingSubmission && !existingSubmission.post_to_feed"
-                              @click="showPostToFeedConfirmDialog = true"
+                              @click="openPostToFeedDialog"
                               :disabled="isRequestingPost"
                               class="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Request to post this work to class feed"
@@ -2022,7 +2029,7 @@
     </Dialog>
 
     <!-- Post to Feed Confirmation Dialog -->
-    <Dialog v-model:visible="showPostToFeedConfirmDialog" modal :style="{ width: '90vw', maxWidth: '500px' }" :dismissableMask="true">
+    <Dialog v-model:visible="showPostToFeedConfirmDialog" modal :style="{ width: '90vw', maxWidth: '600px' }" :dismissableMask="true">
       <template #header>
         <div class="flex items-center gap-3">
           <i class="pi pi-send text-blue-600 text-xl"></i>
@@ -2032,9 +2039,76 @@
 
       <div class="space-y-4">
         <p class="text-gray-700">
-          Are you sure you want to request to post this work to the class feed?
-          Your teacher will review and approve your request.
+          Select the files you want to post to the class feed and add a caption.
         </p>
+
+        <!-- File Selection (Multiple) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="block text-sm font-medium text-gray-700">Select Files to Post</label>
+            <span v-if="postToFeedSelectedFiles.length > 0" class="text-xs text-blue-600 font-medium">
+              {{ postToFeedSelectedFiles.length }} file{{ postToFeedSelectedFiles.length > 1 ? 's' : '' }} selected
+            </span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-200">
+            <button
+              v-for="(submission, index) in studentSubmissions"
+              :key="submission.id || index"
+              @click="toggleFileSelection(submission)"
+              class="relative p-2 rounded-lg border-2 transition-all hover:shadow-md"
+              :class="isFileSelected(submission) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'"
+            >
+              <!-- Thumbnail -->
+              <div class="aspect-square rounded-md overflow-hidden bg-gray-100 mb-2">
+                <img
+                  v-if="submission.isImage && submission.previewUrl"
+                  :src="submission.previewUrl"
+                  :alt="submission.caption || 'File'"
+                  class="w-full h-full object-cover"
+                />
+                <div v-else class="w-full h-full flex items-center justify-center">
+                  <i :class="['text-2xl', submission.isImage ? 'pi pi-image text-indigo-500' : 'pi pi-file-pdf text-red-500']"></i>
+                </div>
+              </div>
+              <!-- File name -->
+              <p class="text-xs text-gray-600 truncate">{{ submission.caption || `File ${index + 1}` }}</p>
+              <!-- Selected indicator -->
+              <div v-if="isFileSelected(submission)" class="absolute top-1 right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                <i class="pi pi-check text-white text-xs"></i>
+              </div>
+            </button>
+          </div>
+          <p v-if="studentSubmissions.length === 0" class="text-sm text-gray-500 italic text-center py-4">
+            No files available to post
+          </p>
+          <!-- Select All / Deselect All -->
+          <div v-if="studentSubmissions.length > 1" class="flex gap-2">
+            <button
+              @click="selectAllFiles"
+              class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Select All
+            </button>
+            <span class="text-gray-300">|</span>
+            <button
+              @click="deselectAllFiles"
+              class="text-xs text-gray-600 hover:text-gray-800 font-medium"
+            >
+              Deselect All
+            </button>
+          </div>
+        </div>
+
+        <!-- Caption Input -->
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-gray-700">Caption (Optional)</label>
+          <textarea
+            v-model="postToFeedCaption"
+            placeholder="Add a caption for your post..."
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+          ></textarea>
+        </div>
 
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div class="flex items-start gap-3">
@@ -2054,18 +2128,18 @@
       <template #footer>
         <div class="flex justify-end gap-3">
           <button
-            @click="showPostToFeedConfirmDialog = false"
+            @click="showPostToFeedConfirmDialog = false; postToFeedSelectedFiles = []; postToFeedCaption = '';"
             class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
           >
             Cancel
           </button>
           <button
             @click="confirmPostToFeed"
-            :disabled="isRequestingPost"
+            :disabled="isRequestingPost || postToFeedSelectedFiles.length === 0"
             class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i class="pi pi-send"></i>
-            <span>{{ isRequestingPost ? 'Sending...' : 'Confirm' }}</span>
+            <span>{{ isRequestingPost ? 'Sending...' : `Confirm (${postToFeedSelectedFiles.length})` }}</span>
           </button>
         </div>
       </template>
@@ -2556,7 +2630,12 @@
       <template #header>
         <div class="flex items-center gap-3">
           <i class="pi pi-cloud-upload text-indigo-600 text-xl"></i>
-          <h3 class="text-lg font-bold text-gray-800">Add or Create Work</h3>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800">Add or Create Work</h3>
+            <p v-if="draftFiles.length > 0" class="text-xs text-gray-500">
+              {{ draftFiles.length }} file{{ draftFiles.length > 1 ? 's' : '' }} already attached
+            </p>
+          </div>
         </div>
       </template>
 
@@ -2591,7 +2670,7 @@
               </div>
               <div>
                 <h4 class="text-lg font-semibold text-gray-900 mb-2">Upload from Device</h4>
-                <p class="text-sm text-gray-500 mb-6">Select a file from your computer</p>
+                <p class="text-sm text-gray-500 mb-6">Select one or more files from your computer</p>
               </div>
               <button
                 @click="triggerAutoSaveFileUpload"
@@ -2600,7 +2679,7 @@
                 <i class="pi pi-folder-open"></i>
                 <span>Browse Files</span>
               </button>
-              <p class="text-xs text-gray-400 mt-4">Supported formats: Images, PDF, Word documents</p>
+              <p class="text-xs text-gray-400 mt-4">Supported formats: Images, PDF, Word documents • Multiple files allowed</p>
             </div>
           </div>
 
@@ -2755,7 +2834,8 @@
             class="px-5 py-2.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2 shadow-sm"
           >
             <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
-            <span v-else>Use Selection</span>
+            <i v-else class="pi pi-plus"></i>
+            <span>{{ isSubmitting ? 'Adding...' : 'Add to Draft' }}</span>
           </button>
           <button
             v-if="activeUploadTab === 'sketch' && selectedSketchId"
@@ -2763,9 +2843,9 @@
             :disabled="isSubmitting"
             class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <i v-if="!isSubmitting" class="pi pi-check"></i>
+            <i v-if="!isSubmitting" class="pi pi-plus"></i>
             <i v-else class="pi pi-spin pi-spinner"></i>
-            <span>{{ isSubmitting ? 'Adding...' : 'Use This Sketch' }}</span>
+            <span>{{ isSubmitting ? 'Adding...' : 'Add to Draft' }}</span>
           </button>
         </div>
       </template>
@@ -3015,6 +3095,15 @@
               <p class="font-semibold text-gray-900">{{ previewFile.name }}</p>
               <p class="text-sm text-gray-500 capitalize">{{ previewFile.type }}</p>
             </div>
+            <!-- View File Button - opens file in new tab -->
+            <button
+              v-if="previewFile.path"
+              @click="openFileInNewTab(previewFile.path, previewFile.type)"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2"
+            >
+              <i class="pi pi-external-link"></i>
+              <span>View File</span>
+            </button>
           </div>
 
           <!-- Caption Editor -->
@@ -3039,25 +3128,38 @@
             class="max-w-full max-h-[400px] object-contain rounded-lg shadow-lg"
           />
 
-          <!-- PDF Preview -->
-          <iframe
-            v-else-if="previewFile.type === 'pdf' && previewFile.path"
-            :src="previewFile.path"
-            class="w-full h-[600px] rounded-lg border border-gray-300"
-          ></iframe>
+          <!-- PDF Preview - Card style like Word docs -->
+          <div v-else-if="previewFile.type === 'pdf'" class="w-full">
+            <div class="text-center">
+              <div class="bg-white rounded-lg p-8 border border-gray-200 max-w-md mx-auto">
+                <i class="pi pi-file-pdf text-6xl text-red-500 mb-4"></i>
+                <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
+                <p class="text-gray-500 text-sm mb-2">PDF Document</p>
+                <p class="text-gray-400 text-xs">Click "View File" button above to open PDF</p>
+              </div>
+            </div>
+          </div>
 
-          <!-- Document Preview -->
-          <div v-else-if="previewFile.type === 'document'" class="text-center">
-            <i class="pi pi-file text-6xl text-indigo-400 mb-4"></i>
-            <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
-            <p class="text-gray-500 text-sm">Document file</p>
+          <!-- Document Preview (Word docs) -->
+          <div v-else-if="previewFile.type === 'document'" class="w-full">
+            <div class="text-center">
+              <div class="bg-white rounded-lg p-8 border border-gray-200 max-w-md mx-auto">
+                <i class="pi pi-file-word text-6xl text-blue-500 mb-4"></i>
+                <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
+                <p class="text-gray-500 text-sm mb-2">Word Document</p>
+                <p class="text-gray-400 text-xs">Click "View File" button above to open in Google Docs Viewer</p>
+              </div>
+            </div>
           </div>
 
           <!-- Other Files -->
-          <div v-else class="text-center">
-            <i class="pi pi-file text-6xl text-gray-400 mb-4"></i>
-            <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
-            <p class="text-gray-500 text-sm">File preview not available</p>
+          <div v-else class="text-center w-full">
+            <div class="bg-white rounded-lg p-8 border border-gray-200 max-w-md mx-auto">
+              <i class="pi pi-file text-6xl text-gray-400 mb-4"></i>
+              <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
+              <p class="text-gray-500 text-sm mb-4">{{ previewFile.type || 'File' }}</p>
+              <p class="text-gray-400 text-xs">Click "View File" to open the file.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -3067,7 +3169,7 @@
           <!-- Left side: Replace File button (only if draft OR resubmitting) -->
           <div v-if="!hasSubmittedWork || isResubmitting" class="flex gap-2">
             <button
-              @click="openReplaceFileDialog"
+              @click="replaceCurrentFile"
               class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
             >
               <i class="pi pi-refresh"></i>
@@ -3075,7 +3177,7 @@
             </button>
             <button
               @click="savePreviewCaption"
-              :disabled="!previewFileCaption || previewFileCaption === previewFile.name"
+              :disabled="!previewFileCaption || previewFileCaption === previewFile?.name"
               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <i class="pi pi-save"></i>
@@ -3298,6 +3400,8 @@ const showSubmitCompilationDialog = ref(false);
 const compilationDrafts = ref({}); // Store drafts by activity ID
 const selectedMissingActivity = ref(null);
 const showPostToFeedConfirmDialog = ref(false);
+const postToFeedSelectedFiles = ref([]); // Selected files for post to feed (multiple)
+const postToFeedCaption = ref(''); // Caption for post to feed
 const compilationFileInput = ref(null);
 
 // Portfolio submission state
@@ -3979,19 +4083,45 @@ const loadDraftSubmissions = async (activityId) => {
       const latestDraft = drafts[0];
       draftSubmission.value = latestDraft;
 
-      // Use file_url from backend (already formatted correctly) with cache busting
-      let filePath = latestDraft.file_url || latestDraft.file_path || latestDraft.file;
-      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+      // Check if the submission has multiple files
+      if (latestDraft.files && latestDraft.files.length > 0) {
+        // Load all files from the files array
+        draftFiles.value = latestDraft.files.map(f => ({
+          id: f.id,
+          submissionId: latestDraft.id,
+          name: f.file_name || 'Uploaded file',
+          type: f.file_type,
+          path: f.file_url ? `${f.file_url}?t=${Date.now()}` : f.file_path,
+          size: f.file_size,
+          order: f.order
+        }));
+        console.log('✅ Loaded draft with multiple files:', draftFiles.value.length);
+      } else {
+        // Fallback to single file from main submission
+        let filePath = latestDraft.file_url || latestDraft.file_path || latestDraft.file;
+        const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
 
-      draftFiles.value = [{
-        id: latestDraft.id,
-        name: latestDraft.caption || 'Uploaded file',
-        type: latestDraft.file_type,
-        path: cacheBustedPath,
-        resubmit_count: latestDraft.resubmit_count || 0  // Preserve resubmit count
-      }];
+        // Try to get the actual filename from the file path
+        let fileName = latestDraft.caption || 'Uploaded file';
+        if (filePath && fileName === 'Uploaded file') {
+          const pathParts = filePath.split('/');
+          const fileNameFromPath = pathParts[pathParts.length - 1];
+          if (fileNameFromPath && !fileNameFromPath.includes('?')) {
+            fileName = fileNameFromPath;
+          }
+        }
+
+        draftFiles.value = [{
+          id: latestDraft.id,
+          name: fileName,
+          type: latestDraft.file_type,
+          path: cacheBustedPath,
+          resubmit_count: latestDraft.resubmit_count || 0
+        }];
+      }
+      
       console.log('✅ Loaded draft submission:', draftSubmission.value);
-      console.log('📎 File path:', cacheBustedPath);
+      console.log('📎 Draft files:', draftFiles.value);
       console.log('📊 Resubmit count:', latestDraft.resubmit_count);
     } else {
       draftSubmission.value = null;
@@ -4012,16 +4142,16 @@ const loadActivitySubmissions = async (activityId) => {
 
     if (response.data && response.data.length > 0) {
       // Map API response to display format
-      studentSubmissions.value = response.data.map(submission => {
-        // Use file_url from backend (already formatted correctly)
-        let previewUrl = submission.file_url || submission.file_path || submission.file;
-
+      // If a submission has multiple files, create separate entries for each file
+      studentSubmissions.value = [];
+      
+      response.data.forEach(submission => {
         console.log('🖼️ Processing submission:', {
           id: submission.id,
           caption: submission.caption,
           file_type: submission.file_type,
-          has_file_url: !!submission.file_url,
-          file_url: submission.file_url,
+          has_files: !!submission.files,
+          files_count: submission.files?.length || 0,
           status: submission.status,
           score: submission.score
         });
@@ -4037,24 +4167,56 @@ const loadActivitySubmissions = async (activityId) => {
           console.log('✅ Submission has been scored:', submissionScore.value);
         }
 
-        return {
-          activityId: activityId,
-          caption: submission.caption,
-          previewUrl: previewUrl,
-          isImage: submission.file_type === 'image',
-          date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-          }),
-          status: submission.status,
-          score: submission.score,
-          feedback: submission.feedback,
-          is_late: submission.is_late || false,
-          loadError: false
-        };
+        // Check if submission has multiple files
+        if (submission.files && submission.files.length > 0) {
+          // Create an entry for each file
+          submission.files.forEach((file, index) => {
+            studentSubmissions.value.push({
+              id: file.id,
+              submissionId: submission.id,
+              activityId: activityId,
+              caption: file.file_name || submission.caption || `File ${index + 1}`,
+              previewUrl: file.file_url || file.file_path,
+              isImage: file.file_type === 'image',
+              date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              }),
+              status: submission.status,
+              score: submission.score,
+              feedback: submission.feedback,
+              is_late: submission.is_late || false,
+              loadError: false,
+              order: file.order || index
+            });
+          });
+        } else {
+          // Fallback to single file from main submission
+          let previewUrl = submission.file_url || submission.file_path || submission.file;
+          
+          studentSubmissions.value.push({
+            id: submission.id,
+            submissionId: submission.id,
+            activityId: activityId,
+            caption: submission.caption,
+            previewUrl: previewUrl,
+            isImage: submission.file_type === 'image',
+            date: new Date(submission.submitted_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            }),
+            status: submission.status,
+            score: submission.score,
+            feedback: submission.feedback,
+            is_late: submission.is_late || false,
+            loadError: false
+          });
+        }
       });
-      console.log('✅ Total submissions loaded:', studentSubmissions.value.length);
+      
+      console.log('✅ Total submission files loaded:', studentSubmissions.value.length);
     } else {
       studentSubmissions.value = [];
       console.log('⚠️ No submissions found');
@@ -4086,17 +4248,41 @@ const checkSubmissionStatus = async (activityId) => {
           hasSubmittedWork.value = true;
           existingSubmission.value = draft;
 
-          // Load the draft file for editing
-          const filePath = draft.file_url || draft.file_path;
-          const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+          // Check if the draft has multiple files
+          if (draft.files && draft.files.length > 0) {
+            draftFiles.value = draft.files.map(f => ({
+              id: f.id,
+              submissionId: draft.id,
+              name: f.file_name || 'Uploaded file',
+              type: f.file_type,
+              path: f.file_url ? `${f.file_url}?t=${Date.now()}` : f.file_path,
+              size: f.file_size,
+              order: f.order,
+              resubmit_count: draft.resubmit_count || 0
+            }));
+          } else {
+            // Fallback to single file
+            const filePath = draft.file_url || draft.file_path;
+            const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
 
-          draftFiles.value = [{
-            id: draft.id,
-            name: draft.caption || 'Resubmitting work',
-            type: draft.file_type,
-            path: cacheBustedPath,
-            resubmit_count: draft.resubmit_count || 0
-          }];
+            // Try to get actual filename
+            let fileName = draft.caption || 'Resubmitting work';
+            if (filePath && fileName === 'Resubmitting work') {
+              const pathParts = filePath.split('/');
+              const fileNameFromPath = pathParts[pathParts.length - 1];
+              if (fileNameFromPath && !fileNameFromPath.includes('?')) {
+                fileName = fileNameFromPath;
+              }
+            }
+
+            draftFiles.value = [{
+              id: draft.id,
+              name: fileName,
+              type: draft.file_type,
+              path: cacheBustedPath,
+              resubmit_count: draft.resubmit_count || 0
+            }];
+          }
 
           console.log('✅ Loaded draft for resubmission:', draft.id);
           console.log('📊 Resubmit count:', draft.resubmit_count || 0);
@@ -4650,7 +4836,7 @@ const useSelectedSketch = async () => {
   isSubmitting.value = true;
 
   try {
-    console.log('📤 Using sketch as draft:', selectedSketch.title);
+    console.log('📤 Adding sketch to draft:', selectedSketch.title);
 
     // Convert base64 image to blob
     const base64Data = selectedSketch.image_data;
@@ -4660,79 +4846,62 @@ const useSelectedSketch = async () => {
     // Create a file from the blob
     const file = new File([blob], `${selectedSketch.title}.png`, { type: 'image/png' });
 
-    // Create FormData for file upload as DRAFT
+    // Create FormData for multi-file upload
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('caption', selectedSketch.title);
-    formData.append('post_to_feed', false);
-    formData.append('is_draft', true);
+    formData.append('files', file);
 
-    // Check if there's already a draft or resubmission in progress - if yes, update it; if no, create new
-    const existingDraftId = draftFiles.value.length > 0 ? draftFiles.value[0].id : draftSubmission.value?.id;
-    let uploadResponse;
+    // Use the multi-file upload endpoint to ADD to existing files
+    const uploadResponse = await axios.post(
+      `/api/activities/${selectedActivity.value.id}/submissions/upload-files/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
 
-    if (existingDraftId) {
-      console.log('📝 Updating existing draft with sketch:', existingDraftId);
-      uploadResponse = await axios.put(
-        `/api/submissions/${existingDraftId}/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+    console.log('✅ Sketch added to draft:', uploadResponse.data);
+
+    // Store draft submission
+    const submissionData = uploadResponse.data.submission;
+    draftSubmission.value = submissionData;
+
+    // Build draft files array from the submission's files
+    if (submissionData.files && submissionData.files.length > 0) {
+      draftFiles.value = submissionData.files.map(f => ({
+        id: f.id,
+        submissionId: submissionData.id,
+        name: f.file_name,
+        type: f.file_type,
+        path: f.file_url ? `${f.file_url}?t=${Date.now()}` : f.file_path,
+        size: f.file_size,
+        order: f.order
+      }));
     } else {
-      console.log('📝 Creating new draft with sketch');
-      uploadResponse = await axios.post(
-        `/api/activities/${selectedActivity.value.id}/submissions/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      // Fallback to main file
+      const filePath = submissionData.file_url || submissionData.file_path || submissionData.file;
+      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+      draftFiles.value = [{
+        id: submissionData.id,
+        name: selectedSketch.title,
+        type: submissionData.file_type,
+        path: cacheBustedPath,
+        resubmit_count: submissionData.resubmit_count || 0
+      }];
     }
 
-    console.log('✅ Sketch saved as draft:', uploadResponse.data);
+    console.log('📋 Draft files:', draftFiles.value.length, 'file(s)');
 
-    // Store draft submission (includes resubmit_count)
-    draftSubmission.value = uploadResponse.data;
-
-    // Use file_url from backend (already formatted correctly) with cache busting
-    const filePath = uploadResponse.data.file_url || uploadResponse.data.file_path || uploadResponse.data.file;
-    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
-
-    // Replace the draft files array (only one draft at a time)
-    draftFiles.value = [{
-      id: uploadResponse.data.id,
-      name: selectedSketch.title,
-      type: uploadResponse.data.file_type,
-      path: cacheBustedPath,
-      resubmit_count: uploadResponse.data.resubmit_count || 0  // Preserve resubmit count
-    }];
-
-    console.log('📝 Draft sketch replaced. This does NOT count as a resubmission.');
-    console.log('📊 Resubmit count:', uploadResponse.data.resubmit_count);
-
-    // If we're replacing a file, close upload dialog and reopen preview
+    // Close dialog
+    showUploadDialog.value = false;
+    selectedSketchId.value = null;
+    
     if (isReplacingFile.value) {
-      showUploadDialog.value = false;
       isReplacingFile.value = false;
-      selectedSketchId.value = null;
-
-      // Reopen preview with the new file
-      await viewDraftFile(draftFiles.value[0]);
-
-      showSuccess('File replaced successfully!', 'Updated');
+      showSuccess('Sketch added!', 'Updated');
     } else {
-      // Show success message for new upload
-      showSuccess('Sketch added as draft!', 'Saved');
-
-      // Close dialog and reset
-      showUploadDialog.value = false;
-      selectedSketchId.value = null;
+      showSuccess('Sketch added to draft!', 'Saved');
     }
   } catch (error) {
     console.error('❌ Error using sketch:', error);
@@ -4760,10 +4929,9 @@ const useSelectedCollectionItem = async () => {
   isSubmitting.value = true;
 
   try {
-    console.log('📤 Using collection item as draft:', selectedItem.activity_title);
+    console.log('📤 Adding collection item to draft:', selectedItem.activity_title);
 
     // Fetch the file from the URL
-    // Note: If file_path is relative, ensure it works. Usually browsers handle relative to current origin.
     const response = await fetch(selectedItem.file_path);
     if (!response.ok) throw new Error('Failed to fetch file');
 
@@ -4784,78 +4952,65 @@ const useSelectedCollectionItem = async () => {
     }
 
     // Create a file from the blob
-    // Clean title for filename
     const cleanTitle = (selectedItem.activity_title || 'submission').replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const file = new File([blob], `${cleanTitle}.${extension}`, { type: mimeType });
 
-    // Create FormData for file upload as DRAFT
+    // Create FormData for multi-file upload
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('caption', selectedItem.activity_title || 'Submitted Collection Work');
-    formData.append('post_to_feed', false);
-    formData.append('is_draft', true);
+    formData.append('files', file);
 
-    // Check if there's already a draft or resubmission in progress
-    const existingDraftId = draftFiles.value.length > 0 ? draftFiles.value[0].id : draftSubmission.value?.id;
-    let uploadResponse;
+    // Use the multi-file upload endpoint to ADD to existing files
+    const uploadResponse = await axios.post(
+      `/api/activities/${selectedActivity.value.id}/submissions/upload-files/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
 
-    if (existingDraftId) {
-      console.log('📝 Updating existing draft with collection item:', existingDraftId);
-      uploadResponse = await axios.put(
-        `/api/submissions/${existingDraftId}/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-    } else {
-      console.log('📝 Creating new draft with collection item');
-      uploadResponse = await axios.post(
-        `/api/activities/${selectedActivity.value.id}/submissions/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-    }
-
-    console.log('✅ Collection item saved as draft:', uploadResponse.data);
+    console.log('✅ Collection item added to draft:', uploadResponse.data);
 
     // Store draft submission
-    draftSubmission.value = uploadResponse.data;
+    const submissionData = uploadResponse.data.submission;
+    draftSubmission.value = submissionData;
 
-    // Use file_url from backend
-    const filePath = uploadResponse.data.file_url || uploadResponse.data.file_path || uploadResponse.data.file;
-    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
-
-    // Update draft files
-    draftFiles.value = [{
-      id: uploadResponse.data.id,
-      name: selectedItem.activity_title || 'Submitted work',
-      type: uploadResponse.data.file_type,
-      path: cacheBustedPath,
-      resubmit_count: uploadResponse.data.resubmit_count || 0
-    }];
-
-    // Handle flow
-    if (isReplacingFile.value) {
-      showUploadDialog.value = false;
-      isReplacingFile.value = false;
-      selectedCollectionId.value = null;
-
-      // Reopen preview with the new file
-      await viewDraftFile(draftFiles.value[0]);
-
-      showSuccess('File replaced successfully!', 'Updated');
+    // Build draft files array from the submission's files
+    if (submissionData.files && submissionData.files.length > 0) {
+      draftFiles.value = submissionData.files.map(f => ({
+        id: f.id,
+        submissionId: submissionData.id,
+        name: f.file_name,
+        type: f.file_type,
+        path: f.file_url ? `${f.file_url}?t=${Date.now()}` : f.file_path,
+        size: f.file_size,
+        order: f.order
+      }));
     } else {
-      // Normal upload flow - close dialogs
-      showSuccess('Collection item added as draft!', 'Saved');
-      showUploadDialog.value = false;
-      selectedCollectionId.value = null;
+      // Fallback to main file
+      const filePath = submissionData.file_url || submissionData.file_path || submissionData.file;
+      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+      draftFiles.value = [{
+        id: submissionData.id,
+        name: selectedItem.activity_title || 'Submitted work',
+        type: submissionData.file_type,
+        path: cacheBustedPath,
+        resubmit_count: submissionData.resubmit_count || 0
+      }];
+    }
+
+    console.log('📋 Draft files:', draftFiles.value.length, 'file(s)');
+
+    // Close dialog
+    showUploadDialog.value = false;
+    selectedCollectionId.value = null;
+    
+    if (isReplacingFile.value) {
+      isReplacingFile.value = false;
+      showSuccess('Collection item added!', 'Updated');
+    } else {
+      showSuccess('Collection item added to draft!', 'Saved');
     }
 
   } catch (error) {
@@ -4883,94 +5038,74 @@ const handleAutoSaveFileUpload = async (event) => {
   isSubmitting.value = true;
 
   try {
-    console.log(`📤 Uploading ${files.length} file(s) as ONE draft submission...`);
-
-    // IMPORTANT: Only upload the FIRST file as a draft
-    // Multiple files are not supported - only one submission per activity
-    const file = files[0];
-
-    if (files.length > 1) {
-      showWarning('Only one file can be uploaded at a time. Uploading the first file only.', 'Single File Only');
-    }
+    console.log(`📤 Uploading ${files.length} file(s) as draft submission...`);
 
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('caption', file.name);
-    formData.append('post_to_feed', false);
-    formData.append('is_draft', true);
+    
+    // Append all files to FormData
+    files.forEach((file, index) => {
+      formData.append('files', file);
+      console.log(`📎 File ${index + 1}: ${file.name}`);
+    });
 
-    console.log('📤 Uploading file:', file.name);
+    // Use the new multi-file upload endpoint
+    const response = await axios.post(
+      `/api/activities/${selectedActivity.value.id}/submissions/upload-files/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
 
-    // Check if there's already a draft or resubmission in progress - if yes, update it; if no, create new
-    let response;
-    const existingDraftId = draftFiles.value.length > 0 ? draftFiles.value[0].id : draftSubmission.value?.id;
+    console.log('✅ Files uploaded successfully:', response.data);
 
-    if (existingDraftId) {
-      console.log('📝 Updating existing draft:', existingDraftId);
+    // Store the submission data
+    const submissionData = response.data.submission;
+    draftSubmission.value = submissionData;
 
-      response = await axios.put(
-        `/api/submissions/${existingDraftId}/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+    // Build draft files array from the submission's files
+    if (submissionData.files && submissionData.files.length > 0) {
+      draftFiles.value = submissionData.files.map(file => ({
+        id: file.id,
+        submissionId: submissionData.id,
+        name: file.file_name,
+        type: file.file_type,
+        path: file.file_url ? `${file.file_url}?t=${Date.now()}` : file.file_path,
+        size: file.file_size,
+        order: file.order
+      }));
     } else {
-      console.log('📝 Creating new draft');
-
-      response = await axios.post(
-        `/api/activities/${selectedActivity.value.id}/submissions/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      // Fallback to main file if no files array
+      const filePath = submissionData.file_url || submissionData.file_path || submissionData.file;
+      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+      draftFiles.value = [{
+        id: submissionData.id,
+        name: files[0].name,
+        type: submissionData.file_type,
+        path: cacheBustedPath,
+        resubmit_count: submissionData.resubmit_count || 0
+      }];
     }
 
-    console.log('✅ File saved:', file.name);
-
-    // IMPORTANT: Store the full draft submission data (includes resubmit_count)
-    draftSubmission.value = response.data;
-
-    // Use file_url from backend with cache busting
-    const filePath = response.data.file_url || response.data.file_path || response.data.file;
-    const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
-
-    // Replace draft files (only ONE draft at a time)
-    draftFiles.value = [{
-      id: response.data.id,
-      name: file.name,
-      type: response.data.file_type,
-      path: cacheBustedPath,
-      resubmit_count: response.data.resubmit_count || 0  // Preserve resubmit count
-    }];
-
-    console.log('✅ File uploaded successfully');
-    console.log('📋 Draft file:', draftFiles.value[0]);
-    console.log('📊 Resubmit count:', response.data.resubmit_count);
+    console.log('📋 Draft files:', draftFiles.value);
+    console.log('📊 Uploaded count:', response.data.uploaded_count);
 
     // Force Vue to update the DOM
     await nextTick();
 
-    // If we're replacing a file, close upload dialog and reopen preview
+    // Close upload dialog
+    showUploadDialog.value = false;
+    
     if (isReplacingFile.value) {
-      showUploadDialog.value = false;
       isReplacingFile.value = false;
-
-      // Reopen preview with the new file
-      await viewDraftFile(draftFiles.value[0]);
-
-      showSuccess('File replaced successfully!', 'Updated');
+      showSuccess('Files replaced successfully!', 'Updated');
     } else {
-      // Show success message for new upload
-      showSuccess('File added as draft!', 'Saved');
+      showSuccess(`${files.length} file(s) added as draft!`, 'Saved');
     }
 
-    // Reset file input completely
+    // Reset file input
     if (autoSaveFileInput.value) {
       autoSaveFileInput.value.value = '';
     }
@@ -5064,24 +5199,29 @@ const turnInDraft = async () => {
   isSubmitting.value = true;
 
   try {
-    const draftFile = draftFiles.value[0]; // Only one file
-    console.log('📤 Turning in draft submission:', draftFile.id);
+    console.log(`📤 Turning in ${draftFiles.value.length} file(s)...`);
 
-    // Turn in the draft
+    // Get the submission ID from the first draft file
+    // All files should belong to the same submission
+    const submissionId = draftFiles.value[0].submissionId || draftFiles.value[0].id;
+    
+    console.log('📤 Turning in draft submission:', submissionId);
+
+    // Turn in the draft submission (this will turn in all associated files)
     const response = await axios.put(
-      `/api/submissions/${draftFile.id}/`,
+      `/api/submissions/${submissionId}/`,
       {
         status: 'unscored',
         is_draft: false,
-        caption: submissionCaption.value || draftFile.name,
+        caption: submissionCaption.value || `${draftFiles.value.length} file(s) submitted`,
         post_to_feed: postToFeed.value
       }
     );
 
-    console.log('✅ Submission turned in successfully');
+    console.log('✅ Submission turned in successfully with', draftFiles.value.length, 'file(s)');
 
     // Show success message
-    showSuccess('Work submitted successfully!', 'Submitted');
+    showSuccess(`Work submitted successfully! (${draftFiles.value.length} file${draftFiles.value.length > 1 ? 's' : ''})`, 'Submitted');
 
     // Update state
     hasSubmittedWork.value = true;
@@ -5179,6 +5319,46 @@ const confirmResubmitAction = async () => {
   }
 };
 
+// Toggle file selection for post to feed (multiple selection)
+const toggleFileSelection = (submission) => {
+  const index = postToFeedSelectedFiles.value.findIndex(f => f.id === submission.id);
+  if (index === -1) {
+    postToFeedSelectedFiles.value.push(submission);
+  } else {
+    postToFeedSelectedFiles.value.splice(index, 1);
+  }
+};
+
+// Check if a file is selected
+const isFileSelected = (submission) => {
+  return postToFeedSelectedFiles.value.some(f => f.id === submission.id);
+};
+
+// Select all files
+const selectAllFiles = () => {
+  postToFeedSelectedFiles.value = [...studentSubmissions.value];
+};
+
+// Deselect all files
+const deselectAllFiles = () => {
+  postToFeedSelectedFiles.value = [];
+};
+
+// Open Post to Feed dialog and pre-select all files if only one
+const openPostToFeedDialog = () => {
+  // Reset state
+  postToFeedCaption.value = '';
+  
+  // Pre-select all files if there's only one, otherwise let user choose
+  if (studentSubmissions.value.length === 1) {
+    postToFeedSelectedFiles.value = [...studentSubmissions.value];
+  } else {
+    postToFeedSelectedFiles.value = [];
+  }
+  
+  showPostToFeedConfirmDialog.value = true;
+};
+
 // Confirm and request to post existing submission to feed
 const confirmPostToFeed = async () => {
   if (!existingSubmission.value) {
@@ -5186,13 +5366,25 @@ const confirmPostToFeed = async () => {
     return;
   }
 
+  if (postToFeedSelectedFiles.value.length === 0) {
+    showError('Please select at least one file to post', 'Error');
+    return;
+  }
+
   try {
     isRequestingPost.value = true;
     console.log('📢 Requesting to post submission to feed:', existingSubmission.value.id);
+    console.log('📁 Selected files:', postToFeedSelectedFiles.value.length);
+    console.log('📝 Caption:', postToFeedCaption.value);
 
-    // Update the submission to request posting to feed
+    // Get file IDs for the selected files
+    const selectedFileIds = postToFeedSelectedFiles.value.map(f => f.id);
+
+    // Update the submission to request posting to feed with selected files info
     const response = await axios.put(`/api/submissions/${existingSubmission.value.id}/`, {
-      post_to_feed: true
+      post_to_feed: true,
+      post_file_ids: selectedFileIds,
+      post_caption: postToFeedCaption.value || ''
     });
 
     if (response.data) {
@@ -5211,8 +5403,10 @@ const confirmPostToFeed = async () => {
         };
       }
 
-      // Close confirmation dialog
+      // Close confirmation dialog and reset state
       showPostToFeedConfirmDialog.value = false;
+      postToFeedSelectedFiles.value = [];
+      postToFeedCaption.value = '';
 
       showSuccess(
         'Your post request has been sent to your teacher for approval!',
@@ -5241,47 +5435,54 @@ const removeDraftFile = async () => {
   if (!fileToRemove.value) return;
 
   try {
-    console.log('🗑️ Removing draft file:', fileToRemove.value.id);
+    console.log('🗑️ Removing draft file:', fileToRemove.value);
 
-    // Check if we're in resubmission mode
-    const isResubmitting = draftSubmission.value && draftSubmission.value.last_resubmit_at;
-
-    if (isResubmitting) {
-      // In resubmission mode: Just clear the UI, keep the submission record in database
-      // This preserves last_resubmit_at and resubmit_count
-      // When user uploads a new file, it will UPDATE this submission (not create new)
-      console.log('🔄 Resubmission mode: Clearing UI but keeping submission record for resubmission');
-
-      // Remove from local state but keep draftSubmission to preserve resubmission mode
-      draftFiles.value = [];
-      // draftSubmission stays intact with last_resubmit_at preserved
-
-      showSuccess('File removed. You can attach a new file to resubmit.', 'Removed');
-    } else {
-      // Normal mode: Delete the entire submission from database
-      console.log('📝 Normal mode: Deleting submission from database');
-
-      const response = await axios.delete(`/api/submissions/${fileToRemove.value.id}/`);
-      console.log('✅ Delete API response:', response);
-
+    // Check if this is a SubmissionFile (has submissionId) or the main submission
+    const isSubmissionFile = fileToRemove.value.submissionId !== undefined;
+    
+    if (isSubmissionFile) {
+      // Delete individual file from multi-file submission
+      console.log('📎 Deleting individual file from submission');
+      await axios.delete(`/api/submissions/${fileToRemove.value.submissionId}/files/${fileToRemove.value.id}/`);
+      
       // Remove from local state
       draftFiles.value = draftFiles.value.filter(f => f.id !== fileToRemove.value.id);
-      if (draftFiles.value.length === 0) {
-        draftSubmission.value = null;
-      }
-
+      
+      // Reorder remaining files
+      draftFiles.value.forEach((f, index) => {
+        f.order = index;
+      });
+      
       showSuccess('File removed successfully', 'Removed');
+    } else {
+      // Legacy: Handle single-file submission removal
+      const isResubmittingMode = draftSubmission.value && draftSubmission.value.last_resubmit_at;
+
+      if (isResubmittingMode) {
+        // In resubmission mode: Just clear the UI, keep the submission record
+        console.log('🔄 Resubmission mode: Clearing UI but keeping submission record');
+        draftFiles.value = [];
+        showSuccess('File removed. You can attach new files to resubmit.', 'Removed');
+      } else {
+        // Normal mode: Delete the entire submission
+        console.log('📝 Normal mode: Deleting submission from database');
+        await axios.delete(`/api/submissions/${fileToRemove.value.id}/`);
+        
+        draftFiles.value = draftFiles.value.filter(f => f.id !== fileToRemove.value.id);
+        if (draftFiles.value.length === 0) {
+          draftSubmission.value = null;
+        }
+        showSuccess('File removed successfully', 'Removed');
+      }
     }
 
-    console.log('✅ File removed from state. Remaining files:', draftFiles.value.length);
-    console.log('📊 Draft submission preserved:', draftSubmission.value ? 'Yes' : 'No');
+    console.log('✅ File removed. Remaining files:', draftFiles.value.length);
 
     // Close dialog and reset
     showRemoveConfirmDialog.value = false;
     fileToRemove.value = null;
   } catch (error) {
     console.error('❌ Error removing file:', error);
-    console.error('❌ Error details:', error.response?.data);
     const errorMsg = error.response?.data?.error || error.response?.data?.detail || 'Failed to remove file';
     showError(errorMsg, 'Error');
   }
@@ -5290,32 +5491,220 @@ const removeDraftFile = async () => {
 // View draft file
 const viewDraftFile = async (file) => {
   try {
-    // Fetch the full submission data to get the file path
-    const response = await axios.get(`/api/submissions/${file.id}/`);
-    console.log('📥 Loaded submission data:', response.data);
+    console.log('👁️ viewDraftFile called with:', file);
+    
+    // Check if this is a SubmissionFile (has submissionId) or main submission
+    const isSubmissionFile = file.submissionId !== undefined;
+    
+    // Check if this is a studentSubmission object (has previewUrl and activityId)
+    const isStudentSubmission = file.previewUrl !== undefined && file.activityId !== undefined;
+    
+    if (isStudentSubmission) {
+      // For student submissions, use the previewUrl directly
+      console.log('📎 StudentSubmission - using previewUrl:', file.previewUrl);
+      previewFile.value = {
+        ...file,
+        path: file.previewUrl,
+        type: file.isImage ? 'image' : 'pdf',
+        name: file.caption || 'Submitted work',
+        isSubmissionFile: false
+      };
+      previewFileCaption.value = file.caption || 'Submitted work';
+    } else if (isSubmissionFile) {
+      // For individual files, use the file path directly
+      console.log('📎 SubmissionFile - using direct path:', file.path);
+      previewFile.value = {
+        ...file,
+        path: file.path,
+        isSubmissionFile: true
+      };
+      previewFileCaption.value = file.name;
+    } else {
+      // Legacy: Fetch full submission data
+      const response = await axios.get(`/api/submissions/${file.id}/`);
+      console.log('📥 Loaded submission data:', response.data);
 
-    // Use file_url from backend (already formatted correctly)
-    let filePath = response.data.file_url || response.data.file_path || response.data.file;
+      let filePath = response.data.file_url || response.data.file_path || response.data.file;
+      console.log('📎 File path resolved:', filePath);
 
-    previewFile.value = {
-      ...file,
-      path: filePath,
-      fullData: response.data
-    };
-
-    // Initialize caption with existing caption or file name
-    previewFileCaption.value = response.data.caption || file.name;
+      previewFile.value = {
+        ...file,
+        path: filePath,
+        fullData: response.data,
+        isSubmissionFile: false
+      };
+      previewFileCaption.value = response.data.caption || file.name;
+    }
 
     showFilePreview.value = true;
-    console.log('👁️ Viewing file:', previewFile.value);
-    console.log('📎 Preview path:', filePath);
+    console.log('👁️ Preview file set to:', previewFile.value);
   } catch (error) {
     console.error('❌ Error loading file:', error);
     showError('Failed to load file preview', 'Error');
   }
 };
 
-// Open replace file dialog
+// Get absolute URL for a file path
+const getAbsoluteFileUrl = (filePath) => {
+  if (!filePath) return '';
+  const cleanPath = filePath.split('?')[0];
+  return cleanPath.startsWith('http') 
+    ? cleanPath 
+    : `${window.location.origin}${cleanPath}`;
+};
+
+// Open file in new tab (for viewing PDFs, documents, etc.)
+const openFileInNewTab = (filePath, fileType = null) => {
+  console.log('📂 Opening file:', filePath, 'Type:', fileType);
+  if (!filePath) {
+    showError('File path not available', 'Error');
+    return;
+  }
+  
+  // Remove cache busting parameter if present for cleaner URL
+  const cleanPath = filePath.split('?')[0];
+  console.log('📂 Clean path:', cleanPath);
+  
+  // Build absolute URL for the file
+  const absoluteUrl = getAbsoluteFileUrl(filePath);
+  
+  console.log('📂 Opening URL:', absoluteUrl);
+  
+  // Check file extension to determine how to open
+  const extension = cleanPath.split('.').pop().toLowerCase();
+  console.log('📂 File extension:', extension);
+  
+  // Determine if this is a Word document by extension or file type
+  const isWordDoc = extension === 'doc' || extension === 'docx' || fileType === 'document';
+  const isPdf = extension === 'pdf' || fileType === 'pdf';
+  
+  if (isWordDoc) {
+    // For Word documents, always use Google Docs Viewer
+    // Note: On localhost, this won't work as Google can't access local files
+    const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(absoluteUrl)}&embedded=false`;
+    console.log('📂 Opening Word doc with Google Viewer:', googleViewerUrl);
+    window.open(googleViewerUrl, '_blank');
+  } else if (isPdf) {
+    // For PDFs, open directly - browsers display PDFs inline
+    console.log('📂 Opening PDF directly');
+    window.open(absoluteUrl, '_blank');
+  } else {
+    // For images and other files, open directly
+    console.log('📂 Opening file directly');
+    window.open(absoluteUrl, '_blank');
+  }
+};
+
+// fileToReplace ref for tracking which file is being replaced
+const fileToReplace = ref(null);
+
+// Replace current file - opens file picker to replace the specific file being previewed
+const replaceCurrentFile = () => {
+  if (!previewFile.value) return;
+  
+  fileToReplace.value = previewFile.value;
+  
+  // Create a temporary file input if it doesn't exist
+  if (!replaceFileInput.value) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.pdf,.doc,.docx';
+    input.onchange = handleReplaceFileUpload;
+    replaceFileInput.value = input;
+  }
+  
+  replaceFileInput.value.click();
+};
+
+// Handle the file replacement upload
+const handleReplaceFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file || !fileToReplace.value) return;
+
+  isSubmitting.value = true;
+
+  try {
+    console.log('🔄 Replacing file:', fileToReplace.value.name, 'with:', file.name);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Check if this is a SubmissionFile (has submissionId) or main submission
+    const isSubmissionFile = fileToReplace.value.submissionId !== undefined;
+
+    if (isSubmissionFile) {
+      // Delete the old file and add new one
+      await axios.delete(`/api/submissions/${fileToReplace.value.submissionId}/files/${fileToReplace.value.id}/`);
+      
+      // Add new file
+      const uploadFormData = new FormData();
+      uploadFormData.append('files', file);
+      
+      const response = await axios.post(
+        `/api/activities/${selectedActivity.value.id}/submissions/upload-files/`,
+        uploadFormData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+
+      // Update draft files
+      const submissionData = response.data.submission;
+      draftSubmission.value = submissionData;
+      
+      if (submissionData.files && submissionData.files.length > 0) {
+        draftFiles.value = submissionData.files.map(f => ({
+          id: f.id,
+          submissionId: submissionData.id,
+          name: f.file_name,
+          type: f.file_type,
+          path: f.file_url ? `${f.file_url}?t=${Date.now()}` : f.file_path,
+          size: f.file_size,
+          order: f.order
+        }));
+      }
+    } else {
+      // Legacy: Update the main submission file
+      const response = await axios.put(
+        `/api/submissions/${fileToReplace.value.id}/`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+
+      draftSubmission.value = response.data;
+      
+      const filePath = response.data.file_url || response.data.file_path || response.data.file;
+      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+      
+      // Update the file in draftFiles
+      const fileIndex = draftFiles.value.findIndex(f => f.id === fileToReplace.value.id);
+      if (fileIndex !== -1) {
+        draftFiles.value[fileIndex] = {
+          ...draftFiles.value[fileIndex],
+          name: file.name,
+          type: response.data.file_type,
+          path: cacheBustedPath
+        };
+      }
+    }
+
+    // Close preview and show success
+    showFilePreview.value = false;
+    showSuccess('File replaced successfully!', 'Updated');
+    
+    // Reset
+    fileToReplace.value = null;
+    if (replaceFileInput.value) {
+      replaceFileInput.value.value = '';
+    }
+
+  } catch (error) {
+    console.error('❌ Error replacing file:', error);
+    showError(error.response?.data?.error || 'Failed to replace file', 'Error');
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Open replace file dialog (legacy - opens upload dialog)
 const openReplaceFileDialog = () => {
   isReplacingFile.value = true;
   showFilePreview.value = false; // Close preview dialog

@@ -302,17 +302,11 @@
                                                                 <span>Publish</span>
                                                             </button>
 
-                                                            <!-- Edit Button -->
+                                                            <!-- Edit Button - Always enabled for teachers -->
                                                             <button
                                                                 @click.stop="editActivity(activity, index)"
-                                                                :disabled="isActivityPastDue(activity)"
-                                                                :class="[
-                                                                    'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
-                                                                    isActivityPastDue(activity)
-                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow'
-                                                                ]"
-                                                                :title="isActivityPastDue(activity) ? 'Cannot edit past due activities' : 'Edit activity'"
+                                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow"
+                                                                title="Edit activity"
                                                             >
                                                                 <i class="pi pi-pencil text-xs"></i>
                                                                 <span>Edit</span>
@@ -4014,11 +4008,7 @@ const loadActivities = async (folderId) => {
 const editActivity = (activity, index) => {
     closeMenu();
 
-    // Check if activity is past due or too close to deadline
-    if (isActivityPastDue(activity)) {
-        alert('Cannot edit activity within 3 hours of the deadline or after it has passed.');
-        return;
-    }
+    // Teachers can edit activities at any time (removed past due restriction)
 
     console.log('📝 Editing activity:', activity);
     console.log('📊 Activity scoring criteria:', activity.scoringCriteria);
