@@ -4071,6 +4071,8 @@ const openActivity = async (activity) => {
     // Fetch complete activity details from API to ensure we have all data
     const response = await axios.get(`/api/activities/${activity.id}/`);
     const activityData = response.data;
+    console.log('📥 Activity data from API:', activityData);
+    console.log('📎 Instruction files:', activityData.instruction_files);
 
     // Parse scoring criteria if it exists
     let scoringCriteria = [];
@@ -4108,7 +4110,8 @@ const openActivity = async (activity) => {
       dueDate: activityData.due_date,
       dueTime: activityData.due_time,
       formattedTime: formattedTime,
-      scoringCriteria: scoringCriteria
+      scoringCriteria: scoringCriteria,
+      instruction_files: activityData.instruction_files || []
     };
 
     // Reset score state when opening new activity

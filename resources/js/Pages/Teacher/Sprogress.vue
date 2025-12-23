@@ -43,13 +43,75 @@
                     </div>
                 </div>
 
-                <!-- Back Button on the right -->
-                <button
-                    @click="goBackToRoom"
-                    class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all shadow-sm">
-                    <i class="pi pi-arrow-left text-sm"></i>
-                    <span class="text-sm font-medium">Back to Activities</span>
-                </button>
+                <div class="flex items-center gap-3">
+                    <!-- Download Records Button with Dropdown -->
+                    <div class="relative" ref="downloadDropdownRef">
+                        <button
+                            @click="toggleDownloadDropdown"
+                            class="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm">
+                            <i class="pi pi-download text-sm"></i>
+                            <span class="text-sm font-medium">Download Records</span>
+                            <i class="pi pi-chevron-down text-xs"></i>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div v-if="showDownloadDropdown"
+                            class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                            <div class="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
+                                <h4 class="font-semibold text-emerald-800 text-sm">Export Options</h4>
+                                <p class="text-xs text-emerald-600">Select what to download</p>
+                            </div>
+                            <div class="py-2">
+                                <button @click="downloadRecords('all_students')"
+                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
+                                    <i class="pi pi-users text-emerald-600"></i>
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-800">All Students - Full Progress</span>
+                                        <p class="text-xs text-gray-500">Complete records for all students</p>
+                                    </div>
+                                </button>
+                                <button @click="downloadRecords('summary')"
+                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
+                                    <i class="pi pi-chart-bar text-blue-600"></i>
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-800">Summary Only</span>
+                                        <p class="text-xs text-gray-500">Completed, Missing, Average scores</p>
+                                    </div>
+                                </button>
+                                <button @click="downloadRecords('scored_only')"
+                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
+                                    <i class="pi pi-check-circle text-green-600"></i>
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-800">Scored Activities Only</span>
+                                        <p class="text-xs text-gray-500">Only graded submissions</p>
+                                    </div>
+                                </button>
+                                <button @click="downloadRecords('missing_only')"
+                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
+                                    <i class="pi pi-exclamation-circle text-red-600"></i>
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-800">Missing Activities</span>
+                                        <p class="text-xs text-gray-500">Not submitted activities</p>
+                                    </div>
+                                </button>
+                            </div>
+                            <div class="p-3 bg-gray-50 border-t border-gray-100">
+                                <div class="flex items-center gap-2 text-xs text-gray-500">
+                                    <i class="pi pi-info-circle"></i>
+                                    <span>Files will be downloaded as CSV</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Back Button on the right -->
+                    <button
+                        @click="goBackToRoom"
+                        class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all shadow-sm">
+                        <i class="pi pi-arrow-left text-sm"></i>
+                        <span class="text-sm font-medium">Back to Activities</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Search Results Info -->
@@ -65,57 +127,86 @@
             <!-- Student List Section -->
             <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-indigo-100">
                 <!-- Table Header -->
-                <div class="flex items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 border-b border-indigo-200">
-                    <div class="w-16 text-sm font-bold text-white">#</div>
-                    <div class="w-64 text-sm font-bold text-white">Student Name</div>
-                    <div class="w-40 text-sm font-bold text-white pl-4">Student ID</div>
-                    <div class="flex-1 text-sm font-bold text-white text-center">Outputs</div>
-                    <div class="w-48 text-sm font-bold text-white text-center">Actions</div>
+                <div class="grid grid-cols-12 gap-2 px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 border-b border-indigo-200">
+                    <div class="col-span-1 text-sm font-bold text-white">#</div>
+                    <div class="col-span-3 text-sm font-bold text-white">Student Name</div>
+                    <div class="col-span-2 text-sm font-bold text-white">Student ID</div>
+                    <div class="col-span-2 text-sm font-bold text-white">Classroom</div>
+                    <div class="col-span-2 text-sm font-bold text-white text-center">Outputs</div>
+                    <div class="col-span-2 text-sm font-bold text-white text-center">Actions</div>
                 </div>
 
                 <!-- Student Items -->
-                <div v-for="(student, index) in filteredStudents" :key="student.id"
-                    class="group flex items-center px-6 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 border-b border-indigo-100 transition-all duration-300 hover:shadow-md">
-                    <div class="w-16">
+                <div v-for="(student, index) in displayedStudents" :key="student.id"
+                    class="group grid grid-cols-12 gap-2 items-center px-6 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 border-b border-indigo-100 transition-all duration-300 hover:shadow-md">
+                    <div class="col-span-1">
                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center border-2 border-indigo-200">
                             <span class="text-indigo-700 font-bold">{{ index + 1 }}</span>
                         </div>
                     </div>
-                    <div class="w-64 flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md ring-2 ring-indigo-200 ring-offset-2">
-                            <span class="text-white font-bold text-lg">{{ student.initial }}</span>
+                    <div class="col-span-3 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md ring-2 ring-indigo-200 ring-offset-1">
+                            <span class="text-white font-bold text-sm">{{ student.initial }}</span>
                         </div>
                         <div>
-                            <span class="font-semibold text-indigo-900 group-hover:text-indigo-700 transition-colors block">{{ student.name }}</span>
-                            <span class="text-xs text-indigo-600">Student</span>
+                            <span class="font-semibold text-indigo-900 group-hover:text-indigo-700 transition-colors block text-sm">{{ student.name }}</span>
+                            <span class="text-xs text-gray-500">{{ student.gradeLevel }} - {{ student.section }}</span>
                         </div>
                     </div>
-                    <div class="w-40 flex justify-start pl-4">
-                        <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200">
-                            <i class="pi pi-id-card text-indigo-600 text-sm"></i>
-                            <span class="text-indigo-700 font-medium text-sm">{{ student.id }}</span>
+                    <div class="col-span-2">
+                        <div class="inline-flex items-center gap-2 px-2 py-1 bg-indigo-50 rounded-lg border border-indigo-200">
+                            <i class="pi pi-id-card text-indigo-600 text-xs"></i>
+                            <span class="text-indigo-700 font-medium text-xs">{{ student.id }}</span>
                         </div>
                     </div>
-                    <div class="flex-1 flex justify-center">
+                    <div class="col-span-2">
+                        <div class="text-sm">
+                            <span class="font-medium text-gray-800 block">{{ student.classroom || 'N/A' }}</span>
+                            <span class="text-xs text-gray-500">{{ student.teacher || 'No teacher' }}</span>
+                        </div>
+                    </div>
+                    <div class="col-span-2 flex justify-center">
                         <button
-                            class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                            class="px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs"
                             @click="viewOutputs(student)">
-                            <span class="flex items-center gap-2">
-                                <i class="pi pi-images"></i>
+                            <span class="flex items-center gap-1">
+                                <i class="pi pi-images text-xs"></i>
                                 View Outputs
                             </span>
                         </button>
                     </div>
-                    <div class="w-48 flex items-center justify-center">
+                    <div class="col-span-2 flex items-center justify-center gap-2">
                         <button
-                            class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                            class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs"
                             @click="viewDetails(student)">
-                            <span class="flex items-center gap-2">
-                                <i class="pi pi-chart-line"></i>
-                                View Details
+                            <span class="flex items-center gap-1">
+                                <i class="pi pi-chart-line text-xs"></i>
+                                Details
                             </span>
                         </button>
+                        <button
+                            class="px-2 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-medium hover:bg-emerald-200 transition-all duration-200 shadow-sm text-xs"
+                            @click="downloadStudentRecord(student)"
+                            title="Download student record">
+                            <i class="pi pi-download text-xs"></i>
+                        </button>
                     </div>
+                </div>
+
+                <!-- Load More Button -->
+                <div v-if="hasMoreStudents" class="p-4 text-center border-t border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50">
+                    <button 
+                        @click="loadMoreStudents"
+                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto">
+                        <i class="pi pi-chevron-down"></i>
+                        <span>Load More ({{ remainingStudents }} more)</span>
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div v-if="filteredStudents.length === 0 && !searchQuery" class="p-8 text-center">
+                    <i class="pi pi-users text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">No students found in this classroom</p>
                 </div>
             </div>
         </div>
@@ -391,6 +482,150 @@ const props = defineProps({
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
 
+// Download dropdown state
+const showDownloadDropdown = ref(false);
+const downloadDropdownRef = ref(null);
+
+// Toggle download dropdown
+const toggleDownloadDropdown = () => {
+    showDownloadDropdown.value = !showDownloadDropdown.value;
+};
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+    if (downloadDropdownRef.value && !downloadDropdownRef.value.contains(event.target)) {
+        showDownloadDropdown.value = false;
+    }
+};
+
+// Download records function - generates CSV from displayed student data
+const downloadRecords = (exportType) => {
+    showDownloadDropdown.value = false;
+
+    try {
+        // Get students to export
+        const studentsToExport = filteredStudents.value;
+
+        if (studentsToExport.length === 0) {
+            showError('No students to export', 'Export Error');
+            return;
+        }
+
+        let csvContent = '';
+        let filename = '';
+        const timestamp = new Date().toISOString().slice(0, 10);
+
+        if (exportType === 'summary') {
+            // Summary export - basic student info
+            csvContent = 'Student ID,Student Name,Grade Level,Section,Classroom,Teacher\n';
+            studentsToExport.forEach(student => {
+                csvContent += `"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
+            });
+            filename = `Student_Summary_${timestamp}.csv`;
+        } else {
+            // Full export - all available data
+            csvContent = 'Student ID,Student Name,Grade Level,Section,Classroom,Teacher,Initial\n';
+            studentsToExport.forEach(student => {
+                csvContent += `"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}","${student.initial || ''}"\n`;
+            });
+            filename = `Student_Progress_${exportType}_${timestamp}.csv`;
+        }
+
+        // Create and download the file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        showSuccess(`Downloaded ${studentsToExport.length} student records!`, 'Export');
+    } catch (error) {
+        console.error('Download error:', error);
+        showError('Failed to download records', 'Export Error');
+    }
+};
+
+// Download individual student record - fetches all activities and submissions
+const downloadStudentRecord = async (student) => {
+    try {
+        showInfo('Fetching student activities...', 'Export');
+
+        // Get the student's database ID
+        const studentDbId = student.dbId || student.id;
+
+        // Fetch student's progress details from API
+        const response = await axios.get(`/api/students/${studentDbId}/progress/`);
+        const progressData = response.data;
+
+        // Build CSV content
+        const timestamp = new Date().toISOString().slice(0, 10);
+        let csvContent = '';
+
+        // Header section with student info
+        csvContent += `STUDENT PROGRESS REPORT\n`;
+        csvContent += `Generated:,${new Date().toLocaleString()}\n\n`;
+        csvContent += `Student Name:,${student.name}\n`;
+        csvContent += `Student ID:,${student.id}\n`;
+        csvContent += `Grade Level:,${student.gradeLevel || 'N/A'}\n`;
+        csvContent += `Section:,${student.section || 'N/A'}\n`;
+        csvContent += `Classroom:,${student.classroom || 'N/A'}\n`;
+        csvContent += `Teacher:,${student.teacher || 'N/A'}\n\n`;
+
+        // Summary section (without average score)
+        if (progressData.summary) {
+            csvContent += `SUMMARY\n`;
+            csvContent += `Total Activities:,${progressData.summary.total_activities || 0}\n`;
+            csvContent += `Completed:,${progressData.summary.completed || 0}\n`;
+            csvContent += `Scored:,${progressData.summary.scored || 0}\n`;
+            csvContent += `Missing:,${progressData.summary.missing || 0}\n\n`;
+        }
+
+        // Activities table header - Status before Date Submitted, Score at the end
+        csvContent += `ACTIVITIES DETAIL\n`;
+        csvContent += `No,Subject/Folder,Activity Title,Type,Due Date & Time,Status,Date & Time Submitted,Score\n`;
+
+        // Add activities
+        if (progressData.activities && progressData.activities.length > 0) {
+            progressData.activities.forEach((activity, index) => {
+                const score = activity.score || 'N/A';
+                const status = activity.status || 'Pending';
+                const dueDateTime = activity.due_datetime || 'N/A';
+                const submittedDateTime = activity.submitted_datetime || 'N/A';
+                const folder = activity.folder_name || 'N/A';
+                const activityType = activity.activity_type || 'N/A';
+
+                csvContent += `${index + 1},"${folder}","${activity.title}","${activityType}","${dueDateTime}","${status}","${submittedDateTime}","${score}"\n`;
+            });
+        } else {
+            csvContent += `No activities found for this student\n`;
+        }
+
+        const filename = `Student_${student.name.replace(/\s+/g, '_')}_Progress_${timestamp}.csv`;
+
+        // Create and download the file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        showSuccess('Student record downloaded!', 'Export');
+    } catch (error) {
+        console.error('Download error:', error);
+        showError('Failed to download student record. Please try again.', 'Export Error');
+    }
+};
+
 // Get class name from localStorage (set by Room.vue)
 const currentClassName = ref('All Classes');
 
@@ -424,6 +659,9 @@ const auth = computed(() => ({
 // Student data (loaded from API)
 const students = ref([]);
 
+// Pagination
+const visibleStudentCount = ref(10);
+
 // Search query
 const searchQuery = ref('');
 
@@ -438,9 +676,30 @@ const filteredStudents = computed(() => {
         const nameMatch = student.name.toLowerCase().includes(query);
         const idMatch = student.id.toLowerCase().includes(query);
         const usernameMatch = student.username?.toLowerCase().includes(query);
-        return nameMatch || idMatch || usernameMatch;
+        const classroomMatch = student.classroom?.toLowerCase().includes(query);
+        return nameMatch || idMatch || usernameMatch || classroomMatch;
     });
 });
+
+// Displayed students (paginated)
+const displayedStudents = computed(() => {
+    return filteredStudents.value.slice(0, visibleStudentCount.value);
+});
+
+// Check if there are more students to load
+const hasMoreStudents = computed(() => {
+    return visibleStudentCount.value < filteredStudents.value.length;
+});
+
+// Remaining students count
+const remainingStudents = computed(() => {
+    return filteredStudents.value.length - visibleStudentCount.value;
+});
+
+// Load more students
+const loadMoreStudents = () => {
+    visibleStudentCount.value += 10;
+};
 
 // Dialog state
 const showOutputsDialog = ref(false);
@@ -1052,8 +1311,14 @@ const loadStudents = async () => {
                 progress: student.total_outputs > 0
                     ? Math.round((student.scored_outputs / student.total_outputs) * 100)
                     : 0,
-                averageScore: student.average_score
+                averageScore: student.average_score,
+                classroom: student.classroom || 'N/A',
+                gradeLevel: student.grade_level || '',
+                section: student.section || '',
+                teacher: student.teacher || ''
             }));
+            // Reset pagination when loading new data
+            visibleStudentCount.value = 10;
             console.log('Loaded students:', students.value);
         }
     } catch (error) {
@@ -1081,11 +1346,15 @@ onMounted(() => {
 
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
+
+    // Listen for click outside to close dropdown
+    document.addEventListener('click', handleClickOutside);
 });
 
 onUnmounted(() => {
     // Clean up event listener
     window.removeEventListener('classChanged', handleClassChange);
+    document.removeEventListener('click', handleClickOutside);
 });
 
 // Watch for subject changes and reset view state

@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+print("✅ API URLs loaded/reloaded!")
+
 urlpatterns = [
     # Authentication
     path('', views.landing, name='landing'),
@@ -81,8 +83,10 @@ urlpatterns = [
     path('api/notifications/unread-count/', views.unread_notifications_count_api, name='unread_notifications_count_api'),
     path('api/notifications/check-edit-deadlines/', views.check_activity_edit_deadlines_api, name='check_activity_edit_deadlines_api'),
 
-    # Student progress routes
+    # Student progress routes - ORDER MATTERS! More specific routes first
+    path('api/students/progress/export/', views.export_progress_records_api, name='export_progress_records_api'),
     path('api/students/progress/', views.student_progress_list_api, name='student_progress_list_api'),
+    path('api/students/<int:student_id>/export/', views.export_student_record_api, name='export_student_record_api'),
     path('api/students/<int:student_id>/progress/', views.student_progress_detail_api, name='student_progress_detail_api'),
 
     # Remark routes
@@ -128,4 +132,8 @@ urlpatterns = [
     # AI routes
     path('api/ai/test/', views.ai_test, name='ai_test'),
     path('api/ai/generate-questions/', views.generate_ai_questions, name='generate_ai_questions'),
+
+    # Export/Download routes
+    path('api/export/activity/<int:activity_id>/', views.export_activity_results_api, name='export_activity_results_api'),
+    path('api/export/student/<int:student_id>/', views.export_student_record_api, name='export_student_record_api'),
 ]

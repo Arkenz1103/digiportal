@@ -785,16 +785,28 @@
 
                             <!-- Show table if not viewing an envelope -->
                             <div v-else>
-                                <!-- Header with Drop Button -->
+                                <!-- Header with Buttons -->
                                 <div class="flex justify-between items-center mb-6">
                                     <h2 class="text-2xl font-bold text-gray-900">Portfolio Compilation Status</h2>
-                                    <button
-                                        @click="showDropCompilationDialog = true"
-                                        class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-                                    >
-                                        <i class="pi pi-trash"></i>
-                                        Drop Portfolio Compilation
-                                    </button>
+                                    <div class="flex gap-3">
+                                        <button
+                                            @click="showNotStartedStudentsDialog = true"
+                                            class="px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                        >
+                                            <i class="pi pi-users"></i>
+                                            Not Started
+                                            <span v-if="notStartedStudents.length > 0" class="bg-white text-orange-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                                                {{ notStartedStudents.length }}
+                                            </span>
+                                        </button>
+                                        <button
+                                            @click="showDropCompilationDialog = true"
+                                            class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                        >
+                                            <i class="pi pi-trash"></i>
+                                            Drop Portfolio Compilation
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <!-- Table Container -->
@@ -827,12 +839,14 @@
 
                                 <!-- Table Body -->
                                 <div class="divide-y divide-gray-200">
-                                    <!-- Student Rows - Clickable -->
+                                    <!-- Student Rows - Clickable only when Done -->
                                     <div
                                         v-for="student in portfolioStudents"
                                         :key="student.id"
-                                        @click="viewStudentEnvelope(student)"
-                                        class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150 cursor-pointer"
+                                        @click="student.isSubmitted ? viewStudentEnvelope(student) : null"
+                                        class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150"
+                                        :class="student.isSubmitted ? 'cursor-pointer' : ''"
+                                        :title="student.isSubmitted ? 'Click to view portfolio' : ''"
                                     >
                                         <div class="grid grid-cols-5 gap-4 items-center text-sm">
                                             <div class="flex items-center gap-3">
@@ -1481,6 +1495,49 @@
                         class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2">
                         <i class="pi pi-trash"></i>
                         Drop
+                    </button>
+                </div>
+            </div>
+        </Dialog>
+
+        <!-- Not Started Students Dialog -->
+        <Dialog v-model:visible="showNotStartedStudentsDialog"
+            modal
+            header="Students Who Haven't Started"
+            :style="{ width: '90%', maxWidth: '40rem' }">
+            <div class="p-4">
+                <div v-if="notStartedStudents.length === 0" class="text-center py-8">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                        <i class="pi pi-check-circle text-green-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">All Students Have Started!</h3>
+                    <p class="text-sm text-gray-500">Every student in this class has created their portfolio envelope.</p>
+                </div>
+                <div v-else>
+                    <p class="text-sm text-gray-600 mb-4">
+                        The following <strong class="text-orange-600">{{ notStartedStudents.length }}</strong> student(s) have not yet created their portfolio envelope:
+                    </p>
+                    <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+                        <div class="divide-y divide-gray-200">
+                            <div v-for="student in notStartedStudents" :key="student.id" class="px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-semibold">
+                                    {{ student.name ? student.name.charAt(0) : '?' }}
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-medium text-gray-900">{{ student.name || student.username }}</p>
+                                    <p class="text-xs text-gray-500 font-mono">{{ student.id_number || 'No ID' }}</p>
+                                </div>
+                                <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">
+                                    Not Started
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button @click="showNotStartedStudentsDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+                        Close
                     </button>
                 </div>
             </div>
@@ -2249,6 +2306,7 @@ const navigateToProgress = () => {
     // Store current class context for progress tracking
     localStorage.setItem('progress_class_context', JSON.stringify({
         className: className.value,
+        classroomId: selectedClass.value?.id || null,
         subject: selectedSubject.value || 'General'
     }));
 
@@ -3362,6 +3420,7 @@ const showSettingsDropdown = ref(false);
 const showArchiveDialog = ref(false);
 const showPortfolioCompilationDialog = ref(false);
 const showDropCompilationDialog = ref(false);
+const showNotStartedStudentsDialog = ref(false);
 const portfolioCompilationActive = ref(false); // Track if compilation is already requested
 
 // Portfolio students data
@@ -3372,6 +3431,15 @@ const isEnvelopeOpen = ref(false);
 const studentActivities = ref([]); // Store student's submitted activities
 const currentActivityIndex = ref(0); // Current activity index for carousel
 const activePortfolioTab = ref('scored'); // 'scored' or 'missing'
+
+// Computed property for students who haven't started portfolio compilation
+const notStartedStudents = computed(() => {
+    // Get IDs of students who have started (in portfolioStudents)
+    const startedStudentIds = new Set(portfolioStudents.value.map(s => s.student_id));
+    
+    // Filter classroom students who haven't started
+    return classroomStudents.value.filter(student => !startedStudentIds.has(student.id));
+});
 
 // Computed properties for filtered activities
 const scoredActivities = computed(() => {

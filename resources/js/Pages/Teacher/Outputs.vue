@@ -8,6 +8,113 @@ import { useToast } from '../../composables/useToast';
 // Initialize toast
 const { showSuccess, showError, showInfo, showWarning } = useToast();
 
+// Activity export dropdown state
+const showActivityExportDropdown = ref(false);
+const activityExportDropdownRef = ref(null);
+
+// Toggle activity export dropdown
+const toggleActivityExportDropdown = () => {
+    showActivityExportDropdown.value = !showActivityExportDropdown.value;
+};
+
+// Close dropdown when clicking outside
+const handleExportClickOutside = (event) => {
+    if (activityExportDropdownRef.value && !activityExportDropdownRef.value.contains(event.target)) {
+        showActivityExportDropdown.value = false;
+    }
+};
+
+// Export activity results function - generates CSV from displayed data
+const exportActivityResults = (exportType) => {
+    showActivityExportDropdown.value = false;
+
+    if (!activity.value.id) {
+        showError('Activity not loaded', 'Export Error');
+        return;
+    }
+
+    try {
+        let csvContent = '';
+        let filename = '';
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const activityName = activity.value.title.replace(/\s+/g, '_');
+        const className = activity.value.class ? activity.value.class.replace(/\s+/g, '_') : 'Class';
+
+        if (exportType === 'submitted') {
+            // Export submitted (unscored) submissions only
+            if (submissions.value.length === 0) {
+                showError('No pending submissions to export', 'Export Error');
+                return;
+            }
+
+            csvContent = 'No,Student ID,Student Name,Status,Date Submitted,Time Submitted,Late Submission,Resubmissions\n';
+            submissions.value.forEach((sub, index) => {
+                csvContent += `${index + 1},"${sub.studentId}","${sub.name}","Pending Score","${sub.date}","${sub.time}","${sub.is_late ? 'Yes' : 'No'}","${sub.resubmit_count || 0}"\n`;
+            });
+            filename = `${activityName}_Pending_${className}_${timestamp}.csv`;
+
+        } else if (exportType === 'not_submitted') {
+            // Export students who haven't submitted
+            if (incompleteSubmissions.value.length === 0) {
+                showError('All students have submitted!', 'Export Info');
+                return;
+            }
+
+            csvContent = 'No,Student ID,Student Name,Status\n';
+            incompleteSubmissions.value.forEach((student, index) => {
+                csvContent += `${index + 1},"${student.studentIdNumber}","${student.name}","${student.status}"\n`;
+            });
+            filename = `${activityName}_NotSubmitted_${className}_${timestamp}.csv`;
+
+        } else {
+            // Complete report - ALL students with scores
+            const totalStudents = scoredSubmissionsData.value.length + submissions.value.length + incompleteSubmissions.value.length;
+            
+            if (totalStudents === 0) {
+                showError('No data to export', 'Export Error');
+                return;
+            }
+
+            csvContent = 'No,Student ID,Student Name,Score,Status,Date Submitted,Late Submission\n';
+            let rowNum = 1;
+            
+            // Add scored submissions first
+            scoredSubmissionsData.value.forEach(sub => {
+                csvContent += `${rowNum++},"${sub.studentId}","${sub.name}","${sub.score || 'N/A'}","Scored","${sub.date}","${sub.is_late ? 'Yes' : 'No'}"\n`;
+            });
+            
+            // Add unscored/pending submissions
+            submissions.value.forEach(sub => {
+                csvContent += `${rowNum++},"${sub.studentId}","${sub.name}","Not Scored","Submitted","${sub.date}","${sub.is_late ? 'Yes' : 'No'}"\n`;
+            });
+            
+            // Add students who haven't submitted
+            incompleteSubmissions.value.forEach(student => {
+                csvContent += `${rowNum++},"${student.studentIdNumber}","${student.name}","N/A","${student.status}","N/A","N/A"\n`;
+            });
+            
+            filename = `${activityName}_AllStudents_${className}_${timestamp}.csv`;
+        }
+
+        // Create and download the file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        showSuccess(`Exported ${filename}`, 'Download Complete');
+    } catch (error) {
+        console.error('Export error:', error);
+        showError('Failed to export activity results', 'Export Error');
+    }
+};
+
 // Load activity from localStorage
 const activity = ref({
     title: 'Student Activity',
@@ -128,11 +235,15 @@ onMounted(async () => {
 
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
+
+    // Listen for click outside to close export dropdown
+    document.addEventListener('click', handleExportClickOutside);
 });
 
 onUnmounted(() => {
     // Clean up event listeners
     window.removeEventListener('classChanged', handleClassChange);
+    document.removeEventListener('click', handleExportClickOutside);
 });
 
 // Define emits for navigation
@@ -1344,6 +1455,57 @@ const getMedalDetails = (rank) => {
 
                 <!-- Tabbed Interface for Submissions -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <!-- Export Button Row -->
+                    <div class="px-6 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
+                        <div class="text-sm font-medium text-gray-700">
+                            <i class="pi pi-users mr-2 text-indigo-600"></i>
+                            Student Submissions
+                        </div>
+                        <div class="relative" ref="activityExportDropdownRef">
+                            <button
+                                @click="toggleActivityExportDropdown"
+                                class="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm text-sm">
+                                <i class="pi pi-download text-xs"></i>
+                                <span class="font-medium">Export Results</span>
+                                <i class="pi pi-chevron-down text-xs"></i>
+                            </button>
+
+                            <!-- Export Dropdown Menu -->
+                            <div v-if="showActivityExportDropdown"
+                                class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                                <div class="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
+                                    <h4 class="font-semibold text-emerald-800 text-sm">Export Activity Results</h4>
+                                </div>
+                                <div class="py-2">
+                                    <button @click="exportActivityResults('complete')"
+                                        class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
+                                        <i class="pi pi-file-export text-emerald-600"></i>
+                                        <div>
+                                            <span class="text-sm font-medium text-gray-800">All Students Report</span>
+                                            <p class="text-xs text-gray-500">Scores, submitted & missing</p>
+                                        </div>
+                                    </button>
+                                    <button @click="exportActivityResults('submitted')"
+                                        class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
+                                        <i class="pi pi-inbox text-blue-600"></i>
+                                        <div>
+                                            <span class="text-sm font-medium text-gray-800">Pending Only</span>
+                                            <p class="text-xs text-gray-500">Submitted but not yet scored</p>
+                                        </div>
+                                    </button>
+                                    <button @click="exportActivityResults('not_submitted')"
+                                        class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
+                                        <i class="pi pi-user-minus text-red-600"></i>
+                                        <div>
+                                            <span class="text-sm font-medium text-gray-800">Not Submitted</span>
+                                            <p class="text-xs text-gray-500">Students who haven't submitted</p>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Tabs Header -->
                     <div class="flex border-b border-gray-200">
                         <button

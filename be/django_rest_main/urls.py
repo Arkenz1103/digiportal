@@ -20,8 +20,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
 
+from api import views as api_views
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/export-progress/', api_views.export_progress_records_api, name='project_export_progress'),
     path('', include('api.urls')),
 ]
 

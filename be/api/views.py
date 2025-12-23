@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login as auth_login, logout as aut
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
@@ -16,6 +16,8 @@ from .models import User, PortfolioFolder, PortfolioActivity, StudentSubmission,
 from .serializer import PortfolioFolderSerializer, PortfolioActivitySerializer, StudentSubmissionSerializer, SubmissionFileSerializer, NotificationSerializer, RemarkSerializer
 import json
 import os
+import csv
+from io import StringIO
 
 
 # Helper function to create notifications
@@ -554,8 +556,24 @@ def portfolio_folders_api(request):
                 # If a classroom_id is provided, filter by it (for teacher's main view)
                 try:
                     classroom = Classroom.objects.get(id=classroom_id)
-                    folders = PortfolioFolder.objects.filter(classroom=classroom).order_by('-created_at')
-                    print(f"📚 {request.user.role.capitalize()} {request.user.username} viewing specific classroom folders: {classroom.name}")
+                    # Teachers should only see their own folders in this classroom
+                    if request.user.role == 'teacher':
+                        folders = PortfolioFolder.objects.filter(
+                            classroom=classroom,
+                            teacher=request.user
+                        ).order_by('-created_at')
+                        print(f"📚 Teacher {request.user.username} viewing their own folders in classroom: {classroom.name}")
+                    else:
+                        # Students see folders from classroom's assigned teacher
+                        if classroom.teacher:
+                            folders = PortfolioFolder.objects.filter(
+                                classroom=classroom,
+                                teacher=classroom.teacher
+                            ).order_by('-created_at')
+                            print(f"📚 Student {request.user.username} viewing folders from assigned teacher in classroom: {classroom.name}")
+                        else:
+                            folders = PortfolioFolder.objects.filter(classroom=classroom).order_by('-created_at')
+                            print(f"📚 {request.user.username} viewing all folders in classroom: {classroom.name} (no assigned teacher)")
                 except Classroom.DoesNotExist:
                     return Response({'error': 'Classroom not found.'}, status=status.HTTP_404_NOT_FOUND)
             else:
@@ -565,11 +583,20 @@ def portfolio_folders_api(request):
                     folders = PortfolioFolder.objects.filter(teacher=request.user).order_by('-created_at')
                     print(f"📚 Teacher {request.user.username} viewing all their folders for the sidebar.")
                 elif request.user.role == 'student':
-                    # Student gets folders from their assigned classroom
+                    # Student gets folders from their assigned classroom AND classroom's teacher
                     student_classroom = request.user.classroom
                     if student_classroom:
-                        folders = PortfolioFolder.objects.filter(classroom=student_classroom).order_by('-created_at')
-                        print(f"📚 Student {request.user.username} viewing folders for their classroom: {student_classroom.name}")
+                        # Get folders that belong to the classroom's assigned teacher
+                        if student_classroom.teacher:
+                            folders = PortfolioFolder.objects.filter(
+                                classroom=student_classroom,
+                                teacher=student_classroom.teacher
+                            ).order_by('-created_at')
+                            print(f"📚 Student {request.user.username} viewing folders from teacher {student_classroom.teacher.username} for classroom: {student_classroom.name}")
+                        else:
+                            # Fallback: if classroom has no assigned teacher, show all folders for that classroom
+                            folders = PortfolioFolder.objects.filter(classroom=student_classroom).order_by('-created_at')
+                            print(f"📚 Student {request.user.username} viewing all folders for classroom: {student_classroom.name} (no assigned teacher)")
                     else:
                         folders = PortfolioFolder.objects.none()
                         print(f"⚠️ Student {request.user.username} has no classroom assigned.")
@@ -1018,44 +1045,8 @@ def activity_detail_api(request, activity_id):
             data = request.data
             print(f"Updating activity {activity_id} with data: {data}")
 
-            # Check if activity due date has passed or is too close to deadline
-            from datetime import date, datetime, time as time_type, timedelta
-
-            # Configuration: Minimum hours before due date/time to allow editing
-            EDIT_CUTOFF_HOURS = 3  # Teachers must edit at least 3 hours before deadline
-
-            if activity.due_date:
-                # Combine due date and time into a single datetime
-                activity_due_date = activity.due_date if isinstance(activity.due_date, date) else datetime.strptime(str(activity.due_date), '%Y-%m-%d').date()
-
-                if activity.due_time:
-                    activity_time = activity.due_time if isinstance(activity.due_time, time_type) else datetime.strptime(str(activity.due_time), '%H:%M:%S').time()
-                    due_datetime = datetime.combine(activity_due_date, activity_time)
-                else:
-                    # If no time specified, use end of day (23:59:59)
-                    due_datetime = datetime.combine(activity_due_date, time_type(23, 59, 59))
-
-                # Get current datetime
-                now = datetime.now()
-
-                # Calculate time remaining until deadline
-                time_remaining = due_datetime - now
-
-                # If deadline has passed
-                if time_remaining.total_seconds() <= 0:
-                    return Response(
-                        {'error': 'Cannot edit activity after the due date/time has passed.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                # If less than EDIT_CUTOFF_HOURS remaining
-                cutoff_timedelta = timedelta(hours=EDIT_CUTOFF_HOURS)
-                if time_remaining < cutoff_timedelta:
-                    hours_remaining = time_remaining.total_seconds() / 3600
-                    return Response(
-                        {'error': f'Cannot edit activity within {EDIT_CUTOFF_HOURS} hours of the deadline. Only {hours_remaining:.1f} hours remaining.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+            # Note: Teachers can edit activities even after the due date has passed
+            # This allows them to fix mistakes like incorrect due dates/times
 
             # Validate required fields if provided
             if 'title' in data and (not data.get('title') or not data.get('title').strip()):
@@ -3820,25 +3811,24 @@ def student_progress_list_api(request):
             # Teacher has no assigned classrooms
             return Response([], status=status.HTTP_200_OK)
 
+        # Get classroom_id from query parameter for specific classroom filtering
+        classroom_id = request.GET.get('classroom_id', None)
+        class_name = request.GET.get('class', None)
+        
+        # Filter classrooms if specific one is requested
+        if classroom_id:
+            teacher_classrooms = teacher_classrooms.filter(id=classroom_id)
+        elif class_name:
+            teacher_classrooms = teacher_classrooms.filter(name=class_name)
+
         # Get ONLY students from teacher's assigned classroom(s)
         students = User.objects.filter(
             role='student',
             classroom__in=teacher_classrooms
-        ).exclude(username='admin').order_by('last_name', 'first_name')
+        ).exclude(username='admin').select_related('classroom').order_by('last_name', 'first_name')
 
         print(f"🎓 Teacher {request.user.username} has {teacher_classrooms.count()} classroom(s)")
         print(f"👥 Found {students.count()} students in assigned classroom(s)")
-
-        # Get class name from query parameter (optional additional filter)
-        class_name = request.GET.get('class', None)
-        if class_name:
-            # Further filter by class if specified
-            teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
-            class_folders = teacher_folders.filter(class_name=class_name)
-            student_ids = StudentSubmission.objects.filter(
-                activity__folder__in=class_folders
-            ).values_list('student_id', flat=True).distinct()
-            students = students.filter(id__in=student_ids)
 
         student_list = []
         for student in students:
@@ -3853,15 +3843,40 @@ def student_progress_list_api(request):
                 score__isnull=False
             ).aggregate(Avg('score'))['score__avg'] or 0
 
+            # Get classroom info
+            classroom_name = ''
+            grade_level = ''
+            section = ''
+            teacher_name = ''
+            
+            if student.classroom:
+                classroom_name = student.classroom.name
+                # Parse grade and section from classroom name (e.g., "Grade 1 - A")
+                if ' - ' in classroom_name:
+                    parts = classroom_name.split(' - ')
+                    grade_level = parts[0].strip()  # "Grade 1"
+                    section = parts[1].strip()  # "A"
+                else:
+                    grade_level = classroom_name
+                    section = ''
+                
+                # Get teacher name
+                if student.classroom.teacher:
+                    teacher_name = student.classroom.teacher.get_full_name() or student.classroom.teacher.username
+
             student_list.append({
                 'id': student.id,
-                'student_id': str(student.id),  # Display database ID as student_id (e.g., "28")
+                'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
                 'name': student.get_full_name() or student.username,
                 'username': student.username,
                 'email': student.email,
                 'total_outputs': total_submissions,
                 'scored_outputs': scored_submissions,
                 'average_score': round(avg_score, 2) if avg_score else 0,
+                'classroom': classroom_name,
+                'grade_level': grade_level,
+                'section': section,
+                'teacher': teacher_name,
             })
 
         return Response(student_list, status=status.HTTP_200_OK)
@@ -3873,7 +3888,7 @@ def student_progress_list_api(request):
 @csrf_exempt
 @api_view(['GET'])
 def student_progress_detail_api(request, student_id):
-    """Get detailed progress for a specific student"""
+    """Get detailed progress for a specific student including all activities"""
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -3881,72 +3896,136 @@ def student_progress_detail_api(request, student_id):
         # Get student
         student = User.objects.get(id=student_id, role='student')
 
-        # Get all submissions for this student
-        submissions = StudentSubmission.objects.filter(
-            student=student
-        ).select_related('activity__folder').order_by('-submitted_at')
+        # Get teacher's folders for this student's classroom ONLY
+        teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
+        
+        # If student has a classroom, filter folders by that classroom
+        if student.classroom:
+            teacher_folders = teacher_folders.filter(
+                Q(classroom=student.classroom) | Q(class_name=str(student.classroom))
+            )
 
-        # Group submissions by portfolio
-        portfolio_data = {}
-        for sub in submissions:
-            if sub.activity and sub.activity.folder:
-                folder_id = sub.activity.folder.id
-                folder_name = sub.activity.folder.name
+        # Get ONLY PUBLISHED activities from teacher's folders (students can only see published)
+        all_activities = PortfolioActivity.objects.filter(
+            folder__in=teacher_folders,
+            is_published=True  # Only published activities
+        ).select_related('folder').order_by('folder__name', 'created_at')
 
-                if folder_id not in portfolio_data:
-                    portfolio_data[folder_id] = {
-                        'portfolio_id': folder_id,
-                        'portfolio_name': folder_name,
-                        'class_name': sub.activity.folder.class_name,
-                        'activities': []
-                    }
+        print(f"📊 Found {all_activities.count()} published activities for student {student_id}")
 
-                portfolio_data[folder_id]['activities'].append({
-                    'id': sub.id,
-                    'activity_id': sub.activity.id,
-                    'activity_title': sub.activity.title,
-                    'activity_type': sub.activity.activity_type,
-                    'score': sub.score,
-                    'status': sub.status,
-                    'feedback': sub.feedback,
-                    'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
-                    'scored_at': sub.scored_at.isoformat() if sub.scored_at else None,
-                })
-
-        # Get sketch submissions (no activity)
-        sketch_submissions = StudentSubmission.objects.filter(
+        # Get student's submissions
+        student_submissions = StudentSubmission.objects.filter(
             student=student,
-            activity__isnull=True
-        ).order_by('-submitted_at')
+            activity__in=all_activities
+        ).select_related('activity', 'activity__folder')
+
+        # Create a map of activity_id -> submission
+        submission_map = {sub.activity_id: sub for sub in student_submissions}
+
+        # Build activities list with submission status
+        activities_data = []
+        total_activities = 0
+        completed = 0
+        scored = 0
+        missing = 0
+
+        for activity in all_activities:
+            total_activities += 1
+            submission = submission_map.get(activity.id)
+
+            # Format due date and time
+            due_datetime = 'N/A'
+            if activity.due_date:
+                due_datetime = activity.due_date.strftime('%Y-%m-%d')
+                if activity.due_time:
+                    due_datetime += f' {activity.due_time.strftime("%I:%M %p")}'
+
+            if submission:
+                # Format submitted date and time
+                submitted_datetime = 'N/A'
+                if submission.submitted_at:
+                    submitted_datetime = submission.submitted_at.strftime('%Y-%m-%d %I:%M %p')
+
+                # Determine status based on submission state
+                # Status options: Submitted, Submitted Late, Resubmitted, Pending (scored but waiting)
+                resubmit_count = submission.resubmit_count or 0
+                is_late = submission.is_late or False
+
+                if submission.status == 'scored':
+                    if resubmit_count > 0:
+                        status_text = 'Resubmitted'
+                    elif is_late:
+                        status_text = 'Submitted Late'
+                    else:
+                        status_text = 'Submitted'
+                    scored += 1
+                    completed += 1
+                    # Calculate score
+                    if submission.criteria_scores:
+                        try:
+                            criteria = json.loads(submission.criteria_scores) if isinstance(submission.criteria_scores, str) else submission.criteria_scores
+                            sub_score = sum(int(c.get('score', 0)) for c in criteria)
+                            sub_max = sum(int(c.get('maxScore', 0)) for c in criteria)
+                            score_display = f"{sub_score}/{sub_max}"
+                        except:
+                            score_display = f"{submission.score}/10" if submission.score else 'N/A'
+                    elif submission.score:
+                        score_display = f"{submission.score}/10"
+                    else:
+                        score_display = 'N/A'
+                else:
+                    # Unscored submission - Pending
+                    if resubmit_count > 0:
+                        status_text = 'Resubmitted'
+                    elif is_late:
+                        status_text = 'Submitted Late'
+                    else:
+                        status_text = 'Pending'
+                    completed += 1
+                    score_display = 'N/A'
+
+                activities_data.append({
+                    'title': activity.title,
+                    'folder_name': activity.folder.name,
+                    'activity_type': activity.activity_type,
+                    'due_datetime': due_datetime,
+                    'submitted_datetime': submitted_datetime,
+                    'status': status_text,
+                    'score': score_display,
+                })
+            else:
+                # Not submitted
+                missing += 1
+                is_past_due = activity.due_date and timezone.now().date() > activity.due_date
+                status_text = 'Missing' if is_past_due else 'Pending'
+
+                activities_data.append({
+                    'title': activity.title,
+                    'folder_name': activity.folder.name,
+                    'activity_type': activity.activity_type,
+                    'due_datetime': due_datetime,
+                    'submitted_datetime': 'N/A',
+                    'status': status_text,
+                    'score': 'N/A',
+                })
 
         response_data = {
             'student': {
                 'id': student.id,
-                'student_id': f'STD{str(student.id).zfill(3)}',
+                'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
                 'name': student.get_full_name() or student.username,
                 'username': student.username,
                 'email': student.email,
+                'grade_level': student.grade_level,
+                'section': student.section,
+                'classroom': str(student.classroom) if student.classroom else 'N/A',
             },
-            'portfolios': list(portfolio_data.values()),
-            'sketches': [
-                {
-                    'id': sub.id,
-                    'caption': sub.caption,
-                    'score': sub.score,
-                    'status': sub.status,
-                    'feedback': sub.feedback,
-                    'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
-                }
-                for sub in sketch_submissions
-            ],
+            'activities': activities_data,
             'summary': {
-                'total_outputs': submissions.count(),
-                'scored_outputs': submissions.filter(status='scored').count(),
-                'unscored_outputs': submissions.filter(status='unscored').count(),
-                'average_score': round(
-                    submissions.filter(status='scored', score__isnull=False).aggregate(Avg('score'))['score__avg'] or 0,
-                    2
-                ),
+                'total_activities': total_activities,
+                'completed': completed,
+                'scored': scored,
+                'missing': missing,
             }
         }
 
@@ -3955,6 +4034,8 @@ def student_progress_detail_api(request, student_id):
         return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"Error fetching student progress detail: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -7077,3 +7158,566 @@ def generate_mock_questions(topic, grade_level, num_questions, question_types, d
         import traceback
         traceback.print_exc()
         raise
+
+
+# ============================================
+# EXPORT/DOWNLOAD API ENDPOINTS
+# ============================================
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_progress_records_api(request):
+    """
+    Export student progress records for teachers.
+    """
+    print(f"🚀 EXPORT API HIT! User: {request.user.username}, Role: {request.user.role}")
+    if request.user.role != 'teacher':
+        print(f"❌ User {request.user.username} is not a teacher (Role: {request.user.role})")
+        return Response({'error': 'Only teachers can export progress records'}, status=status.HTTP_403_FORBIDDEN)
+
+    export_type = request.query_params.get('type', 'all_students')
+    classroom_id = request.query_params.get('classroom_id')
+    class_name = request.query_params.get('class_name')  # Add class_name parameter
+    student_id = request.query_params.get('student_id')
+    file_format = request.query_params.get('format', 'csv')  # csv or json
+
+    try:
+        # Debug logging
+        print(f"📊 Export type: {export_type}, Classroom ID: {classroom_id}, Class name: {class_name}")
+        
+        # Get teacher's folders first
+        folders = PortfolioFolder.objects.filter(teacher=request.user)
+        print(f"Total folders for teacher: {folders.count()}")
+        
+        # Filter by classroom_id if provided
+        if classroom_id:
+            # Try to get the classroom to find its name
+            try:
+                classroom_obj = Classroom.objects.get(id=classroom_id)
+                classroom_name = classroom_obj.name
+                print(f"Classroom {classroom_id} name: {classroom_name}")
+                
+                # Filter by classroom_id OR class_name (for legacy folders)
+                folders = folders.filter(
+                    Q(classroom_id=classroom_id) | Q(class_name=classroom_name)
+                )
+                print(f"Folders after classroom filter: {folders.count()}")
+            except Classroom.DoesNotExist:
+                folders = folders.filter(classroom_id=classroom_id)
+                print(f"Folders after classroom_id filter: {folders.count()}")
+        # Otherwise filter by class_name if provided
+        elif class_name:
+            folders = folders.filter(class_name=class_name)
+            print(f"Folders after class_name filter: {folders.count()}")
+        
+        if not folders.exists():
+            return Response({'error': 'No portfolio folders found for this class'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get classrooms from folders
+        classroom_ids = folders.exclude(classroom__isnull=True).values_list('classroom_id', flat=True).distinct()
+        classrooms = Classroom.objects.filter(id__in=classroom_ids)
+
+        # Get students - either from classrooms or from submissions
+        if classrooms.exists():
+            students_query = User.objects.filter(
+                role='student',
+                classroom__in=classrooms
+            ).exclude(username='admin').order_by('last_name', 'first_name')
+            print(f"Students from classrooms: {students_query.count()}")
+        else:
+            # Fallback: get students who have submissions in teacher's activities
+            activities = PortfolioActivity.objects.filter(folder__in=folders)
+            student_ids = StudentSubmission.objects.filter(
+                activity__in=activities
+            ).values_list('student_id', flat=True).distinct()
+            students_query = User.objects.filter(
+                id__in=student_ids,
+                role='student'
+            ).exclude(username='admin').order_by('last_name', 'first_name')
+            print(f"Students from submissions: {students_query.count()}")
+
+        if student_id:
+            students_query = students_query.filter(id=student_id)
+
+        # Get all activities from teacher's folders ONLY
+        # Filter by folders owned by this teacher (already filtered above)
+        # Only include published activities for export (students can only see published ones)
+        activities = PortfolioActivity.objects.filter(
+            folder__in=folders,
+            folder__teacher=request.user  # Double-check teacher ownership
+        ).select_related('folder')
+        print(f"Total activities from teacher's folders: {activities.count()}")
+        
+        # Check if we have any data to export
+        if not students_query.exists():
+            return Response({'error': 'No students found in this class. Make sure students are assigned to the classroom.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not activities.exists():
+            return Response({'error': 'No activities found in your portfolios for this class.'}, status=status.HTTP_404_NOT_FOUND)
+
+        print(f"Processing {students_query.count()} students and {activities.count()} activities")
+
+        # Build export data
+        export_data = []
+
+        for student in students_query:
+            student_name = f"{student.first_name} {student.last_name}".strip() or student.username
+            student_submissions = StudentSubmission.objects.filter(
+                student=student,
+                activity__in=activities
+            ).select_related('activity', 'activity__folder')
+
+            # Calculate stats
+            total_activities = activities.count()
+            submitted_count = student_submissions.filter(status__in=['unscored', 'scored']).count()
+            scored_count = student_submissions.filter(status='scored').count()
+            missing_count = total_activities - submitted_count
+
+            # Calculate average score
+            scored_submissions = student_submissions.filter(status='scored')
+            total_score = 0
+            max_possible = 0
+            for sub in scored_submissions:
+                if sub.criteria_scores:
+                    try:
+                        criteria = json.loads(sub.criteria_scores) if isinstance(sub.criteria_scores, str) else sub.criteria_scores
+                        for c in criteria:
+                            total_score += int(c.get('score', 0))
+                            max_possible += int(c.get('maxScore', 0))
+                    except:
+                        if sub.score:
+                            total_score += sub.score
+                            max_possible += 10
+                elif sub.score:
+                    total_score += sub.score
+                    max_possible += 10
+
+            avg_score = round((total_score / max_possible * 100), 1) if max_possible > 0 else 0
+
+            if export_type == 'summary':
+                export_data.append({
+                    'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                    'student_name': student_name,
+                    'classroom': str(student.classroom) if student.classroom else 'N/A',
+                    'total_activities': total_activities,
+                    'completed': submitted_count,
+                    'scored': scored_count,
+                    'missing': missing_count,
+                    'average_score': f'{avg_score}%'
+                })
+            elif export_type == 'scored_only':
+                for sub in scored_submissions:
+                    score_display = 'N/A'
+                    if sub.criteria_scores:
+                        try:
+                            criteria = json.loads(sub.criteria_scores) if isinstance(sub.criteria_scores, str) else sub.criteria_scores
+                            t = sum(int(c.get('score', 0)) for c in criteria)
+                            m = sum(int(c.get('maxScore', 0)) for c in criteria)
+                            score_display = f'{t}/{m}'
+                        except:
+                            score_display = f'{sub.score}/10' if sub.score else 'N/A'
+                    elif sub.score:
+                        score_display = f'{sub.score}/10'
+
+                    export_data.append({
+                        'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                        'student_name': student_name,
+                        'folder': sub.activity.folder.name if sub.activity and sub.activity.folder else 'N/A',
+                        'activity': sub.activity.title if sub.activity else 'N/A',
+                        'activity_type': sub.activity.activity_type if sub.activity else 'N/A',
+                        'score': score_display,
+                        'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %H:%M') if sub.submitted_at else 'N/A',
+                        'scored_at': sub.scored_at.strftime('%Y-%m-%d %H:%M') if sub.scored_at else 'N/A'
+                    })
+            elif export_type == 'missing_only':
+                submitted_activity_ids = set(student_submissions.values_list('activity_id', flat=True))
+                for activity in activities:
+                    if activity.id not in submitted_activity_ids:
+                        export_data.append({
+                            'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                            'student_name': student_name,
+                            'folder': activity.folder.name,
+                            'activity': activity.title,
+                            'activity_type': activity.activity_type,
+                            'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else 'N/A',
+                            'status': 'Missing' if activity.due_date and timezone.now().date() > activity.due_date else 'Pending'
+                        })
+            else:  # all_students or single_student
+                for activity in activities:
+                    submission = student_submissions.filter(activity=activity).first()
+                    if submission:
+                        score_display = 'N/A'
+                        if submission.criteria_scores:
+                            try:
+                                criteria = json.loads(submission.criteria_scores) if isinstance(submission.criteria_scores, str) else submission.criteria_scores
+                                t = sum(int(c.get('score', 0)) for c in criteria)
+                                m = sum(int(c.get('maxScore', 0)) for c in criteria)
+                                score_display = f'{t}/{m}'
+                            except:
+                                score_display = f'{submission.score}/10' if submission.score else 'N/A'
+                        elif submission.score:
+                            score_display = f'{submission.score}/10'
+
+                        export_data.append({
+                            'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                            'student_name': student_name,
+                            'folder': activity.folder.name,
+                            'activity': activity.title,
+                            'activity_type': activity.activity_type,
+                            'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else 'N/A',
+                            'status': 'Scored' if submission.status == 'scored' else 'Submitted',
+                            'score': score_display,
+                            'submitted_at': submission.submitted_at.strftime('%Y-%m-%d %H:%M') if submission.submitted_at else 'N/A',
+                            'is_late': 'Yes' if submission.is_late else 'No',
+                            'resubmit_count': submission.resubmit_count or 0
+                        })
+                    else:
+                        status = 'Missing' if activity.due_date and timezone.now().date() > activity.due_date else 'Pending'
+                        export_data.append({
+                            'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                            'student_name': student_name,
+                            'folder': activity.folder.name,
+                            'activity': activity.title,
+                            'activity_type': activity.activity_type,
+                            'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else 'N/A',
+                            'status': status,
+                            'score': 'N/A',
+                            'submitted_at': 'N/A',
+                            'is_late': 'N/A',
+                            'resubmit_count': 0
+                        })
+
+        # Generate filename
+        if classrooms.exists():
+            classroom_name = classrooms.first().name.replace(' ', '_')
+        else:
+            # Use folder name as fallback
+            classroom_name = folders.first().class_name.replace(' ', '_') if folders.exists() else 'All'
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"Progress_{classroom_name}_{export_type}_{timestamp}"
+
+        if file_format == 'json':
+            response = HttpResponse(
+                json.dumps(export_data, indent=2),
+                content_type='application/json'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}.json"'
+        else:  # CSV
+            if not export_data:
+                error_messages = {
+                    'scored_only': 'No scored submissions found. Try "All Students" or "Summary" export instead.',
+                    'missing_only': 'No missing activities found - all students have submitted!',
+                    'summary': 'No student data available for this class.',
+                    'all_students': 'No student records found for this class.'
+                }
+                print(f"No data to export for type: {export_type}")
+                return Response({'error': error_messages.get(export_type, 'No data to export')}, status=status.HTTP_404_NOT_FOUND)
+
+            output = StringIO()
+            writer = csv.DictWriter(output, fieldnames=export_data[0].keys())
+            writer.writeheader()
+            writer.writerows(export_data)
+
+            response = HttpResponse(output.getvalue(), content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+
+        return response
+
+    except Exception as e:
+        print(f"Export error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_activity_results_api(request, activity_id):
+    """
+    Export activity-specific results for teachers.
+    Supports multiple export types:
+    - submitted: Only submitted students
+    - not_submitted: Only students who haven't submitted
+    - scores_only: Just scores
+    - complete: Full activity report with timestamps and remarks
+    """
+    if request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can export activity results'}, status=status.HTTP_403_FORBIDDEN)
+
+    export_type = request.query_params.get('type', 'complete')
+    file_format = request.query_params.get('format', 'csv')
+
+    try:
+        activity = PortfolioActivity.objects.select_related('folder', 'folder__classroom').get(id=activity_id)
+
+        # Verify teacher owns this activity
+        if activity.folder.teacher != request.user:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        classroom = activity.folder.classroom
+        
+        # Get all students - either from classroom or from class_name
+        if classroom:
+            all_students = User.objects.filter(
+                role='student',
+                classroom=classroom
+            ).exclude(username='admin').order_by('last_name', 'first_name')
+        else:
+            # Fallback: get students who have submitted to this activity
+            student_ids = StudentSubmission.objects.filter(activity=activity).values_list('student_id', flat=True).distinct()
+            all_students = User.objects.filter(
+                id__in=student_ids,
+                role='student'
+            ).exclude(username='admin').order_by('last_name', 'first_name')
+
+        # Get submissions for this activity
+        submissions = StudentSubmission.objects.filter(activity=activity).select_related('student')
+        submission_map = {sub.student_id: sub for sub in submissions}
+
+        export_data = []
+
+        for student in all_students:
+            student_name = f"{student.first_name} {student.last_name}".strip() or student.username
+            submission = submission_map.get(student.id)
+
+            if export_type == 'submitted' and not submission:
+                continue
+            if export_type == 'not_submitted' and submission:
+                continue
+
+            if submission:
+                score_display = 'N/A'
+                if submission.criteria_scores:
+                    try:
+                        criteria = json.loads(submission.criteria_scores) if isinstance(submission.criteria_scores, str) else submission.criteria_scores
+                        t = sum(int(c.get('score', 0)) for c in criteria)
+                        m = sum(int(c.get('maxScore', 0)) for c in criteria)
+                        score_display = f'{t}/{m}'
+                    except:
+                        score_display = f'{submission.score}/10' if submission.score else 'N/A'
+                elif submission.score:
+                    score_display = f'{submission.score}/10'
+
+                # Get remarks for this submission
+                remarks = Remark.objects.filter(submission=submission).order_by('-created_at')
+                remarks_text = '; '.join([r.text for r in remarks]) if remarks.exists() else ''
+
+                row = {
+                    'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                    'student_name': student_name,
+                    'status': 'Scored' if submission.status == 'scored' else 'Submitted',
+                    'score': score_display,
+                    'submitted_at': submission.submitted_at.strftime('%Y-%m-%d %H:%M') if submission.submitted_at else 'N/A',
+                }
+
+                if export_type == 'complete':
+                    row.update({
+                        'is_late': 'Yes' if submission.is_late else 'No',
+                        'resubmit_count': submission.resubmit_count or 0,
+                        'scored_at': submission.scored_at.strftime('%Y-%m-%d %H:%M') if submission.scored_at else 'N/A',
+                        'feedback': submission.feedback or '',
+                        'remarks': remarks_text
+                    })
+
+                if export_type != 'scores_only':
+                    export_data.append(row)
+                else:
+                    export_data.append({
+                        'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                        'student_name': student_name,
+                        'score': score_display
+                    })
+            else:
+                # Not submitted
+                status = 'Missing' if activity.due_date and timezone.now().date() > activity.due_date else 'Pending'
+                row = {
+                    'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                    'student_name': student_name,
+                    'status': status,
+                    'score': 'N/A',
+                    'submitted_at': 'N/A',
+                }
+
+                if export_type == 'complete':
+                    row.update({
+                        'is_late': 'N/A',
+                        'resubmit_count': 0,
+                        'scored_at': 'N/A',
+                        'feedback': '',
+                        'remarks': ''
+                    })
+
+                if export_type not in ['submitted', 'scores_only']:
+                    export_data.append(row)
+
+        # Generate filename
+        activity_name = activity.title.replace(' ', '_')[:30]
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"Activity_{activity_name}_{export_type}_{timestamp}"
+
+        if file_format == 'json':
+            response = HttpResponse(
+                json.dumps({
+                    'activity': {
+                        'title': activity.title,
+                        'type': activity.activity_type,
+                        'folder': activity.folder.name,
+                        'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else None
+                    },
+                    'data': export_data
+                }, indent=2),
+                content_type='application/json'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}.json"'
+        else:  # CSV
+            if not export_data:
+                return Response({'error': 'No data to export'}, status=status.HTTP_404_NOT_FOUND)
+
+            output = StringIO()
+            writer = csv.DictWriter(output, fieldnames=export_data[0].keys())
+            writer.writeheader()
+            writer.writerows(export_data)
+
+            response = HttpResponse(output.getvalue(), content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+
+        return response
+
+    except PortfolioActivity.DoesNotExist:
+        return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Export error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_student_record_api(request, student_id):
+    """
+    Export individual student's complete record.
+    Includes all activities, scores, missing submissions, and teacher remarks.
+    """
+    if request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can export student records'}, status=status.HTTP_403_FORBIDDEN)
+
+    file_format = request.query_params.get('format', 'csv')
+
+    try:
+        student = User.objects.get(id=student_id, role='student')
+        student_name = f"{student.first_name} {student.last_name}".strip() or student.username
+
+        # Verify teacher has access to this student's classroom
+        if student.classroom and student.classroom.teacher != request.user:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get all activities from teacher's folders in student's classroom
+        folders = PortfolioFolder.objects.filter(teacher=request.user)
+        if student.classroom:
+            folders = folders.filter(classroom=student.classroom)
+
+        activities = PortfolioActivity.objects.filter(folder__in=folders, is_published=True)
+
+        # Get student's submissions
+        submissions = StudentSubmission.objects.filter(
+            student=student,
+            activity__in=activities
+        ).select_related('activity', 'activity__folder')
+        submission_map = {sub.activity_id: sub for sub in submissions}
+
+        export_data = []
+
+        for activity in activities:
+            submission = submission_map.get(activity.id)
+
+            if submission:
+                score_display = 'N/A'
+                if submission.criteria_scores:
+                    try:
+                        criteria = json.loads(submission.criteria_scores) if isinstance(submission.criteria_scores, str) else submission.criteria_scores
+                        t = sum(int(c.get('score', 0)) for c in criteria)
+                        m = sum(int(c.get('maxScore', 0)) for c in criteria)
+                        score_display = f'{t}/{m}'
+                    except:
+                        score_display = f'{submission.score}/10' if submission.score else 'N/A'
+                elif submission.score:
+                    score_display = f'{submission.score}/10'
+
+                # Get remarks
+                remarks = Remark.objects.filter(submission=submission).order_by('-created_at')
+                remarks_text = '; '.join([r.text for r in remarks]) if remarks.exists() else ''
+
+                export_data.append({
+                    'folder': activity.folder.name,
+                    'activity': activity.title,
+                    'activity_type': activity.activity_type,
+                    'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else 'N/A',
+                    'status': 'Scored' if submission.status == 'scored' else 'Submitted',
+                    'score': score_display,
+                    'submitted_at': submission.submitted_at.strftime('%Y-%m-%d %H:%M') if submission.submitted_at else 'N/A',
+                    'is_late': 'Yes' if submission.is_late else 'No',
+                    'resubmit_count': submission.resubmit_count or 0,
+                    'feedback': submission.feedback or '',
+                    'remarks': remarks_text
+                })
+            else:
+                status = 'Missing' if activity.due_date and timezone.now().date() > activity.due_date else 'Pending'
+                export_data.append({
+                    'folder': activity.folder.name,
+                    'activity': activity.title,
+                    'activity_type': activity.activity_type,
+                    'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else 'N/A',
+                    'status': status,
+                    'score': 'N/A',
+                    'submitted_at': 'N/A',
+                    'is_late': 'N/A',
+                    'resubmit_count': 0,
+                    'feedback': '',
+                    'remarks': ''
+                })
+
+        # Generate filename
+        student_name_clean = student_name.replace(' ', '_')[:20]
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"Student_{student_name_clean}_Record_{timestamp}"
+
+        if file_format == 'json':
+            response = HttpResponse(
+                json.dumps({
+                    'student': {
+                        'id': student.id_number or f'STD{str(student.id).zfill(3)}',
+                        'name': student_name,
+                        'email': student.email,
+                        'classroom': str(student.classroom) if student.classroom else 'N/A'
+                    },
+                    'records': export_data
+                }, indent=2),
+                content_type='application/json'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}.json"'
+        else:  # CSV
+            if not export_data:
+                return Response({'error': 'No data to export'}, status=status.HTTP_404_NOT_FOUND)
+
+            output = StringIO()
+            writer = csv.DictWriter(output, fieldnames=export_data[0].keys())
+            writer.writeheader()
+            writer.writerows(export_data)
+
+            response = HttpResponse(output.getvalue(), content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+
+        return response
+
+    except User.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Export error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
