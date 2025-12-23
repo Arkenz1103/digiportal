@@ -23,95 +23,44 @@
         <!-- Main Content -->
         <div class="p-6">
             <!-- Search Section with Back Button -->
-            <div class="mb-8 flex items-center justify-between">
-                <div class="relative" style="width: 350px;">
-                    <input
-                        type="text"
-                        v-model="searchQuery"
-                        placeholder="Search by student name or ID..."
-                        class="w-full pl-10 pr-10 py-2 rounded-lg border-2 border-indigo-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm text-gray-700 placeholder-gray-400 text-sm"
-                    />
-                    <div class="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500">
-                        <i class="pi pi-search text-sm"></i>
-                    </div>
-                    <div v-if="searchQuery" class="absolute right-3 top-1/2 -translate-y-1/2">
-                        <button
-                            @click="searchQuery = ''"
-                            class="text-gray-400 hover:text-gray-600 transition-colors">
-                            <i class="pi pi-times text-xs"></i>
-                        </button>
-                    </div>
-                </div>
-
+            <div class="mb-6 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <!-- Download Records Button with Dropdown -->
-                    <div class="relative" ref="downloadDropdownRef">
-                        <button
-                            @click="toggleDownloadDropdown"
-                            class="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm">
-                            <i class="pi pi-download text-sm"></i>
-                            <span class="text-sm font-medium">Download Records</span>
-                            <i class="pi pi-chevron-down text-xs"></i>
-                        </button>
-
-                        <!-- Dropdown Menu -->
-                        <div v-if="showDownloadDropdown"
-                            class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-                            <div class="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
-                                <h4 class="font-semibold text-emerald-800 text-sm">Export Options</h4>
-                                <p class="text-xs text-emerald-600">Select what to download</p>
-                            </div>
-                            <div class="py-2">
-                                <button @click="downloadRecords('all_students')"
-                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                                    <i class="pi pi-users text-emerald-600"></i>
-                                    <div>
-                                        <span class="text-sm font-medium text-gray-800">All Students - Full Progress</span>
-                                        <p class="text-xs text-gray-500">Complete records for all students</p>
-                                    </div>
-                                </button>
-                                <button @click="downloadRecords('summary')"
-                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                                    <i class="pi pi-chart-bar text-blue-600"></i>
-                                    <div>
-                                        <span class="text-sm font-medium text-gray-800">Summary Only</span>
-                                        <p class="text-xs text-gray-500">Completed, Missing, Average scores</p>
-                                    </div>
-                                </button>
-                                <button @click="downloadRecords('scored_only')"
-                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                                    <i class="pi pi-check-circle text-green-600"></i>
-                                    <div>
-                                        <span class="text-sm font-medium text-gray-800">Scored Activities Only</span>
-                                        <p class="text-xs text-gray-500">Only graded submissions</p>
-                                    </div>
-                                </button>
-                                <button @click="downloadRecords('missing_only')"
-                                    class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                                    <i class="pi pi-exclamation-circle text-red-600"></i>
-                                    <div>
-                                        <span class="text-sm font-medium text-gray-800">Missing Activities</span>
-                                        <p class="text-xs text-gray-500">Not submitted activities</p>
-                                    </div>
-                                </button>
-                            </div>
-                            <div class="p-3 bg-gray-50 border-t border-gray-100">
-                                <div class="flex items-center gap-2 text-xs text-gray-500">
-                                    <i class="pi pi-info-circle"></i>
-                                    <span>Files will be downloaded as CSV</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Back Button on the right -->
+                    <!-- Back Button on the left -->
                     <button
                         @click="goBackToRoom"
                         class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all shadow-sm">
                         <i class="pi pi-arrow-left text-sm"></i>
                         <span class="text-sm font-medium">Back to Activities</span>
                     </button>
+
+                    <!-- Search Bar -->
+                    <div class="relative" style="width: 300px;">
+                        <input
+                            type="text"
+                            v-model="searchQuery"
+                            placeholder="Search by student name or ID..."
+                            class="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 transition-all bg-white text-gray-700 placeholder-gray-400 text-sm"
+                        />
+                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="pi pi-search text-sm"></i>
+                        </div>
+                        <div v-if="searchQuery" class="absolute right-3 top-1/2 -translate-y-1/2">
+                            <button
+                                @click="searchQuery = ''"
+                                class="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i class="pi pi-times text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Export Class Record Button -->
+                <button
+                    @click="showExportConfirmDialog = true"
+                    class="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm">
+                    <i class="pi pi-file-excel text-sm"></i>
+                    <span class="text-sm font-medium">Export Class Record</span>
+                </button>
             </div>
 
             <!-- Search Results Info -->
@@ -124,77 +73,73 @@
                 </p>
             </div>
 
-            <!-- Student List Section -->
-            <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-indigo-100">
+            <!-- Student List Section - Matching Activities List Design -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                 <!-- Table Header -->
-                <div class="grid grid-cols-12 gap-2 px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 border-b border-indigo-200">
+                <div class="grid grid-cols-12 gap-2 px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600">
                     <div class="col-span-1 text-sm font-bold text-white">#</div>
                     <div class="col-span-3 text-sm font-bold text-white">Student Name</div>
                     <div class="col-span-2 text-sm font-bold text-white">Student ID</div>
-                    <div class="col-span-2 text-sm font-bold text-white">Classroom</div>
                     <div class="col-span-2 text-sm font-bold text-white text-center">Outputs</div>
-                    <div class="col-span-2 text-sm font-bold text-white text-center">Actions</div>
+                    <div class="col-span-2 text-sm font-bold text-white text-center">Progress</div>
+                    <div class="col-span-2 text-sm font-bold text-white text-center">Download</div>
                 </div>
 
                 <!-- Student Items -->
                 <div v-for="(student, index) in displayedStudents" :key="student.id"
-                    class="group grid grid-cols-12 gap-2 items-center px-6 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 border-b border-indigo-100 transition-all duration-300 hover:shadow-md">
+                    class="grid grid-cols-12 gap-2 items-center px-6 py-4 border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
                     <div class="col-span-1">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center border-2 border-indigo-200">
-                            <span class="text-indigo-700 font-bold">{{ index + 1 }}</span>
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                            <span class="text-indigo-700 font-bold text-sm">{{ index + 1 }}</span>
                         </div>
                     </div>
                     <div class="col-span-3 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md ring-2 ring-indigo-200 ring-offset-1">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md">
                             <span class="text-white font-bold text-sm">{{ student.initial }}</span>
                         </div>
                         <div>
-                            <span class="font-semibold text-indigo-900 group-hover:text-indigo-700 transition-colors block text-sm">{{ student.name }}</span>
+                            <span class="font-semibold text-gray-800 block text-sm">{{ student.name }}</span>
                             <span class="text-xs text-gray-500">{{ student.gradeLevel }} - {{ student.section }}</span>
                         </div>
                     </div>
                     <div class="col-span-2">
-                        <div class="inline-flex items-center gap-2 px-2 py-1 bg-indigo-50 rounded-lg border border-indigo-200">
-                            <i class="pi pi-id-card text-indigo-600 text-xs"></i>
-                            <span class="text-indigo-700 font-medium text-xs">{{ student.id }}</span>
-                        </div>
-                    </div>
-                    <div class="col-span-2">
-                        <div class="text-sm">
-                            <span class="font-medium text-gray-800 block">{{ student.classroom || 'N/A' }}</span>
-                            <span class="text-xs text-gray-500">{{ student.teacher || 'No teacher' }}</span>
-                        </div>
+                        <span class="text-gray-700 font-medium text-sm">{{ student.id }}</span>
                     </div>
                     <div class="col-span-2 flex justify-center">
                         <button
-                            class="px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs"
+                            class="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-medium hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md text-xs"
                             @click="viewOutputs(student)">
                             <span class="flex items-center gap-1">
                                 <i class="pi pi-images text-xs"></i>
-                                View Outputs
+                                View
                             </span>
                         </button>
                     </div>
-                    <div class="col-span-2 flex items-center justify-center gap-2">
+                    <div class="col-span-2 flex justify-center">
                         <button
-                            class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs"
+                            class="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium hover:from-blue-600 hover:to-cyan-600 transition-all shadow-md text-xs"
                             @click="viewDetails(student)">
                             <span class="flex items-center gap-1">
                                 <i class="pi pi-chart-line text-xs"></i>
                                 Details
                             </span>
                         </button>
+                    </div>
+                    <div class="col-span-2 flex justify-center">
                         <button
-                            class="px-2 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-medium hover:bg-emerald-200 transition-all duration-200 shadow-sm text-xs"
-                            @click="downloadStudentRecord(student)"
-                            title="Download student record">
-                            <i class="pi pi-download text-xs"></i>
+                            class="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium hover:from-emerald-600 hover:to-teal-600 transition-all shadow-md text-xs"
+                            @click="confirmStudentExport(student)"
+                            title="Export student report (.xlsx)">
+                            <span class="flex items-center gap-1">
+                                <i class="pi pi-file-excel text-xs"></i>
+                                Export
+                            </span>
                         </button>
                     </div>
                 </div>
 
                 <!-- Load More Button -->
-                <div v-if="hasMoreStudents" class="p-4 text-center border-t border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50">
+                <div v-if="hasMoreStudents" class="p-4 text-center border-t border-gray-100 bg-gradient-to-r from-indigo-50 to-violet-50">
                     <button 
                         @click="loadMoreStudents"
                         class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto">
@@ -210,6 +155,64 @@
                 </div>
             </div>
         </div>
+
+        <!-- Export Class Record Confirmation Dialog -->
+        <Teleport to="body">
+            <Transition name="fade">
+                <div v-if="showExportConfirmDialog" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="showExportConfirmDialog = false">
+                    <div class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden" @click.stop>
+                        <div class="p-6 text-center">
+                            <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                                <i class="pi pi-file-excel text-3xl text-emerald-600"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Export Class Record</h3>
+                            <p class="text-gray-600 text-sm mb-6">Are you sure you want to export the class record? This will generate an Excel file with all students' progress.</p>
+                            <div class="flex gap-3 justify-center">
+                                <button
+                                    @click="showExportConfirmDialog = false"
+                                    class="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                                    Cancel
+                                </button>
+                                <button
+                                    @click="confirmExportClassRecord"
+                                    class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors">
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
+
+        <!-- Export Student Record Confirmation Dialog -->
+        <Teleport to="body">
+            <Transition name="fade">
+                <div v-if="showStudentExportConfirmDialog" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click="showStudentExportConfirmDialog = false">
+                    <div class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden" @click.stop>
+                        <div class="p-6 text-center">
+                            <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                                <i class="pi pi-user text-3xl text-emerald-600"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Export Student Report</h3>
+                            <p class="text-gray-600 text-sm mb-6">Export progress report for <span class="font-semibold text-indigo-600">{{ studentToExport?.name }}</span>?</p>
+                            <div class="flex gap-3 justify-center">
+                                <button
+                                    @click="showStudentExportConfirmDialog = false"
+                                    class="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                                    Cancel
+                                </button>
+                                <button
+                                    @click="confirmStudentExportAction"
+                                    class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors">
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
 
         <!-- Outputs Dialog -->
         <Teleport to="body">
@@ -278,63 +281,51 @@
                                             v-for="(output, index) in getCurrentSubjectOutputs()"
                                             :key="index"
                                             @click="expandImage(index)"
-                                            class="relative group cursor-pointer bg-white rounded-xl overflow-hidden aspect-square hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-indigo-300">
+                                            class="relative group cursor-pointer bg-white rounded-lg overflow-hidden aspect-square hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-indigo-300">
+                                            <!-- PDF File -->
+                                            <div v-if="isPdfFile(output)" class="w-full h-full flex flex-col items-center justify-center bg-gray-50 group-hover:bg-gray-100 transition-colors">
+                                                <i class="pi pi-file-pdf text-4xl text-red-500 mb-2"></i>
+                                                <span class="text-xs text-gray-600 text-center px-2 truncate w-full">{{ getFileName(output) }}</span>
+                                            </div>
+                                            <!-- Image File -->
                                             <img
+                                                v-else
                                                 :src="output.url || output"
                                                 :alt="output.title || `Output ${index + 1}`"
                                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                             >
-                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
-                                                <div class="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-center">
-                                                    <i class="pi pi-expand text-2xl mb-1"></i>
-                                                    <p class="text-xs font-medium">{{ output.title || `Output ${index + 1}` }}</p>
-                                                    <p class="text-xs opacity-75">{{ output.subject ? output.subject.charAt(0).toUpperCase() + output.subject.slice(1) : selectedSubject }}</p>
-                                                </div>
-                                            </div>
-                                            <!-- Status badges -->
-                                            <div class="absolute top-2 left-2 flex flex-col gap-1">
-                                                <!-- Resubmitted badge -->
-                                                <div v-if="output.resubmit_count > 0" class="bg-blue-500 text-white px-2 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-1">
-                                                    <i class="pi pi-refresh text-xs"></i>
-                                                    <span>Resubmitted</span>
-                                                </div>
-                                                <!-- Late badge -->
-                                                <div v-if="output.is_late" class="bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-1">
-                                                    <i class="pi pi-clock text-xs"></i>
-                                                    <span>Late</span>
-                                                </div>
-                                            </div>
-                                            <!-- Date badge -->
+                                            <!-- Date badge only -->
                                             <div class="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-medium text-gray-700">
                                                 {{ output.date ? new Date(output.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '' }}
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Expanded View (Single full-size image) -->
-                                    <div v-else class="flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl p-4 min-h-[350px] shadow-inner">
+                                    <!-- Expanded View (Single full-size image/file) -->
+                                    <div v-else class="flex items-center justify-center bg-gray-100 rounded-lg p-4 min-h-[350px]">
                                         <div class="relative">
+                                            <!-- PDF File - Show embed or link -->
+                                            <div v-if="isPdfFile(currentImage)" class="flex flex-col items-center justify-center p-8">
+                                                <i class="pi pi-file-pdf text-6xl text-red-500 mb-4"></i>
+                                                <p class="text-gray-700 font-medium mb-4">{{ getFileName(currentImage) }}</p>
+                                                <a 
+                                                    :href="currentImage.url || currentImage" 
+                                                    target="_blank"
+                                                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                                                    <i class="pi pi-external-link"></i>
+                                                    Open PDF
+                                                </a>
+                                            </div>
+                                            <!-- Image File -->
                                             <img
+                                                v-else
                                                 :src="currentImage.url || currentImage"
                                                 :alt="currentImage.title || 'Student output'"
-                                                class="max-w-full h-auto max-h-[380px] rounded-xl shadow-2xl border-4 border-white"
+                                                class="max-w-full h-auto max-h-[380px] rounded-lg shadow-lg"
                                             >
                                             <!-- Counter badge -->
-                                            <div class="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                                            <div class="absolute top-4 right-4 bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium">
                                                 {{ currentImageIndex + 1 }} / {{ getCurrentSubjectOutputs().length }}
-                                            </div>
-                                            <!-- Status badges on expanded view -->
-                                            <div class="absolute top-4 left-4 flex flex-col gap-2">
-                                                <!-- Resubmitted badge -->
-                                                <div v-if="currentImage.resubmit_count > 0" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2">
-                                                    <i class="pi pi-refresh"></i>
-                                                    <span>Resubmitted ({{ currentImage.resubmit_count }}x)</span>
-                                                </div>
-                                                <!-- Late badge -->
-                                                <div v-if="currentImage.is_late" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2">
-                                                    <i class="pi pi-clock"></i>
-                                                    <span>Late Submission</span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -362,95 +353,49 @@
                                     <div v-if="!isMinimizedView" class="mt-4 text-center">
                                         <button
                                             @click="showMinimizedView"
-                                            class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors duration-200 flex items-center gap-2 mx-auto">
-                                            <i class="pi pi-th-large"></i>
-                                            <span>Back to Grid View</span>
+                                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm">
+                                            <i class="pi pi-th-large mr-2"></i>
+                                            Back to Grid View
                                         </button>
                                     </div>
                                 </div>
 
                                 <!-- Image Details (only show in expanded view) -->
                                 <div v-if="!isMinimizedView" class="mt-6 w-full">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h4 class="font-bold text-xl text-indigo-900 flex items-center gap-2">
-                                            <i class="pi pi-info-circle text-indigo-600"></i>
-                                            Output Details
-                                        </h4>
-                                    </div>
-                                    <div class="bg-gradient-to-br from-indigo-50 to-violet-50 p-6 rounded-xl border-2 border-indigo-200 shadow-md">
-                                        <div class="grid grid-cols-2 gap-6">
+                                    <h4 class="font-semibold text-gray-800 mb-3">Output Details</h4>
+                                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                        <div class="grid grid-cols-2 gap-4">
                                             <!-- Activity -->
-                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
-                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                    <i class="pi pi-bookmark text-xs"></i>
-                                                    Activity
-                                                </p>
-                                                <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().title }}</p>
+                                            <div>
+                                                <p class="text-xs text-gray-500 uppercase mb-1">Activity</p>
+                                                <p class="font-medium text-gray-900">{{ getCurrentAssignment().title }}</p>
                                             </div>
 
                                             <!-- Type -->
-                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
-                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                    <i class="pi pi-tag text-xs"></i>
-                                                    Type
-                                                </p>
-                                                <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().type }}</p>
+                                            <div>
+                                                <p class="text-xs text-gray-500 uppercase mb-1">Type</p>
+                                                <p class="font-medium text-gray-900">{{ getCurrentAssignment().type }}</p>
                                             </div>
 
                                             <!-- Submitted Date & Time -->
-                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
-                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                    <i class="pi pi-calendar text-xs"></i>
-                                                    {{ currentImage.resubmit_count > 0 ? 'Last Resubmitted' : 'Submitted' }}
-                                                </p>
-                                                <p class="font-semibold text-gray-900 text-base">{{ getCurrentAssignment().date }}</p>
-                                                <p class="text-sm text-gray-600 mt-1 flex items-center gap-1">
-                                                    <i class="pi pi-clock text-xs"></i>
-                                                    {{ getCurrentAssignment().time }}
-                                                </p>
-                                                <!-- Show original submission date if resubmitted -->
-                                                <p v-if="currentImage.resubmit_count > 0 && currentImage.submitted_at" class="text-xs text-gray-500 mt-2 italic">
-                                                    Originally: {{ new Date(currentImage.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }}
-                                                </p>
+                                            <div>
+                                                <p class="text-xs text-gray-500 uppercase mb-1">Date & Time Submitted</p>
+                                                <p class="font-medium text-gray-900">{{ getCurrentAssignment().date }} {{ getCurrentAssignment().time }}</p>
                                             </div>
 
                                             <!-- Score -->
-                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
-                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                    <i class="pi pi-star text-xs"></i>
-                                                    Score
-                                                </p>
-                                                <p class="font-bold text-2xl text-indigo-700">{{ getCurrentAssignment().score }}</p>
+                                            <div>
+                                                <p class="text-xs text-gray-500 uppercase mb-1">Score</p>
+                                                <p class="font-medium text-gray-900">{{ getFormattedScore() }}</p>
                                             </div>
 
                                             <!-- Status -->
-                                            <div class="bg-white p-4 rounded-lg shadow-sm border border-indigo-100 col-span-2">
-                                                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                    <i class="pi pi-check-circle text-xs"></i>
-                                                    Status
-                                                </p>
-                                                <div class="flex flex-wrap gap-2">
-                                                    <!-- Main status -->
-                                                    <span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm"
-                                                          :class="{
-                                                              'bg-green-100 text-green-800 border-2 border-green-300': getCurrentAssignment().status === 'Scored',
-                                                              'bg-blue-100 text-blue-800 border-2 border-blue-300': getCurrentAssignment().status === 'Submitted',
-                                                              'bg-yellow-100 text-yellow-800 border-2 border-yellow-300': getCurrentAssignment().status !== 'Scored' && getCurrentAssignment().status !== 'Submitted'
-                                                          }">
-                                                        <i class="pi pi-circle-fill text-xs mr-2"></i>
-                                                        {{ getCurrentAssignment().status }}
-                                                    </span>
-                                                    <!-- Resubmitted badge -->
-                                                    <span v-if="currentImage.resubmit_count > 0" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm bg-blue-100 text-blue-800 border-2 border-blue-300">
-                                                        <i class="pi pi-refresh text-xs mr-2"></i>
-                                                        Resubmitted ({{ currentImage.resubmit_count }}x)
-                                                    </span>
-                                                    <!-- Late badge -->
-                                                    <span v-if="currentImage.is_late" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm bg-orange-100 text-orange-800 border-2 border-orange-300">
-                                                        <i class="pi pi-clock text-xs mr-2"></i>
-                                                        Late Submission
-                                                    </span>
-                                                </div>
+                                            <div class="col-span-2">
+                                                <p class="text-xs text-gray-500 uppercase mb-1">Status</p>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                                                      :class="getStatusClass()">
+                                                    {{ getDisplayStatus() }}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -467,6 +412,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { useToast } from '../../composables/useToast';
 
 const { showSuccess, showError, showInfo, showWarning } = useToast();
@@ -486,6 +432,31 @@ const emit = defineEmits(['navigate']);
 const showDownloadDropdown = ref(false);
 const downloadDropdownRef = ref(null);
 
+// Export confirmation dialog states
+const showExportConfirmDialog = ref(false);
+const showStudentExportConfirmDialog = ref(false);
+const studentToExport = ref(null);
+
+// Confirm student export - show dialog
+const confirmStudentExport = (student) => {
+    studentToExport.value = student;
+    showStudentExportConfirmDialog.value = true;
+};
+
+// Execute student export after confirmation
+const confirmStudentExportAction = () => {
+    showStudentExportConfirmDialog.value = false;
+    if (studentToExport.value) {
+        downloadStudentRecord(studentToExport.value);
+    }
+};
+
+// Execute class record export after confirmation
+const confirmExportClassRecord = () => {
+    showExportConfirmDialog.value = false;
+    downloadRecords('all_students');
+};
+
 // Toggle download dropdown
 const toggleDownloadDropdown = () => {
     showDownloadDropdown.value = !showDownloadDropdown.value;
@@ -498,40 +469,198 @@ const handleClickOutside = (event) => {
     }
 };
 
-// Download records function - generates CSV from displayed student data
-const downloadRecords = (exportType) => {
+// Download records function - generates Excel/CSV from displayed student data
+const downloadRecords = async (exportType) => {
     showDownloadDropdown.value = false;
 
     try {
-        // Get students to export
-        const studentsToExport = filteredStudents.value;
+        // Get students to export and sort by last name alphabetically
+        const studentsToExport = [...filteredStudents.value].sort((a, b) => {
+            // Extract last name (assume format is "First Last" or just use full name)
+            const getLastName = (name) => {
+                const parts = name.trim().split(' ');
+                return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : name.toLowerCase();
+            };
+            return getLastName(a.name).localeCompare(getLastName(b.name));
+        });
 
         if (studentsToExport.length === 0) {
             showError('No students to export', 'Export Error');
             return;
         }
 
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const className = currentClassName.value.replace(/\s+/g, '_') || 'Class';
+
+        if (exportType === 'all_students') {
+            // Full Progress Export - Excel with one sheet per subject
+            showInfo('Generating class record...', 'Export');
+
+            // Fetch all activities and submissions for all students
+            const classRecordData = await fetchClassRecordData(studentsToExport);
+            
+            if (!classRecordData || Object.keys(classRecordData.subjects).length === 0) {
+                showError('No activities found for this class', 'Export Error');
+                return;
+            }
+
+            // Create Excel workbook with multiple sheets
+            const workbook = XLSX.utils.book_new();
+
+            // Create a sheet for each subject
+            for (const [subjectName, subjectData] of Object.entries(classRecordData.subjects)) {
+                const activities = subjectData.activities;
+                
+                if (activities.length === 0) continue;
+
+                // Calculate the number of columns needed
+                const totalColumns = 3 + activities.length; // No, Student ID, Student Name + activities
+
+                // Build sheet data as array of arrays
+                const sheetData = [];
+
+                // Row 1: Empty row for spacing
+                sheetData.push(Array(totalColumns).fill(''));
+
+                // Row 2: Centered title - ACTIVITY CLASS RECORD - SUBJECT
+                const titleRow = Array(totalColumns).fill('');
+                titleRow[0] = `ACTIVITY CLASS RECORD - ${subjectName.toUpperCase()}`;
+                sheetData.push(titleRow);
+
+                // Row 3: Empty row for spacing
+                sheetData.push(Array(totalColumns).fill(''));
+
+                // Row 4: Header row with activity title and type
+                const headerRow = ['No', 'Student ID', 'Student Name'];
+                activities.forEach((act) => {
+                    headerRow.push(`${act.title} (${act.type})`);
+                });
+                sheetData.push(headerRow);
+
+                // Data rows: each student with their scores (sorted by last name)
+                studentsToExport.forEach((student, index) => {
+                    const studentId = student.dbId || student.id;
+                    const row = [index + 1, student.id, student.name];
+
+                    activities.forEach((act) => {
+                        const submission =
+                            classRecordData.submissions[`${studentId}-${act.id}`];
+                        if (
+                            submission &&
+                            submission.status === 'scored' &&
+                            submission.score
+                        ) {
+                            // Show only the score (e.g., "8/10")
+                            row.push(submission.score);
+                        } else {
+                            // Not scored or not submitted = None
+                            row.push('None');
+                        }
+                    });
+                    sheetData.push(row);
+                });
+
+                // Create worksheet from data
+                const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+                // Merge cells for the title row to center it
+                const mergeRange = { s: { r: 1, c: 0 }, e: { r: 1, c: totalColumns - 1 } };
+                worksheet['!merges'] = [mergeRange];
+
+                // Set column widths
+                const colWidths = [
+                    { wch: 5 },   // No
+                    { wch: 12 },  // Student ID
+                    { wch: 25 },  // Student Name
+                ];
+                activities.forEach(() => {
+                    colWidths.push({ wch: 15 }); // Activity columns
+                });
+                worksheet['!cols'] = colWidths;
+
+                // Sanitize sheet name (Excel has 31 char limit and no special chars)
+                let sheetName = subjectName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '');
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+            }
+
+            // Generate Excel file and download
+            const filename = `ClassRecord_${className}_${timestamp}.xlsx`;
+            XLSX.writeFile(workbook, filename);
+
+            showSuccess('Class record downloaded!', 'Export');
+            return;
+        }
+
+        // For other export types, use CSV
         let csvContent = '';
         let filename = '';
-        const timestamp = new Date().toISOString().slice(0, 10);
 
         if (exportType === 'summary') {
             // Summary export - basic student info
-            csvContent = 'Student ID,Student Name,Grade Level,Section,Classroom,Teacher\n';
-            studentsToExport.forEach(student => {
-                csvContent += `"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
+            csvContent = 'No,Student ID,Student Name,Grade Level,Section,Classroom,Teacher\n';
+            studentsToExport.forEach((student, index) => {
+                csvContent += `${index + 1},"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
             });
-            filename = `Student_Summary_${timestamp}.csv`;
+            filename = `Student_Summary_${className}_${timestamp}.csv`;
+
+        } else if (exportType === 'scored_only') {
+            // Scored activities only
+            showInfo('Fetching scored activities...', 'Export');
+            const classRecordData = await fetchClassRecordData(studentsToExport);
+            
+            csvContent = `SCORED ACTIVITIES REPORT - ${currentClassName.value}\n`;
+            csvContent += `Generated: ${new Date().toLocaleString()}\n\n`;
+            csvContent += `No,Student ID,Student Name,Subject,Activity,Type,Score,Date Submitted\n`;
+
+            let rowNum = 1;
+            for (const [subjectName, subjectData] of Object.entries(classRecordData.subjects)) {
+                for (const student of studentsToExport) {
+                    const studentId = student.dbId || student.id;
+                    for (const act of subjectData.activities) {
+                        const submission = classRecordData.submissions[`${studentId}-${act.id}`];
+                        if (submission && submission.status === 'scored') {
+                            csvContent += `${rowNum++},"${student.id}","${student.name}","${subjectName}","${act.title}","${act.type}","${submission.score}","${submission.submitted_at || 'N/A'}"\n`;
+                        }
+                    }
+                }
+            }
+            filename = `ScoredActivities_${className}_${timestamp}.csv`;
+
+        } else if (exportType === 'missing_only') {
+            // Missing activities only
+            showInfo('Fetching missing activities...', 'Export');
+            const classRecordData = await fetchClassRecordData(studentsToExport);
+            
+            csvContent = `MISSING ACTIVITIES REPORT - ${currentClassName.value}\n`;
+            csvContent += `Generated: ${new Date().toLocaleString()}\n\n`;
+            csvContent += `No,Student ID,Student Name,Subject,Activity,Type,Due Date\n`;
+
+            let rowNum = 1;
+            for (const [subjectName, subjectData] of Object.entries(classRecordData.subjects)) {
+                for (const student of studentsToExport) {
+                    const studentId = student.dbId || student.id;
+                    for (const act of subjectData.activities) {
+                        const submission = classRecordData.submissions[`${studentId}-${act.id}`];
+                        if (!submission) {
+                            csvContent += `${rowNum++},"${student.id}","${student.name}","${subjectName}","${act.title}","${act.type}","${act.due_date || 'N/A'}"\n`;
+                        }
+                    }
+                }
+            }
+            filename = `MissingActivities_${className}_${timestamp}.csv`;
+
         } else {
-            // Full export - all available data
-            csvContent = 'Student ID,Student Name,Grade Level,Section,Classroom,Teacher,Initial\n';
-            studentsToExport.forEach(student => {
-                csvContent += `"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}","${student.initial || ''}"\n`;
+            // Default - basic list
+            csvContent = 'No,Student ID,Student Name,Grade Level,Section,Classroom,Teacher\n';
+            studentsToExport.forEach((student, index) => {
+                csvContent += `${index + 1},"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
             });
-            filename = `Student_Progress_${exportType}_${timestamp}.csv`;
+            filename = `Student_List_${className}_${timestamp}.csv`;
         }
 
-        // Create and download the file
+        // Create and download CSV file
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -543,17 +672,43 @@ const downloadRecords = (exportType) => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        showSuccess(`Downloaded ${studentsToExport.length} student records!`, 'Export');
+        showSuccess('Downloaded successfully!', 'Export');
     } catch (error) {
         console.error('Download error:', error);
         showError('Failed to download records', 'Export Error');
     }
 };
 
-// Download individual student record - fetches all activities and submissions
+// Fetch class record data - all activities grouped by subject with student submissions
+const fetchClassRecordData = async (students) => {
+    try {
+        // Get classroom context
+        const classContext = localStorage.getItem('progress_class_context');
+        let classroomId = '';
+        
+        if (classContext) {
+            const context = JSON.parse(classContext);
+            classroomId = context.classroomId || '';
+        }
+
+        // Fetch all activities and submissions from API
+        const response = await axios.get(`/api/students/progress/class-record/${classroomId ? `?classroom_id=${classroomId}` : ''}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching class record data:', error);
+        
+        // Fallback: return empty structure
+        return {
+            subjects: {},
+            submissions: {}
+        };
+    }
+};
+
+// Download individual student record - fetches all activities and submissions as XLSX
 const downloadStudentRecord = async (student) => {
     try {
-        showInfo('Fetching student activities...', 'Export');
+        showInfo('Generating student report...', 'Export');
 
         // Get the student's database ID
         const studentDbId = student.dbId || student.id;
@@ -562,64 +717,125 @@ const downloadStudentRecord = async (student) => {
         const response = await axios.get(`/api/students/${studentDbId}/progress/`);
         const progressData = response.data;
 
-        // Build CSV content
         const timestamp = new Date().toISOString().slice(0, 10);
-        let csvContent = '';
 
-        // Header section with student info
-        csvContent += `STUDENT PROGRESS REPORT\n`;
-        csvContent += `Generated:,${new Date().toLocaleString()}\n\n`;
-        csvContent += `Student Name:,${student.name}\n`;
-        csvContent += `Student ID:,${student.id}\n`;
-        csvContent += `Grade Level:,${student.gradeLevel || 'N/A'}\n`;
-        csvContent += `Section:,${student.section || 'N/A'}\n`;
-        csvContent += `Classroom:,${student.classroom || 'N/A'}\n`;
-        csvContent += `Teacher:,${student.teacher || 'N/A'}\n\n`;
+        // Create Excel workbook
+        const workbook = XLSX.utils.book_new();
 
-        // Summary section (without average score)
-        if (progressData.summary) {
-            csvContent += `SUMMARY\n`;
-            csvContent += `Total Activities:,${progressData.summary.total_activities || 0}\n`;
-            csvContent += `Completed:,${progressData.summary.completed || 0}\n`;
-            csvContent += `Scored:,${progressData.summary.scored || 0}\n`;
-            csvContent += `Missing:,${progressData.summary.missing || 0}\n\n`;
+        // Group activities by subject/folder
+        const activitiesBySubject = {};
+        if (progressData.activities && progressData.activities.length > 0) {
+            progressData.activities.forEach((activity) => {
+                const folder = activity.folder_name || 'Other';
+                if (!activitiesBySubject[folder]) {
+                    activitiesBySubject[folder] = [];
+                }
+                activitiesBySubject[folder].push(activity);
+            });
         }
 
-        // Activities table header - Status before Date Submitted, Score at the end
-        csvContent += `ACTIVITIES DETAIL\n`;
-        csvContent += `No,Subject/Folder,Activity Title,Type,Due Date & Time,Status,Date & Time Submitted,Score\n`;
+        // Create a sheet for each subject
+        for (const [subjectName, activities] of Object.entries(activitiesBySubject)) {
+            const sheetData = [];
 
-        // Add activities
-        if (progressData.activities && progressData.activities.length > 0) {
-            progressData.activities.forEach((activity, index) => {
-                const score = activity.score || 'N/A';
+            // Calculate completed and incomplete for this subject
+            const completed = activities.filter(a => a.status && a.status !== 'Missing' && a.status !== 'Pending').length;
+            const incomplete = activities.length - completed;
+
+            // Row 1: Empty for spacing
+            sheetData.push([]);
+
+            // Row 2: Centered title
+            sheetData.push([`STUDENT PROGRESS REPORT - ${subjectName.toUpperCase()}`]);
+
+            // Row 3: Empty for spacing
+            sheetData.push([]);
+
+            // Student Information Section
+            sheetData.push(['STUDENT INFORMATION']);
+            sheetData.push(['Student Name:', student.name]);
+            sheetData.push(['Student ID:', student.id]);
+            sheetData.push(['Grade Level:', student.gradeLevel || 'N/A']);
+            sheetData.push(['Section:', student.section || 'N/A']);
+            sheetData.push(['Teacher:', student.teacher || 'N/A']);
+            sheetData.push([]); // Empty row
+
+            // Summary Section for this subject
+            sheetData.push(['SUMMARY']);
+            sheetData.push(['Total Activities:', activities.length]);
+            sheetData.push(['Completed:', completed]);
+            sheetData.push(['Incomplete:', incomplete]);
+            sheetData.push([]); // Empty row
+
+            // Activities Detail Section
+            sheetData.push(['ACTIVITIES DETAIL']);
+            sheetData.push(['No', 'Activity Title', 'Type', 'Due Date & Time', 'Status', 'Date & Time Submitted', 'Score']);
+
+            // Add activities for this subject
+            activities.forEach((activity, index) => {
+                const score = activity.score || 'None';
                 const status = activity.status || 'Pending';
                 const dueDateTime = activity.due_datetime || 'N/A';
                 const submittedDateTime = activity.submitted_datetime || 'N/A';
-                const folder = activity.folder_name || 'N/A';
                 const activityType = activity.activity_type || 'N/A';
 
-                csvContent += `${index + 1},"${folder}","${activity.title}","${activityType}","${dueDateTime}","${status}","${submittedDateTime}","${score}"\n`;
+                sheetData.push([
+                    index + 1,
+                    activity.title,
+                    activityType,
+                    dueDateTime,
+                    status,
+                    submittedDateTime,
+                    score
+                ]);
             });
-        } else {
-            csvContent += `No activities found for this student\n`;
+
+            // Create worksheet
+            const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+            // Set column widths - first column wider for labels
+            worksheet['!cols'] = [
+                { wch: 18 },  // No / Labels (Student Name:, Total Activities:, etc.)
+                { wch: 30 },  // Activity Title / Values
+                { wch: 12 },  // Type
+                { wch: 20 },  // Due Date & Time
+                { wch: 15 },  // Status
+                { wch: 22 },  // Date & Time Submitted
+                { wch: 10 }   // Score
+            ];
+
+            // Sanitize sheet name (Excel has 31 char limit)
+            let sheetName = subjectName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '');
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
         }
 
-        const filename = `Student_${student.name.replace(/\s+/g, '_')}_Progress_${timestamp}.csv`;
+        // If no activities, create a single sheet with message
+        if (Object.keys(activitiesBySubject).length === 0) {
+            const sheetData = [];
+            sheetData.push(['STUDENT PROGRESS REPORT']);
+            sheetData.push([`Generated: ${new Date().toLocaleString()}`]);
+            sheetData.push([]);
+            sheetData.push(['STUDENT INFORMATION']);
+            sheetData.push(['Student Name:', student.name]);
+            sheetData.push(['Student ID:', student.id]);
+            sheetData.push(['Grade Level:', student.gradeLevel || 'N/A']);
+            sheetData.push(['Section:', student.section || 'N/A']);
+            sheetData.push(['Teacher:', student.teacher || 'N/A']);
+            sheetData.push([]);
+            sheetData.push(['No activities found for this student']);
 
-        // Create and download the file
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+            const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+            worksheet['!cols'] = [{ wch: 18 }, { wch: 30 }];
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Progress Report');
+        }
 
-        showSuccess('Student record downloaded!', 'Export');
+        // Generate filename and download
+        const filename = `${student.name.replace(/\s+/g, '_')}_Progress_${timestamp}.xlsx`;
+        XLSX.writeFile(workbook, filename);
+
+        showSuccess('Student report downloaded!', 'Export');
     } catch (error) {
         console.error('Download error:', error);
         showError('Failed to download student record. Please try again.', 'Export Error');
@@ -947,6 +1163,119 @@ const getCurrentAssignment = () => {
     };
 };
 
+// Get formatted score with overall
+const getFormattedScore = () => {
+    const outputs = getCurrentSubjectOutputs();
+    const currentOutput = outputs[currentImageIndex.value];
+    
+    if (!currentOutput) return 'None';
+    
+    let totalScore = currentOutput.total_score;
+    let maxScore = currentOutput.max_score;
+    
+    // Try to calculate from criteria_scores if available
+    if (currentOutput.criteria_scores && (!maxScore || maxScore === 10)) {
+        try {
+            const criteria = typeof currentOutput.criteria_scores === 'string'
+                ? JSON.parse(currentOutput.criteria_scores)
+                : currentOutput.criteria_scores;
+            if (Array.isArray(criteria) && criteria.length > 0) {
+                totalScore = criteria.reduce((sum, c) => sum + (parseInt(c.score) || 0), 0);
+                maxScore = criteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0);
+            }
+        } catch (error) {
+            console.error('Error parsing criteria_scores:', error);
+        }
+    }
+    
+    if (totalScore !== null && totalScore !== undefined && maxScore !== null && maxScore !== undefined) {
+        const total = parseInt(totalScore);
+        const max = parseInt(maxScore);
+        if (!isNaN(total) && !isNaN(max) && max > 0) {
+            return `${total}/${max}`;
+        }
+    }
+    
+    if (currentOutput.score !== null && currentOutput.score !== undefined) {
+        return `${currentOutput.score}/10`;
+    }
+    
+    return 'None';
+};
+
+// Get single display status
+const getDisplayStatus = () => {
+    const outputs = getCurrentSubjectOutputs();
+    const currentOutput = outputs[currentImageIndex.value];
+    
+    if (!currentOutput) return 'N/A';
+    
+    // Priority: Resubmitted > Submitted Late > Submitted/Scored
+    if (currentOutput.resubmit_count > 0) {
+        return `Resubmitted x${currentOutput.resubmit_count}`;
+    }
+    if (currentOutput.is_late) {
+        return 'Submitted Late';
+    }
+    if (currentOutput.status === 'scored') {
+        return 'Scored';
+    }
+    return 'Submitted';
+};
+
+// Get status class for styling
+const getStatusClass = () => {
+    const outputs = getCurrentSubjectOutputs();
+    const currentOutput = outputs[currentImageIndex.value];
+    
+    if (!currentOutput) return 'bg-gray-100 text-gray-700';
+    
+    if (currentOutput.resubmit_count > 0) {
+        return 'bg-blue-100 text-blue-700';
+    }
+    if (currentOutput.is_late) {
+        return 'bg-orange-100 text-orange-700';
+    }
+    if (currentOutput.status === 'scored') {
+        return 'bg-green-100 text-green-700';
+    }
+    return 'bg-indigo-100 text-indigo-700';
+};
+
+// Check if file is a PDF
+const isPdfFile = (output) => {
+    if (!output) return false;
+    const url = output.url || output;
+    if (typeof url !== 'string') return false;
+    
+    // Check file extension
+    if (url.toLowerCase().endsWith('.pdf')) return true;
+    
+    // Check file_type property
+    if (output.file_type && output.file_type.toLowerCase().includes('pdf')) return true;
+    
+    return false;
+};
+
+// Get file name from output
+const getFileName = (output) => {
+    if (!output) return 'File';
+    
+    // Try to get from file_name property
+    if (output.file_name) return output.file_name;
+    
+    // Extract from URL
+    const url = output.url || output;
+    if (typeof url === 'string') {
+        const parts = url.split('/');
+        const fileName = parts[parts.length - 1];
+        // Remove query params if any
+        return fileName.split('?')[0] || 'File';
+    }
+    
+    return 'File';
+};
+
 // Get current subject outputs for navigation
 const getCurrentSubjectOutputs = () => {
     if (selectedSubject.value === 'all') {
@@ -985,8 +1314,13 @@ const prevImage = () => {
 const viewDetails = (student) => {
     // Store selected student data for progress page
     localStorage.setItem('selected_student_progress', JSON.stringify({
-        student: student,
-        className: 'Grade 1 - A', // You can make this dynamic based on current class
+        student: {
+            ...student,
+            gradeLevel: student.gradeLevel || student.grade_level || '',
+            section: student.section || '',
+            classroom: student.classroom || `${student.gradeLevel || student.grade_level || ''} - ${student.section || ''}`
+        },
+        className: `${student.gradeLevel || student.grade_level || ''} - ${student.section || ''}`,
         timestamp: new Date().toISOString()
     }));
 
@@ -1107,150 +1441,136 @@ const loadPortfolioFolders = async () => {
 const loadStudentSubmissions = async (studentId) => {
     isLoadingOutputs.value = true;
     console.log('🔍 Loading submissions for student DATABASE ID:', studentId);
-    console.log('   (This should be a number like 2 or 3, NOT "STD003")');
 
     try {
         // Clear previous outputs
         studentOutputs.value = {};
 
-        // Load submissions for each folder
-        for (const folder of portfolioFolders.value) {
+        // Load all submissions in parallel for better performance
+        const folderPromises = portfolioFolders.value.map(async (folder) => {
             try {
                 // Get activities for this folder
                 const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
                 const activities = activitiesResponse.data || [];
 
-                // Get submissions for each activity
+                // Get submissions for each activity (only published ones)
                 const folderOutputs = [];
                 console.log(`📁 Folder "${folder.name}" has ${activities.length} activities`);
 
-                for (const activity of activities) {
+                // Filter only published activities
+                const publishedActivities = activities.filter(activity => activity.is_published === true);
+                console.log(`   📌 Published activities: ${publishedActivities.length}`);
+
+                // Load submissions in parallel for this folder
+                const activityPromises = publishedActivities.map(async (activity) => {
                     try {
-                        // Request ALL submissions (submitted, late, resubmitted - with or without score)
                         const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                         const submissions = submissionsResponse.data || [];
 
-                        console.log(`📝 Activity ${activity.id} - ${activity.title}:`);
-                        console.log(`   Total submissions returned by API: ${submissions.length}`);
-                        console.log(`   Looking for student ID: ${studentId}`);
-
-                        // Debug: Show all submission student IDs
-                        if (submissions.length > 0) {
-                            console.log('   Submission student IDs:', submissions.map(s => ({
-                                student_obj: s.student,
-                                username: s.student?.username,
-                                id: s.student?.id,
-                                student_id: s.student_id
-                            })));
-                        }
-
                         // Filter submissions for THIS specific student only
                         const studentSubmissions = submissions.filter(submission => {
-                            // Get the student identifier from the submission
                             let submissionStudentId = null;
-
                             if (submission.student) {
-                                if (typeof submission.student === 'object') {
-                                    // Student is an object, use database ID for matching
-                                    submissionStudentId = submission.student.id;
-                                } else {
-                                    // Student is a direct value (database ID)
-                                    submissionStudentId = submission.student;
-                                }
+                                submissionStudentId = typeof submission.student === 'object' 
+                                    ? submission.student.id 
+                                    : submission.student;
                             } else if (submission.student_id) {
                                 submissionStudentId = submission.student_id;
                             }
-
-                            // Compare with the target student database ID
-                            const match = submissionStudentId === studentId ||
-                                         Number(submissionStudentId) === Number(studentId);
-
-                            console.log('   🔍 Checking submission:', {
-                                submission_student_obj: submission.student,
-                                extracted_id: submissionStudentId,
-                                looking_for: studentId,
-                                match: match
-                            });
-
-                            if (match) {
-                                console.log('   ✅ Match found!');
-                            }
-                            return match;
+                            return submissionStudentId === studentId || Number(submissionStudentId) === Number(studentId);
                         });
 
-                        console.log(`   ✅ Filtered: ${studentSubmissions.length} submissions for student ${studentId}`);
-
-                        // Add only this student's submissions to outputs
-                        studentSubmissions.forEach((submission, idx) => {
-                            // Get file URL - check both file_url and file_path
-                            const fileUrl = submission.file_url || submission.file_path;
-
-                            console.log(`   📄 Processing submission ${idx + 1}/${studentSubmissions.length}:`, {
-                                id: submission.id,
-                                file_type: submission.file_type,
-                                has_file_url: !!submission.file_url,
-                                has_file_path: !!submission.file_path,
-                                file_url_length: fileUrl?.length || 0,
-                                status: submission.status,
-                                resubmit_count: submission.resubmit_count,
-                                is_late: submission.is_late
-                            });
-
-                            if (submission.file_type === 'image' && fileUrl) {
-                                folderOutputs.push({
-                                    url: fileUrl,
-                                    date: new Date(submission.submitted_at),
-                                    title: submission.activity_title || activity.title,
-                                    activity_type: submission.activity_type || activity.activity_type,
-                                    caption: submission.caption,
-                                    score: submission.score,
-                                    total_score: submission.total_score,
-                                    max_score: submission.max_score,
-                                    criteria_scores: submission.criteria_scores,
-                                    status: submission.status,
-                                    studentName: submission.student_name || submission.student?.username,
-                                    resubmit_count: submission.resubmit_count || 0,
-                                    is_late: submission.is_late || false,
-                                    last_resubmit_at: submission.last_resubmit_at,
-                                    submitted_at: submission.submitted_at
-                                });
-                                console.log('   ✅ Added to outputs:', {
-                                    title: submission.activity_title,
-                                    type: submission.activity_type,
-                                    score: submission.score,
-                                    total_score: submission.total_score,
-                                    max_score: submission.max_score,
-                                    criteria_scores: submission.criteria_scores,
-                                    resubmit_count: submission.resubmit_count,
-                                    is_late: submission.is_late
+                        // Process each submission
+                        studentSubmissions.forEach(submission => {
+                            // Check if submission has multiple files
+                            const submissionFiles = submission.files || [];
+                            console.log(`📄 Submission ${submission.id} has ${submissionFiles.length} files:`, submissionFiles);
+                            
+                            if (submissionFiles.length > 0) {
+                                // Handle multiple files per submission
+                                submissionFiles.forEach((file, fileIndex) => {
+                                    const fileUrl = file.file_url || file.file_path || file.file;
+                                    console.log(`   📎 File ${fileIndex + 1}: ${fileUrl}`);
+                                    if (fileUrl) {
+                                        folderOutputs.push({
+                                            url: fileUrl,
+                                            date: new Date(submission.submitted_at),
+                                            title: submission.activity_title || activity.title,
+                                            activity_type: submission.activity_type || activity.activity_type,
+                                            caption: submission.caption,
+                                            score: submission.score,
+                                            total_score: submission.total_score,
+                                            max_score: submission.max_score,
+                                            criteria_scores: submission.criteria_scores,
+                                            status: submission.status,
+                                            studentName: submission.student_name || submission.student?.username,
+                                            resubmit_count: submission.resubmit_count || 0,
+                                            is_late: submission.is_late || false,
+                                            last_resubmit_at: submission.last_resubmit_at,
+                                            submitted_at: submission.submitted_at,
+                                            file_type: file.file_type || 'image',
+                                            file_index: fileIndex + 1,
+                                            total_files: submissionFiles.length,
+                                            submission_id: submission.id
+                                        });
+                                    }
                                 });
                             } else {
-                                console.log('   ⚠️ Skipped:', {
-                                    reason: !fileUrl ? 'No file URL/path' : 'Not an image',
-                                    file_type: submission.file_type,
-                                    has_url: !!fileUrl
-                                });
+                                // Single file submission (legacy)
+                                const fileUrl = submission.file_url || submission.file_path;
+                                if (fileUrl) {
+                                    folderOutputs.push({
+                                        url: fileUrl,
+                                        date: new Date(submission.submitted_at),
+                                        title: submission.activity_title || activity.title,
+                                        activity_type: submission.activity_type || activity.activity_type,
+                                        caption: submission.caption,
+                                        score: submission.score,
+                                        total_score: submission.total_score,
+                                        max_score: submission.max_score,
+                                        criteria_scores: submission.criteria_scores,
+                                        status: submission.status,
+                                        studentName: submission.student_name || submission.student?.username,
+                                        resubmit_count: submission.resubmit_count || 0,
+                                        is_late: submission.is_late || false,
+                                        last_resubmit_at: submission.last_resubmit_at,
+                                        submitted_at: submission.submitted_at,
+                                        file_type: submission.file_type || 'image',
+                                        file_index: 1,
+                                        total_files: 1,
+                                        submission_id: submission.id
+                                    });
+                                }
                             }
                         });
                     } catch (error) {
                         console.error(`Error loading submissions for activity ${activity.id}:`, error);
-                        showError(`Failed to load submissions for activity ${activity.id}`, 'Error');
                     }
-                }
+                });
+
+                await Promise.all(activityPromises);
 
                 // Store outputs by folder id
-                console.log(`📊 Folder "${folder.name}" summary: ${folderOutputs.length} total outputs collected`);
                 if (folderOutputs.length > 0) {
-                    studentOutputs.value[folder.id.toString()] = folderOutputs;
-                    console.log(`✅ Stored ${folderOutputs.length} outputs for folder ${folder.name} (ID: ${folder.id})`);
-                } else {
-                    console.log(`⚠️ No outputs found for folder ${folder.name}`);
+                    return { folderId: folder.id.toString(), outputs: folderOutputs };
                 }
+                return null;
             } catch (error) {
                 console.error(`Error loading activities for folder ${folder.id}:`, error);
-                showError(`Failed to load activities for folder ${folder.id}`, 'Error');
+                return null;
             }
-        }
+        });
+
+        // Wait for all folders to load
+        const results = await Promise.all(folderPromises);
+        
+        // Combine results
+        results.forEach(result => {
+            if (result) {
+                studentOutputs.value[result.folderId] = result.outputs;
+                console.log(`✅ Stored ${result.outputs.length} outputs for folder ID: ${result.folderId}`);
+            }
+        });
 
         console.log('📦 Total loaded student outputs:', studentOutputs.value);
     } catch (error) {
@@ -1259,6 +1579,7 @@ const loadStudentSubmissions = async (studentId) => {
     } finally {
         isLoadingOutputs.value = false;
     }
+
 };
 
 const viewOutputs = async (student) => {

@@ -84,6 +84,7 @@ urlpatterns = [
     path('api/notifications/check-edit-deadlines/', views.check_activity_edit_deadlines_api, name='check_activity_edit_deadlines_api'),
 
     # Student progress routes - ORDER MATTERS! More specific routes first
+    path('api/students/progress/class-record/', views.class_record_api, name='class_record_api'),
     path('api/students/progress/export/', views.export_progress_records_api, name='export_progress_records_api'),
     path('api/students/progress/', views.student_progress_list_api, name='student_progress_list_api'),
     path('api/students/<int:student_id>/export/', views.export_student_record_api, name='export_student_record_api'),

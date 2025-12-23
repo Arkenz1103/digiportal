@@ -493,54 +493,95 @@
 
                   <!-- Student Submissions Section -->
                   <div class="mt-6 border-t border-indigo-100 pt-6" v-if="studentSubmissions.length > 0">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Your Submissions:</h3>
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-lg font-semibold text-gray-900">Your Submissions:</h3>
+                      <span class="text-sm text-gray-500">{{ currentSubmissionIndex + 1 }} / {{ studentSubmissions.length }}</span>
+                    </div>
 
-                    <!-- Student Submission Cards -->
-                    <div class="flex flex-wrap justify-center gap-4">
-                      <div v-for="(submission, index) in studentSubmissions" :key="index"
-                           class="bg-white rounded-lg border border-indigo-100 overflow-hidden hover:shadow-md transition-all w-full max-w-2xl mx-auto">
+                    <!-- Submission Carousel -->
+                    <div class="relative">
+                      <!-- Navigation Arrows -->
+                      <button 
+                        v-if="studentSubmissions.length > 1"
+                        @click="prevSubmission"
+                        :disabled="currentSubmissionIndex === 0"
+                        class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-200"
+                        :class="{ 'opacity-50 cursor-not-allowed': currentSubmissionIndex === 0 }">
+                        <i class="pi pi-chevron-left text-gray-600"></i>
+                      </button>
+
+                      <button 
+                        v-if="studentSubmissions.length > 1"
+                        @click="nextSubmission"
+                        :disabled="currentSubmissionIndex === studentSubmissions.length - 1"
+                        class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-200"
+                        :class="{ 'opacity-50 cursor-not-allowed': currentSubmissionIndex === studentSubmissions.length - 1 }">
+                        <i class="pi pi-chevron-right text-gray-600"></i>
+                      </button>
+
+                      <!-- Single Submission Card -->
+                      <div class="bg-white rounded-lg border border-indigo-100 overflow-hidden shadow-sm max-w-2xl mx-auto">
                         <div class="aspect-video relative bg-gray-50 overflow-hidden flex items-center justify-center p-2">
                           <!-- Image Display -->
-                          <img v-if="submission.isImage && submission.previewUrl"
-                            :src="submission.previewUrl"
-                            :alt="submission.caption || 'Submitted work'"
-                            class="w-full h-full object-cover rounded-lg"
-                            @error="handleImageError(submission)"
-                            v-show="!submission.loadError"
+                          <img v-if="currentSubmission?.isImage && currentSubmission?.previewUrl"
+                            :src="currentSubmission.previewUrl"
+                            :alt="currentSubmission.caption || 'Submitted work'"
+                            class="w-full h-full object-contain rounded-lg"
+                            @error="handleImageError(currentSubmission)"
+                            v-show="!currentSubmission.loadError"
                           />
                           <!-- PDF Display -->
-                          <div v-else-if="!submission.isImage && submission.previewUrl" class="flex flex-col items-center justify-center text-red-600">
+                          <div v-else-if="!currentSubmission?.isImage && currentSubmission?.previewUrl" class="flex flex-col items-center justify-center text-red-600">
                             <i class="pi pi-file-pdf text-6xl mb-3"></i>
                             <span class="text-sm font-medium">Document</span>
-                            <span class="text-xs text-gray-500 mt-1">{{ submission.caption || 'Untitled' }}</span>
+                            <span class="text-xs text-gray-500 mt-1">{{ currentSubmission.caption || 'Untitled' }}</span>
+                            <a 
+                              :href="currentSubmission.previewUrl" 
+                              target="_blank"
+                              @click.stop
+                              class="mt-3 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                              <i class="pi pi-external-link"></i>
+                              Open PDF
+                            </a>
                           </div>
                         </div>
                         <div class="p-4">
-                          <p v-if="submission.caption" class="text-sm text-gray-600 mb-2">{{ submission.caption }}</p>
+                          <p v-if="currentSubmission?.caption" class="text-sm text-gray-600 mb-2">{{ currentSubmission.caption }}</p>
 
                           <!-- Score Display -->
-                          <div v-if="submission.score !== null && submission.score !== undefined" class="mb-2 p-2 bg-indigo-50 rounded-lg">
+                          <div v-if="currentSubmission?.score !== null && currentSubmission?.score !== undefined" class="mb-2 p-2 bg-indigo-50 rounded-lg">
                             <div class="flex items-center justify-between">
                               <span class="text-sm font-medium text-indigo-900">Score:</span>
-                              <span class="text-lg font-bold text-indigo-700">{{ submission.score }}</span>
+                              <span class="text-lg font-bold text-indigo-700">{{ currentSubmission.score }}</span>
                             </div>
-                            <p v-if="submission.feedback" class="text-xs text-gray-600 mt-1 italic">
-                              "{{ submission.feedback }}"
+                            <p v-if="currentSubmission?.feedback" class="text-xs text-gray-600 mt-1 italic">
+                              "{{ currentSubmission.feedback }}"
                             </p>
                           </div>
 
                           <div class="flex justify-between items-center mt-2">
                             <div class="flex items-center gap-2">
-                              <span class="text-xs text-gray-500">{{ submission.date }}</span>
+                              <span class="text-xs text-gray-500">{{ currentSubmission?.date }}</span>
                             </div>
                             <span class="text-xs px-2 py-1 rounded"
-                                  :class="submission.status === 'scored' ? 'bg-green-100 text-green-800' :
-                                         submission.status === 'unscored' ? 'bg-yellow-100 text-yellow-800' :
+                                  :class="currentSubmission?.status === 'scored' ? 'bg-green-100 text-green-800' :
+                                         currentSubmission?.status === 'unscored' ? 'bg-yellow-100 text-yellow-800' :
                                          'bg-blue-100 text-blue-800'">
-                              {{ submission.status === 'scored' ? 'Scored' : submission.status === 'unscored' ? 'Unscored' : submission.status }}
+                              {{ currentSubmission?.status === 'scored' ? 'Scored' : currentSubmission?.status === 'unscored' ? 'Unscored' : currentSubmission?.status }}
                             </span>
                           </div>
                         </div>
+                      </div>
+
+                      <!-- Dot Indicators -->
+                      <div v-if="studentSubmissions.length > 1" class="flex justify-center gap-2 mt-4">
+                        <button 
+                          v-for="(_, index) in studentSubmissions" 
+                          :key="index"
+                          @click="currentSubmissionIndex = index"
+                          class="w-2.5 h-2.5 rounded-full transition-colors"
+                          :class="index === currentSubmissionIndex ? 'bg-indigo-600' : 'bg-gray-300 hover:bg-gray-400'">
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -3408,6 +3449,25 @@ const displayedSubmittedCount = ref(itemsPerPage);
 
 // Student submissions
 const studentSubmissions = ref([]);
+const currentSubmissionIndex = ref(0);
+
+// Computed property for current submission
+const currentSubmission = computed(() => {
+    return studentSubmissions.value[currentSubmissionIndex.value] || null;
+});
+
+// Navigation functions for submissions carousel
+const nextSubmission = () => {
+    if (currentSubmissionIndex.value < studentSubmissions.value.length - 1) {
+        currentSubmissionIndex.value++;
+    }
+};
+
+const prevSubmission = () => {
+    if (currentSubmissionIndex.value > 0) {
+        currentSubmissionIndex.value--;
+    }
+};
 
 // Submitted collection state
 const submittedCollection = ref([]);
@@ -3682,6 +3742,7 @@ const backToFolders = () => {
   selectedFolder.value = null;
   selectedActivity.value = null;
   studentSubmissions.value = [];
+  currentSubmissionIndex.value = 0;
 
   // Clear saved view state
   localStorage.removeItem('student_current_view');
@@ -3692,6 +3753,7 @@ const backToFolders = () => {
 const backToActivitiesList = () => {
   selectedActivity.value = null;
   studentSubmissions.value = [];
+  currentSubmissionIndex.value = 0;
   hasSubmittedWork.value = false;
   showSubmittedCollection.value = false;
 
@@ -4219,6 +4281,7 @@ const loadActivitySubmissions = async (activityId) => {
       // Map API response to display format
       // If a submission has multiple files, create separate entries for each file
       studentSubmissions.value = [];
+      currentSubmissionIndex.value = 0; // Reset carousel index
       
       response.data.forEach(submission => {
         console.log('🖼️ Processing submission:', {

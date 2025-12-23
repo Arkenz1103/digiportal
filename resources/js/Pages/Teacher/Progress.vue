@@ -67,93 +67,75 @@
     <!-- Filters and Table Section -->
     <div class="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-sm border border-indigo-100">
       <div class="flex flex-col space-y-6">
-        <!-- Statistics boxes -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- Search Bar and Statistics Row - Aligned Horizontally -->
+        <div class="flex items-center gap-2">
+            <!-- Search Bar -->
+            <div class="relative flex-shrink-0" style="width: 240px;">
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search by folder or activity..."
+                class="w-full pl-9 pr-8 py-2 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 transition-all text-gray-700 placeholder-gray-400 text-sm"
+              />
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="pi pi-search text-indigo-500 text-xs"></i>
+              </div>
+              <button
+                v-if="searchQuery"
+                @click="searchQuery = ''"
+                class="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </div>
+
             <!-- Total Activities -->
             <div
                 @click="setFilter('all')"
-                class="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
-                :class="activeFilter === 'all' ? 'border-indigo-500 border-2 ring-2 ring-indigo-200' : 'border-indigo-100'">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i class="pi pi-book text-xl text-indigo-600"></i>
+                class="flex-1 bg-gradient-to-r from-indigo-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm"
+                :class="activeFilter === 'all' ? 'border-indigo-500 border-2 ring-1 ring-indigo-200' : 'border-indigo-100'">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <i class="pi pi-book text-xs text-indigo-600"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm text-indigo-600 font-semibold whitespace-nowrap">Total Activities</p>
-                        <p class="text-2xl font-bold text-indigo-900">{{ records.length }}</p>
+                        <p class="text-xs text-indigo-600 font-semibold leading-tight">Total Activities</p>
+                        <p class="text-base font-bold text-indigo-900 leading-tight">{{ records.length }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Completed -->
+            <!-- Completed (Submitted, Submitted Late, Resubmitted, Scored) -->
             <div
                 @click="setFilter('completed')"
-                class="bg-gradient-to-br from-green-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
-                :class="activeFilter === 'completed' ? 'border-green-500 border-2 ring-2 ring-green-200' : 'border-green-100'">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i class="pi pi-check text-xl text-green-600"></i>
+                class="flex-1 bg-gradient-to-r from-green-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm"
+                :class="activeFilter === 'completed' ? 'border-green-500 border-2 ring-1 ring-green-200' : 'border-green-100'">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <i class="pi pi-check text-xs text-green-600"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm text-green-600 font-semibold whitespace-nowrap">Completed</p>
-                        <p class="text-2xl font-bold text-green-700">{{ completedCount }}</p>
+                        <p class="text-xs text-green-600 font-semibold leading-tight">Completed</p>
+                        <p class="text-base font-bold text-green-700 leading-tight">{{ completedCount }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Pending -->
+            <!-- Incomplete (Pending + Missing) -->
             <div
-                @click="setFilter('pending')"
-                class="bg-gradient-to-br from-amber-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
-                :class="activeFilter === 'pending' ? 'border-amber-500 border-2 ring-2 ring-amber-200' : 'border-amber-100'">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i class="pi pi-clock text-xl text-amber-600"></i>
+                @click="setFilter('incomplete')"
+                class="flex-1 bg-gradient-to-r from-red-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm"
+                :class="activeFilter === 'incomplete' ? 'border-red-500 border-2 ring-1 ring-red-200' : 'border-red-100'">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <i class="pi pi-times-circle text-xs text-red-600"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm text-amber-600 font-semibold whitespace-nowrap">Pending</p>
-                        <p class="text-2xl font-bold text-amber-700">{{ pendingCount }}</p>
+                        <p class="text-xs text-red-600 font-semibold leading-tight">Incomplete</p>
+                        <p class="text-base font-bold text-red-700 leading-tight">{{ incompleteCount }}</p>
                     </div>
                 </div>
             </div>
-
-            <!-- Missing -->
-            <div
-                @click="setFilter('missing')"
-                class="bg-gradient-to-br from-red-50 to-white p-4 rounded-xl border shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md transform hover:scale-105"
-                :class="activeFilter === 'missing' ? 'border-red-500 border-2 ring-2 ring-red-200' : 'border-red-100'">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i class="pi pi-times-circle text-xl text-red-600"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm text-red-600 font-semibold whitespace-nowrap">Missing</p>
-                        <p class="text-2xl font-bold text-red-700">{{ missingCount }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Search Bar -->
-        <div class="w-full max-w-md">
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search by folder or activity..."
-              class="w-full pl-10 pr-10 py-2 rounded-lg border-2 border-indigo-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 text-gray-700 placeholder-gray-400 text-sm shadow-sm"
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <i class="pi pi-search text-indigo-500 text-sm"></i>
-            </div>
-            <button
-              v-if="searchQuery"
-              @click="searchQuery = ''"
-              class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <i class="pi pi-times text-xs"></i>
-            </button>
-          </div>
         </div>
 
         <!-- Search Results Notification -->
@@ -232,18 +214,18 @@
         </DataTable>
 
         <!-- Load More Button -->
-        <div v-if="!isLoading && hasMoreRecords" class="flex justify-center mt-6">
+        <div v-if="!isLoading && hasMoreRecords" class="p-3 text-center border-t border-gray-100 bg-gradient-to-r from-indigo-50 to-violet-50 rounded-b-lg">
           <button
             @click="loadMore"
-            class="flex flex-col items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg group"
+            class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 mx-auto text-sm"
           >
-            <span class="text-sm font-medium">Load More Activities</span>
-            <i class="pi pi-chevron-down text-lg group-hover:translate-y-1 transition-transform duration-200"></i>
+            <i class="pi pi-chevron-down text-xs"></i>
+            <span>Load More ({{ remainingRecords }} more)</span>
           </button>
         </div>
 
         <!-- End of Records Message -->
-        <div v-if="!isLoading && !hasMoreRecords && filteredRecords.length > 0" class="flex justify-center mt-6">
+        <div v-if="!isLoading && !hasMoreRecords && filteredRecords.length > 0" class="flex justify-center mt-4">
           <div class="text-sm text-gray-500 flex items-center gap-2">
             <i class="pi pi-check-circle text-indigo-600"></i>
             <span>All activities loaded</span>
@@ -418,6 +400,21 @@ const loadStudentWork = async (studentId) => {
     isLoading.value = true;
     console.log('🔍 loadStudentWork called with studentId:', studentId);
     console.log('   Type:', typeof studentId);
+    console.log('   Full studentData:', JSON.stringify(studentData.value));
+
+    // Get student's classroom info
+    const studentGradeLevel = studentData.value?.gradeLevel || studentData.value?.grade_level || '';
+    const studentSection = studentData.value?.section || '';
+    const studentClassroom = studentData.value?.classroom || '';
+    // Build expected classroom name format: "Grade 1 - A"
+    const expectedClassroom = studentGradeLevel && studentSection 
+        ? `${studentGradeLevel} - ${studentSection}` 
+        : studentClassroom;
+    
+    console.log('   Student gradeLevel:', studentGradeLevel);
+    console.log('   Student section:', studentSection);
+    console.log('   Student classroom:', studentClassroom);
+    console.log('   Expected classroom match:', expectedClassroom);
 
     try {
         // Load portfolio folders
@@ -429,13 +426,43 @@ const loadStudentWork = async (studentId) => {
 
         // Load submissions for each folder
         for (const folder of portfolioFolders.value) {
-            console.log(`\n📂 Processing folder: ${folder.name} (ID: ${folder.id})`);
+            // Check if folder belongs to student's classroom
+            const folderClassroom = folder.classroom_name || folder.class_name || '';
+            console.log(`\n📂 Processing folder: ${folder.name} (ID: ${folder.id}, Classroom: ${folderClassroom})`);
+            
+            // Skip folders not in student's classroom
+            if (expectedClassroom && folderClassroom && 
+                folderClassroom !== 'General' && 
+                folderClassroom !== expectedClassroom) {
+                console.log(`   ⏭️ Skipping folder "${folder.name}" - classroom mismatch (${folderClassroom} vs ${expectedClassroom})`);
+                continue;
+            }
+
             try {
                 const activitiesResponse = await axios.get(`/api/portfolio/folders/${folder.id}/activities/`);
                 const activities = activitiesResponse.data || [];
 
                 for (const activity of activities) {
-                    console.log(`   📝 Activity: ${activity.title} (ID: ${activity.id})`);
+                    // Skip unpublished/retracted activities - only show published ones
+                    if (!activity.is_published) {
+                        console.log(`   ⏭️ Skipping activity "${activity.title}" - not published`);
+                        continue;
+                    }
+
+                    // Filter activities by student's classroom
+                    const activityClassroom = activity.classroom_name || '';
+                    
+                    // Skip activities not assigned to this student's classroom
+                    // Only filter if both have valid classroom info and they don't match
+                    if (expectedClassroom && activityClassroom && 
+                        activityClassroom !== 'General' && 
+                        activityClassroom !== expectedClassroom) {
+                        console.log(`   ⏭️ Skipping activity "${activity.title}" - classroom mismatch (${activityClassroom} vs ${expectedClassroom})`);
+                        continue;
+                    }
+
+                    console.log(`   📝 Activity: ${activity.title} (ID: ${activity.id}, Classroom: ${activityClassroom}, Published: ${activity.is_published})`);
+
                     try {
                         const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
                         const submissions = submissionsResponse.data || [];
@@ -572,12 +599,16 @@ const filteredRecords = computed(() => {
     if (activeFilter.value !== 'all') {
         if (activeFilter.value === 'completed') {
             filtered = filtered.filter(record =>
-                record.status === 'Scored' || record.status === 'Submitted'
+                record.status === 'Scored' || 
+                record.status === 'Submitted' || 
+                record.status === 'Submitted Late' || 
+                record.status === 'Resubmitted'
             );
-        } else if (activeFilter.value === 'pending') {
-            filtered = filtered.filter(record => record.status === 'Pending');
-        } else if (activeFilter.value === 'missing') {
-            filtered = filtered.filter(record => record.status === 'Missing');
+        } else if (activeFilter.value === 'incomplete') {
+            filtered = filtered.filter(record => 
+                record.status === 'Pending' || 
+                record.status === 'Missing'
+            );
         }
     }
 
@@ -600,6 +631,10 @@ const paginatedRecords = computed(() => {
 
 const hasMoreRecords = computed(() => {
     return filteredRecords.value.length > displayLimit.value;
+});
+
+const remainingRecords = computed(() => {
+    return filteredRecords.value.length - displayLimit.value;
 });
 
 const loadMore = () => {
@@ -793,15 +828,19 @@ const openRemarkDetail = async (remark) => {
 };
 
 const completedCount = computed(() => {
-    return records.value.filter(record => record.status === "Scored" || record.status === "Submitted").length;
+    return records.value.filter(record => 
+        record.status === "Scored" || 
+        record.status === "Submitted" || 
+        record.status === "Submitted Late" || 
+        record.status === "Resubmitted"
+    ).length;
 });
 
-const pendingCount = computed(() => {
-    return records.value.filter(record => record.status === "Pending").length;
-});
-
-const missingCount = computed(() => {
-    return records.value.filter(record => record.status === "Missing").length;
+const incompleteCount = computed(() => {
+    return records.value.filter(record => 
+        record.status === "Pending" || 
+        record.status === "Missing"
+    ).length;
 });
 
 // Reset display limit when search query or filter changes

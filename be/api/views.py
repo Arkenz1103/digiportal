@@ -3796,6 +3796,98 @@ def sketch_delete_api(request, sketch_id):
 
 @csrf_exempt
 @api_view(['GET'])
+def class_record_api(request):
+    """Get class record data - all activities grouped by subject with student submissions"""
+    if not request.user.is_authenticated or request.user.role != 'teacher':
+        return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        classroom_id = request.GET.get('classroom_id', None)
+
+        # Get teacher's folders
+        teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
+
+        # Filter by classroom if provided
+        if classroom_id:
+            try:
+                classroom = Classroom.objects.get(id=classroom_id)
+                teacher_folders = teacher_folders.filter(
+                    Q(classroom=classroom) | Q(class_name=str(classroom))
+                )
+            except Classroom.DoesNotExist:
+                pass
+
+        # Get all published activities grouped by folder (subject)
+        activities = PortfolioActivity.objects.filter(
+            folder__in=teacher_folders,
+            is_published=True
+        ).select_related('folder').order_by('folder__name', 'created_at')
+
+        # Group activities by subject (folder name)
+        subjects = {}
+        for activity in activities:
+            folder_name = activity.folder.name
+            if folder_name not in subjects:
+                subjects[folder_name] = {
+                    'folder_id': activity.folder.id,
+                    'activities': []
+                }
+            subjects[folder_name]['activities'].append({
+                'id': activity.id,
+                'title': activity.title,
+                'type': activity.activity_type,
+                'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else None,
+            })
+
+        # Get all submissions for these activities
+        activity_ids = [a.id for a in activities]
+        submissions = StudentSubmission.objects.filter(
+            activity_id__in=activity_ids
+        ).select_related('student', 'activity')
+
+        # Create submission map: "studentId-activityId" -> submission data
+        submission_map = {}
+        for sub in submissions:
+            key = f"{sub.student_id}-{sub.activity_id}"
+            
+            # Calculate score display
+            score_display = 'N/A'
+            if sub.status == 'scored':
+                if sub.criteria_scores:
+                    try:
+                        criteria = json.loads(sub.criteria_scores) if isinstance(sub.criteria_scores, str) else sub.criteria_scores
+                        sub_score = sum(int(c.get('score', 0)) for c in criteria)
+                        sub_max = sum(int(c.get('maxScore', 0)) for c in criteria)
+                        score_display = f"{sub_score}/{sub_max}"
+                    except:
+                        score_display = f"{sub.score}/10" if sub.score else 'N/A'
+                elif sub.score:
+                    score_display = f"{sub.score}/10"
+
+            submission_map[key] = {
+                'id': sub.id,
+                'status': sub.status,
+                'score': score_display,
+                'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %I:%M %p') if sub.submitted_at else None,
+                'is_late': sub.is_late,
+            }
+
+        print(f"📊 Class record: {len(subjects)} subjects, {len(activity_ids)} activities, {len(submission_map)} submissions")
+
+        return Response({
+            'subjects': subjects,
+            'submissions': submission_map,
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"Error fetching class record: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
 def student_progress_list_api(request):
     """Get list of students from teacher's assigned classroom(s) with their progress summary"""
     if not request.user.is_authenticated or request.user.role != 'teacher':

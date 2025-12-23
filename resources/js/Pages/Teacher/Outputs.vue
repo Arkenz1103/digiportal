@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
 import { useToast } from '../../composables/useToast';
@@ -11,6 +12,15 @@ const { showSuccess, showError, showInfo, showWarning } = useToast();
 // Activity export dropdown state
 const showActivityExportDropdown = ref(false);
 const activityExportDropdownRef = ref(null);
+
+// Export confirmation dialog state
+const showExportConfirmDialog = ref(false);
+
+// Confirm export action
+const confirmExportAction = () => {
+    showExportConfirmDialog.value = false;
+    exportActivityResults('complete');
+};
 
 // Toggle activity export dropdown
 const toggleActivityExportDropdown = () => {
@@ -24,7 +34,30 @@ const handleExportClickOutside = (event) => {
     }
 };
 
-// Export activity results function - generates CSV from displayed data
+// Helper function to get last name for sorting
+const getLastName = (name) => {
+    const parts = name.trim().split(' ');
+    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : name.toLowerCase();
+};
+
+// Helper function to determine accurate status
+const getAccurateStatus = (submission) => {
+    if (!submission || submission.status === 'Missing' || submission.status === 'Not Submitted') {
+        return 'Missing';
+    }
+    if (submission.status === 'scored') {
+        return submission.is_late ? 'Submitted Late' : 'Submitted';
+    }
+    if (submission.status === 'submitted' || submission.status === 'Submitted') {
+        return submission.is_late ? 'Submitted Late' : 'Pending';
+    }
+    if (submission.resubmit_count > 0) {
+        return 'Resubmitted';
+    }
+    return submission.status || 'Pending';
+};
+
+// Export activity results function - generates XLSX from displayed data
 const exportActivityResults = (exportType) => {
     showActivityExportDropdown.value = false;
 
@@ -34,40 +67,67 @@ const exportActivityResults = (exportType) => {
     }
 
     try {
-        let csvContent = '';
-        let filename = '';
         const timestamp = new Date().toISOString().slice(0, 10);
         const activityName = activity.value.title.replace(/\s+/g, '_');
         const className = activity.value.class ? activity.value.class.replace(/\s+/g, '_') : 'Class';
 
         if (exportType === 'submitted') {
-            // Export submitted (unscored) submissions only
+            // Export submitted (unscored) submissions only - CSV
             if (submissions.value.length === 0) {
                 showError('No pending submissions to export', 'Export Error');
                 return;
             }
 
-            csvContent = 'No,Student ID,Student Name,Status,Date Submitted,Time Submitted,Late Submission,Resubmissions\n';
-            submissions.value.forEach((sub, index) => {
-                csvContent += `${index + 1},"${sub.studentId}","${sub.name}","Pending Score","${sub.date}","${sub.time}","${sub.is_late ? 'Yes' : 'No'}","${sub.resubmit_count || 0}"\n`;
+            let csvContent = 'No,Student ID,Student Name,Status,Date & Time Submitted,Late Submission,Resubmissions\n';
+            const sortedSubs = [...submissions.value].sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name)));
+            sortedSubs.forEach((sub, index) => {
+                const dateTime = sub.date && sub.time ? `${sub.date} ${sub.time}` : 'N/A';
+                csvContent += `${index + 1},"${sub.studentId}","${sub.name}","Pending","${dateTime}","${sub.is_late ? 'Yes' : 'No'}","${sub.resubmit_count || 0}"\n`;
             });
-            filename = `${activityName}_Pending_${className}_${timestamp}.csv`;
+            
+            const filename = `${activityName}_Pending_${className}_${timestamp}.csv`;
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            showSuccess(`Exported ${filename}`, 'Download Complete');
+            return;
 
         } else if (exportType === 'not_submitted') {
-            // Export students who haven't submitted
+            // Export students who haven't submitted - CSV
             if (incompleteSubmissions.value.length === 0) {
                 showError('All students have submitted!', 'Export Info');
                 return;
             }
 
-            csvContent = 'No,Student ID,Student Name,Status\n';
-            incompleteSubmissions.value.forEach((student, index) => {
-                csvContent += `${index + 1},"${student.studentIdNumber}","${student.name}","${student.status}"\n`;
+            let csvContent = 'No,Student ID,Student Name,Status\n';
+            const sortedStudents = [...incompleteSubmissions.value].sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name)));
+            sortedStudents.forEach((student, index) => {
+                csvContent += `${index + 1},"${student.studentIdNumber}","${student.name}","Missing"\n`;
             });
-            filename = `${activityName}_NotSubmitted_${className}_${timestamp}.csv`;
+            
+            const filename = `${activityName}_NotSubmitted_${className}_${timestamp}.csv`;
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            showSuccess(`Exported ${filename}`, 'Download Complete');
+            return;
 
         } else {
-            // Complete report - ALL students with scores
+            // Complete report - ALL students with scores - XLSX format
             const totalStudents = scoredSubmissionsData.value.length + submissions.value.length + incompleteSubmissions.value.length;
             
             if (totalStudents === 0) {
@@ -75,40 +135,121 @@ const exportActivityResults = (exportType) => {
                 return;
             }
 
-            csvContent = 'No,Student ID,Student Name,Score,Status,Date Submitted,Late Submission\n';
-            let rowNum = 1;
-            
-            // Add scored submissions first
+            // Create workbook
+            const workbook = XLSX.utils.book_new();
+
+            // Calculate totals
+            const totalSubmissions = scoredSubmissionsData.value.length + submissions.value.length;
+            const totalIncomplete = incompleteSubmissions.value.length;
+
+            // Calculate max score from scoring criteria
+            let maxScore = 0;
+            if (activity.value.scoringCriteria && Array.isArray(activity.value.scoringCriteria)) {
+                maxScore = activity.value.scoringCriteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0);
+            }
+
+            // Combine all students and sort by last name
+            const allStudents = [];
+
+            // Add scored submissions
             scoredSubmissionsData.value.forEach(sub => {
-                csvContent += `${rowNum++},"${sub.studentId}","${sub.name}","${sub.score || 'N/A'}","Scored","${sub.date}","${sub.is_late ? 'Yes' : 'No'}"\n`;
+                // Format score with overall
+                let scoreDisplay = 'None';
+                if (sub.score !== null && sub.score !== undefined && sub.score !== 'None') {
+                    scoreDisplay = maxScore > 0 ? `${sub.score}/${maxScore}` : `${sub.score}`;
+                }
+                
+                allStudents.push({
+                    studentId: sub.studentId,
+                    name: sub.name,
+                    status: sub.is_late ? 'Submitted Late' : 'Submitted',
+                    dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'N/A'),
+                    score: scoreDisplay
+                });
             });
-            
+
             // Add unscored/pending submissions
             submissions.value.forEach(sub => {
-                csvContent += `${rowNum++},"${sub.studentId}","${sub.name}","Not Scored","Submitted","${sub.date}","${sub.is_late ? 'Yes' : 'No'}"\n`;
+                let status = 'Pending';
+                if (sub.resubmit_count > 0) {
+                    status = `Resubmitted x${sub.resubmit_count}`;
+                } else if (sub.is_late) {
+                    status = 'Submitted Late';
+                }
+                allStudents.push({
+                    studentId: sub.studentId,
+                    name: sub.name,
+                    status: status,
+                    dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'N/A'),
+                    score: 'None'
+                });
             });
-            
+
             // Add students who haven't submitted
             incompleteSubmissions.value.forEach(student => {
-                csvContent += `${rowNum++},"${student.studentIdNumber}","${student.name}","N/A","${student.status}","N/A","N/A"\n`;
+                allStudents.push({
+                    studentId: student.studentIdNumber,
+                    name: student.name,
+                    status: 'Missing',
+                    dateTimeSubmitted: 'N/A',
+                    score: 'None'
+                });
             });
-            
-            filename = `${activityName}_AllStudents_${className}_${timestamp}.csv`;
+
+            // Sort by last name alphabetically
+            allStudents.sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name)));
+
+            // Build sheet data
+            const sheetData = [];
+
+            // Title row
+            sheetData.push([]);
+            sheetData.push([`ACTIVITY REPORT - ${activity.value.title.toUpperCase()}`]);
+            sheetData.push([`Subject/Folder: ${activity.value.subject || 'N/A'}`]);
+            sheetData.push([`Class: ${activity.value.class || 'N/A'}`]);
+            sheetData.push([`Generated: ${new Date().toLocaleString()}`]);
+            sheetData.push([]);
+            sheetData.push([`Total Submissions: ${totalSubmissions}`]);
+            sheetData.push([`Total Incomplete: ${totalIncomplete}`]);
+            sheetData.push([]);
+
+            // Header row - Score at the end
+            sheetData.push(['No', 'Student ID', 'Student Name', 'Status', 'Date & Time Submitted', 'Score']);
+
+            // Data rows
+            allStudents.forEach((student, index) => {
+                sheetData.push([
+                    index + 1,
+                    student.studentId,
+                    student.name,
+                    student.status,
+                    student.dateTimeSubmitted,
+                    student.score
+                ]);
+            });
+
+            // Create worksheet
+            const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+            // Set column widths
+            worksheet['!cols'] = [
+                { wch: 5 },   // No
+                { wch: 15 },  // Student ID
+                { wch: 25 },  // Student Name
+                { wch: 18 },  // Status
+                { wch: 22 },  // Date & Time Submitted
+                { wch: 12 }   // Score
+            ];
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'All Students');
+
+            // Generate filename and download
+            const filename = `${activityName}_AllStudents_${className}_${timestamp}.xlsx`;
+            XLSX.writeFile(workbook, filename);
+
+            showSuccess(`Exported ${filename}`, 'Download Complete');
         }
-
-        // Create and download the file
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        showSuccess(`Exported ${filename}`, 'Download Complete');
     } catch (error) {
         console.error('Export error:', error);
         showError('Failed to export activity results', 'Export Error');
@@ -1461,49 +1602,12 @@ const getMedalDetails = (rank) => {
                             <i class="pi pi-users mr-2 text-indigo-600"></i>
                             Student Submissions
                         </div>
-                        <div class="relative" ref="activityExportDropdownRef">
-                            <button
-                                @click="toggleActivityExportDropdown"
-                                class="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm text-sm">
-                                <i class="pi pi-download text-xs"></i>
-                                <span class="font-medium">Export Results</span>
-                                <i class="pi pi-chevron-down text-xs"></i>
-                            </button>
-
-                            <!-- Export Dropdown Menu -->
-                            <div v-if="showActivityExportDropdown"
-                                class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-                                <div class="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
-                                    <h4 class="font-semibold text-emerald-800 text-sm">Export Activity Results</h4>
-                                </div>
-                                <div class="py-2">
-                                    <button @click="exportActivityResults('complete')"
-                                        class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                                        <i class="pi pi-file-export text-emerald-600"></i>
-                                        <div>
-                                            <span class="text-sm font-medium text-gray-800">All Students Report</span>
-                                            <p class="text-xs text-gray-500">Scores, submitted & missing</p>
-                                        </div>
-                                    </button>
-                                    <button @click="exportActivityResults('submitted')"
-                                        class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                                        <i class="pi pi-inbox text-blue-600"></i>
-                                        <div>
-                                            <span class="text-sm font-medium text-gray-800">Pending Only</span>
-                                            <p class="text-xs text-gray-500">Submitted but not yet scored</p>
-                                        </div>
-                                    </button>
-                                    <button @click="exportActivityResults('not_submitted')"
-                                        class="w-full px-4 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                                        <i class="pi pi-user-minus text-red-600"></i>
-                                        <div>
-                                            <span class="text-sm font-medium text-gray-800">Not Submitted</span>
-                                            <p class="text-xs text-gray-500">Students who haven't submitted</p>
-                                        </div>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <button
+                            @click="showExportConfirmDialog = true"
+                            class="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm text-sm">
+                            <i class="pi pi-file-excel text-xs"></i>
+                            <span class="font-medium">Export All Students</span>
+                        </button>
                     </div>
 
                     <!-- Tabs Header -->
@@ -1616,13 +1720,18 @@ const getMedalDetails = (rank) => {
                                         <div class="col-span-5">Contact Info</div>
                                         <div class="col-span-2">Status</div>
                                     </template>
+                                    <template v-else-if="currentTab === 'scored'">
+                                        <div class="col-span-3">Student Name</div>
+                                        <div class="col-span-2">ID Number</div>
+                                        <div class="col-span-2">Status</div>
+                                        <div class="col-span-3">Date & Time Submitted</div>
+                                        <div class="col-span-2 text-center">Score</div>
+                                    </template>
                                     <template v-else>
                                         <div class="col-span-4">Student Name</div>
+                                        <div class="col-span-2">ID Number</div>
                                         <div class="col-span-3">Status</div>
-                                        <div class="col-span-3">Date Submitted</div>
-                                        <div class="col-span-2 text-center">
-                                            {{ currentTab === 'scored' ? 'Score' : 'Action' }}
-                                        </div>
+                                        <div class="col-span-3">Date & Time Submitted</div>
                                     </template>
                                 </div>
 
@@ -1664,45 +1773,46 @@ const getMedalDetails = (rank) => {
                                         <template v-else>
                                             <!-- Standard View for Submitted/Scored -->
                                             <!-- Name & Avatar -->
-                                            <div class="col-span-4 flex items-center gap-3">
+                                            <div :class="currentTab === 'scored' ? 'col-span-3' : 'col-span-4'" class="flex items-center gap-3">
                                                 <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm bg-indigo-100 text-indigo-700">
                                                     {{ item.name.charAt(0).toUpperCase() }}
                                                 </div>
                                                 <div>
                                                     <div class="font-medium text-gray-900">{{ item.name }}</div>
-                                                    <div class="text-xs text-gray-500">{{ item.studentId || 'No ID' }}</div>
                                                 </div>
                                             </div>
 
+                                            <!-- ID Number -->
+                                            <div class="col-span-2 text-sm text-gray-700 font-medium">
+                                                {{ item.studentId || 'No ID' }}
+                                            </div>
+
                                             <!-- Status Badge -->
-                                            <div class="col-span-3">
+                                            <div :class="currentTab === 'scored' ? 'col-span-2' : 'col-span-3'">
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border"
                                                       :class="{
                                                           'bg-blue-50 text-blue-700 border-blue-200': item.resubmit_count > 0,
                                                           'bg-orange-50 text-orange-700 border-orange-200': item.is_late && !item.resubmit_count,
-                                                          'bg-green-50 text-green-700 border-green-200': item.status === 'Submitted' || item.status === 'Scored'
+                                                          'bg-green-50 text-green-700 border-green-200': !item.is_late && !item.resubmit_count
                                                       }">
                                                     <i v-if="item.resubmit_count > 0" class="pi pi-refresh mr-1 text-[10px]"></i>
                                                     <i v-else-if="item.is_late" class="pi pi-clock mr-1 text-[10px]"></i>
                                                     <i v-else class="pi pi-check-circle mr-1 text-[10px]"></i>
-                                                    {{ item.resubmit_count > 0 ? 'Resubmitted' : (item.is_late ? 'Late' : item.status || 'Submitted') }}
+                                                    {{ item.resubmit_count > 0 ? `Resubmitted x${item.resubmit_count}` : (item.is_late ? 'Submitted Late' : 'Submitted') }}
                                                 </span>
                                             </div>
 
-                                            <!-- Date Submitted -->
+                                            <!-- Date & Time Submitted -->
                                             <div class="col-span-3 text-sm text-gray-600">
                                                 <div class="font-medium text-gray-900">{{ item.date }}</div>
                                                 <div class="text-xs text-gray-500">{{ item.time }}</div>
                                             </div>
 
-                                            <!-- Score / Action -->
-                                            <div class="col-span-2 flex justify-center">
-                                                <div v-if="currentTab === 'scored'" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+                                            <!-- Score (only for scored tab) -->
+                                            <div v-if="currentTab === 'scored'" class="col-span-2 flex justify-center">
+                                                <div class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
                                                     {{ item.score }} pts
                                                 </div>
-                                                <button v-else class="p-2 text-gray-400 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-colors">
-                                                    <i class="pi pi-chevron-right"></i>
-                                                </button>
                                             </div>
                                         </template>
                                     </div>
@@ -2185,6 +2295,30 @@ const getMedalDetails = (rank) => {
             >
                 Close
             </button>
+        </template>
+    </Dialog>
+
+    <!-- Export Confirmation Dialog -->
+    <Dialog v-model:visible="showExportConfirmDialog" modal header="Export Activity Results" :style="{ width: '400px' }">
+        <div class="text-center py-4">
+            <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                <i class="pi pi-file-excel text-3xl text-emerald-600"></i>
+            </div>
+            <p class="text-gray-600 text-sm">Are you sure you want to export all students' results for this activity? This will generate an Excel file.</p>
+        </div>
+        <template #footer>
+            <div class="flex gap-3 justify-center">
+                <button
+                    @click="showExportConfirmDialog = false"
+                    class="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button
+                    @click="confirmExportAction"
+                    class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors">
+                    Export
+                </button>
+            </div>
         </template>
     </Dialog>
 </template>

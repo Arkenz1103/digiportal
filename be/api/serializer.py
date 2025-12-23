@@ -124,6 +124,12 @@ class PortfolioActivitySerializer(serializers.ModelSerializer):
 class PortfolioFolderSerializer(serializers.ModelSerializer):
     activities = PortfolioActivitySerializer(many=True, read_only=True)
     teacher = UserSerializer(read_only=True)
+    classroom_name = serializers.SerializerMethodField()
+
+    def get_classroom_name(self, obj):
+        if obj.classroom:
+            return obj.classroom.name
+        return obj.class_name or "General"
 
     class Meta:
         model = PortfolioFolder
@@ -298,6 +304,12 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     display_status = serializers.SerializerMethodField()
     submitted_at = serializers.SerializerMethodField()
+    files = serializers.SerializerMethodField()
+
+    def get_files(self, obj):
+        """Return all files for this submission"""
+        all_files = obj.files.all()
+        return SubmissionFileSerializer(all_files, many=True, context=self.context).data
 
     def get_submitted_at(self, obj):
         """Return submitted_at in Manila timezone"""
