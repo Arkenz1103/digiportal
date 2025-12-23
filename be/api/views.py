@@ -791,7 +791,7 @@ def portfolio_activities_api(request, folder_id):
             # Students only see published activities
             activities = folder.activities.filter(is_published=True).order_by('-created_at')
 
-        serializer = PortfolioActivitySerializer(activities, many=True)
+        serializer = PortfolioActivitySerializer(activities, many=True, context={'request': request})
         activities_data = serializer.data
 
         # For students, add submission status and is_late flag
@@ -960,9 +960,25 @@ def portfolio_activities_api(request, folder_id):
             if serializer.is_valid():
                 activity = serializer.save()
 
+                # Handle instruction file uploads
+                instruction_files = request.FILES.getlist('instruction_files')
+                if instruction_files:
+                    from .models import ActivityInstructionFile
+                    for uploaded_file in instruction_files:
+                        ActivityInstructionFile.objects.create(
+                            activity=activity,
+                            file=uploaded_file,
+                            file_name=uploaded_file.name,
+                            file_type=uploaded_file.content_type,
+                            file_size=uploaded_file.size
+                        )
+                    print(f"Saved {len(instruction_files)} instruction files for activity {activity.id}")
+
                 # Activity is created as draft (is_published=False by default)
                 # No notifications sent until teacher publishes it
 
+                # Re-serialize to include instruction files
+                serializer = PortfolioActivitySerializer(activity, context={'request': request})
                 print(f"Activity created successfully as draft: {serializer.data}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
@@ -990,7 +1006,7 @@ def activity_detail_api(request, activity_id):
         return Response({'error': 'Activity not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = PortfolioActivitySerializer(activity)
+        serializer = PortfolioActivitySerializer(activity, context={'request': request})
         return Response(serializer.data)
 
     elif request.method == 'PUT':
@@ -1203,6 +1219,30 @@ def activity_detail_api(request, activity_id):
 
             activity.save()
 
+            # Handle instruction file uploads
+            instruction_files = request.FILES.getlist('instruction_files')
+            if instruction_files:
+                from .models import ActivityInstructionFile
+                for uploaded_file in instruction_files:
+                    ActivityInstructionFile.objects.create(
+                        activity=activity,
+                        file=uploaded_file,
+                        file_name=uploaded_file.name,
+                        file_type=uploaded_file.content_type,
+                        file_size=uploaded_file.size
+                    )
+                print(f"Saved {len(instruction_files)} new instruction files for activity {activity.id}")
+
+            # Handle deletion of existing instruction files
+            delete_file_ids = data.get('delete_instruction_file_ids', [])
+            if delete_file_ids:
+                from .models import ActivityInstructionFile
+                if isinstance(delete_file_ids, str):
+                    import json
+                    delete_file_ids = json.loads(delete_file_ids)
+                ActivityInstructionFile.objects.filter(id__in=delete_file_ids, activity=activity).delete()
+                print(f"Deleted {len(delete_file_ids)} instruction files from activity {activity.id}")
+
             # Build notification message based on changes
             if changes:
                 changes_text = ', '.join(changes)
@@ -1259,7 +1299,7 @@ def activity_detail_api(request, activity_id):
                 )
 
             print(f"✅ Activity {activity_id} updated successfully")
-            serializer = PortfolioActivitySerializer(activity)
+            serializer = PortfolioActivitySerializer(activity, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             import traceback

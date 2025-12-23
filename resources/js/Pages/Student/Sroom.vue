@@ -148,11 +148,43 @@
                             </p>
                           </div>
                           <div class="flex flex-col gap-2">
-                            <p class="text-sm text-black">
-                              <span class="font-bold">Instruction:</span>
-                            </p>
-                            <div class="text-sm text-black whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
-                              {{ selectedActivity.description || 'No instructions provided' }}
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                              <div class="flex items-center gap-2 flex-wrap">
+                                <p class="text-sm text-black">
+                                  <span class="font-bold">Instruction:</span>
+                                </p>
+                                <!-- Attached Files next to Instruction label -->
+                                <div v-if="selectedActivity.instruction_files && selectedActivity.instruction_files.length > 0" class="flex items-center gap-1 flex-wrap">
+                                  <a 
+                                    v-for="file in selectedActivity.instruction_files.slice(0, 2)" 
+                                    :key="file.id"
+                                    :href="file.file_url"
+                                    target="_blank"
+                                    class="flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs hover:bg-indigo-100 transition-colors"
+                                  >
+                                    <i class="pi pi-file text-indigo-600"></i>
+                                    <span class="text-indigo-700 max-w-[100px] truncate">{{ file.file_name }}</span>
+                                  </a>
+                                  <span 
+                                    v-if="selectedActivity.instruction_files.length > 2"
+                                    class="flex items-center px-2 py-1 bg-gray-100 border border-gray-200 rounded-lg text-xs text-gray-600"
+                                  >
+                                    +{{ selectedActivity.instruction_files.length - 2 }} more
+                                  </span>
+                                </div>
+                              </div>
+                              <button 
+                                @click="showAllInstructionFilesDialog = true"
+                                class="flex items-center gap-1 px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded transition-colors"
+                                title="Expand instruction"
+                              >
+                                <i class="pi pi-expand text-xs"></i>
+                                <span>Expand</span>
+                              </button>
+                            </div>
+                            <div class="text-sm text-black whitespace-pre-wrap break-words max-h-40 overflow-y-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <span v-if="selectedActivity.description">{{ selectedActivity.description }}</span>
+                              <span v-else class="text-gray-500 italic">No instructions provided</span>
                             </div>
                           </div>
                         </div>
@@ -1510,7 +1542,6 @@
                 <i class="pi pi-play-circle text-xl"></i>
                 <span>Start Portfolio Compilation</span>
               </button>
-              <p class="text-gray-500 mt-6 text-sm">Make sure to review all your activities before compiling your portfolio.</p>
             </div>
 
             <!-- Close Content Area -->
@@ -3196,6 +3227,45 @@
         </div>
       </template>
     </Dialog>
+
+    <!-- All Instruction Files Dialog -->
+    <Dialog v-model:visible="showAllInstructionFilesDialog" modal header="Activity Instruction" :style="{ width: '90vw', maxWidth: '600px' }" :dismissableMask="true">
+      <div class="space-y-4">
+        <!-- Instruction Text -->
+        <div v-if="selectedActivity && selectedActivity.description" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{{ selectedActivity.description }}</p>
+        </div>
+        <div v-else-if="!selectedActivity?.instruction_files || selectedActivity.instruction_files.length === 0" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-sm text-gray-500 italic">No instructions provided</p>
+        </div>
+
+        <!-- Attached Files -->
+        <div v-if="selectedActivity && selectedActivity.instruction_files && selectedActivity.instruction_files.length > 0">
+          <h4 class="text-sm font-semibold text-gray-700 mb-2">Attached Files:</h4>
+          <div class="flex flex-col gap-2">
+            <a 
+              v-for="file in selectedActivity.instruction_files" 
+              :key="file.id"
+              :href="file.file_url"
+              target="_blank"
+              class="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-sm hover:bg-indigo-100 transition-colors"
+            >
+              <i class="pi pi-file text-indigo-600"></i>
+              <span class="text-indigo-700 flex-1">{{ file.file_name }}</span>
+              <i class="pi pi-external-link text-indigo-400"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button
+          @click="showAllInstructionFilesDialog = false"
+          class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+        >
+          Close
+        </button>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -3387,6 +3457,7 @@ const submissionScore = ref(null);
 const draftSubmission = ref(null);
 const draftFiles = ref([]);
 const showFilePreview = ref(false);
+const showAllInstructionFilesDialog = ref(false);
 const previewFile = ref(null);
 const previewFileCaption = ref('');
 const replaceFileInput = ref(null);
@@ -3553,7 +3624,8 @@ const loadFolderActivities = async (folderId) => {
             hasSubmitted: hasSubmitted,
             isLate: isLate,
             resubmit_count: resubmitCount,
-            scoringCriteria: scoringCriteria
+            scoringCriteria: scoringCriteria,
+            instruction_files: activity.instruction_files || []
           };
         })
       );

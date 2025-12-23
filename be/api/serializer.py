@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, SubmissionFile, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings, Student, Classroom
+from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, StudentSubmission, SubmissionFile, Sketch, NewsfeedPost, Notification, Remark, RemarkReadStatus, UserSettings, Student, Classroom, ActivityInstructionFile
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -66,9 +66,28 @@ class LessonPlanSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
+class ActivityInstructionFileSerializer(serializers.ModelSerializer):
+    """Serializer for activity instruction files"""
+    file_url = serializers.SerializerMethodField()
+
+    def get_file_url(self, obj):
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+
+    class Meta:
+        model = ActivityInstructionFile
+        fields = ['id', 'file', 'file_name', 'file_type', 'file_size', 'file_url', 'created_at']
+        read_only_fields = ['id', 'created_at', 'file_url']
+
+
 class PortfolioActivitySerializer(serializers.ModelSerializer):
     # Override scoring_criteria to handle JSON parsing for GET requests
     scoring_criteria = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    instruction_files = ActivityInstructionFileSerializer(many=True, read_only=True)
 
     def to_representation(self, instance):
         """Convert model instance to JSON - parse scoring_criteria"""

@@ -61,6 +61,7 @@ const loadActivityFromAPI = async (activityId) => {
             dueTime: response.data.due_time,
             formattedDateTime: formattedDateTime,
             scoringCriteria: scoringCriteria,
+            instruction_files: response.data.instruction_files || [],
             class: response.data.classroom_name || activity.value.class // Get from API, fallback to existing
         };
 
@@ -104,6 +105,7 @@ onMounted(async () => {
             type: parsedActivity.type,
             dueDate: parsedActivity.dueDate,
             scoringCriteria: parsedActivity.scoringCriteria,
+            instruction_files: parsedActivity.instruction_files || [],
             subject: parsedActivity.subject,
             class: parsedActivity.class // Load class from localStorage
         };
@@ -453,6 +455,7 @@ const loadSubmissionDetail = async (submissionId) => {
 
 // Add score dialog state
 const showAddScoreDialog = ref(false);
+const showInstructionExpandDialog = ref(false);
 const creativityScore = ref('');
 const technicalScore = ref('');
 const requirementsScore = ref('');
@@ -1236,10 +1239,10 @@ const getMedalDetails = (rank) => {
 <template>
     <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-violet-50 to-blue-50">
 <!-- Header -->
-<div class="bg-white p-6 md:p-4 shadow-sm border-b border-gray-200">
-    <div class="flex flex-col lg:flex-row gap-6">
-        <!-- Left: Activity Details -->
-        <div class="flex-1 flex flex-col gap-4">
+<div class="bg-white p-4 md:p-3 shadow-sm border-b border-gray-200">
+    <div class="flex flex-col lg:flex-row gap-4 lg:items-stretch">
+        <!-- Left: Activity Details (50%) -->
+        <div class="lg:w-1/2 flex flex-col gap-2">
             <!-- Activity Title -->
             <div class="flex flex-col gap-1">
                 <p class="text-sm text-black">
@@ -1262,21 +1265,53 @@ const getMedalDetails = (rank) => {
             </div>
 
             <!-- Instructions/Description -->
-            <div class="flex flex-col gap-2">
-                <p class="text-sm font-bold text-black">Instruction:</p>
-                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-32 overflow-y-auto">
-                    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{{ activity.description || 'No instructions provided' }}</p>
+            <div class="flex flex-col gap-2 flex-1">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <p class="text-sm font-bold text-black">Instruction:</p>
+                        <!-- Attached Files next to Instruction label -->
+                        <div v-if="activity.instruction_files && activity.instruction_files.length > 0" class="flex items-center gap-1 flex-wrap">
+                            <a 
+                                v-for="file in activity.instruction_files.slice(0, 2)" 
+                                :key="file.id"
+                                :href="file.file_url"
+                                target="_blank"
+                                class="flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs hover:bg-indigo-100 transition-colors"
+                            >
+                                <i class="pi pi-file text-indigo-600"></i>
+                                <span class="text-indigo-700 max-w-[100px] truncate">{{ file.file_name }}</span>
+                            </a>
+                            <span 
+                                v-if="activity.instruction_files.length > 2"
+                                class="flex items-center px-2 py-1 bg-gray-100 border border-gray-200 rounded-lg text-xs text-gray-600"
+                            >
+                                +{{ activity.instruction_files.length - 2 }} more
+                            </span>
+                        </div>
+                    </div>
+                    <button 
+                        @click="showInstructionExpandDialog = true"
+                        class="flex items-center gap-1 px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded transition-colors"
+                        title="Expand instruction"
+                    >
+                        <i class="pi pi-expand text-xs"></i>
+                        <span>Expand</span>
+                    </button>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex-1 overflow-y-auto" style="max-height: 120px;">
+                    <p v-if="activity.description" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{{ activity.description }}</p>
+                    <p v-else class="text-sm text-gray-500 italic">No instructions provided</p>
                 </div>
             </div>
         </div>
 
-        <!-- Right: Scoring Criteria -->
-        <div class="flex-1 lg:border-l lg:border-gray-200 lg:pl-6">
-            <div class="flex flex-col gap-3">
+        <!-- Right: Scoring Criteria (50%) -->
+        <div class="lg:w-1/2 lg:border-l lg:border-gray-200 lg:pl-4">
+            <div class="flex flex-col gap-2 h-full">
                 <div class="flex items-center gap-2">
                     <h3 class="text-sm font-bold text-gray-900">Scoring Criteria:</h3>
                 </div>
-                <div v-if="activity.scoringCriteria && activity.scoringCriteria.length > 0" class="space-y-2 max-h-48 overflow-y-auto">
+                <div v-if="activity.scoringCriteria && activity.scoringCriteria.length > 0" class="space-y-2 flex-1 overflow-y-auto" style="max-height: 180px;">
                     <div v-for="(criterion, index) in activity.scoringCriteria" :key="index" class="flex items-start gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
                         <div class="flex-1 min-w-0">
                             <p class="text-xs font-semibold text-gray-700 truncate">{{ criterion.name }}</p>
@@ -1293,9 +1328,9 @@ const getMedalDetails = (rank) => {
 </div>
 
 
-        <div class="p-8 space-y-8">
+        <div class="p-4 space-y-4">
             <!-- Show submissions list only when no submission is selected -->
-            <div v-if="!selectedSubmission" class="space-y-8">
+            <div v-if="!selectedSubmission" class="space-y-4">
                 <!-- Back to Activities Button -->
                 <div class="flex justify-start">
                     <button
@@ -1948,6 +1983,45 @@ const getMedalDetails = (rank) => {
                 :class="{ 'opacity-50 cursor-not-allowed': criteriaScores.length === 0 || !criteriaScores.every(c => c.score !== '' && c.score !== null) }"
             >
                 Confirm
+            </button>
+        </template>
+    </Dialog>
+
+    <!-- Instruction Expand Dialog -->
+    <Dialog v-model:visible="showInstructionExpandDialog" modal header="Activity Instruction" :style="{ width: '600px' }">
+        <div class="space-y-4">
+            <!-- Instruction Text -->
+            <div v-if="activity.description" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{{ activity.description }}</p>
+            </div>
+            <div v-else-if="!activity.instruction_files || activity.instruction_files.length === 0" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-sm text-gray-500 italic">No instructions provided</p>
+            </div>
+
+            <!-- Attached Files -->
+            <div v-if="activity.instruction_files && activity.instruction_files.length > 0">
+                <h4 class="text-sm font-semibold text-gray-700 mb-2">Attached Files:</h4>
+                <div class="flex flex-wrap gap-2">
+                    <a 
+                        v-for="file in activity.instruction_files" 
+                        :key="file.id"
+                        :href="file.file_url"
+                        target="_blank"
+                        class="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-sm hover:bg-indigo-100 transition-colors"
+                    >
+                        <i class="pi pi-file text-indigo-600"></i>
+                        <span class="text-indigo-700">{{ file.file_name }}</span>
+                        <i class="pi pi-external-link text-indigo-400 text-sm"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <template #footer>
+            <button
+                @click="showInstructionExpandDialog = false"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+                Close
             </button>
         </template>
     </Dialog>

@@ -208,6 +208,22 @@ class PortfolioActivity(models.Model):
         return f"{self.title} ({self.activity_type}) - {self.folder.name}"
 
 
+class ActivityInstructionFile(models.Model):
+    """Instruction files attached to portfolio activities"""
+    activity = models.ForeignKey(PortfolioActivity, on_delete=models.CASCADE, related_name='instruction_files')
+    file = models.FileField(upload_to='instruction_files/%Y/%m/%d/')
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=100, null=True, blank=True)
+    file_size = models.IntegerField(default=0)  # Size in bytes
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'activity_instruction_files'
+
+    def __str__(self):
+        return f"{self.file_name} - {self.activity.title}"
+
+
 class StudentSubmission(models.Model):
     """Student submission model for portfolio activities"""
     STATUS_CHOICES = [

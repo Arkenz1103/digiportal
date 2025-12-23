@@ -1,5 +1,15 @@
 <template>
     <div class="flex flex-col">
+        <!-- Hidden file input for instruction attachments -->
+        <input
+            type="file"
+            ref="instructionFileInput"
+            @change="handleInstructionFileUpload"
+            accept="image/*,.pdf,.doc,.docx"
+            multiple
+            class="hidden"
+        />
+        
         <!-- Class Header -->
         <div class="bg-white p-4 md:p-3 shadow-lg rounded-t-xl border-b border-gray-200">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -1532,15 +1542,41 @@
                         <div>
                             <div class="flex items-center justify-between mb-0.5">
                                 <label for="activityDescription" class="block text-xs font-medium text-gray-700">Instruction</label>
-                                <button
-                                    @click="openPreviewDialog('instruction', newActivity.description)"
-                                    type="button"
-                                    class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
-                                    title="Expand to edit in larger view"
-                                >
-                                    <i class="pi pi-window-maximize text-sm"></i>
-                                    <span>Expand</span>
-                                </button>
+                                <div class="flex items-center gap-1">
+                                    <button
+                                        @click="triggerInstructionFileUpload('new')"
+                                        type="button"
+                                        class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
+                                        title="Attach file for instructions"
+                                    >
+                                        <i class="pi pi-paperclip text-sm"></i>
+                                        <span>Attach</span>
+                                    </button>
+                                    <button
+                                        @click="openPreviewDialog('instruction', newActivity.description)"
+                                        type="button"
+                                        class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
+                                        title="Expand to edit in larger view"
+                                    >
+                                        <i class="pi pi-expand text-sm"></i>
+                                        <span>Expand</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Attached files display for new activity -->
+                            <div v-if="newActivity.instructionFiles && newActivity.instructionFiles.length > 0" class="mb-2 flex flex-wrap gap-2">
+                                <div v-for="(file, index) in newActivity.instructionFiles" :key="index" 
+                                    class="flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs">
+                                    <i :class="getFileIcon(file.type)" class="text-indigo-600"></i>
+                                    <span 
+                                        class="text-gray-700 max-w-[120px] truncate cursor-pointer hover:text-indigo-600 hover:underline"
+                                        @click="viewInstructionFile(file)"
+                                        title="Click to view file"
+                                    >{{ file.name }}</span>
+                                    <button @click="removeInstructionFile('new', index)" type="button" class="text-red-500 hover:text-red-700 ml-1">
+                                        <i class="pi pi-times text-xs"></i>
+                                    </button>
+                                </div>
                             </div>
                             <textarea
                                 id="activityDescription"
@@ -1849,15 +1885,41 @@
                         <div>
                             <div class="flex items-center justify-between mb-0.5">
                                 <label for="editActivityDescription" class="block text-xs font-medium text-gray-700">Instruction</label>
-                                <button
-                                    @click="openPreviewDialog('instruction', editActivityData.description)"
-                                    type="button"
-                                    class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
-                                    title="Expand to edit in larger view"
-                                >
-                                    <i class="pi pi-expand"></i>
-                                    <span>Expand</span>
-                                </button>
+                                <div class="flex items-center gap-1">
+                                    <button
+                                        @click="triggerInstructionFileUpload('edit')"
+                                        type="button"
+                                        class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
+                                        title="Attach file for instructions"
+                                    >
+                                        <i class="pi pi-paperclip text-sm"></i>
+                                        <span>Attach</span>
+                                    </button>
+                                    <button
+                                        @click="openPreviewDialog('instruction', editActivityData.description)"
+                                        type="button"
+                                        class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 rounded transition-colors"
+                                        title="Expand to edit in larger view"
+                                    >
+                                        <i class="pi pi-expand"></i>
+                                        <span>Expand</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Attached files display for edit activity -->
+                            <div v-if="editActivityData.instructionFiles && editActivityData.instructionFiles.length > 0" class="mb-2 flex flex-wrap gap-2">
+                                <div v-for="(file, index) in editActivityData.instructionFiles" :key="index" 
+                                    class="flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-xs">
+                                    <i :class="getFileIcon(file.type)" class="text-indigo-600"></i>
+                                    <span 
+                                        class="text-gray-700 max-w-[120px] truncate cursor-pointer hover:text-indigo-600 hover:underline"
+                                        @click="viewInstructionFile(file)"
+                                        title="Click to view file"
+                                    >{{ file.name }}</span>
+                                    <button @click="removeInstructionFile('edit', index)" type="button" class="text-red-500 hover:text-red-700 ml-1">
+                                        <i class="pi pi-times text-xs"></i>
+                                    </button>
+                                </div>
                             </div>
                             <textarea
                                 id="editActivityDescription"
@@ -2174,7 +2236,8 @@ const navigateToActivityOutputs = (activity, index) => {
         dueDate: activity.due_date,
         class: className.value,
         subject: selectedSubject.value || 'General',
-        scoringCriteria: activity.scoringCriteria // Use camelCase
+        scoringCriteria: activity.scoringCriteria, // Use camelCase
+        instruction_files: activity.instruction_files || [] // Include instruction files
     }));
 
     // Navigate to outputs page
@@ -2237,6 +2300,7 @@ const newActivity = ref({
     description: '',
     dueDate: '',
     dueTime: '',
+    instructionFiles: [],
     scoringCriteria: [
         { name: '', maxScore: 10 }
     ]
@@ -2256,13 +2320,18 @@ const previewCriteriaIndex = ref(null);
 const previewTempContent = ref('');
 const previewTextareaRef = ref(null);
 
+// Instruction file upload ref
+const instructionFileInput = ref(null);
+const currentFileUploadMode = ref('new'); // 'new' or 'edit'
+
 const editActivityData = ref({
     id: null,
     title: '',
     type: '',
     description: '',
     dueDate: '',
-    dueTime: ''
+    dueTime: '',
+    instructionFiles: []
 });
 
 const editScoringCriteria = ref([]);
@@ -2326,6 +2395,102 @@ const isActivityFormValid = computed(() => {
 
     return hasTitle && hasDueDate && hasDueTime && hasValidCriteria;
 });
+
+// Instruction File Handling Functions
+const triggerInstructionFileUpload = (mode) => {
+    currentFileUploadMode.value = mode;
+    if (instructionFileInput.value) {
+        instructionFileInput.value.click();
+    }
+};
+
+const handleInstructionFileUpload = (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const mode = currentFileUploadMode.value;
+    const targetData = mode === 'new' ? newActivity.value : editActivityData.value;
+
+    if (!targetData.instructionFiles) {
+        targetData.instructionFiles = [];
+    }
+
+    for (const file of files) {
+        // Determine file type
+        let fileType = 'file';
+        if (file.type.startsWith('image/')) {
+            fileType = 'image';
+        } else if (file.type === 'application/pdf') {
+            fileType = 'pdf';
+        } else if (file.type.includes('word') || file.type.includes('document')) {
+            fileType = 'document';
+        }
+
+        // Create file object with preview URL
+        const fileObj = {
+            file: file,
+            name: file.name,
+            type: fileType,
+            size: file.size,
+            url: URL.createObjectURL(file)
+        };
+
+        targetData.instructionFiles.push(fileObj);
+    }
+
+    // Reset the input
+    event.target.value = '';
+};
+
+const removeInstructionFile = (mode, index) => {
+    const targetData = mode === 'new' ? newActivity.value : editActivityData.value;
+    if (targetData.instructionFiles && targetData.instructionFiles[index]) {
+        const fileToRemove = targetData.instructionFiles[index];
+        
+        // If it's an existing file from the server, mark it for deletion
+        if (fileToRemove.isExisting && fileToRemove.id) {
+            if (!targetData.deleteInstructionFileIds) {
+                targetData.deleteInstructionFileIds = [];
+            }
+            targetData.deleteInstructionFileIds.push(fileToRemove.id);
+            console.log('Marking file for deletion:', fileToRemove.id);
+        } else {
+            // Revoke the object URL to free memory for new files
+            if (fileToRemove.url) {
+                URL.revokeObjectURL(fileToRemove.url);
+            }
+        }
+        
+        targetData.instructionFiles.splice(index, 1);
+    }
+};
+
+// View instruction file - opens in new tab or shows preview
+const viewInstructionFile = (file) => {
+    if (file.url) {
+        // Open the file URL in a new tab
+        window.open(file.url, '_blank');
+    } else if (file.file) {
+        // For newly attached files that haven't been uploaded yet, create a temporary URL
+        const tempUrl = URL.createObjectURL(file.file);
+        window.open(tempUrl, '_blank');
+        // Note: We don't revoke immediately as the new tab needs time to load
+        // The URL will be cleaned up when the page is closed
+    }
+};
+
+const getFileIcon = (fileType) => {
+    switch (fileType) {
+        case 'image':
+            return 'pi pi-image';
+        case 'pdf':
+            return 'pi pi-file-pdf';
+        case 'document':
+            return 'pi pi-file-word';
+        default:
+            return 'pi pi-file';
+    }
+};
 
 // Preview/Review Dialog Functions
 const openPreviewDialog = (type, content, index = null) => {
@@ -3024,14 +3189,28 @@ const addNewActivity = async () => {
             scoring_criteria: criteriaForSubmission
         });
 
+        // Create FormData to support file uploads
+        const formData = new FormData();
+        formData.append('activity_type', newActivity.value.type?.value || newActivity.value.type);
+        formData.append('title', newActivity.value.title);
+        formData.append('description', newActivity.value.description || '');
+        formData.append('due_date', formattedDueDate);
+        formData.append('due_time', newActivity.value.dueTime || '');
+        formData.append('scoring_criteria', JSON.stringify(criteriaForSubmission));
+
+        // Add instruction files if any
+        if (newActivity.value.instructionFiles && newActivity.value.instructionFiles.length > 0) {
+            for (const fileObj of newActivity.value.instructionFiles) {
+                formData.append('instruction_files', fileObj.file);
+            }
+            console.log(`Adding ${newActivity.value.instructionFiles.length} instruction files`);
+        }
+
         // Save to database via API
-        const response = await axios.post(`/api/portfolio/folders/${currentFolder.id}/activities/`, {
-            activity_type: newActivity.value.type?.value || newActivity.value.type,
-            title: newActivity.value.title,
-            description: newActivity.value.description,
-            due_date: formattedDueDate,
-            due_time: newActivity.value.dueTime || null,
-            scoring_criteria: JSON.stringify(criteriaForSubmission)
+        const response = await axios.post(`/api/portfolio/folders/${currentFolder.id}/activities/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
         });
 
         if (response.data) {
@@ -3049,6 +3228,8 @@ const addNewActivity = async () => {
                 title: '',
                 description: '',
                 dueDate: '',
+                dueTime: '',
+                instructionFiles: [],
                 scoringCriteria: [
                     { name: '', maxScore: 10 }
                 ]
@@ -3990,7 +4171,8 @@ const loadActivities = async (folderId) => {
                     archived: false,
                     scoringCriteria: scoringCriteria,  // Use camelCase for consistency
                     is_published: activity.is_published || false,  // Include publish status
-                    published_at: activity.published_at || null    // Include publish timestamp
+                    published_at: activity.published_at || null,    // Include publish timestamp
+                    instruction_files: activity.instruction_files || []  // Include instruction files
                 };
             });
             console.log('✅ Final loaded activities:', activities.value);
@@ -4012,9 +4194,20 @@ const editActivity = (activity, index) => {
 
     console.log('📝 Editing activity:', activity);
     console.log('📊 Activity scoring criteria:', activity.scoringCriteria);
+    console.log('📎 Activity instruction files:', activity.instruction_files);
 
     // Find the activity type object that matches the current activity's type
     const activityType = activityTypes.value.find(type => type.value === activity.type) || null;
+
+    // Load existing instruction files from the activity
+    const existingFiles = (activity.instruction_files || []).map(f => ({
+        id: f.id,
+        name: f.file_name,
+        type: f.file_type,
+        size: f.file_size,
+        url: f.file_url,
+        isExisting: true  // Mark as existing file from server
+    }));
 
     editActivityData.value = {
         id: activity.id,
@@ -4022,7 +4215,9 @@ const editActivity = (activity, index) => {
         type: activityType,
         description: activity.description,
         dueDate: activity.due_date,
-        dueTime: activity.due_time || ''
+        dueTime: activity.due_time || '',
+        instructionFiles: existingFiles,
+        deleteInstructionFileIds: []  // Track files to delete
     };
 
     // Load scoring criteria if exists
@@ -4249,14 +4444,35 @@ const updateActivity = async () => {
             maxScore: parseInt(c.maxScore)
         }));
 
+        // Create FormData to support file uploads
+        const formData = new FormData();
+        formData.append('title', editActivityData.value.title);
+        formData.append('activity_type', editActivityData.value.type.value);
+        formData.append('description', editActivityData.value.description || '');
+        formData.append('due_date', editActivityData.value.dueDate);
+        formData.append('due_time', editActivityData.value.dueTime || '');
+        formData.append('scoring_criteria', JSON.stringify(scoringCriteria));
+
+        // Add new instruction files if any
+        if (editActivityData.value.instructionFiles && editActivityData.value.instructionFiles.length > 0) {
+            for (const fileObj of editActivityData.value.instructionFiles) {
+                // Only add new files (those with a file property, not existing ones from server)
+                if (fileObj.file && !fileObj.id) {
+                    formData.append('instruction_files', fileObj.file);
+                }
+            }
+        }
+
+        // Add IDs of files to delete
+        if (editActivityData.value.deleteInstructionFileIds && editActivityData.value.deleteInstructionFileIds.length > 0) {
+            formData.append('delete_instruction_file_ids', JSON.stringify(editActivityData.value.deleteInstructionFileIds));
+        }
+
         // Make API call to update the activity
-        const response = await axios.put(`/api/activities/${editActivityData.value.id}/`, {
-            title: editActivityData.value.title,
-            activity_type: editActivityData.value.type.value,
-            description: editActivityData.value.description,
-            due_date: editActivityData.value.dueDate,
-            due_time: editActivityData.value.dueTime || null,
-            scoring_criteria: JSON.stringify(scoringCriteria)
+        const response = await axios.put(`/api/activities/${editActivityData.value.id}/`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
         });
 
         console.log('✅ Activity updated:', response.data);
