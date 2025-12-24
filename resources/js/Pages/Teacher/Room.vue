@@ -496,15 +496,15 @@
                                      style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                                 </div>
 
-                                <!-- Floating Particles Effect - Only when open -->
+                                <!-- Floating Particles Effect - Reduced for performance -->
                                 <div v-if="isEnvelopeOpen" class="absolute inset-0 pointer-events-none overflow-hidden">
-                                    <div v-for="i in 15" :key="i"
+                                    <div v-for="i in 5" :key="i"
                                          class="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
                                          :style="{
-                                           left: `${Math.random() * 100}%`,
-                                           top: `${Math.random() * 100}%`,
-                                           animationDelay: `${Math.random() * 5}s`,
-                                           animationDuration: `${5 + Math.random() * 10}s`
+                                           left: `${(i * 20)}%`,
+                                           top: `${(i * 15) + 10}%`,
+                                           animationDelay: `${i * 0.5}s`,
+                                           animationDuration: `${8 + i}s`
                                          }">
                                     </div>
                                 </div>
@@ -619,164 +619,191 @@
                                             <i class="pi pi-inbox text-6xl text-white"></i>
                                         </div>
                                         <p class="text-xl font-semibold text-white">
-                                            No scored activities found
+                                            No activities found
                                         </p>
                                         <p class="text-sm text-white/80 mt-2">
-                                            This student hasn't submitted any scored activities yet
+                                            This student hasn't submitted any activities yet
                                         </p>
                                     </div>
 
                                     <!-- Activity Carousel -->
                                     <div v-else class="relative">
-                                        <!-- Activity Counter with Enhanced Design -->
-                                        <div class="absolute top-4 right-4 z-10 text-white px-6 py-3 rounded-full text-base font-bold shadow-2xl animate-pulse-slow transform transition-all duration-300 hover:scale-110"
-                                             :style="{
-                                               background: `linear-gradient(135deg, ${adjustBrightness(selectedEnvelope.color, -20)} 0%, ${adjustBrightness(selectedEnvelope.color, -40)} 100%)`,
-                                               boxShadow: `0 0 30px ${selectedEnvelope.color}60, 0 8px 16px rgba(0,0,0,0.2)`
-                                             }">
-                                          <span class="relative z-10 flex items-center gap-2">
-                                            <i class="pi pi-book"></i>
-                                            {{ currentActivityIndex + 1 }} / {{ currentTabActivities.length }}
-                                          </span>
-                                          <div class="absolute inset-0 rounded-full animate-ping opacity-20"
-                                               :style="{ backgroundColor: selectedEnvelope.color }">
-                                          </div>
-                                        </div>
-
                                         <!-- Activity Content -->
                                         <div v-if="currentTabActivities[currentActivityIndex]"
                                              :key="currentActivityIndex"
+                                             @vue:mounted="currentPortfolioFileIndex = 0"
                                              class="animate-fadeIn">
-                                          <!-- Content Card with Glass Effect -->
-                                          <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl relative transform transition-all duration-500 hover:shadow-3xl hover:scale-[1.01]">
-                                            <!-- Activity Image/Preview -->
-                                            <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
-                                                 :style="{ borderColor: `${selectedEnvelope.color}40` }">
-                                              <img v-if="currentTabActivities[currentActivityIndex].submission_file && (currentTabActivities[currentActivityIndex].submission_file.startsWith('data:image') || currentTabActivities[currentActivityIndex].submission_file.match(/\.(jpeg|jpg|gif|png|webp)$/i))"
-                                                   :src="currentTabActivities[currentActivityIndex].submission_file"
-                                                   alt="Activity submission"
-                                                   class="w-full h-full object-contain"
-                                                   @error="(e) => { console.error('Image load error:', currentTabActivities[currentActivityIndex].submission_file); e.target.style.display = 'none'; }"
-                                              />
-                                              <div v-else-if="currentTabActivities[currentActivityIndex].submission_file" class="text-center flex flex-col items-center">
-                                                  <i class="pi pi-file-pdf text-6xl text-red-500 mb-4" v-if="currentTabActivities[currentActivityIndex].submission_file.includes('pdf')"></i>
-                                                  <i class="pi pi-file text-6xl text-indigo-300 mb-4" v-else></i>
-                                                  <p class="text-gray-600 font-medium mb-2">File Attached</p>
-                                                  <a :href="currentTabActivities[currentActivityIndex].submission_file"
-                                                     target="_blank"
-                                                     class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
-                                                      View File
-                                                  </a>
-                                              </div>
-                                              <div v-else class="text-center flex flex-col items-center">
-                                                <i class="pi pi-file text-6xl text-gray-300 mb-4"></i>
-                                                <p class="text-gray-500 font-medium">No File</p>
-                                              </div>
-                                            </div>
+                                          
+                                          <!-- Top Navigation Bar -->
+                                          <div class="flex items-center justify-between mb-4 bg-white/90 rounded-xl p-3 shadow-md">
+                                            <button
+                                              @click="previousActivity"
+                                              :disabled="currentActivityIndex === 0"
+                                              class="flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50"
+                                              :style="{ borderColor: selectedEnvelope.color, color: selectedEnvelope.color }"
+                                            >
+                                              <i class="pi pi-chevron-left"></i>
+                                              <span class="font-medium">Previous</span>
+                                            </button>
+                                            
+                                            <span class="px-4 py-2 rounded-lg font-bold text-white"
+                                                  :style="{ backgroundColor: selectedEnvelope.color }">
+                                              {{ currentActivityIndex + 1 }} / {{ currentTabActivities.length }}
+                                            </span>
+                                            
+                                            <button
+                                              @click="nextActivity"
+                                              :disabled="currentActivityIndex >= currentTabActivities.length - 1"
+                                              class="flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50"
+                                              :style="{ borderColor: selectedEnvelope.color, color: selectedEnvelope.color }"
+                                            >
+                                              <span class="font-medium">Next</span>
+                                              <i class="pi pi-chevron-right"></i>
+                                            </button>
+                                          </div>
 
-                                            <!-- Submission Caption -->
-                                            <div v-if="currentTabActivities[currentActivityIndex].submission_caption" class="mb-4 p-4 bg-gray-50 rounded-lg">
-                                              <p class="text-sm text-gray-700 italic">
-                                                "{{ currentTabActivities[currentActivityIndex].submission_caption }}"
-                                              </p>
-                                            </div>
-
-                                            <!-- Score and Feedback -->
-                                            <div v-if="currentTabActivities[currentActivityIndex].submission_score !== null"
-                                                 class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                                              <div class="flex items-center justify-between mb-2">
-                                                <span class="text-sm font-medium text-gray-700">Score:</span>
-                                                <span class="text-2xl font-bold text-green-700">{{ currentTabActivities[currentActivityIndex].submission_score }}</span>
-                                              </div>
-                                              <div v-if="currentTabActivities[currentActivityIndex].submission_feedback" class="mt-2 pt-2 border-t border-green-200">
-                                                <p class="text-sm text-gray-600">
-                                                  <span class="font-medium">Feedback:</span> {{ currentTabActivities[currentActivityIndex].submission_feedback }}
-                                                </p>
-                                              </div>
-                                            </div>
-
-                                            <!-- Activity Details -->
-                                            <div class="space-y-4">
-                                              <div>
-                                                <div class="flex items-center gap-3 mb-3">
-                                                  <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold uppercase">
-                                                    {{ currentTabActivities[currentActivityIndex].activity_type || 'Activity' }}
-                                                  </span>
-                                                  <span class="text-sm text-gray-500">
-                                                    {{ currentTabActivities[currentActivityIndex].folder_name }}
-                                                  </span>
+                                          <!-- Content Card - 75/25 Layout -->
+                                          <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                                            <div class="flex flex-col lg:flex-row">
+                                              
+                                              <!-- Left Column: File Preview (75%) -->
+                                              <div class="lg:w-3/4 bg-gray-100 p-4 flex items-center justify-center min-h-[400px] relative">
+                                                <!-- Multiple Files Navigation -->
+                                                <template v-if="currentTabActivities[currentActivityIndex].submission_files && currentTabActivities[currentActivityIndex].submission_files.length > 0">
+                                                  <!-- File Counter -->
+                                                  <div v-if="currentTabActivities[currentActivityIndex].submission_files.length > 1" 
+                                                       class="absolute top-3 right-3 z-20 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                                    {{ currentPortfolioFileIndex + 1 }} / {{ currentTabActivities[currentActivityIndex].submission_files.length }}
+                                                  </div>
+                                                  
+                                                  <!-- Previous File Button -->
+                                                  <button v-if="currentTabActivities[currentActivityIndex].submission_files.length > 1"
+                                                          @click.stop="currentPortfolioFileIndex = Math.max(0, currentPortfolioFileIndex - 1)"
+                                                          :disabled="currentPortfolioFileIndex === 0"
+                                                          class="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                                                    <i class="pi pi-chevron-left text-indigo-600 text-lg"></i>
+                                                  </button>
+                                                  
+                                                  <!-- Next File Button -->
+                                                  <button v-if="currentTabActivities[currentActivityIndex].submission_files.length > 1"
+                                                          @click.stop="currentPortfolioFileIndex = Math.min(currentTabActivities[currentActivityIndex].submission_files.length - 1, currentPortfolioFileIndex + 1)"
+                                                          :disabled="currentPortfolioFileIndex >= currentTabActivities[currentActivityIndex].submission_files.length - 1"
+                                                          class="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                                                    <i class="pi pi-chevron-right text-indigo-600 text-lg"></i>
+                                                  </button>
+                                                  
+                                                  <!-- File Display -->
+                                                  <template v-if="isImageFileTeacher(currentTabActivities[currentActivityIndex].submission_files[currentPortfolioFileIndex])">
+                                                    <img :src="getFileUrlTeacher(currentTabActivities[currentActivityIndex].submission_files[currentPortfolioFileIndex])"
+                                                         alt="Activity submission"
+                                                         class="max-w-full max-h-[380px] object-contain rounded-lg shadow-md cursor-pointer"
+                                                         @click="openFileInNewTabTeacher(getFileUrlTeacher(currentTabActivities[currentActivityIndex].submission_files[currentPortfolioFileIndex]))"
+                                                    />
+                                                  </template>
+                                                  <div v-else class="text-center p-6 bg-white rounded-xl shadow-md">
+                                                    <i class="pi pi-file-pdf text-6xl text-red-500 mb-4" v-if="currentTabActivities[currentActivityIndex].submission_files[currentPortfolioFileIndex]?.type === 'pdf'"></i>
+                                                    <i class="pi pi-file text-6xl text-gray-400 mb-4" v-else></i>
+                                                    <p class="text-gray-600 font-medium mb-3">{{ currentTabActivities[currentActivityIndex].submission_files[currentPortfolioFileIndex]?.name || 'File Attached' }}</p>
+                                                    <button @click="openFileInNewTabTeacher(getFileUrlTeacher(currentTabActivities[currentActivityIndex].submission_files[currentPortfolioFileIndex]))"
+                                                       class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors inline-block cursor-pointer">
+                                                        <i class="pi pi-external-link mr-2"></i>View File
+                                                    </button>
+                                                  </div>
+                                                </template>
+                                                
+                                                <!-- Single File (Legacy) -->
+                                                <template v-else-if="currentTabActivities[currentActivityIndex].submission_file">
+                                                  <template v-if="isImageUrlTeacher(currentTabActivities[currentActivityIndex].submission_file)">
+                                                    <img :src="currentTabActivities[currentActivityIndex].submission_file"
+                                                         alt="Activity submission"
+                                                         class="max-w-full max-h-[380px] object-contain rounded-lg shadow-md cursor-pointer"
+                                                         @click="openFileInNewTabTeacher(currentTabActivities[currentActivityIndex].submission_file)"
+                                                    />
+                                                  </template>
+                                                  <div v-else class="text-center p-6 bg-white rounded-xl shadow-md">
+                                                    <i class="pi pi-file-pdf text-6xl text-red-500 mb-4" v-if="currentTabActivities[currentActivityIndex].submission_file.includes('pdf')"></i>
+                                                    <i class="pi pi-file text-6xl text-gray-400 mb-4" v-else></i>
+                                                    <p class="text-gray-600 font-medium mb-3">File Attached</p>
+                                                    <button @click="openFileInNewTabTeacher(currentTabActivities[currentActivityIndex].submission_file)"
+                                                       class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors inline-block cursor-pointer">
+                                                        <i class="pi pi-external-link mr-2"></i>View File
+                                                    </button>
+                                                  </div>
+                                                </template>
+                                                
+                                                <!-- No File -->
+                                                <div v-else class="text-center p-6">
+                                                  <i class="pi pi-image text-6xl text-gray-300 mb-4"></i>
+                                                  <p class="text-gray-500 font-medium">No file attached</p>
                                                 </div>
-                                                <h3 class="text-2xl font-bold text-gray-900 mb-2">
-                                                  {{ currentTabActivities[currentActivityIndex].title }}
-                                                </h3>
-                                                <p class="text-gray-600">
-                                                  {{ currentTabActivities[currentActivityIndex].description }}
-                                                </p>
                                               </div>
-
-                                              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-                                                <div>
-                                                  <span class="text-sm text-gray-500 block mb-1">Status:</span>
-                                                  <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium inline-block">
-                                                    Submitted
-                                                  </span>
-                                                </div>
-                                                <div v-if="currentTabActivities[currentActivityIndex].submitted_date">
-                                                  <span class="text-sm text-gray-500 block mb-1">Submitted:</span>
-                                                  <span class="text-sm font-medium text-gray-900">
-                                                    {{ currentTabActivities[currentActivityIndex].submitted_date }}
-                                                  </span>
-                                                </div>
-                                                <div v-if="currentTabActivities[currentActivityIndex].submitted_time">
-                                                  <span class="text-sm text-gray-500 block mb-1">Time:</span>
-                                                  <span class="text-sm font-medium text-gray-900">
-                                                    {{ currentTabActivities[currentActivityIndex].submitted_time }}
-                                                  </span>
+                                              
+                                              <!-- Right Column: Activity Details (25%) - Compact -->
+                                              <div class="lg:w-1/4 p-4 bg-white border-l border-gray-200">
+                                                <div class="space-y-3">
+                                                  <!-- Activity Title -->
+                                                  <div>
+                                                    <span class="text-xs text-gray-400 uppercase">Title</span>
+                                                    <p class="text-sm font-bold text-gray-800 leading-tight">{{ currentTabActivities[currentActivityIndex].title }}</p>
+                                                  </div>
+                                                  
+                                                  <!-- Subject -->
+                                                  <div>
+                                                    <span class="text-xs text-gray-400 uppercase">Subject</span>
+                                                    <p class="text-sm font-medium text-gray-700">{{ currentTabActivities[currentActivityIndex].folder_name || 'N/A' }}</p>
+                                                  </div>
+                                                  
+                                                  <!-- Type -->
+                                                  <div>
+                                                    <span class="text-xs text-gray-400 uppercase">Type</span>
+                                                    <p class="text-sm font-medium text-gray-700 capitalize">{{ currentTabActivities[currentActivityIndex].activity_type || 'Activity' }}</p>
+                                                  </div>
+                                                  
+                                                  <!-- Date & Time -->
+                                                  <div>
+                                                    <span class="text-xs text-gray-400 uppercase">Submitted</span>
+                                                    <p class="text-sm font-medium text-gray-700">
+                                                      {{ currentTabActivities[currentActivityIndex].submitted_date || 'N/A' }}
+                                                      <span v-if="currentTabActivities[currentActivityIndex].submitted_time" class="text-gray-500">
+                                                        {{ currentTabActivities[currentActivityIndex].submitted_time }}
+                                                      </span>
+                                                    </p>
+                                                  </div>
+                                                  
+                                                  <!-- Status -->
+                                                  <div>
+                                                    <span class="text-xs text-gray-400 uppercase">Status</span>
+                                                    <p>
+                                                      <span class="px-2 py-0.5 rounded text-xs font-medium"
+                                                            :class="{
+                                                              'bg-green-100 text-green-700': currentTabActivities[currentActivityIndex].submission_status === 'scored',
+                                                              'bg-purple-100 text-purple-700': currentTabActivities[currentActivityIndex].submission_status === 'compiled' || currentTabActivities[currentActivityIndex].is_compilation,
+                                                              'bg-blue-100 text-blue-700': currentTabActivities[currentActivityIndex].submission_status === 'scored_resubmitted',
+                                                              'bg-orange-100 text-orange-700': currentTabActivities[currentActivityIndex].submission_status === 'scored_late'
+                                                            }">
+                                                        {{ getStatusLabelTeacher(currentTabActivities[currentActivityIndex]) }}
+                                                      </span>
+                                                    </p>
+                                                  </div>
+                                                  
+                                                  <!-- Score -->
+                                                  <div class="pt-2 border-t border-gray-100">
+                                                    <span class="text-xs text-gray-400 uppercase">Score</span>
+                                                    <p class="text-xl font-bold" :class="currentTabActivities[currentActivityIndex].submission_score !== null && !currentTabActivities[currentActivityIndex].is_compilation ? 'text-green-600' : 'text-gray-400'">
+                                                      {{ getScoreDisplayTeacher(currentTabActivities[currentActivityIndex]) }}
+                                                    </p>
+                                                  </div>
+                                                  
+                                                  <!-- Feedback if exists -->
+                                                  <div v-if="currentTabActivities[currentActivityIndex].submission_feedback" class="pt-2 border-t border-gray-100">
+                                                    <span class="text-xs text-gray-400 uppercase">Feedback</span>
+                                                    <p class="text-xs text-gray-600 mt-1">{{ currentTabActivities[currentActivityIndex].submission_feedback }}</p>
+                                                  </div>
                                                 </div>
                                               </div>
                                             </div>
                                           </div>
                                         </div>
-
-                                        <!-- Navigation Arrows with Enhanced Design -->
-                                        <button
-                                          @click="previousActivity"
-                                          :disabled="currentActivityIndex === 0"
-                                          class="absolute left-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
-                                          :style="{
-                                            borderColor: selectedEnvelope.color,
-                                            borderWidth: '3px',
-                                            boxShadow: `0 8px 32px ${selectedEnvelope.color}40, 0 0 0 0 ${selectedEnvelope.color}20`
-                                          }"
-                                        >
-                                          <i class="pi pi-chevron-left text-2xl transition-all duration-300 group-hover:scale-110"
-                                             :style="{ color: selectedEnvelope.color }"></i>
-                                          <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                               :style="{
-                                                 background: `radial-gradient(circle, ${selectedEnvelope.color}20 0%, transparent 70%)`,
-                                                 animation: 'pulse 2s infinite'
-                                               }">
-                                          </div>
-                                        </button>
-                                        <button
-                                          @click="nextActivity"
-                                          :disabled="currentActivityIndex >= currentTabActivities.length - 1"
-                                          class="absolute right-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
-                                          :style="{
-                                            borderColor: selectedEnvelope.color,
-                                            borderWidth: '3px',
-                                            boxShadow: `0 8px 32px ${selectedEnvelope.color}40, 0 0 0 0 ${selectedEnvelope.color}20`
-                                          }"
-                                        >
-                                          <i class="pi pi-chevron-right text-2xl transition-all duration-300 group-hover:scale-110"
-                                             :style="{ color: selectedEnvelope.color }"></i>
-                                          <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                               :style="{
-                                                 background: `radial-gradient(circle, ${selectedEnvelope.color}20 0%, transparent 70%)`,
-                                                 animation: 'pulse 2s infinite'
-                                               }">
-                                          </div>
-                                        </button>
                                     </div>
                                     </div>
                                     </div>
@@ -3430,6 +3457,7 @@ const selectedEnvelope = ref(null);
 const isEnvelopeOpen = ref(false);
 const studentActivities = ref([]); // Store student's submitted activities
 const currentActivityIndex = ref(0); // Current activity index for carousel
+const currentPortfolioFileIndex = ref(0); // For navigating multiple files in portfolio
 const activePortfolioTab = ref('scored'); // 'scored' or 'missing'
 
 // Computed property for students who haven't started portfolio compilation
@@ -3446,13 +3474,15 @@ const scoredActivities = computed(() => {
     return studentActivities.value.filter(activity =>
         activity.submission_status === 'scored' ||
         activity.submission_status === 'scored_late' ||
-        activity.submission_status === 'scored_resubmitted'
+        activity.submission_status === 'scored_resubmitted' ||
+        activity.submission_status === 'compiled'  // Include compiled activities
     );
 });
 
 const missingCompiledActivities = computed(() => {
     return studentActivities.value.filter(activity =>
-        activity.submission_status === 'submitted_compilation'
+        activity.submission_status === 'submitted_compilation' ||
+        activity.submission_status === 'compiled'  // Include compiled activities
     );
 });
 
@@ -3801,6 +3831,118 @@ const isImageFile = (filename) => {
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
     const extension = filename.split('.').pop().toLowerCase();
     return imageExtensions.includes(extension);
+};
+
+// Helper function to check if file object is an image (for portfolio)
+const isImageFileTeacher = (file) => {
+  if (!file) return false;
+  // Check type property
+  if (file.type === 'image') return true;
+  // Check path for base64 image
+  const path = file.path || file.file_url || '';
+  if (path.startsWith('data:image')) return true;
+  // Check file extension
+  if (path.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) return true;
+  return false;
+};
+
+// Helper function to check if URL is an image (for portfolio)
+const isImageUrlTeacher = (url) => {
+  if (!url) return false;
+  if (url.startsWith('data:image')) return true;
+  if (url.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) return true;
+  return false;
+};
+
+// Helper function to get file URL (for portfolio)
+const getFileUrlTeacher = (file) => {
+  if (!file) return '';
+  return file.path || file.file_url || '';
+};
+
+// Helper function to open file in new tab (handles base64 data URLs)
+const openFileInNewTabTeacher = (fileUrl) => {
+  if (!fileUrl) return;
+  
+  // For base64 data URLs, create a blob and open it
+  if (fileUrl.startsWith('data:')) {
+    try {
+      // Convert base64 to blob
+      const byteString = atob(fileUrl.split(',')[1]);
+      const mimeString = fileUrl.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening base64 file:', error);
+      // Fallback: try to open directly
+      window.open(fileUrl, '_blank');
+    }
+  } else {
+    // Regular URL, open directly
+    window.open(fileUrl, '_blank');
+  }
+};
+
+// Helper function to get status label for portfolio activities (Teacher view)
+const getStatusLabelTeacher = (activity) => {
+  if (!activity) return 'N/A';
+  
+  const status = activity.submission_status;
+  const isCompilation = activity.is_compilation;
+  const resubmitCount = activity.resubmit_count || 0;
+  
+  // If it's a compilation submission (from missing activity)
+  if (isCompilation || status === 'compiled') {
+    return 'Compiled';
+  }
+  
+  // If it's a resubmission
+  if (status === 'scored_resubmitted' || resubmitCount > 0) {
+    return `Resubmitted (${resubmitCount}x)`;
+  }
+  
+  // If submitted late
+  if (status === 'scored_late' || activity.is_late) {
+    return 'Submitted Late';
+  }
+  
+  // Regular scored submission
+  if (status === 'scored') {
+    return 'Submitted';
+  }
+  
+  return status?.replace(/_/g, ' ') || 'N/A';
+};
+
+// Helper function to get score display for portfolio activities (Teacher view)
+const getScoreDisplayTeacher = (activity) => {
+  if (!activity) return 'None';
+  
+  // If it's a compilation submission, don't show score
+  if (activity.is_compilation || activity.submission_status === 'compiled') {
+    return 'None';
+  }
+  
+  // If no score yet
+  if (activity.submission_score === null || activity.submission_score === undefined) {
+    return 'None';
+  }
+  
+  // Show score with max score if available
+  const score = activity.submission_score;
+  const maxScore = activity.max_score;
+  
+  if (maxScore) {
+    return `${score}/${maxScore}`;
+  }
+  
+  return `${score}`;
 };
 
 // Fetch portfolio envelopes for the class

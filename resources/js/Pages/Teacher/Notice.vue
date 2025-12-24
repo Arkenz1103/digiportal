@@ -121,13 +121,19 @@ const loadPendingApprovals = async () => {
                 }
 
                 const dateInfo = formatDateTime(submission.post_requested_at || submission.submitted_at);
+                
+                // Check if this is from Sketch Pad (no activity or activity_title is "Sketch Pad")
+                const isSketchPad = !submission.activity || 
+                                    submission.activity_title === 'Sketch Pad' || 
+                                    submission.activity_title === 'Sketch' ||
+                                    (submission.activity_type && submission.activity_type.toLowerCase() === 'sketch');
 
                 return {
                     id: submission.id,
                     studentName: submission.student_name || submission.student?.username || 'Unknown',
-                    title: submission.activity_title || 'Untitled',
-                    subject: submission.activity_type || 'Unknown',
-                    description: submission.post_caption || submission.caption || 'No caption provided',
+                    title: submission.activity_title || 'Sketch Pad',
+                    subject: submission.activity_type || 'Sketch',
+                    description: submission.post_caption || submission.caption || 'No caption',
                     submittedDate: dateInfo.formatted,
                     daysAgo: dateInfo.daysAgo,
                     timestamp: dateInfo.timestamp,
@@ -137,6 +143,7 @@ const loadPendingApprovals = async () => {
                     file_path: submission.file_url || submission.file_path,
                     file_type: submission.file_type || (fileTypes.length > 0 ? fileTypes[0] : 'unknown'),
                     isImageFile: fileTypes.some(t => t === 'image'),
+                    isSketchPad: isSketchPad,
                     status: 'Pending',
                     files: submissionFiles
                 };
@@ -436,25 +443,22 @@ const cancelRejection = () => {
                     <div class="flex justify-between items-start gap-4">
                         <div class="flex-1">
                             <div class="flex items-center space-x-3 mb-3">
-                                <span class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-base font-semibold text-white shadow-md">
-                                    {{ output.studentName.charAt(0) }}
-                                </span>
                                 <div class="flex-1">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <h3 class="font-semibold text-indigo-900 text-base">{{ output.studentName }}</h3>
-                                        <span class="text-sm text-indigo-600/70">•</span>
-                                        <span class="text-sm text-indigo-700/80 font-medium">{{ output.title }}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 mt-1">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                                        <span v-if="output.isSketchPad" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                                            <i class="pi pi-pencil mr-1 text-xs"></i>
+                                            Sketch Pad
+                                        </span>
+                                        <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
                                             <i class="pi pi-book mr-1 text-xs"></i>
                                             {{ output.subject }}
                                         </span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="ml-13">
-                                <p class="text-indigo-900/80 text-sm leading-relaxed mb-3">{{ output.description }}</p>
+                            <div>
+                                <p class="text-indigo-900/80 text-sm leading-relaxed mb-3 line-clamp-2" :title="output.description">{{ output.description || 'No caption' }}</p>
 
                                 <!-- Submission Date/Time -->
                                 <div class="flex items-center gap-4 text-sm mb-3">
@@ -478,7 +482,7 @@ const cancelRejection = () => {
                                                 class="h-28 w-auto rounded-lg border-2 border-indigo-200 cursor-pointer hover:border-indigo-500 hover:shadow-xl transition-all duration-300 group-hover:scale-105"
                                                 @click="previewOutput(output)"
                                                 @error="(e) => { console.error('Image failed to load:', output.sampleImages[0]); }"
-                                                :alt="`${output.studentName}'s work for ${output.title}`"
+                                                :alt="`${output.studentName}'s work`"
                                                 :title="`Click to preview ${output.studentName}'s work`"
                                             />
                                             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all duration-300 flex items-center justify-center">
@@ -513,7 +517,7 @@ const cancelRejection = () => {
                         </div>
                     </div>
                 </div>
-                </div>
+            </div>
 
                 <!-- Load More Button -->
                 <div v-if="displayedPendingCount < pendingOutputs.length" class="p-6 text-center border-t border-indigo-100 bg-indigo-50/50">
@@ -532,146 +536,127 @@ const cancelRejection = () => {
             modal
             :closable="true"
             header="Review Student Output"
-            :style="{ width: '70vw', maxWidth: '800px' }"
+            :style="{ width: '600px', maxWidth: '90vw', height: 'auto', maxHeight: '95vh' }"
+            :contentStyle="{ padding: '0' }"
             :dismissableMask="true"
         >
-            <div v-if="selectedOutput" class="space-y-6">
-                <!-- Student Info -->
-                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                    <div class="flex items-center space-x-3">
-                        <span class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-medium text-white">
-                            {{ selectedOutput.studentName.charAt(0) }}
-                        </span>
-                        <div class="flex items-center gap-3">
-                            <h3 class="font-medium text-indigo-900">{{ selectedOutput.studentName }}</h3>
-                            <p class="text-sm text-indigo-700/80">{{ selectedOutput.subject }}</p>
-                        </div>
-                    </div>
+            <div v-if="selectedOutput" class="p-4">
+                <!-- Student Info - Simplified -->
+                <div class="flex items-center gap-3 mb-3">
+                    <h3 class="font-semibold text-indigo-900 text-lg">{{ selectedOutput.studentName }}</h3>
+                    <span v-if="selectedOutput.isSketchPad" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                        <i class="pi pi-pencil mr-1 text-xs"></i>
+                        Sketch Pad
+                    </span>
+                    <span v-else class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                        <i class="pi pi-book mr-1 text-xs"></i>
+                        {{ selectedOutput.subject }}
+                    </span>
                 </div>
 
-                <!-- Output Details -->
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-indigo-900">Title</label>
-                        <p class="mt-1 text-indigo-900">{{ selectedOutput.title }}</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-[#0E1836]">Caption</label>
-                        <p class="mt-1 text-[#0E1836]">{{ selectedOutput.description }}</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-indigo-900 mb-2">Student Work</label>
-                        <div class="border-2 border-indigo-200 rounded-lg overflow-hidden bg-gray-50">
-                            <div class="flex items-center justify-center p-4 relative" style="min-height: 300px;">
-                                <!-- Navigation Arrows (only show if multiple files) -->
-                                <div v-if="totalOutputFiles > 1" class="absolute inset-0 flex items-center justify-between px-2 pointer-events-none z-10">
-                                    <!-- Previous Button -->
-                                    <button
-                                        @click="previousOutputFile"
-                                        :disabled="currentFileIndex === 0"
-                                        class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                        :class="currentFileIndex === 0 ? '' : 'hover:scale-110'"
-                                    >
-                                        <i class="pi pi-chevron-left text-indigo-600"></i>
-                                    </button>
-                                    
-                                    <!-- Next Button -->
-                                    <button
-                                        @click="nextOutputFile"
-                                        :disabled="currentFileIndex >= totalOutputFiles - 1"
-                                        class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                        :class="currentFileIndex >= totalOutputFiles - 1 ? '' : 'hover:scale-110'"
-                                    >
-                                        <i class="pi pi-chevron-right text-indigo-600"></i>
-                                    </button>
-                                </div>
+                <!-- Caption -->
+                <div v-if="selectedOutput.description && selectedOutput.description !== 'No caption'" class="bg-gray-50 p-2 rounded-lg border border-gray-200 mb-3">
+                    <p class="text-gray-700 text-sm">{{ selectedOutput.description }}</p>
+                </div>
 
-                                <!-- File Counter (only show if multiple files) -->
-                                <div v-if="totalOutputFiles > 1" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-                                    <div class="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
-                                        {{ currentFileIndex + 1 }} / {{ totalOutputFiles }}
-                                    </div>
-                                </div>
+                <!-- Student Work - Auto height based on image -->
+                <div class="border-2 border-indigo-200 rounded-lg overflow-hidden bg-gray-100">
+                    <div class="flex items-center justify-center p-4 relative" style="min-height: 300px;">
+                        <!-- Navigation Arrows (only show if multiple files) -->
+                        <button
+                            v-if="totalOutputFiles > 1"
+                            @click="previousOutputFile"
+                            :disabled="currentFileIndex === 0"
+                            class="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center transition-all hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            <i class="pi pi-chevron-left text-indigo-600 text-lg"></i>
+                        </button>
+                        
+                        <button
+                            v-if="totalOutputFiles > 1"
+                            @click="nextOutputFile"
+                            :disabled="currentFileIndex >= totalOutputFiles - 1"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center transition-all hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                            <i class="pi pi-chevron-right text-indigo-600 text-lg"></i>
+                        </button>
 
-                                <!-- Image Display -->
-                                <img
-                                    v-if="currentOutputFile && isCurrentFileImage"
-                                    :src="currentOutputFile"
-                                    class="w-full h-auto max-h-[500px] object-contain rounded"
-                                    :alt="`${selectedOutput.studentName}'s work for ${selectedOutput.title}`"
-                                    @error="(e) => {
-                                        console.error('Image load error:', e.target.src);
-                                        console.error('File type:', currentOutputFileType);
-                                    }"
-                                />
-                                <!-- PDF Display -->
-                                <div v-else-if="currentOutputFile && currentOutputFileType === 'pdf'" class="flex flex-col items-center justify-center text-red-600">
-                                    <i class="pi pi-file-pdf text-8xl mb-4"></i>
-                                    <span class="text-lg font-medium">PDF Document</span>
-                                    <a :href="currentOutputFile" target="_blank" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
-                                        <i class="pi pi-external-link mr-2"></i>View PDF
-                                    </a>
-                                </div>
-                                <!-- Document Display -->
-                                <div v-else-if="currentOutputFile && currentOutputFileType === 'document'" class="flex flex-col items-center justify-center text-blue-600">
-                                    <i class="pi pi-file-word text-8xl mb-4"></i>
-                                    <span class="text-lg font-medium">Document</span>
-                                    <a :href="currentOutputFile" target="_blank" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
-                                        <i class="pi pi-external-link mr-2"></i>View Document
-                                    </a>
-                                </div>
-                                <!-- No file data -->
-                                <div v-else class="text-center py-12">
-                                    <i class="pi pi-image text-6xl text-gray-400 mb-4"></i>
-                                    <p class="text-gray-600 text-lg font-medium">No file available</p>
-                                    <p class="text-sm text-gray-500 mt-2">File type: {{ currentOutputFileType || 'Unknown' }}</p>
-                                    <p class="text-xs text-gray-400 mt-1">The student's work could not be displayed</p>
-                                </div>
-                            </div>
-                            <div class="p-3 bg-indigo-50 border-t border-indigo-200 flex items-center justify-between">
-                                <p class="text-sm font-medium text-indigo-900">
-                                    <i class="pi pi-user mr-2"></i>
-                                    {{ selectedOutput.studentName }}'s Work
-                                    <span v-if="totalOutputFiles > 1" class="text-indigo-600 ml-2">({{ totalOutputFiles }} files)</span>
-                                </p>
-                                <a 
-                                    v-if="currentOutputFile"
-                                    :href="currentOutputFile" 
-                                    target="_blank" 
-                                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
-                                >
-                                    <i class="pi pi-external-link"></i>
-                                    View File
-                                </a>
+                        <!-- File Counter (only show if multiple files) -->
+                        <div v-if="totalOutputFiles > 1" class="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
+                            <div class="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+                                {{ currentFileIndex + 1 }} / {{ totalOutputFiles }}
                             </div>
                         </div>
+
+                        <!-- Image Display - Full size -->
+                        <img
+                            v-if="currentOutputFile && isCurrentFileImage"
+                            :src="currentOutputFile"
+                            class="max-w-full h-auto rounded"
+                            style="max-height: 60vh;"
+                            :alt="`${selectedOutput.studentName}'s work`"
+                            @error="(e) => {
+                                console.error('Image load error:', e.target.src);
+                                console.error('File type:', currentOutputFileType);
+                            }"
+                        />
+                        <!-- PDF Display -->
+                        <div v-else-if="currentOutputFile && currentOutputFileType === 'pdf'" class="flex flex-col items-center justify-center text-red-600 py-8">
+                            <i class="pi pi-file-pdf text-6xl mb-3"></i>
+                            <span class="text-base font-medium">PDF Document</span>
+                            <a :href="currentOutputFile" target="_blank" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                                <i class="pi pi-external-link mr-2"></i>View PDF
+                            </a>
+                        </div>
+                        <!-- Document Display -->
+                        <div v-else-if="currentOutputFile && currentOutputFileType === 'document'" class="flex flex-col items-center justify-center text-blue-600 py-8">
+                            <i class="pi pi-file-word text-6xl mb-3"></i>
+                            <span class="text-base font-medium">Document</span>
+                            <a :href="currentOutputFile" target="_blank" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                                <i class="pi pi-external-link mr-2"></i>View Document
+                            </a>
+                        </div>
+                        <!-- No file data -->
+                        <div v-else class="text-center py-8">
+                            <i class="pi pi-image text-5xl text-gray-400 mb-3"></i>
+                            <p class="text-gray-600 font-medium">No file available</p>
+                        </div>
                     </div>
-                    <!-- Add remarks section -->
-                    <div v-if="selectedOutput.remarks">
-                        <label class="block text-sm font-medium text-[#0E1836]">Remarks</label>
-                        <p class="mt-1 text-[#0E1836] p-3 bg-[#F2FDFF] rounded-lg border border-[#B6CFFF]">
-                            {{ selectedOutput.remarks }}
+                    <div class="p-2 bg-indigo-50 border-t border-indigo-200 flex items-center justify-between">
+                        <p class="text-sm font-medium text-indigo-900">
+                            {{ selectedOutput.studentName }}'s Work
+                            <span v-if="totalOutputFiles > 1" class="text-indigo-600 ml-2">({{ totalOutputFiles }} files)</span>
                         </p>
+                        <a 
+                            v-if="currentOutputFile"
+                            :href="currentOutputFile" 
+                            target="_blank" 
+                            class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+                        >
+                            <i class="pi pi-external-link"></i>
+                            Full Size
+                        </a>
                     </div>
                 </div>
             </div>
 
             <template #footer>
-                <div class="mt-6 flex justify-end space-x-3">
+                <div class="flex justify-end gap-2 px-4 py-3 border-t">
                     <Button
                         label="Cancel"
-                        class="p-button-secondary"
-                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937; margin-right: 0.5rem;"
+                        class="p-button-secondary p-button-sm"
+                        style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;"
                         @click="showPreviewDialog = false"
                     />
                     <Button
                         label="Reject"
-                        class="p-button-danger"
-                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white; margin-right: 0.5rem;"
+                        class="p-button-danger p-button-sm"
+                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;"
                         @click="showRejectionReasonsDialog"
                     />
                     <Button
                         label="Approve"
+                        class="p-button-sm"
                         style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; color: white;"
                         @click="showApprovalConfirmDialog"
                     />
@@ -684,50 +669,50 @@ const cancelRejection = () => {
             v-model:visible="showRejectionDialog"
             modal
             header="Confirm Rejection"
-            :style="{ width: '90vw', maxWidth: '500px' }"
+            :style="{ width: '420px', maxWidth: '90vw' }"
+            :contentStyle="{ padding: '0', overflow: 'visible' }"
             :dismissableMask="true"
         >
-            <div class="p-6">
-                <div class="mb-6 text-center">
-                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                        <i class="pi pi-times-circle text-3xl text-red-600"></i>
+            <div class="p-4">
+                <div class="mb-4 text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-3">
+                        <i class="pi pi-times-circle text-2xl text-red-600"></i>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Reject this submission?</h3>
-                    <p class="text-sm text-gray-600">
-                        This will reject <strong>{{ selectedOutput?.studentName }}'s</strong> work
-                        "<strong>{{ selectedOutput?.title }}</strong>".
+                    <h3 class="text-base font-semibold text-gray-900 mb-1">Reject this submission?</h3>
+                    <p class="text-xs text-gray-600">
+                        This will reject <strong>{{ selectedOutput?.studentName }}'s</strong> work.
                     </p>
                 </div>
 
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                    <div class="flex items-start gap-3">
-                        <i class="pi pi-info-circle text-red-600 mt-0.5"></i>
-                        <div class="text-sm text-red-800">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <div class="flex items-start gap-2">
+                        <i class="pi pi-info-circle text-red-600 text-sm mt-0.5"></i>
+                        <div class="text-xs text-red-800">
                             <p class="font-medium mb-1">What happens next:</p>
-                            <ul class="list-disc list-inside space-y-1 text-red-700">
-                                <li>The submission will NOT be posted to the class feed</li>
-                                <li>The student will be notified of the rejection</li>
-                                <li>The student can resubmit their work</li>
+                            <ul class="list-disc list-inside space-y-0.5 text-red-700">
+                                <li>Will NOT be posted to class feed</li>
+                                <li>Student will be notified</li>
+                                <li>Student can resubmit</li>
                             </ul>
                         </div>
                     </div>
                 </div>
 
                 <!-- Rejection Reason Selection -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Select Reason for Rejection <span class="text-red-500">*</span>
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-700 mb-1">
+                        Reason for Rejection <span class="text-red-500">*</span>
                     </label>
-                    <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-1">
                         <div v-for="reason in rejectionReasons" :key="reason.id" class="flex items-center">
                             <input
                                 type="radio"
                                 :id="reason.id"
                                 :value="reason.id"
                                 v-model="feedbackForm.rejectionReason"
-                                class="w-4 h-4 text-red-600 focus:ring-red-500"
+                                class="w-3 h-3 text-red-600 focus:ring-red-500"
                             />
-                            <label :for="reason.id" class="ml-2 text-sm text-gray-700">
+                            <label :for="reason.id" class="ml-1.5 text-xs text-gray-700">
                                 {{ reason.label }}
                             </label>
                         </div>
@@ -736,33 +721,34 @@ const cancelRejection = () => {
 
                 <!-- Additional Details -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <label class="block text-xs font-medium text-gray-700 mb-1">
                         Additional Details (Optional)
                     </label>
                     <textarea
                         v-model="feedbackForm.rejectionDetails"
-                        rows="3"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                        placeholder="Provide additional context for the rejection..."
+                        rows="2"
+                        class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        placeholder="Provide additional context..."
                     ></textarea>
                 </div>
             </div>
 
             <template #footer>
-                <div class="flex justify-end gap-3 px-6 pb-6">
+                <div class="flex justify-end gap-2 px-4 py-3 border-t">
                     <Button
                         label="Cancel"
-                        class="p-button-secondary"
+                        class="p-button-secondary p-button-sm"
                         style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;"
                         @click="cancelRejection"
                     />
                     <Button
                         label="Yes, Reject"
+                        class="p-button-sm"
                         :disabled="!feedbackForm.rejectionReason"
                         style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;"
                         @click="confirmRejection"
                     >
-                        <i class="pi pi-times mr-2"></i>
+                        <i class="pi pi-times mr-1"></i>
                         Yes, Reject
                     </Button>
                 </div>
@@ -774,30 +760,30 @@ const cancelRejection = () => {
             v-model:visible="showApprovalDialog"
             modal
             header="Confirm Approval"
-            :style="{ width: '90vw', maxWidth: '500px' }"
+            :style="{ width: '420px', maxWidth: '90vw' }"
+            :contentStyle="{ padding: '0', overflow: 'visible' }"
             :dismissableMask="true"
         >
-            <div class="p-6">
-                <div class="mb-6 text-center">
-                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                        <i class="pi pi-check-circle text-3xl text-green-600"></i>
+            <div class="p-4">
+                <div class="mb-4 text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-3">
+                        <i class="pi pi-check-circle text-2xl text-green-600"></i>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Approve this submission?</h3>
-                    <p class="text-sm text-gray-600">
-                        This will approve <strong>{{ selectedOutput?.studentName }}'s</strong> work
-                        "<strong>{{ selectedOutput?.title }}</strong>" to be posted to the class feed.
+                    <h3 class="text-base font-semibold text-gray-900 mb-1">Approve this submission?</h3>
+                    <p class="text-xs text-gray-600">
+                        This will approve <strong>{{ selectedOutput?.studentName }}'s</strong> work to be posted.
                     </p>
                 </div>
 
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                    <div class="flex items-start gap-3">
-                        <i class="pi pi-info-circle text-green-600 mt-0.5"></i>
-                        <div class="text-sm text-green-800">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div class="flex items-start gap-2">
+                        <i class="pi pi-info-circle text-green-600 text-sm mt-0.5"></i>
+                        <div class="text-xs text-green-800">
                             <p class="font-medium mb-1">What happens next:</p>
-                            <ul class="list-disc list-inside space-y-1 text-green-700">
-                                <li>The submission will be visible to all students in the class</li>
-                                <li>It will appear in the class newsfeed</li>
-                                <li>The student will be notified of the approval</li>
+                            <ul class="list-disc list-inside space-y-0.5 text-green-700">
+                                <li>Visible to all students in class</li>
+                                <li>Will appear in class newsfeed</li>
+                                <li>Student will be notified</li>
                             </ul>
                         </div>
                     </div>
@@ -805,26 +791,27 @@ const cancelRejection = () => {
             </div>
 
             <template #footer>
-                <div class="flex justify-end gap-3 px-6 pb-6">
+                <div class="flex justify-end gap-2 px-4 py-3 border-t">
                     <Button
                         label="Cancel"
-                        class="p-button-secondary"
+                        class="p-button-secondary p-button-sm"
                         style="background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937;"
                         @click="cancelApproval"
                     />
                     <Button
                         label="Yes, Approve"
+                        class="p-button-sm"
                         style="background: linear-gradient(to right, #10b981, #059669); border: none; color: white;"
                         @click="confirmApproval"
                     >
-                        <i class="pi pi-check mr-2"></i>
+                        <i class="pi pi-check mr-1"></i>
                         Yes, Approve
                     </Button>
                 </div>
             </template>
         </Dialog>
+                </div>
             </div>
-        </div>
         </div>
     </div>
 </template>

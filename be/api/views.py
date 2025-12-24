@@ -1775,7 +1775,8 @@ def activity_submissions_api(request, activity_id):
                 existing_submission.file_type = data.get('file_type', '')
                 import pytz
                 manila_tz = pytz.timezone('Asia/Manila')
-                current_time = timezone.now().astimezone(manila_tz)
+                # Get current time in Manila timezone
+                current_time = timezone.now()
                 existing_submission.last_resubmit_at = current_time
                 existing_submission.submitted_at = current_time  # Update submission time
 
@@ -1826,6 +1827,35 @@ def activity_submissions_api(request, activity_id):
                         existing_submission.is_late = True
 
                 existing_submission.save()
+
+                # Handle multiple files for resubmission - delete old files and add new ones
+                files_data = data.get('files', [])
+                if files_data and len(files_data) > 0:
+                    print(f"📁 Processing {len(files_data)} files for resubmission")
+                    # Delete existing files
+                    SubmissionFile.objects.filter(submission=existing_submission).delete()
+                    print(f"🗑️ Deleted old submission files")
+                    
+                    # Add new files
+                    for idx, f_data in enumerate(files_data):
+                        if not f_data:
+                            continue
+                        
+                        f_type = 'file'
+                        if isinstance(f_data, str) and f_data.startswith('data:'):
+                            format_part = f_data.split(';base64,')[0]
+                            f_type = 'image' if 'image' in format_part else ('pdf' if 'pdf' in format_part else 'file')
+                        
+                        try:
+                            sub_file = SubmissionFile.objects.create(
+                                submission=existing_submission,
+                                file_path=f_data,
+                                file_type=f_type,
+                                file_name=f"file_{idx + 1}"
+                            )
+                            print(f"✅ Added file {idx + 1} to resubmission (type: {f_type}): {sub_file.id}")
+                        except Exception as file_error:
+                            print(f"⚠️ Error adding file {idx + 1}: {str(file_error)}")
 
                 print(f"✅ Resubmission #{existing_submission.resubmit_count} (Version {existing_submission.submission_version}) for student {request.user.username}")
 
@@ -1922,6 +1952,30 @@ def activity_submissions_api(request, activity_id):
                     approval_status='pending' if post_to_feed else 'approved',
                     is_late=is_late
                 )
+
+                # Handle multiple files if provided
+                files_data = data.get('files', [])
+                if files_data and len(files_data) > 0:
+                    print(f"📁 Processing {len(files_data)} files for submission")
+                    for idx, f_data in enumerate(files_data):
+                        if not f_data:
+                            continue
+                        
+                        f_type = 'file'
+                        if isinstance(f_data, str) and f_data.startswith('data:'):
+                            format_part = f_data.split(';base64,')[0]
+                            f_type = 'image' if 'image' in format_part else ('pdf' if 'pdf' in format_part else 'file')
+                        
+                        try:
+                            sub_file = SubmissionFile.objects.create(
+                                submission=submission,
+                                file_path=f_data,  # Use file_path field for base64 data
+                                file_type=f_type,
+                                file_name=f"file_{idx + 1}"
+                            )
+                            print(f"✅ Added file {idx + 1} to submission (type: {f_type}): {sub_file.id}")
+                        except Exception as file_error:
+                            print(f"⚠️ Error adding file {idx + 1}: {str(file_error)}")
 
                 print(f"✅ Submission created: ID={submission.id}, status={submission_status}, file_type={file_type}, is_late={is_late}, is_draft={is_draft}")
                 print(f"📎 File saved: {submission.file.url if submission.file else 'No file'}")
@@ -2188,20 +2242,22 @@ def pending_approvals_api(request):
             (Q(activity__folder__classroom=teacher_classroom) | Q(activity__isnull=True))
         ).select_related('student', 'activity', 'activity__folder')
 
-        # Sort: submissions WITH dates first (newest to oldest), then submissions WITHOUT dates
+        # Sort by post_requested_at (when student requested to post) - newest first
+        # Fall back to submitted_at if post_requested_at is null
         submissions = submissions.annotate(
             has_date=Case(
-                When(submitted_at__isnull=True, then=Value(1)),
-                default=Value(0),
+                When(post_requested_at__isnull=False, then=Value(0)),
+                When(submitted_at__isnull=False, then=Value(1)),
+                default=Value(2),
                 output_field=IntegerField()
             )
-        ).order_by('has_date', '-submitted_at')
+        ).order_by('has_date', '-post_requested_at', '-submitted_at')
 
         print(f"\n{'='*60}")
         print(f"📝 PENDING APPROVALS CHECK for teacher: {request.user.username}")
         print(f"{'='*60}")
         print(f"Found {submissions.count()} pending approvals")
-        print(f"\n📊 SORTED ORDER (Newest to Oldest):")
+        print(f"\n📊 SORTED ORDER (Most Recent Request First):")
 
         # Debug: Print each submission with full details in sorted order
         for index, sub in enumerate(submissions, 1):
@@ -2213,7 +2269,8 @@ def pending_approvals_api(request):
             print(f"      Approval Status: {sub.approval_status}")
             print(f"      Post to Feed: {sub.post_to_feed}")
             print(f"      File Type: {sub.file_type}")
-            print(f"      ⏰ Submitted At: {sub.submitted_at if sub.submitted_at else 'NO DATE'}")
+            print(f"      ⏰ Post Requested At: {sub.post_requested_at if sub.post_requested_at else 'NO DATE'}")
+            print(f"      📅 Submitted At: {sub.submitted_at if sub.submitted_at else 'NO DATE'}")
 
         print(f"\n{'='*60}\n")
 
@@ -2603,6 +2660,7 @@ def post_comments_api(request, post_id):
         if request.method == 'GET':
             # Get all comments for this post
             comments = PostComment.objects.filter(post=post).order_by('created_at')
+            print(f"📝 Found {comments.count()} comments for post {post_id}")
             comments_data = []
 
             for comment in comments:
@@ -2631,7 +2689,9 @@ def post_comments_api(request, post_id):
                     'replies': replies_data
                 }
                 comments_data.append(comment_data)
+                print(f"   📝 Comment {comment.id}: {comment.text[:30]}...")
 
+            print(f"📝 Returning {len(comments_data)} comments for post {post_id}")
             return Response(comments_data)
 
         elif request.method == 'POST':
@@ -4995,12 +5055,19 @@ def get_student_portfolio_activities_api(request, class_name):
         resubmitted_activities = []
         late_activities = []
         missing_activities = []
+        processed_activity_ids = set()  # Track processed activities to avoid duplicates
 
         for folder in folders:
             # Get only published activities in this folder (students should not see drafts)
             activities = PortfolioActivity.objects.filter(folder=folder, is_published=True).order_by('created_at')
 
             for activity in activities:
+                # Skip if already processed (avoid duplicates)
+                if activity.id in processed_activity_ids:
+                    print(f"   ⚠️ Skipping duplicate activity {activity.id} ({activity.title})")
+                    continue
+                processed_activity_ids.add(activity.id)
+
                 # Get the LATEST SCORED submission for this activity
                 # This handles resubmissions - we want the most recent SCORED version
                 # Get the LATEST SCORED or COMPILED submission for this activity
@@ -5057,11 +5124,27 @@ def get_student_portfolio_activities_api(request, class_name):
 
                 if submission and submission.submitted_at:
                     try:
-                        local_submitted_time = timezone.localtime(submission.submitted_at)
+                        import pytz
+                        manila_tz = pytz.timezone('Asia/Manila')
+                        
+                        # Convert to Manila timezone
+                        if timezone.is_naive(submission.submitted_at):
+                            # Make it aware in UTC first, then convert to Manila
+                            aware_time = timezone.make_aware(submission.submitted_at, timezone=pytz.UTC)
+                            local_submitted_time = aware_time.astimezone(manila_tz)
+                        else:
+                            local_submitted_time = submission.submitted_at.astimezone(manila_tz)
+                        
                         submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
                         submitted_time_str = local_submitted_time.strftime('%I:%M %p')
                     except Exception as date_error:
-                        print(f"⚠️ Error formatting submission date: {date_error}")
+                        # Fallback: use the datetime directly without timezone conversion
+                        try:
+                            submitted_date_str = submission.submitted_at.strftime('%b %d, %Y')
+                            submitted_time_str = submission.submitted_at.strftime('%I:%M %p')
+                            local_submitted_time = submission.submitted_at
+                        except:
+                            print(f"⚠️ Error formatting submission date: {date_error}")
 
                 # Determine submission status and category
                 # Since we're ONLY getting scored submissions now, logic is simpler
@@ -5071,14 +5154,78 @@ def get_student_portfolio_activities_api(request, class_name):
                 is_compilation = False  # Initialize is_compilation before the if block
                 has_pending_submission = False
 
-                # Check if there's a pending (unscored) submission
+                # Check if there's a pending (unscored) submission that is NOT a compilation
+                # Compilation submissions should show as "compiled" even if unscored
                 if not submission and unscored_count > 0:
-                    has_pending_submission = True
-                    submission_status = 'pending'
-                    print(f"   ⏳ Activity {activity.id} has pending submission (not scored yet)")
+                    # Check if the unscored submission is a compilation
+                    unscored_submission = StudentSubmission.objects.filter(
+                        activity=activity,
+                        student=request.user,
+                        is_active=True
+                    ).exclude(status__in=['draft', 'scored']).first()
+                    
+                    if unscored_submission and (unscored_submission.compiled or unscored_submission.is_compilation):
+                        # This is a compiled submission - use it
+                        submission = unscored_submission
+                        is_compilation = True
+                        submission_status = 'compiled'
+                        
+                        # Get the submitted_at time for compiled submissions
+                        if submission.submitted_at:
+                            try:
+                                import pytz
+                                manila_tz = pytz.timezone('Asia/Manila')
+                                if timezone.is_naive(submission.submitted_at):
+                                    aware_time = timezone.make_aware(submission.submitted_at, timezone=pytz.UTC)
+                                    local_submitted_time = aware_time.astimezone(manila_tz)
+                                else:
+                                    local_submitted_time = submission.submitted_at.astimezone(manila_tz)
+                                submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
+                                submitted_time_str = local_submitted_time.strftime('%I:%M %p')
+                            except Exception as date_error:
+                                # Try without timezone conversion
+                                try:
+                                    submitted_date_str = submission.submitted_at.strftime('%b %d, %Y')
+                                    submitted_time_str = submission.submitted_at.strftime('%I:%M %p')
+                                    local_submitted_time = submission.submitted_at
+                                except:
+                                    pass
+                        elif submission.compiled_at:
+                            try:
+                                import pytz
+                                manila_tz = pytz.timezone('Asia/Manila')
+                                if timezone.is_naive(submission.compiled_at):
+                                    aware_time = timezone.make_aware(submission.compiled_at, timezone=pytz.UTC)
+                                    local_submitted_time = aware_time.astimezone(manila_tz)
+                                else:
+                                    local_submitted_time = submission.compiled_at.astimezone(manila_tz)
+                                submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
+                                submitted_time_str = local_submitted_time.strftime('%I:%M %p')
+                            except Exception as date_error:
+                                try:
+                                    submitted_date_str = submission.compiled_at.strftime('%b %d, %Y')
+                                    submitted_time_str = submission.compiled_at.strftime('%I:%M %p')
+                                    local_submitted_time = submission.compiled_at
+                                except:
+                                    pass
+                        
+                        # Get submission file for compiled submission
+                        if submission.file:
+                            try:
+                                if hasattr(submission.file, 'path') and os.path.exists(submission.file.path):
+                                    submission_file = request.build_absolute_uri(submission.file.url)
+                            except:
+                                pass
+                        if not submission_file and submission.file_path:
+                            submission_file = submission.file_path
+                        
+                        print(f"   📦 Activity {activity.id} has COMPILED submission (not scored yet)")
+                    else:
+                        has_pending_submission = True
+                        submission_status = 'pending'
+                        print(f"   ⏳ Activity {activity.id} has pending submission (not scored yet)")
 
                 if submission:
-                    # We already filtered for scored submissions only
                     # Check if it's a resubmission
                     is_resubmitted = submission.resubmit_count > 0 if hasattr(submission, 'resubmit_count') else False
 
@@ -5108,12 +5255,12 @@ def get_student_portfolio_activities_api(request, class_name):
                             print(f"⚠️ Error checking late status for activity {activity.id}: {date_error}")
                             is_late = False
 
-                    # Determine status based on flags (only for scored submissions)
+                    # Determine status based on flags
                     # Check if this is a compilation submission
                     is_compilation = submission.compiled if hasattr(submission, 'compiled') else getattr(submission, 'is_compilation', False)
 
                     if is_compilation:
-                        submission_status = 'submitted_compilation'
+                        submission_status = 'compiled'
                     elif is_resubmitted:
                         submission_status = 'scored_resubmitted'
                     elif is_late:
@@ -5123,10 +5270,76 @@ def get_student_portfolio_activities_api(request, class_name):
 
                     print(f"   ✅ Found SCORED submission: ID={submission.id}, Score={submission.score}, Compilation={is_compilation}, Resubmit={is_resubmitted}, Late={is_late}")
 
+                # Get submission files (multiple files support)
+                submission_files = []
+                if submission:
+                    try:
+                        from .models import SubmissionFile
+                        files = SubmissionFile.objects.filter(submission=submission)
+                        for f in files:
+                            # Build proper file URL - use absolute URL for file field, or file_path for base64
+                            file_url = None
+                            if f.file:
+                                try:
+                                    file_url = request.build_absolute_uri(f.file.url)
+                                except:
+                                    file_url = f.file_path
+                            else:
+                                file_url = f.file_path
+                            
+                            submission_files.append({
+                                'id': f.id,
+                                'path': file_url,
+                                'type': f.file_type,
+                                'name': f.file_name or f'file_{f.id}'
+                            })
+                        print(f"   📁 Found {len(submission_files)} files for submission {submission.id}")
+                        
+                        # Fallback: if no files in SubmissionFile table, use the single file from submission
+                        if len(submission_files) == 0 and submission_file:
+                            file_type = 'image' if (submission_file.startswith('data:image') or submission_file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))) else 'file'
+                            submission_files.append({
+                                'id': 0,
+                                'path': submission_file,
+                                'type': file_type,
+                                'name': 'submission_file'
+                            })
+                            print(f"   📁 Added fallback single file to submission_files")
+                    except Exception as files_error:
+                        print(f"⚠️ Error getting submission files: {files_error}")
+
+                # Calculate max_score from scoring_criteria
+                max_score = None
+                scoring_criteria_data = None
+                try:
+                    import json
+                    if activity.scoring_criteria:
+                        criteria = json.loads(activity.scoring_criteria) if isinstance(activity.scoring_criteria, str) else activity.scoring_criteria
+                        scoring_criteria_data = criteria  # Store the criteria for frontend
+                        if criteria and isinstance(criteria, list):
+                            max_score = sum(int(c.get('maxScore', 0)) for c in criteria)
+                except Exception as score_error:
+                    print(f"⚠️ Error calculating max_score: {score_error}")
+
+                # Get instruction files for this activity
+                instruction_files_data = []
+                try:
+                    for inst_file in activity.instruction_files.all():
+                        instruction_files_data.append({
+                            'id': inst_file.id,
+                            'file_name': inst_file.file_name,
+                            'file_url': request.build_absolute_uri(inst_file.file.url) if inst_file.file else None,
+                            'file_type': inst_file.file_type
+                        })
+                except Exception as inst_error:
+                    print(f"⚠️ Error getting instruction files: {inst_error}")
+
                 activity_data = {
                     'id': activity.id,
                     'title': activity.title,
                     'description': activity.description,
+                    'scoring_criteria': scoring_criteria_data,  # Include scoring criteria for frontend
+                    'instruction_files': instruction_files_data,  # Include instruction files
                     'due_date': activity.due_date.isoformat() if activity.due_date else None,
                     'due_time': activity.due_time.strftime('%H:%M') if activity.due_time else None,
                     'created_at': activity.created_at.isoformat(),
@@ -5137,12 +5350,14 @@ def get_student_portfolio_activities_api(request, class_name):
                     'submitted_date': submitted_date_str,
                     'submitted_time': submitted_time_str,
                     'submission_file': submission_file,
+                    'submission_files': submission_files,  # Multiple files support
                     'submission_caption': submission.caption if submission else None,
                     'submission_score': submission.score if submission else None,
+                    'max_score': max_score,  # Maximum possible score from criteria
                     'submission_feedback': submission.feedback if submission else None,
                     'submission_status': submission_status,
                     'scored_at': submission.scored_at.isoformat() if submission and submission.scored_at else None,
-                    'is_scored': submission is not None,  # True if scored, False if missing/pending
+                    'is_scored': submission is not None and submission.status == 'scored',  # True only if actually scored
                     'is_late': is_late,
                     'is_resubmitted': is_resubmitted,
                     'is_compilation': is_compilation,  # True if this is a compilation submission
@@ -5152,14 +5367,15 @@ def get_student_portfolio_activities_api(request, class_name):
                     'folder_name': folder.name
                 }
 
-                print(f"📝 Activity {activity.id} ({activity.title}): status={submission_status}, late={is_late}, resubmitted={is_resubmitted}")
+                print(f"📝 Activity {activity.id} ({activity.title}): status={submission_status}, late={is_late}, resubmitted={is_resubmitted}, compilation={is_compilation}")
 
                 activity_list.append(activity_data)
 
                 # Categorize into separate lists
-                # Now we have scored_resubmitted, scored_late, scored, pending, and missing
-                if submission_status == 'submitted_compilation':
-                    submitted_activities.append(activity_data) # Treat compiled as submitted/completed
+                # Now we have compiled, scored_resubmitted, scored_late, scored, pending, and missing
+                if submission_status == 'compiled':
+                    submitted_activities.append(activity_data)  # Compiled activities go to submitted list
+                    print(f"   📦 Added compiled activity to submitted list: {activity.title}")
                 elif submission_status == 'scored_resubmitted':
                     resubmitted_activities.append(activity_data)
                     submitted_activities.append(activity_data)  # Also include in submitted since it's scored
@@ -5174,19 +5390,26 @@ def get_student_portfolio_activities_api(request, class_name):
                     print(f"   ⏳ Skipping pending activity from missing list: {activity.title}")
                     pass  # Don't add to any list - it's in limbo waiting for score
                 else:  # truly missing (never submitted)
-                    # Check if there's ANY submission marked as not missing (compiled)
-                    has_compiled_submission = StudentSubmission.objects.filter(
+                    # Check if there's ANY submission for this activity (compiled, unscored, or otherwise)
+                    has_any_submission = StudentSubmission.objects.filter(
                         activity=activity,
                         student=request.user,
-                        is_active=True,
-                        missing=False  # Explicitly check for compiled activities
+                        is_active=True
+                    ).filter(
+                        Q(compiled=True) | Q(is_compilation=True) | Q(missing=False) | Q(status='unscored')
                     ).exists()
 
-                    if has_compiled_submission:
-                        print(f"   ✅ Activity {activity.id} ({activity.title}) is COMPILED - skipping from missing")
-                        continue  # Skip this activity, it's been compiled
+                    if has_any_submission:
+                        print(f"   ✅ Activity {activity.id} ({activity.title}) has submission - skipping from missing")
+                        continue  # Skip this activity, it has a submission
 
-                    # Only add to missing if the due date has PASSED
+                    # Only add to missing if:
+                    # 1. Activity is published
+                    # 2. Due date has PASSED
+                    if not activity.is_published:
+                        print(f"   ⚠️ Activity {activity.id} ({activity.title}) is NOT PUBLISHED - skipping from missing")
+                        continue
+
                     is_overdue = False
                     if activity.due_date:
                         try:
@@ -5219,6 +5442,9 @@ def get_student_portfolio_activities_api(request, class_name):
                         # No due date set - don't consider it missing
                         print(f"   ℹ️ Activity {activity.id} ({activity.title}) has no due date - skipping from missing")
 
+        # Sort submitted_activities by submission_date (most recent first)
+        submitted_activities.sort(key=lambda x: x.get('submission_date') or '', reverse=True)
+        
         print(f"✅ Categorized activities:")
         print(f"   - Submitted: {len(submitted_activities)}")
         print(f"   - Resubmitted: {len(resubmitted_activities)}")
@@ -5248,9 +5474,9 @@ def get_student_portfolio_activities_api(request, class_name):
 @csrf_exempt
 @api_view(['POST'])
 def submit_missing_activity_api(request, activity_id):
-    """Submit a missing activity from portfolio compilation"""
+    """Submit a missing activity from portfolio compilation (supports multiple files)"""
     try:
-        from .models import PortfolioActivity, StudentSubmission
+        from .models import PortfolioActivity, StudentSubmission, SubmissionFile
         import base64
         from django.core.files.base import ContentFile
 
@@ -5261,9 +5487,17 @@ def submit_missing_activity_api(request, activity_id):
 
         # Get submission data
         file_data = request.data.get('file')
+        files_data = request.data.get('files', [])  # Multiple files support
         caption = request.data.get('caption', '')
 
-        if not file_data:
+        print(f"📥 Received file_data: {bool(file_data)}, files_data count: {len(files_data) if isinstance(files_data, list) else 'not a list'}")
+        print(f"📥 files_data type: {type(files_data)}")
+
+        # Ensure files_data is a list
+        if not isinstance(files_data, list):
+            files_data = [files_data] if files_data else []
+
+        if not file_data and not files_data:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if submission already exists
@@ -5278,38 +5512,90 @@ def submit_missing_activity_api(request, activity_id):
                 'submission_id': existing_submission.id
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Handle file upload
-        if file_data.startswith('data:'):
+        # Handle primary file upload
+        primary_file_path = file_data
+        primary_file_type = 'file'
+        
+        if file_data and file_data.startswith('data:'):
             # Base64 encoded file
             format, filestr = file_data.split(';base64,')
             ext = format.split('/')[-1]
             file_name = f"submission_{request.user.id}_{activity_id}.{ext}"
+            primary_file_type = 'image' if 'image' in format else ('pdf' if ext == 'pdf' else 'file')
 
-            # Create submission with file
+            # Create submission with file - mark as compiled since it's from missing activity compilation
             submission = StudentSubmission.objects.create(
                 activity=activity,
                 student=request.user,
                 caption=caption,
                 file=ContentFile(base64.b64decode(filestr), name=file_name),
                 file_path=file_data,  # Keep base64 for compatibility
-                file_type=ext,
+                file_type=primary_file_type,
                 status='unscored',
                 approval_status='pending',
-                post_to_feed=False
+                post_to_feed=False,
+                is_compilation=True,  # Mark as compilation submission
+                compiled=True,  # Mark as compiled
+                missing=False,  # No longer missing
+                compiled_at=timezone.now(),  # Set compilation timestamp
+                submitted_at=timezone.now()  # Set submission timestamp
             )
         else:
-            # Regular file path
+            # Regular file path - mark as compiled since it's from missing activity compilation
             submission = StudentSubmission.objects.create(
                 activity=activity,
                 student=request.user,
                 caption=caption,
-                file_path=file_data,
+                file_path=file_data if file_data else '',
+                file_type=primary_file_type,
                 status='unscored',
                 approval_status='pending',
-                post_to_feed=False
+                post_to_feed=False,
+                is_compilation=True,  # Mark as compilation submission
+                compiled=True,  # Mark as compiled
+                missing=False,  # No longer missing
+                compiled_at=timezone.now(),  # Set compilation timestamp
+                submitted_at=timezone.now()  # Set submission timestamp
             )
 
-        print(f"✅ Missing activity submitted successfully: {submission.id}")
+        # Handle additional files - save ALL files to SubmissionFile table
+        submission_files = []
+        # Use files_data if available, otherwise use file_data as single file
+        all_files = files_data if files_data and len(files_data) > 0 else ([file_data] if file_data else [])
+        
+        print(f"📁 Processing {len(all_files)} files for SubmissionFile table")
+        
+        for idx, f_data in enumerate(all_files):
+            if not f_data:
+                print(f"⚠️ Skipping empty file at index {idx}")
+                continue
+                
+            file_type = 'file'
+            file_url = f_data
+            
+            if isinstance(f_data, str) and f_data.startswith('data:'):
+                format_part = f_data.split(';base64,')[0]
+                file_type = 'image' if 'image' in format_part else ('pdf' if 'pdf' in format_part else 'file')
+            
+            # Create SubmissionFile record
+            try:
+                sub_file = SubmissionFile.objects.create(
+                    submission=submission,
+                    file_path=file_url,  # Use file_path field for base64 data
+                    file_type=file_type,
+                    file_name=f"file_{idx + 1}"
+                )
+                submission_files.append({
+                    'id': sub_file.id,
+                    'path': sub_file.file_url,
+                    'type': sub_file.file_type,
+                    'name': sub_file.file_name
+                })
+                print(f"✅ Added file {idx + 1} to submission (type: {file_type})")
+            except Exception as file_error:
+                print(f"⚠️ Error adding file {idx + 1}: {str(file_error)}")
+
+        print(f"✅ Missing activity submitted successfully: {submission.id} with {len(submission_files)} files")
 
         # Notify teacher
         try:
@@ -5337,7 +5623,8 @@ def submit_missing_activity_api(request, activity_id):
                 'activity_title': activity.title,
                 'caption': submission.caption,
                 'submitted_at': submission.submitted_at.isoformat(),
-                'status': submission.status
+                'status': submission.status,
+                'files': submission_files
             }
         }, status=status.HTTP_201_CREATED)
 
@@ -5703,13 +5990,15 @@ def get_teacher_student_activities_api(request, class_name, student_id):
             activities = PortfolioActivity.objects.filter(folder=folder).order_by('created_at')
 
             for activity in activities:
-                # Get the LATEST SCORED submission for this activity (matching student endpoint logic)
+                # Get the LATEST SCORED or COMPILED submission for this activity
+                from django.db.models import Q
                 submission = StudentSubmission.objects.filter(
                     activity=activity,
                     student=student,
-                    is_active=True,
-                    status='scored'  # ONLY get scored submissions
-                ).order_by('-submitted_at').first()  # Get the latest scored submission
+                    is_active=True
+                ).filter(
+                    Q(status='scored') | Q(compiled=True) | Q(is_compilation=True)
+                ).order_by('-submitted_at').first()  # Get the latest submission
 
                 # Get submission file path with better error handling
                 submission_file = None
@@ -5746,12 +6035,59 @@ def get_teacher_student_activities_api(request, class_name, student_id):
 
                 if submission and submission.submitted_at:
                     try:
-                        local_submitted_time = timezone.localtime(submission.submitted_at)
+                        import pytz
+                        manila_tz = pytz.timezone('Asia/Manila')
+                        
+                        # Convert to Manila timezone
+                        if timezone.is_naive(submission.submitted_at):
+                            aware_time = timezone.make_aware(submission.submitted_at, timezone=pytz.UTC)
+                            local_submitted_time = aware_time.astimezone(manila_tz)
+                        else:
+                            local_submitted_time = submission.submitted_at.astimezone(manila_tz)
+                        
                         submission_date_iso = local_submitted_time.isoformat()
                         submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
                         submitted_time_str = local_submitted_time.strftime('%I:%M %p')
                     except Exception as date_error:
                         print(f"⚠️ Error formatting submission date: {date_error}")
+
+                # Get submission files (multiple files support)
+                submission_files = []
+                if submission:
+                    try:
+                        from .models import SubmissionFile
+                        files = SubmissionFile.objects.filter(submission=submission)
+                        for f in files:
+                            # Build proper file URL - use absolute URL for file field, or file_path for base64
+                            file_url = None
+                            if f.file:
+                                try:
+                                    file_url = request.build_absolute_uri(f.file.url)
+                                except:
+                                    file_url = f.file_path
+                            else:
+                                file_url = f.file_path
+                            
+                            submission_files.append({
+                                'id': f.id,
+                                'path': file_url,
+                                'type': f.file_type,
+                                'name': f.file_name or f'file_{f.id}'
+                            })
+                        print(f"   📁 Found {len(submission_files)} files for submission {submission.id}")
+                        
+                        # Fallback: if no files in SubmissionFile table, use the single file from submission
+                        if len(submission_files) == 0 and submission_file:
+                            file_type = 'image' if (submission_file.startswith('data:image') or submission_file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))) else 'file'
+                            submission_files.append({
+                                'id': 0,
+                                'path': submission_file,
+                                'type': file_type,
+                                'name': 'submission_file'
+                            })
+                            print(f"   📁 Added fallback single file to submission_files")
+                    except Exception as files_error:
+                        print(f"⚠️ Error getting submission files: {files_error}")
 
                 activity_data = {
                     'id': activity.id,
@@ -5767,20 +6103,53 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                     'submitted_date': submitted_date_str,
                     'submitted_time': submitted_time_str,
                     'submission_file': submission_file,
+                    'submission_files': submission_files,  # Multiple files support
                     'submission_caption': submission.caption if submission else None,
                     'submission_score': submission.score if submission else None,
+                    'max_score': None,  # Will be calculated below
                     'submission_feedback': submission.feedback if submission else None,
-                    'submission_status': 'scored' if submission else 'missing',  # Since we only fetch scored submissions
+                    'submission_status': 'scored' if submission else 'missing',  # Default status
                     'folder_name': folder.name,
                     'is_scored': submission is not None,  # Add flag for scored status
+                    'is_compilation': submission.is_compilation if submission and hasattr(submission, 'is_compilation') else False,
+                    'is_late': submission.is_late if submission and hasattr(submission, 'is_late') else False,
+                    'resubmit_count': submission.resubmit_count if submission and hasattr(submission, 'resubmit_count') else 0,
                     'scored_at': submission.scored_at.isoformat() if submission and hasattr(submission, 'scored_at') and submission.scored_at else None
                 }
+
+                # Calculate max_score from scoring_criteria
+                try:
+                    import json
+                    if activity.scoring_criteria:
+                        criteria = json.loads(activity.scoring_criteria) if isinstance(activity.scoring_criteria, str) else activity.scoring_criteria
+                        if criteria and isinstance(criteria, list):
+                            activity_data['max_score'] = sum(int(c.get('maxScore', 0)) for c in criteria)
+                except Exception as score_error:
+                    print(f"⚠️ Error calculating max_score: {score_error}")
+
+                # Determine proper status
+                if submission:
+                    is_compilation = submission.compiled if hasattr(submission, 'compiled') else getattr(submission, 'is_compilation', False)
+                    is_resubmitted = submission.resubmit_count > 0 if hasattr(submission, 'resubmit_count') else False
+                    is_late = submission.is_late if hasattr(submission, 'is_late') else False
+                    
+                    if is_compilation:
+                        activity_data['submission_status'] = 'compiled'
+                    elif is_resubmitted:
+                        activity_data['submission_status'] = 'scored_resubmitted'
+                    elif is_late:
+                        activity_data['submission_status'] = 'scored_late'
+                    else:
+                        activity_data['submission_status'] = 'scored'
 
                 activity_list.append(activity_data)
 
         # Separate submitted and missing activities
         submitted_activities = [a for a in activity_list if a['has_submission']]
         missing_activities = [a for a in activity_list if not a['has_submission']]
+        
+        # Sort submitted activities by submission date (latest first)
+        submitted_activities.sort(key=lambda x: x.get('submission_date') or '', reverse=True)
 
         print(f"✅ Found {len(submitted_activities)} submitted and {len(missing_activities)} missing activities for student")
 

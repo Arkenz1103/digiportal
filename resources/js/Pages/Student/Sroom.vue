@@ -1268,201 +1268,188 @@
                        style="background-image: linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px); background-size: 20px 20px;">
                   </div>
 
-                  <!-- Floating Particles Effect -->
+                  <!-- Floating Particles Effect - Reduced for performance -->
                   <div class="absolute inset-0 pointer-events-none overflow-hidden">
-                    <div v-for="i in 15" :key="i"
+                    <div v-for="i in 5" :key="i"
                          class="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
                          :style="{
-                           left: `${Math.random() * 100}%`,
-                           top: `${Math.random() * 100}%`,
-                           animationDelay: `${Math.random() * 5}s`,
-                           animationDuration: `${5 + Math.random() * 10}s`
+                           left: `${(i * 20)}%`,
+                           top: `${(i * 15) + 10}%`,
+                           animationDelay: `${i * 0.5}s`,
+                           animationDuration: `${8 + i}s`
                          }">
                     </div>
                   </div>
 
                   <!-- Activity Display -->
-                  <div class="relative p-8 z-10">
-                    <!-- Activity Counter with Pulse Animation -->
-                    <div class="absolute top-4 right-4 z-10 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-2xl animate-pulse-slow transform transition-all duration-300 hover:scale-110"
-                         :style="{
-                           backgroundColor: adjustBrightness(envelopeDesign.color, -30),
-                           boxShadow: `0 0 20px ${envelopeDesign.color}80, 0 0 40px ${envelopeDesign.color}40`
-                         }">
-                      <span class="relative z-10">{{ currentActivityIndex + 1 }} / {{ portfolioActivities.length }}</span>
-                      <div class="absolute inset-0 rounded-full animate-ping opacity-20"
-                           :style="{ backgroundColor: envelopeDesign.color }">
-                      </div>
-                    </div>
+                  <div class="relative p-6 z-10">
 
                     <!-- Activity Content -->
                     <div v-if="portfolioActivities[currentActivityIndex]"
-                         :key="currentActivityIndex">
-                      <!-- Content Card with Glass Effect -->
-                      <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl relative transform transition-all duration-500 hover:shadow-3xl hover:scale-[1.01]">
-                      <!-- Activity Image/Preview -->
-                      <div class="aspect-video bg-gradient-to-br from-white/50 to-white/30 rounded-xl mb-6 flex items-center justify-center overflow-hidden relative border-2 border-white/50 shadow-lg transform transition-all duration-300 hover:shadow-2xl"
-                           :style="{ borderColor: `${envelopeDesign.color}40` }">
-                        <img v-if="portfolioActivities[currentActivityIndex].submission_file && (portfolioActivities[currentActivityIndex].submission_file.startsWith('data:image') || portfolioActivities[currentActivityIndex].submission_file.match(/\.(jpeg|jpg|gif|png|webp)$/i))"
-                             :src="portfolioActivities[currentActivityIndex].submission_file"
-                             alt="Activity submission"
-                             class="w-full h-full object-contain"
-                             @error="(e) => { console.error('Image load error:', portfolioActivities[currentActivityIndex].submission_file); e.target.style.display = 'none'; }"
-                        />
-                        <div v-else-if="portfolioActivities[currentActivityIndex].submission_file" class="text-center flex flex-col items-center">
-                            <i class="pi pi-file-pdf text-6xl text-red-500 mb-4" v-if="portfolioActivities[currentActivityIndex].submission_file.includes('pdf')"></i>
-                            <i class="pi pi-file text-6xl text-indigo-300 mb-4" v-else></i>
-                            <p class="text-gray-600 font-medium mb-2">File Attached</p>
-                            <a :href="portfolioActivities[currentActivityIndex].submission_file"
-                               target="_blank"
-                               class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
-                                View File
-                            </a>
-                        </div>
-                        <div v-else class="text-center flex flex-col items-center">
-                          <div v-if="portfolioActivities[currentActivityIndex].submission_status === 'submitted_compilation'" class="flex flex-col items-center">
-                              <i class="pi pi-check-circle text-6xl text-green-500 mb-4"></i>
-                              <p class="text-green-600 font-medium">Activity Compiled</p>
+                         :key="currentActivityIndex"
+                         @vue:mounted="currentFileIndex = 0">
+                      
+                      <!-- Top Navigation Bar -->
+                      <div class="flex items-center justify-between mb-4 bg-white/90 rounded-xl p-3 shadow-md">
+                        <button
+                          @click="previousActivity"
+                          :disabled="currentActivityIndex === 0"
+                          class="flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50"
+                          :style="{ borderColor: envelopeDesign.color, color: envelopeDesign.color }"
+                        >
+                          <i class="pi pi-chevron-left"></i>
+                          <span class="font-medium">Previous</span>
+                        </button>
+                        
+                        <span class="px-4 py-2 rounded-lg font-bold text-white"
+                              :style="{ backgroundColor: envelopeDesign.color }">
+                          {{ currentActivityIndex + 1 }} / {{ portfolioActivities.length }}
+                        </span>
+                        
+                        <button
+                          @click="nextActivity"
+                          :disabled="currentActivityIndex >= portfolioActivities.length - 1"
+                          class="flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50"
+                          :style="{ borderColor: envelopeDesign.color, color: envelopeDesign.color }"
+                        >
+                          <span class="font-medium">Next</span>
+                          <i class="pi pi-chevron-right"></i>
+                        </button>
+                      </div>
+
+                      <!-- Content Card - 75/25 Layout -->
+                      <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="flex flex-col lg:flex-row">
+                          
+                          <!-- Left Column: File Preview (75%) -->
+                          <div class="lg:w-3/4 bg-gray-100 p-4 flex items-center justify-center min-h-[400px] relative">
+                            <!-- File Counter (only show if multiple files) -->
+                            <div v-if="portfolioActivities[currentActivityIndex]?.submission_files?.length > 1" 
+                                 class="absolute top-3 left-1/2 transform -translate-x-1/2 z-20 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                              {{ currentFileIndex + 1 }} / {{ portfolioActivities[currentActivityIndex].submission_files.length }}
+                            </div>
+                            
+                            <!-- Navigation Buttons -->
+                            <template v-if="portfolioActivities[currentActivityIndex]?.submission_files?.length > 1">
+                              <!-- Previous File Button -->
+                              <button @click.stop="currentFileIndex = Math.max(0, currentFileIndex - 1)"
+                                      :disabled="currentFileIndex === 0"
+                                      class="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                                <i class="pi pi-chevron-left text-indigo-600 text-lg"></i>
+                              </button>
+                              
+                              <!-- Next File Button -->
+                              <button @click.stop="currentFileIndex = Math.min(portfolioActivities[currentActivityIndex].submission_files.length - 1, currentFileIndex + 1)"
+                                      :disabled="currentFileIndex >= portfolioActivities[currentActivityIndex].submission_files.length - 1"
+                                      class="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                                <i class="pi pi-chevron-right text-indigo-600 text-lg"></i>
+                              </button>
+                            </template>
+                            
+                            <!-- File Display using computed property -->
+                            <template v-if="currentPortfolioFile && currentPortfolioFile.path">
+                              <!-- Image Display -->
+                              <img v-if="currentPortfolioFile.type === 'image' && currentPortfolioFile.path.length > 0"
+                                   :src="currentPortfolioFile.path.startsWith('http') || currentPortfolioFile.path.startsWith('/media') || currentPortfolioFile.path.startsWith('data:') ? currentPortfolioFile.path : `data:image/png;base64,${currentPortfolioFile.path}`"
+                                   alt="Submission"
+                                   class="max-h-full max-w-full object-contain"
+                                   style="max-height: 380px; max-width: 100%; object-fit: contain;"
+                              />
+                              <!-- PDF Display -->
+                              <div v-else-if="currentPortfolioFile.type === 'pdf'" class="flex flex-col items-center justify-center text-red-600">
+                                <i class="pi pi-file-pdf text-8xl mb-4"></i>
+                                <span class="text-lg font-medium">PDF Document</span>
+                                <span class="text-sm text-gray-500 mt-2">{{ currentPortfolioFile.name }}</span>
+                                <button @click="openFileInNewTab(currentPortfolioFile.path)"
+                                   class="mt-4 px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+                                    <i class="pi pi-external-link mr-2"></i>View File
+                                </button>
+                              </div>
+                              <!-- Other File Display -->
+                              <div v-else class="flex flex-col items-center justify-center text-gray-600">
+                                <i class="pi pi-file text-8xl mb-4"></i>
+                                <span class="text-lg font-medium">File Attached</span>
+                                <span class="text-sm text-gray-500 mt-2">{{ currentPortfolioFile.name }}</span>
+                                <button @click="openFileInNewTab(currentPortfolioFile.path)"
+                                   class="mt-4 px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+                                    <i class="pi pi-external-link mr-2"></i>View File
+                                </button>
+                              </div>
+                            </template>
+                            
+                            <!-- No File -->
+                            <div v-else class="flex flex-col items-center justify-center text-gray-400 px-6 text-center">
+                              <i class="pi pi-image text-6xl mb-4"></i>
+                              <p class="text-base text-gray-600 mb-2">No file data available</p>
+                            </div>
                           </div>
-                          <div v-else class="flex flex-col items-center">
-                              <i class="pi pi-file text-6xl text-indigo-300 mb-4"></i>
-                              <p class="text-indigo-600 font-medium">
-                                {{ portfolioActivities[currentActivityIndex].submission_status === 'missing' ? 'No Submission' : 'No File Available' }}
-                              </p>
+                          
+                          <!-- Right Column: Activity Details (25%) - Compact -->
+                          <div class="lg:w-1/4 p-4 bg-white border-l border-gray-200">
+                            <div class="space-y-3">
+                              <!-- Activity Title -->
+                              <div>
+                                <span class="text-xs text-gray-400 uppercase">Title</span>
+                                <p class="text-sm font-bold text-gray-800 leading-tight">{{ portfolioActivities[currentActivityIndex].title }}</p>
+                              </div>
+                              
+                              <!-- Subject -->
+                              <div>
+                                <span class="text-xs text-gray-400 uppercase">Subject</span>
+                                <p class="text-sm font-medium text-gray-700">{{ portfolioActivities[currentActivityIndex].folder_name || 'N/A' }}</p>
+                              </div>
+                              
+                              <!-- Type -->
+                              <div>
+                                <span class="text-xs text-gray-400 uppercase">Type</span>
+                                <p class="text-sm font-medium text-gray-700 capitalize">{{ portfolioActivities[currentActivityIndex].activity_type || 'Activity' }}</p>
+                              </div>
+                              
+                              <!-- Date & Time -->
+                              <div>
+                                <span class="text-xs text-gray-400 uppercase">Submitted</span>
+                                <p class="text-sm font-medium text-gray-700">
+                                  {{ portfolioActivities[currentActivityIndex].submitted_date || (portfolioActivities[currentActivityIndex].is_compilation ? 'Compiled' : 'N/A') }}
+                                  <span v-if="portfolioActivities[currentActivityIndex].submitted_time" class="text-gray-500">
+                                    at {{ portfolioActivities[currentActivityIndex].submitted_time }}
+                                  </span>
+                                </p>
+                              </div>
+                              
+                              <!-- Status -->
+                              <div>
+                                <span class="text-xs text-gray-400 uppercase">Status</span>
+                                <p>
+                                  <span class="px-2 py-0.5 rounded text-xs font-medium"
+                                        :class="{
+                                          'bg-green-100 text-green-700': portfolioActivities[currentActivityIndex].submission_status === 'scored',
+                                          'bg-purple-100 text-purple-700': portfolioActivities[currentActivityIndex].submission_status === 'compiled',
+                                          'bg-blue-100 text-blue-700': portfolioActivities[currentActivityIndex].submission_status === 'scored_resubmitted',
+                                          'bg-orange-100 text-orange-700': portfolioActivities[currentActivityIndex].submission_status === 'scored_late',
+                                          'bg-red-100 text-red-700': portfolioActivities[currentActivityIndex].submission_status === 'missing'
+                                        }">
+                                    {{ getStatusLabel(portfolioActivities[currentActivityIndex]) }}
+                                  </span>
+                                </p>
+                              </div>
+                              
+                              <!-- Score -->
+                              <div class="pt-2 border-t border-gray-100">
+                                <span class="text-xs text-gray-400 uppercase">Score</span>
+                                <p class="text-xl font-bold" :class="portfolioActivities[currentActivityIndex].submission_score !== null && !portfolioActivities[currentActivityIndex].is_compilation ? 'text-green-600' : 'text-gray-400'">
+                                  {{ getScoreDisplay(portfolioActivities[currentActivityIndex]) }}
+                                </p>
+                              </div>
+                              
+                              <!-- Feedback if exists -->
+                              <div v-if="portfolioActivities[currentActivityIndex].submission_feedback" class="pt-2 border-t border-gray-100">
+                                <span class="text-xs text-gray-400 uppercase">Feedback</span>
+                                <p class="text-xs text-gray-600 mt-1">{{ portfolioActivities[currentActivityIndex].submission_feedback }}</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-
-                      <!-- Submission Caption -->
-                      <div v-if="portfolioActivities[currentActivityIndex].submission_caption" class="mb-4 p-4 bg-gray-50 rounded-lg">
-                        <p class="text-sm text-gray-700 italic">
-                          "{{ portfolioActivities[currentActivityIndex].submission_caption }}"
-                        </p>
-                      </div>
-
-                      <!-- Score and Feedback -->
-                      <div v-if="portfolioActivities[currentActivityIndex].is_compilation || (portfolioActivities[currentActivityIndex].submission_score !== null && portfolioActivities[currentActivityIndex].submission_score !== undefined)"
-                           class="mb-4 p-4 rounded-lg"
-                           :class="portfolioActivities[currentActivityIndex].is_compilation ? 'bg-purple-50 border border-purple-200' : 'bg-green-50 border border-green-200'">
-                        <div class="flex items-center justify-between mb-2">
-                          <span class="text-sm font-medium text-gray-700">Status:</span>
-                          <span class="text-xl font-bold"
-                                :class="(portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score == null) ? 'text-purple-700' : 'text-green-700'">
-                                {{ (portfolioActivities[currentActivityIndex].is_compilation && portfolioActivities[currentActivityIndex].submission_score == null) ? 'Compiled' : portfolioActivities[currentActivityIndex].submission_score }}
-                          </span>
-                        </div>
-                        <div v-if="portfolioActivities[currentActivityIndex].submission_feedback"
-                             class="mt-2 pt-2 border-t"
-                             :class="portfolioActivities[currentActivityIndex].is_compilation ? 'border-purple-200' : 'border-green-200'">
-                          <p class="text-sm text-gray-600">
-                            <span class="font-medium">Feedback:</span> {{ portfolioActivities[currentActivityIndex].submission_feedback }}
-                          </p>
-                        </div>
-                      </div>
-
-                      <!-- Activity Details -->
-                      <div class="space-y-4">
-                        <div>
-                          <div class="flex items-center gap-3 mb-3">
-                            <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold uppercase">
-                              {{ portfolioActivities[currentActivityIndex].activity_type || 'Activity' }}
-                            </span>
-                            <span class="text-sm text-gray-500">
-                              {{ portfolioActivities[currentActivityIndex].folder_name }}
-                            </span>
-                          </div>
-                          <h3 class="text-2xl font-bold text-gray-900 mb-2">
-                            {{ portfolioActivities[currentActivityIndex].title }}
-                          </h3>
-                          <p class="text-gray-600">
-                            {{ portfolioActivities[currentActivityIndex].description }}
-                          </p>
-                        </div>
-
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
-                          <div>
-                            <span class="text-sm text-gray-500 block mb-1">Status:</span>
-                            <span class="px-3 py-1 rounded-full text-sm font-medium inline-block capitalize"
-                                  :class="{
-                                    'bg-green-100 text-green-800': portfolioActivities[currentActivityIndex].submission_status === 'scored',
-                                    'bg-purple-100 text-purple-800': portfolioActivities[currentActivityIndex].submission_status === 'submitted_compilation',
-                                    'bg-blue-100 text-blue-800': portfolioActivities[currentActivityIndex].submission_status === 'scored_resubmitted',
-                                    'bg-orange-100 text-orange-800': portfolioActivities[currentActivityIndex].submission_status === 'scored_late',
-                                    'bg-red-100 text-red-800': portfolioActivities[currentActivityIndex].submission_status === 'missing'
-                                  }">
-                              {{ portfolioActivities[currentActivityIndex].submission_status === 'submitted_compilation' ? 'Submitted Compilation' : portfolioActivities[currentActivityIndex].submission_status }}
-                              <span v-if="portfolioActivities[currentActivityIndex].is_resubmitted" class="ml-1 text-xs">({{ portfolioActivities[currentActivityIndex].resubmit_count }}x)</span>
-                            </span>
-                          </div>
-                          <div v-if="portfolioActivities[currentActivityIndex].submitted_date">
-                            <span class="text-sm text-gray-500 block mb-1">Date Submitted:</span>
-                            <span class="text-sm font-medium text-gray-900">
-                              {{ portfolioActivities[currentActivityIndex].submitted_date }}
-                            </span>
-                          </div>
-                          <div v-if="portfolioActivities[currentActivityIndex].submitted_time">
-                            <span class="text-sm text-gray-500 block mb-1">Time Submitted:</span>
-                            <span class="text-sm font-medium text-gray-900">
-                              {{ portfolioActivities[currentActivityIndex].submitted_time }}
-                            </span>
-                          </div>
-                          <div v-if="portfolioActivities[currentActivityIndex].scored_at">
-                            <span class="text-sm text-gray-500 block mb-1">Scored At:</span>
-                            <span class="text-sm font-medium text-green-600">
-                              {{ new Date(portfolioActivities[currentActivityIndex].scored_at).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                              }) }}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      </div>
-                      <!-- Close Content Card -->
-
-                      <!-- Navigation Arrows - Centered with image, inside card -->
-                      <button
-                        @click="previousActivity"
-                        :disabled="currentActivityIndex === 0"
-                        class="absolute left-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
-                        :style="{
-                          borderColor: envelopeDesign.color,
-                          borderWidth: '3px',
-                          boxShadow: `0 8px 32px ${envelopeDesign.color}40, 0 0 0 0 ${envelopeDesign.color}20`
-                        }"
-                      >
-                        <i class="pi pi-chevron-left text-2xl transition-all duration-300 group-hover:scale-110"
-                           :style="{ color: envelopeDesign.color }"></i>
-                        <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                             :style="{
-                               background: `radial-gradient(circle, ${envelopeDesign.color}20 0%, transparent 70%)`,
-                               animation: 'pulse 2s infinite'
-                             }">
-                        </div>
-                      </button>
-                      <button
-                        @click="nextActivity"
-                        :disabled="currentActivityIndex >= portfolioActivities.length - 1"
-                        class="absolute right-2 top-[200px] w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-2xl flex items-center justify-center hover:bg-white hover:scale-125 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed z-30 group"
-                        :style="{
-                          borderColor: envelopeDesign.color,
-                          borderWidth: '3px',
-                          boxShadow: `0 8px 32px ${envelopeDesign.color}40, 0 0 0 0 ${envelopeDesign.color}20`
-                        }"
-                      >
-                        <i class="pi pi-chevron-right text-2xl transition-all duration-300 group-hover:scale-110"
-                           :style="{ color: envelopeDesign.color }"></i>
-                        <div class="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                             :style="{
-                               background: `radial-gradient(circle, ${envelopeDesign.color}20 0%, transparent 70%)`,
-                               animation: 'pulse 2s infinite'
-                             }">
-                        </div>
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -1474,8 +1461,9 @@
 
                     <!-- Missing Activities List -->
                     <div class="space-y-4">
-                      <div v-for="activity in missingActivities" :key="activity.id"
-                           class="bg-orange-50 border border-orange-200 rounded-xl p-6 hover:bg-orange-100 transition-colors">
+                      <div v-for="activity in displayedMissingActivities" :key="activity.id"
+                           class="bg-orange-50 border border-orange-200 rounded-xl p-6 hover:bg-orange-100 transition-colors cursor-pointer"
+                           @click="selectedMissingActivity = activity; showMissingActivityDetailDialog = true">
                         <div class="flex items-start justify-between">
                           <div class="flex-1">
                             <div class="flex items-center gap-3 mb-3">
@@ -1487,7 +1475,7 @@
                               </span>
                             </div>
                             <h4 class="text-xl font-bold text-gray-900 whitespace-normal break-words mb-2">{{ activity.title }}</h4>
-                            <p class="text-gray-600 mb-4">{{ activity.description }}</p>
+                            <p class="text-gray-600 mb-4 line-clamp-2">{{ activity.description }}</p>
                             <div class="flex items-center gap-4 text-sm text-gray-500">
                               <span v-if="activity.due_date">
                                 <i class="pi pi-calendar mr-1"></i>
@@ -1504,7 +1492,7 @@
                             </div>
                           </div>
                           <!-- Show different buttons based on draft status -->
-                          <div v-if="compilationDrafts[activity.id]" class="ml-4 flex gap-2">
+                          <div v-if="compilationDrafts[activity.id]" class="ml-4 flex gap-2" @click.stop>
                             <button
                               @click="editCompilation(activity)"
                               class="px-6 py-3 bg-white text-indigo-600 font-semibold rounded-lg border-2 border-indigo-600 hover:bg-indigo-50 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
@@ -1522,14 +1510,25 @@
                           </div>
                           <button
                             v-else
-                            @click="compileActivity(activity)"
+                            @click.stop="compileActivity(activity)"
                             class="ml-4 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
                           >
                             <i class="pi pi-upload"></i>
-                            Upload File
+                            Compile Now
                           </button>
                         </div>
                       </div>
+                    </div>
+                    
+                    <!-- Load More Button -->
+                    <div v-if="hasMoreMissingActivities" class="mt-6 text-center">
+                      <button
+                        @click="loadMoreMissingActivities"
+                        class="px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 mx-auto"
+                      >
+                        <i class="pi pi-angle-down"></i>
+                        Load More ({{ missingActivities.length - visibleMissingCount }} remaining)
+                      </button>
                     </div>
                   </div>
 
@@ -2935,11 +2934,11 @@
       <div class="space-y-4">
         <!-- Caption Input -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Caption</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
           <textarea
             v-model="submissionCaption"
             rows="4"
-            placeholder="Add a caption to your work..."
+            placeholder="Add a description to your work..."
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           ></textarea>
         </div>
@@ -2947,59 +2946,78 @@
         <!-- Upload Your Work Section -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Upload Your Work</label>
-          <div
-            @click="triggerCompilationFileUpload"
-            class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors">
+          
+          <!-- Files List (when files exist) -->
+          <div v-if="draftFiles.length > 0" class="space-y-3">
+            <div class="border-2 border-purple-200 rounded-lg p-3 bg-purple-50">
+              <div class="space-y-2">
+                <div
+                  v-for="(file, index) in draftFiles"
+                  :key="`turn-in-${index}-${file.id}`"
+                  class="flex items-center gap-3 p-2 bg-white rounded-lg border border-gray-200"
+                >
+                  <!-- File Icon -->
+                  <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                       :class="file.type === 'image' ? 'bg-blue-100' : file.type === 'pdf' ? 'bg-red-100' : 'bg-gray-100'">
+                    <i v-if="file.type === 'image'" class="pi pi-image text-blue-600"></i>
+                    <i v-else-if="file.type === 'pdf'" class="pi pi-file-pdf text-red-600"></i>
+                    <i v-else class="pi pi-file text-gray-600"></i>
+                  </div>
+                  <!-- File Info -->
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate max-w-[200px]" :title="file.name">{{ file.name }}</p>
+                    <p class="text-xs text-gray-500 capitalize">{{ file.type }}</p>
+                  </div>
+                  <!-- Remove Button -->
+                  <button
+                    @click.stop="removeFileDirectly(index)"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
+                    title="Remove file"
+                  >
+                    <i class="pi pi-times text-red-500"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Add More Files Button -->
+            <button
+              @click="triggerCompilationFileUpload"
+              :disabled="isSubmitting"
+              class="w-full px-4 py-3 border-2 border-dashed border-indigo-300 rounded-lg text-indigo-600 font-medium hover:border-indigo-500 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+              <i v-else class="pi pi-plus-circle"></i>
+              <span>{{ isSubmitting ? 'Processing...' : 'Add More Files' }}</span>
+            </button>
             <input
               ref="compilationFileInput"
               type="file"
               @change="handleCompilationFileUpload"
               accept="image/*,.pdf,.doc,.docx"
+              multiple
               class="hidden"
             />
-            <div v-if="draftFiles.length > 0" class="space-y-2">
-              <div
-                v-for="file in draftFiles"
-                :key="`turn-in-${file.id}-${file.path}`"
-                class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200"
-              >
-                <!-- Thumbnail with actual image -->
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
-                     :class="file.type === 'image' ? 'bg-gray-100' : 'bg-indigo-100'">
-                  <img
-                    v-if="file.type === 'image' && file.path"
-                    :key="file.path"
-                    :src="file.path"
-                    :alt="file.name"
-                    class="w-full h-full object-cover"
-                    @load="() => console.log('✅ Turn-in dialog image loaded:', file.path)"
-                    @error="(e) => { console.error('❌ Turn-in dialog image error:', file.path); e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
-                  />
-                  <div
-                    class="w-full h-full flex items-center justify-center"
-                    :style="file.type === 'image' && file.path ? 'display: none;' : ''">
-                    <i v-if="file.type === 'image'" class="pi pi-image text-indigo-600"></i>
-                    <i v-else-if="file.type === 'pdf'" class="pi pi-file-pdf text-red-600"></i>
-                    <i v-else class="pi pi-file text-gray-600"></i>
-                  </div>
-                </div>
-                <div class="flex-1 text-left">
-                  <p class="text-sm font-medium text-gray-900 truncate">{{ file.name }}</p>
-                  <p class="text-xs text-gray-500 capitalize">{{ file.type }}</p>
-                </div>
-                <!-- Remove Button -->
-                <button
-                  @click.stop="confirmRemoveFile(file)"
-                  class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-100 transition-colors"
-                  title="Remove file"
-                >
-                  <i class="pi pi-times text-red-600"></i>
-                </button>
-              </div>
-            </div>
-            <div v-else class="text-gray-500">
-              <i class="pi pi-upload text-3xl mb-2"></i>
-              <p class="text-sm">Click to upload or drag and drop</p>
+          </div>
+          
+          <!-- Empty State (no files yet) -->
+          <div
+            v-else
+            @click="!isSubmitting && triggerCompilationFileUpload()"
+            class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 transition-colors"
+            :class="isSubmitting ? 'cursor-wait' : 'cursor-pointer hover:border-indigo-400 hover:bg-indigo-50'">
+            <input
+              ref="compilationFileInput"
+              type="file"
+              @change="handleCompilationFileUpload"
+              accept="image/*,.pdf,.doc,.docx"
+              multiple
+              class="hidden"
+            />
+            <div class="text-gray-500">
+              <i v-if="isSubmitting" class="pi pi-spin pi-spinner text-3xl mb-2 text-indigo-600"></i>
+              <i v-else class="pi pi-upload text-3xl mb-2"></i>
+              <p class="text-sm">{{ isSubmitting ? 'Processing files...' : 'Click to upload or drag and drop' }}</p>
               <p class="text-xs text-gray-400">(PDF, DOC, DOCX, or Images)</p>
             </div>
           </div>
@@ -3058,6 +3076,188 @@
             <span>{{ isSubmitting ? 'Submitting...' : 'Submit Now' }}</span>
           </button>
         </div>
+      </template>
+    </Dialog>
+
+    <!-- Missing Activity Detail Dialog -->
+    <Dialog v-model:visible="showMissingActivityDetailDialog" modal :style="{ width: '90vw', maxWidth: '550px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-file text-orange-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Activity Details</h3>
+        </div>
+      </template>
+
+      <div v-if="selectedMissingActivity" class="space-y-3">
+        <!-- Row 1: Title and Subject -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <span class="text-xs text-gray-400 uppercase">Title</span>
+            <p class="text-sm font-bold text-gray-800 truncate" :title="selectedMissingActivity.title">{{ selectedMissingActivity.title }}</p>
+          </div>
+          <div>
+            <span class="text-xs text-gray-400 uppercase">Subject</span>
+            <p class="text-sm font-medium text-gray-700">{{ selectedMissingActivity.folder_name || 'N/A' }}</p>
+          </div>
+        </div>
+
+        <!-- Row 2: Type and Due Date -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <span class="text-xs text-gray-400 uppercase">Type</span>
+            <p class="text-sm font-medium text-gray-700 capitalize">{{ selectedMissingActivity.activity_type || 'Activity' }}</p>
+          </div>
+          <div>
+            <span class="text-xs text-gray-400 uppercase">Due Date</span>
+            <p class="text-sm font-medium text-gray-700">
+              {{ selectedMissingActivity.due_date ? new Date(selectedMissingActivity.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date' }}
+              <span v-if="selectedMissingActivity.due_time" class="text-gray-500">{{ selectedMissingActivity.due_time }}</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div>
+          <span class="text-xs text-gray-400 uppercase">Status</span>
+          <p class="mt-1">
+            <span class="px-2 py-0.5 bg-red-100 text-red-800 rounded text-xs font-semibold">Missing</span>
+          </p>
+        </div>
+
+        <!-- Instructions with Expand button and Attached Files -->
+        <div v-if="selectedMissingActivity.description || (selectedMissingActivity.instruction_files && selectedMissingActivity.instruction_files.length > 0)">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-400 uppercase">Instructions</span>
+            <div class="flex items-center gap-2">
+              <!-- Attached Files -->
+              <div v-if="selectedMissingActivity.instruction_files && selectedMissingActivity.instruction_files.length > 0" class="flex items-center gap-1">
+                <a 
+                  v-for="file in selectedMissingActivity.instruction_files.slice(0, 2)" 
+                  :key="file.id"
+                  :href="file.file_url"
+                  target="_blank"
+                  class="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded text-xs hover:bg-indigo-100 transition-colors"
+                >
+                  <i class="pi pi-file text-indigo-600 text-xs"></i>
+                  <span class="text-indigo-700 max-w-[60px] truncate">{{ file.file_name }}</span>
+                </a>
+                <span 
+                  v-if="selectedMissingActivity.instruction_files.length > 2"
+                  class="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs text-gray-600"
+                >
+                  +{{ selectedMissingActivity.instruction_files.length - 2 }}
+                </span>
+              </div>
+              <!-- Expand Button -->
+              <button 
+                @click="showExpandedInstructionDialog = true; expandedInstructionActivity = selectedMissingActivity"
+                class="flex items-center gap-1 px-2 py-0.5 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded transition-colors"
+                title="Expand instruction"
+              >
+                <i class="pi pi-expand text-xs"></i>
+                <span>Expand</span>
+              </button>
+            </div>
+          </div>
+          <div class="text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 max-h-24 overflow-y-auto whitespace-pre-wrap">
+            {{ selectedMissingActivity.description || 'No instructions provided' }}
+          </div>
+        </div>
+
+        <!-- Scoring Criteria (truncated) -->
+        <div v-if="selectedMissingActivity.scoring_criteria && selectedMissingActivity.scoring_criteria.length > 0">
+          <span class="text-xs text-gray-400 uppercase">Scoring Criteria</span>
+          <div class="bg-gray-50 p-2 rounded border border-gray-200 mt-1 max-h-24 overflow-y-auto">
+            <div v-for="(criteria, idx) in selectedMissingActivity.scoring_criteria.slice(0, 3)" :key="idx" class="text-xs text-gray-600 flex justify-between py-0.5">
+              <span class="truncate flex-1 mr-2">{{ criteria.name || criteria.criteria }}</span>
+              <span class="text-gray-500 flex-shrink-0">{{ criteria.maxScore || criteria.max_score || 0 }} pts</span>
+            </div>
+            <p v-if="selectedMissingActivity.scoring_criteria.length > 3" class="text-xs text-gray-400 mt-1">
+              +{{ selectedMissingActivity.scoring_criteria.length - 3 }} more criteria
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showMissingActivityDetailDialog = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Close
+          </button>
+          <button
+            @click="showMissingActivityDetailDialog = false; compileActivity(selectedMissingActivity)"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <i class="pi pi-upload"></i>
+            <span>Upload File</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Expanded Instruction Dialog -->
+    <Dialog v-model:visible="showExpandedInstructionDialog" modal :style="{ width: '90vw', maxWidth: '600px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-file-edit text-indigo-600 text-xl"></i>
+          <h3 class="text-lg font-bold text-gray-800">Instructions</h3>
+        </div>
+      </template>
+
+      <div v-if="expandedInstructionActivity" class="space-y-4">
+        <!-- Activity Title -->
+        <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+          <p class="text-sm font-bold text-indigo-800">{{ expandedInstructionActivity.title }}</p>
+        </div>
+
+        <!-- Full Instructions -->
+        <div>
+          <span class="text-xs text-gray-400 uppercase mb-2 block">Full Instructions</span>
+          <div class="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-64 overflow-y-auto whitespace-pre-wrap">
+            {{ expandedInstructionActivity.description || 'No instructions provided' }}
+          </div>
+        </div>
+
+        <!-- Attached Files -->
+        <div v-if="expandedInstructionActivity.instruction_files && expandedInstructionActivity.instruction_files.length > 0">
+          <span class="text-xs text-gray-400 uppercase mb-2 block">Attached Files</span>
+          <div class="space-y-2">
+            <a 
+              v-for="file in expandedInstructionActivity.instruction_files" 
+              :key="file.id"
+              :href="file.file_url"
+              target="_blank"
+              class="flex items-center gap-3 p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <i class="pi pi-file text-indigo-600"></i>
+              <span class="text-sm text-gray-700 flex-1 truncate">{{ file.file_name }}</span>
+              <i class="pi pi-external-link text-gray-400 text-xs"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Scoring Criteria -->
+        <div v-if="expandedInstructionActivity.scoring_criteria && expandedInstructionActivity.scoring_criteria.length > 0">
+          <span class="text-xs text-gray-400 uppercase mb-2 block">Scoring Criteria</span>
+          <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <div v-for="(criteria, idx) in expandedInstructionActivity.scoring_criteria" :key="idx" class="text-sm text-gray-600 flex justify-between py-1 border-b border-gray-100 last:border-0">
+              <span>{{ criteria.name || criteria.criteria }}</span>
+              <span class="text-gray-500 font-medium">{{ criteria.maxScore || criteria.max_score || 0 }} pts</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <button
+          @click="showExpandedInstructionDialog = false"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+        >
+          Close
+        </button>
       </template>
     </Dialog>
 
@@ -3375,9 +3575,72 @@ const envelopeDesign = ref({
 // Portfolio activities
 const portfolioActivities = ref([]);
 const currentActivityIndex = ref(0);
+const currentFileIndex = ref(0); // For navigating multiple files in portfolio
 const showMissingActivitiesDialog = ref(false);
 const missingActivities = ref([]);
 const activePortfolioTab = ref('all'); // 'all' or 'missing'
+const visibleMissingCount = ref(3); // Show only 3 missing activities initially
+
+// Computed property for displayed missing activities (with load more)
+const displayedMissingActivities = computed(() => {
+  return missingActivities.value.slice(0, visibleMissingCount.value);
+});
+
+// Check if there are more missing activities to show
+const hasMoreMissingActivities = computed(() => {
+  return visibleMissingCount.value < missingActivities.value.length;
+});
+
+// Load more missing activities
+const loadMoreMissingActivities = () => {
+  visibleMissingCount.value += 3;
+};
+
+// Computed property to get current file for portfolio display (similar to Outputs.vue)
+const currentPortfolioFile = computed(() => {
+  const activity = portfolioActivities.value[currentActivityIndex.value];
+  if (!activity) return null;
+  
+  // Check if we have submission_files array
+  if (activity.submission_files && activity.submission_files.length > 0) {
+    const file = activity.submission_files[currentFileIndex.value];
+    if (file) {
+      const path = file.path || file.file_url || file.url || '';
+      // Determine type from path if not set
+      let fileType = file.type || file.file_type || 'file';
+      if (fileType === 'file' && path) {
+        if (path.startsWith('data:image') || path.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) {
+          fileType = 'image';
+        } else if (path.includes('pdf') || path.match(/\.pdf$/i)) {
+          fileType = 'pdf';
+        }
+      }
+      return {
+        path: path,
+        type: fileType,
+        name: file.name || file.file_name || 'File'
+      };
+    }
+  }
+  
+  // Fallback to single submission_file
+  if (activity.submission_file) {
+    const path = activity.submission_file;
+    let fileType = 'file';
+    if (path.startsWith('data:image') || path.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) {
+      fileType = 'image';
+    } else if (path.includes('pdf') || path.match(/\.pdf$/i)) {
+      fileType = 'pdf';
+    }
+    return {
+      path: path,
+      type: fileType,
+      name: 'Submission'
+    };
+  }
+  
+  return null;
+});
 
 // Navigation tabs
 const tabs = [
@@ -3528,6 +3791,9 @@ const postToFeed = ref(false);
 const showRemoveConfirmDialog = ref(false);
 const fileToRemove = ref(null);
 const showSubmitCompilationDialog = ref(false);
+const showMissingActivityDetailDialog = ref(false); // Dialog for viewing missing activity details
+const showExpandedInstructionDialog = ref(false); // Dialog for expanded instruction view
+const expandedInstructionActivity = ref(null); // Activity for expanded instruction
 const compilationDrafts = ref({}); // Store drafts by activity ID
 const selectedMissingActivity = ref(null);
 const showPostToFeedConfirmDialog = ref(false);
@@ -4888,6 +5154,11 @@ const selectedSketchId = ref(null);
 const selectedCollectionId = ref(null);
 const activeSketchSubTab = ref('sketches');
 
+// Watch for activity index changes to reset file index
+watch(currentActivityIndex, () => {
+  currentFileIndex.value = 0;
+});
+
 // Watch for dialog opening to load sketches
 watch(showUploadDialog, async (newValue) => {
   if (newValue) {
@@ -5562,6 +5833,14 @@ const confirmPostToFeed = async () => {
   }
 };
 
+// Remove file directly by index (for Submit Your Work dialog)
+const removeFileDirectly = (index) => {
+  if (index >= 0 && index < draftFiles.value.length) {
+    draftFiles.value.splice(index, 1);
+    console.log('✅ File removed at index:', index);
+  }
+};
+
 // Confirm remove file
 const confirmRemoveFile = (file) => {
   fileToRemove.value = file;
@@ -5697,6 +5976,29 @@ const openFileInNewTab = (filePath, fileType = null) => {
   if (!filePath) {
     showError('File path not available', 'Error');
     return;
+  }
+  
+  // Handle base64 data URLs
+  if (filePath.startsWith('data:')) {
+    try {
+      // Convert base64 to blob
+      const byteString = atob(filePath.split(',')[1]);
+      const mimeString = filePath.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      return;
+    } catch (error) {
+      console.error('Error opening base64 file:', error);
+      // Fallback: try to open directly
+      window.open(filePath, '_blank');
+      return;
+    }
   }
   
   // Remove cache busting parameter if present for cleaner URL
@@ -5954,6 +6256,112 @@ const adjustBrightness = (color, percent) => {
   ).toString(16).slice(1);
 };
 
+// Helper function to check if file is an image
+const isImageFile = (file) => {
+  if (!file) return false;
+  // Check type property
+  if (file.type === 'image') return true;
+  if (file.file_type === 'image') return true;
+  // Check path for base64 image
+  const path = file.path || file.file_url || '';
+  if (path.startsWith('data:image')) return true;
+  // Check file extension
+  if (path.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) return true;
+  // Check file name for image extension
+  const name = file.name || file.file_name || '';
+  if (name.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) return true;
+  return false;
+};
+
+// Helper function to check if URL is an image
+const isImageUrl = (url) => {
+  if (!url) return false;
+  if (url.startsWith('data:image')) return true;
+  if (url.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) return true;
+  return false;
+};
+
+// Helper function to get file URL
+const getFileUrl = (file) => {
+  if (!file) return '';
+  // Try multiple properties for the file URL
+  const url = file.path || file.file_url || file.url || '';
+  return url;
+};
+
+// Get display URL for images - just return the URL directly
+const getDisplayUrl = (file) => {
+  return getFileUrl(file);
+};
+
+// Handle portfolio image load error - just log it, don't show complex fallback
+const handlePortfolioImageError = (e) => {
+  console.error('Image load error for:', e.target.src?.substring(0, 100));
+};
+
+// Note: openFileInNewTab is defined earlier in the file with comprehensive file type handling
+
+// Helper function to get status label for portfolio activities
+const getStatusLabel = (activity) => {
+  if (!activity) return 'N/A';
+  
+  const status = activity.submission_status;
+  const isCompilation = activity.is_compilation;
+  const resubmitCount = activity.resubmit_count || 0;
+  
+  // If it's a compilation submission (from missing activity)
+  if (isCompilation || status === 'submitted_compilation' || status === 'compiled') {
+    return 'Compiled';
+  }
+  
+  // If it's a resubmission
+  if (status === 'scored_resubmitted' || resubmitCount > 0) {
+    return `Resubmitted (${resubmitCount}x)`;
+  }
+  
+  // If submitted late
+  if (status === 'scored_late' || activity.is_late) {
+    return 'Submitted Late';
+  }
+  
+  // Regular scored submission
+  if (status === 'scored') {
+    return 'Submitted';
+  }
+  
+  // Missing
+  if (status === 'missing') {
+    return 'Missing';
+  }
+  
+  return status?.replace(/_/g, ' ') || 'N/A';
+};
+
+// Helper function to get score display for portfolio activities
+const getScoreDisplay = (activity) => {
+  if (!activity) return 'None';
+  
+  // If it's a compilation submission, don't show score
+  if (activity.is_compilation || activity.submission_status === 'submitted_compilation' || activity.submission_status === 'compiled') {
+    return 'None';
+  }
+  
+  // If no score yet
+  if (activity.submission_score === null || activity.submission_score === undefined) {
+    return 'None';
+  }
+  
+  // Show score with max score if available
+  const score = activity.submission_score;
+  const maxScore = activity.max_score;
+  
+  if (maxScore) {
+    return `${score}/${maxScore}`;
+  }
+  
+  return `${score}`;
+};
+
 // Show confirmation dialog
 const showConfirmEnvelopeDialog = () => {
   // Validate required fields
@@ -6054,6 +6462,7 @@ const fetchPortfolioActivities = async () => {
       portfolioActivities.value = scoredActivities;
       missingActivities.value = missingActivitiesData;
       currentActivityIndex.value = 0;
+      visibleMissingCount.value = 3; // Reset to show only 3 initially
 
       console.log(`✅ Loaded ${portfolioActivities.value.length} SCORED activities (${missingActivities.value.length} missing)`);
       console.log(`   - Submitted: ${response.data.submitted_count || 0}`);
@@ -6199,8 +6608,7 @@ const executeSubmission = async () => {
 
   try {
     console.log('📤 Submitting work for activity:', activity.id, activity.title);
-
-    const file = draftFiles.value[0]; // Get the first file
+    console.log('📁 Files to submit:', draftFiles.value.length);
 
     // Check if submission is late
     const isLateSubmission = isPastDue.value;
@@ -6222,11 +6630,13 @@ const executeSubmission = async () => {
       }
     }
 
-    // Submit to API
+    // Submit to API - support multiple files
+    const allFilePaths = draftFiles.value.map(f => f.path);
     const response = await axios.post(`/api/activities/${activity.id}/submissions/`, {
       caption: submissionCaption.value || '',
-      file_path: file.path, // Base64 data
-      file_type: file.type,
+      file_path: allFilePaths[0], // Primary file (Base64 data)
+      file_type: draftFiles.value[0]?.type || 'file',
+      files: allFilePaths, // All files for multiple file support
       post_to_feed: postOutputOption.value,
       is_late: isLateSubmission,
       is_draft: false, // ✅ CRITICAL: false = final submission
@@ -6333,14 +6743,17 @@ const submitCompilation = async () => {
 
   try {
     console.log('📤 Submitting compilation for activity:', activityId);
+    console.log('📁 Files to submit:', draft.files.length);
 
-    const file = draft.files[0]; // Get the first file
+    // Get all file paths for multiple file support
+    const allFilePaths = draft.files.map(f => f.path);
 
-    // Submit to backend
+    // Submit to backend with all files
     const response = await axios.post(
-      `/api/portfolio-envelope/submit-compilation/${activityId}/`,
+      `/api/portfolio-envelope/submit-missing/${activityId}/`,
       {
-        file: file.path, // Base64 data
+        file: allFilePaths[0], // Primary file (Base64 data)
+        files: allFilePaths, // All files for multiple file support
         caption: draft.caption || ''
       }
     );
@@ -6410,42 +6823,54 @@ const triggerCompilationFileUpload = () => {
   }
 };
 
-// Handle file upload for compilation
+// Handle file upload for compilation (multiple files)
 const handleCompilationFileUpload = async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
 
+  // Show loading state
+  isSubmitting.value = true;
+  
   try {
-    // Convert file to base64
-    const reader = new FileReader();
-    const filePath = await new Promise((resolve, reject) => {
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+    // Process all files in parallel for faster upload
+    const filePromises = Array.from(files).map(async (file) => {
+      // Convert file to base64
+      const filePath = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Determine file type
+      let fileType = 'file';
+      if (file.type.startsWith('image/')) {
+        fileType = 'image';
+      } else if (file.type === 'application/pdf') {
+        fileType = 'pdf';
+      }
+
+      return {
+        id: Date.now() + Math.random(),
+        name: file.name,
+        type: fileType,
+        path: filePath,
+        size: file.size
+      };
     });
 
-    // Determine file type
-    let fileType = 'file';
-    if (file.type.startsWith('image/')) {
-      fileType = 'image';
-    } else if (file.type === 'application/pdf') {
-      fileType = 'pdf';
-    }
-
-    // Add to draft files
-    const fileData = {
-      id: Date.now(),
-      name: file.name,
-      type: fileType,
-      path: filePath,
-      size: file.size
-    };
-
-    draftFiles.value = [fileData]; // Only one file allowed
-    console.log('✅ File added to compilation:', fileData.name);
+    // Wait for all files to be processed
+    const processedFiles = await Promise.all(filePromises);
+    
+    // Add all files at once
+    draftFiles.value.push(...processedFiles);
+    console.log(`✅ ${processedFiles.length} file(s) added to compilation`);
+    
   } catch (error) {
     console.error('❌ Error uploading file:', error);
     showError('Failed to upload file', 'Upload Error');
+  } finally {
+    isSubmitting.value = false;
   }
 
   // Reset input

@@ -24,12 +24,14 @@ const showMySketches = ref(false);
 const showSketchDialog = ref(false);
 const currentSketch = ref(null);
 const showPostToFeedModal = ref(false);
-const selectedSketchForPost = ref(null);
+const selectedSketchesForPost = ref([]); // Changed to array for multiple selection
 const postCaption = ref('');
 const showDeleteConfirmDialog = ref(false);
 const showClearCanvasDialog = ref(false);
 const sketchToDelete = ref(null);
 const isPostingToFeed = ref(false);
+const showPostConfirmDialog = ref(false); // New confirmation dialog
+const currentPreviewIndex = ref(0); // For navigating multiple selected sketches
 const attachedImage = ref(null);
 const imagePosition = ref({ x: 0, y: 0 });
 const imageSize = ref({ width: 0, height: 0 });
@@ -424,58 +426,56 @@ const openPostToFeedModal = () => {
         showWarning('Please save a sketch first before posting to newsfeed!', 'No Sketch');
         return;
     }
+    selectedSketchesForPost.value = [];
+    currentPreviewIndex.value = 0;
     showPostToFeedModal.value = true;
 };
 
-// Select sketch for posting
-const selectSketchForPost = (sketch) => {
-    selectedSketchForPost.value = sketch;
+// Toggle sketch selection for posting (multiple selection)
+const toggleSketchSelection = (sketch) => {
+    const index = selectedSketchesForPost.value.findIndex(s => s.id === sketch.id);
+    if (index === -1) {
+        selectedSketchesForPost.value.push(sketch);
+    } else {
+        selectedSketchesForPost.value.splice(index, 1);
+    }
+    // Reset preview index if needed
+    if (currentPreviewIndex.value >= selectedSketchesForPost.value.length) {
+        currentPreviewIndex.value = Math.max(0, selectedSketchesForPost.value.length - 1);
+    }
 };
 
-// Show delete confirmation dialog
-const showDeleteConfirmation = () => {
-    if (!selectedSketchForPost.value) {
-        showWarning('Please select a sketch to delete', 'No Selection');
+// Check if sketch is selected
+const isSketchSelected = (sketch) => {
+    return selectedSketchesForPost.value.some(s => s.id === sketch.id);
+};
+
+// Navigate preview
+const prevPreview = () => {
+    if (currentPreviewIndex.value > 0) {
+        currentPreviewIndex.value--;
+    }
+};
+
+const nextPreview = () => {
+    if (currentPreviewIndex.value < selectedSketchesForPost.value.length - 1) {
+        currentPreviewIndex.value++;
+    }
+};
+
+// Show post confirmation dialog
+const showPostConfirmation = () => {
+    if (selectedSketchesForPost.value.length === 0) {
+        showWarning('Please select at least one sketch to post', 'No Selection');
         return;
     }
-    showDeleteConfirmDialog.value = true;
-};
-
-// Delete selected sketch from post modal
-const deleteSelectedSketch = async () => {
-    try {
-        const sketchId = selectedSketchForPost.value.id;
-        
-        // Delete from backend
-        await axios.delete(`/api/sketches/${sketchId}/`);
-        
-        // Remove from local list
-        mySketches.value = mySketches.value.filter(sketch => sketch.id !== sketchId);
-        
-        // Clear selection
-        selectedSketchForPost.value = null;
-        postCaption.value = '';
-        
-        // Close confirmation dialog
-        showDeleteConfirmDialog.value = false;
-        
-        showSuccess('Sketch deleted successfully!', 'Deleted');
-        
-        // Close modal if no more sketches
-        if (mySketches.value.length === 0) {
-            showPostToFeedModal.value = false;
-        }
-    } catch (error) {
-        console.error('Error deleting sketch:', error);
-        showError('Failed to delete sketch. Please try again.', 'Delete Failed');
-        showDeleteConfirmDialog.value = false;
-    }
+    showPostConfirmDialog.value = true;
 };
 
 // Post sketch to newsfeed
 const postToNewsfeed = async () => {
-    if (!selectedSketchForPost.value) {
-        showWarning('Please select a sketch to post', 'No Selection');
+    if (selectedSketchesForPost.value.length === 0) {
+        showWarning('Please select at least one sketch to post', 'No Selection');
         return;
     }
     
@@ -487,12 +487,16 @@ const postToNewsfeed = async () => {
     
     try {
         isPostingToFeed.value = true;
+        showPostConfirmDialog.value = false;
         
-        // Submit sketch to API (caption is optional)
+        // Submit all selected sketches
+        const sketchData = selectedSketchesForPost.value.map(sketch => sketch.dataURL);
+        
         const response = await axios.post('/api/sketch/submit/', {
-            caption: postCaption.value.trim() || 'No caption',
-            file_path: selectedSketchForPost.value.dataURL,
-            file_type: 'image'
+            caption: postCaption.value.trim() || '',
+            file_path: sketchData[0], // Primary sketch
+            file_type: 'image',
+            additional_files: sketchData.slice(1) // Additional sketches if any
         });
         
         if (response.data) {
@@ -501,8 +505,9 @@ const postToNewsfeed = async () => {
             
             // Reset and close modal
             showPostToFeedModal.value = false;
-            selectedSketchForPost.value = null;
+            selectedSketchesForPost.value = [];
             postCaption.value = '';
+            currentPreviewIndex.value = 0;
         }
     } catch (error) {
         console.error('Error posting to newsfeed:', error);
@@ -914,26 +919,31 @@ const applyCrop = () => {
             <div class="flex-1 overflow-y-auto p-6">
                 <!-- Select Sketch Section -->
                 <div class="mb-6">
-                    <h4 class="text-md font-semibold text-indigo-900 mb-3">Select a Sketch</h4>
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-md font-semibold text-indigo-900 truncate">Select Sketches</h4>
+                        <span v-if="selectedSketchesForPost.length > 0" class="text-sm text-indigo-600 font-medium">
+                            {{ selectedSketchesForPost.length }} selected
+                        </span>
+                    </div>
                     
                     <div v-if="mySketches.length === 0" class="text-center py-8 bg-indigo-50 rounded-lg">
                         <i class="pi pi-inbox text-3xl text-indigo-400 mb-2"></i>
                         <p class="text-indigo-600">No saved sketches. Save a sketch first!</p>
                     </div>
                     
-                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1">
                         <div v-for="sketch in mySketches" 
                              :key="sketch.id"
-                             @click="selectSketchForPost(sketch)"
+                             @click="toggleSketchSelection(sketch)"
                              class="relative group cursor-pointer">
                             <img :src="sketch.dataURL" 
                                  class="w-full h-24 object-contain bg-gray-100 rounded-lg border-2 transition-all"
-                                 :class="selectedSketchForPost?.id === sketch.id ? 'border-indigo-600 ring-2 ring-indigo-300' : 'border-gray-300 hover:border-indigo-400'">
-                            <div v-if="selectedSketchForPost?.id === sketch.id" 
+                                 :class="isSketchSelected(sketch) ? 'border-indigo-600 ring-2 ring-indigo-300' : 'border-gray-300 hover:border-indigo-400'">
+                            <div v-if="isSketchSelected(sketch)" 
                                  class="absolute top-1 right-1 bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center">
                                 <i class="pi pi-check text-xs"></i>
                             </div>
-                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 px-2 rounded-b-lg truncate">
+                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-[10px] p-1 px-2 rounded-b-lg truncate">
                                 {{ sketch.date }}
                             </div>
                         </div>
@@ -948,86 +958,94 @@ const applyCrop = () => {
                     <textarea v-model="postCaption"
                               placeholder="Write something about your sketch... (optional)"
                               class="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                              rows="4"></textarea>
+                              rows="3"></textarea>
                 </div>
                 
                 <!-- Preview Section -->
-                <div v-if="selectedSketchForPost" class="bg-indigo-50 rounded-lg p-4">
+                <div v-if="selectedSketchesForPost.length > 0" class="bg-indigo-50 rounded-lg p-4">
                     <h4 class="text-sm font-semibold text-indigo-900 mb-2">Preview</h4>
-                    <div class="bg-white rounded-lg p-3 border border-indigo-200">
-                        <img :src="selectedSketchForPost.dataURL" 
+                    <div class="bg-white rounded-lg p-3 border border-indigo-200 relative">
+                        <!-- Navigation arrows for multiple sketches -->
+                        <div v-if="selectedSketchesForPost.length > 1" class="flex items-center justify-center gap-4 mb-2">
+                            <button @click="prevPreview" 
+                                    :disabled="currentPreviewIndex === 0"
+                                    class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center transition-all hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed">
+                                <i class="pi pi-chevron-left text-indigo-600"></i>
+                            </button>
+                            <span class="text-sm text-indigo-700 font-medium">
+                                {{ currentPreviewIndex + 1 }} / {{ selectedSketchesForPost.length }}
+                            </span>
+                            <button @click="nextPreview" 
+                                    :disabled="currentPreviewIndex >= selectedSketchesForPost.length - 1"
+                                    class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center transition-all hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed">
+                                <i class="pi pi-chevron-right text-indigo-600"></i>
+                            </button>
+                        </div>
+                        <img :src="selectedSketchesForPost[currentPreviewIndex]?.dataURL" 
                              class="w-full max-h-48 object-contain mb-2 rounded">
-                        <p class="text-sm text-gray-700" :class="!postCaption.trim() ? 'italic text-gray-400' : ''">{{ postCaption.trim() || 'No caption' }}</p>
+                        <p v-if="postCaption.trim()" class="text-sm text-gray-700">{{ postCaption.trim() }}</p>
                     </div>
                 </div>
             </div>
             
-            <div class="px-6 py-4 border-t border-indigo-100 bg-gray-50 flex justify-between items-center">
-                <!-- Left side - Delete button -->
-                <button 
-                    @click="showDeleteConfirmation"
-                    class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
-                    :disabled="!selectedSketchForPost"
-                    :class="!selectedSketchForPost ? 'opacity-50 cursor-not-allowed' : ''">
-                    <i class="pi pi-trash"></i>
-                    <span>Delete</span>
+            <div class="px-6 py-4 border-t border-indigo-100 bg-gray-50 flex justify-end items-center gap-3">
+                <button @click="showPostToFeedModal = false" 
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                    Cancel
                 </button>
-                
-                <!-- Right side - Cancel and Post buttons -->
-                <div class="flex gap-3">
-                    <button @click="showPostToFeedModal = false" 
-                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        Cancel
-                    </button>
-                    <button @click="postToNewsfeed"
-                            :disabled="!selectedSketchForPost || isPostingToFeed"
-                            :class="(!selectedSketchForPost || isPostingToFeed) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
-                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2">
-                        <i class="pi" :class="isPostingToFeed ? 'pi-spin pi-spinner' : 'pi-send'"></i>
-                        <span>{{ isPostingToFeed ? 'Posting...' : 'Post to Newsfeed' }}</span>
-                    </button>
-                </div>
+                <button @click="showPostConfirmation"
+                        :disabled="selectedSketchesForPost.length === 0 || isPostingToFeed"
+                        :class="(selectedSketchesForPost.length === 0 || isPostingToFeed) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                    <i class="pi" :class="isPostingToFeed ? 'pi-spin pi-spinner' : 'pi-send'"></i>
+                    <span>{{ isPostingToFeed ? 'Posting...' : 'Post to Newsfeed' }}</span>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Delete Confirmation Dialog -->
-    <Dialog v-model:visible="showDeleteConfirmDialog" modal :style="{ width: '90vw', maxWidth: '450px' }" :dismissableMask="true">
-      <template #header>
-        <div class="flex items-center gap-3">
-          <i class="pi pi-exclamation-triangle text-red-600 text-xl"></i>
-          <h3 class="text-lg font-bold text-gray-800">Delete Sketch</h3>
-        </div>
-      </template>
+    <!-- Post Confirmation Dialog -->
+    <Dialog v-model:visible="showPostConfirmDialog" modal header="Confirm Post" :style="{ width: '420px', maxWidth: '90vw' }" :contentStyle="{ padding: '0', overflow: 'visible' }" :dismissableMask="true">
+        <div class="p-4">
+            <div class="mb-4 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-3">
+                    <i class="pi pi-send text-2xl text-indigo-600"></i>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900 mb-1">Post to Newsfeed?</h3>
+                <p class="text-xs text-gray-600">
+                    You are about to submit {{ selectedSketchesForPost.length }} sketch{{ selectedSketchesForPost.length > 1 ? 'es' : '' }} for approval.
+                </p>
+            </div>
 
-      <div class="py-4">
-        <p class="text-gray-700 mb-4">
-          Are you sure you want to delete this sketch? This action cannot be undone.
-        </p>
-        <div v-if="selectedSketchForPost" class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-          <img :src="selectedSketchForPost.dataURL" 
-               class="w-full max-h-32 object-contain mb-2 rounded">
-          <p class="text-xs text-gray-500 text-center">{{ selectedSketchForPost.date }}</p>
+            <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                <div class="flex items-start gap-2">
+                    <i class="pi pi-info-circle text-indigo-600 text-sm mt-0.5"></i>
+                    <div class="text-xs text-indigo-800">
+                        <p class="font-medium mb-1">What happens next:</p>
+                        <ul class="list-disc list-inside space-y-0.5 text-indigo-700">
+                            <li>Your sketch will be sent for teacher approval</li>
+                            <li>Once approved, it will appear in the newsfeed</li>
+                            <li>You will be notified of the result</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <template #footer>
-        <div class="flex items-center justify-end gap-3">
-          <button
-            @click="showDeleteConfirmDialog = false"
-            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
-          >
-            Cancel
-          </button>
-          <button
-            @click="deleteSelectedSketch"
-            class="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center gap-2"
-          >
-            <i class="pi pi-trash"></i>
-            <span>Delete</span>
-          </button>
-        </div>
-      </template>
+        <template #footer>
+            <div class="flex justify-end gap-2 px-4 py-3 border-t">
+                <button @click="showPostConfirmDialog = false" 
+                        class="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                    Cancel
+                </button>
+                <button @click="postToNewsfeed"
+                        :disabled="isPostingToFeed"
+                        class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                    <i class="pi" :class="isPostingToFeed ? 'pi-spin pi-spinner' : 'pi-check'"></i>
+                    <span>{{ isPostingToFeed ? 'Posting...' : 'Yes, Post' }}</span>
+                </button>
+            </div>
+        </template>
     </Dialog>
 
     <!-- Clear Canvas Confirmation Dialog -->

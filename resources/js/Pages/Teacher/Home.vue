@@ -143,7 +143,7 @@
                                 <i class="pi pi-heart-fill text-red-500 text-sm"></i>
                                 {{ post.likes }} {{ post.likes === 1 ? 'like' : 'likes' }}
                             </span>
-                            <span class="text-cyan-700">{{ post.comments.length }} {{ post.comments.length === 1 ? 'comment' : 'comments' }}</span>
+                            <span class="text-cyan-700">{{ getTotalCommentsCount(post) }} {{ getTotalCommentsCount(post) === 1 ? 'comment' : 'comments' }}</span>
                         </div>
                     </div>
 
@@ -321,6 +321,7 @@ const loadNewsfeed = async () => {
           const commentsResponse = await axios.get(`/api/posts/${post.id}/comments/`, {
             withCredentials: true
           });
+          console.log(`📝 Comments for post ${post.id}:`, commentsResponse.data);
           comments = (commentsResponse.data || []).map(comment => ({
             id: comment.id,
             user: comment.user,
@@ -332,6 +333,7 @@ const loadNewsfeed = async () => {
             showReplyInput: false,
             replyText: ''
           }));
+          console.log(`📝 Mapped ${comments.length} comments for post ${post.id}`);
         } catch (error) {
           console.error(`Error loading comments for post ${post.id}:`, error);
         }
@@ -381,6 +383,19 @@ const getTimeAgo = (dateString) => {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
   return date.toLocaleDateString();
+};
+
+// Helper function to get total comments count (including replies)
+const getTotalCommentsCount = (post) => {
+  if (!post.comments || post.comments.length === 0) return 0;
+  
+  let total = post.comments.length;
+  post.comments.forEach(comment => {
+    if (comment.replies && comment.replies.length > 0) {
+      total += comment.replies.length;
+    }
+  });
+  return total;
 };
 
 // Toggle like functionality
