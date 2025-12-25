@@ -1352,8 +1352,7 @@
                               <img v-if="currentPortfolioFile.type === 'image' && currentPortfolioFile.path.length > 0"
                                    :src="currentPortfolioFile.path.startsWith('http') || currentPortfolioFile.path.startsWith('/media') || currentPortfolioFile.path.startsWith('data:') ? currentPortfolioFile.path : `data:image/png;base64,${currentPortfolioFile.path}`"
                                    alt="Submission"
-                                   class="max-h-full max-w-full object-contain"
-                                   style="max-height: 380px; max-width: 100%; object-fit: contain;"
+                                   class="max-w-full max-h-[380px] object-contain rounded-lg"
                               />
                               <!-- PDF Display -->
                               <div v-else-if="currentPortfolioFile.type === 'pdf'" class="flex flex-col items-center justify-center text-red-600">
@@ -1407,12 +1406,20 @@
                               
                               <!-- Date & Time -->
                               <div>
-                                <span class="text-xs text-gray-400 uppercase">Submitted</span>
+                                <span class="text-xs text-gray-400 uppercase">Date & Time Submitted</span>
                                 <p class="text-sm font-medium text-gray-700">
-                                  {{ portfolioActivities[currentActivityIndex].submitted_date || (portfolioActivities[currentActivityIndex].is_compilation ? 'Compiled' : 'N/A') }}
-                                  <span v-if="portfolioActivities[currentActivityIndex].submitted_time" class="text-gray-500">
-                                    at {{ portfolioActivities[currentActivityIndex].submitted_time }}
-                                  </span>
+                                  <template v-if="portfolioActivities[currentActivityIndex].submission_date">
+                                    {{ formatSubmittedDateTime(portfolioActivities[currentActivityIndex].submission_date) }}
+                                  </template>
+                                  <template v-else-if="portfolioActivities[currentActivityIndex].submitted_date">
+                                    {{ portfolioActivities[currentActivityIndex].submitted_date }}
+                                    <span v-if="portfolioActivities[currentActivityIndex].submitted_time" class="text-gray-500">
+                                      at {{ portfolioActivities[currentActivityIndex].submitted_time }}
+                                    </span>
+                                  </template>
+                                  <template v-else>
+                                    Not available
+                                  </template>
                                 </p>
                               </div>
                               
@@ -2084,7 +2091,7 @@
     </Dialog>
 
     <!-- Post to Feed Confirmation Dialog -->
-    <Dialog v-model:visible="showPostToFeedConfirmDialog" modal :style="{ width: '90vw', maxWidth: '600px' }" :dismissableMask="true">
+    <Dialog v-model:visible="showPostToFeedConfirmDialog" modal :style="{ width: '90vw', maxWidth: '800px' }" :dismissableMask="true">
       <template #header>
         <div class="flex items-center gap-3">
           <i class="pi pi-send text-blue-600 text-xl"></i>
@@ -2093,9 +2100,20 @@
       </template>
 
       <div class="space-y-4">
-        <p class="text-gray-700">
+        <p class="text-gray-600 text-sm">
           Select the files you want to post to the class feed and add a caption.
         </p>
+
+        <!-- Caption Input (Moved to Top) -->
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-gray-700">Caption</label>
+          <textarea
+            v-model="postToFeedCaption"
+            placeholder="Add a caption for your post..."
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+          ></textarea>
+        </div>
 
         <!-- File Selection (Multiple) -->
         <div class="space-y-2">
@@ -2105,16 +2123,16 @@
               {{ postToFeedSelectedFiles.length }} file{{ postToFeedSelectedFiles.length > 1 ? 's' : '' }} selected
             </span>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-200">
+          <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-200">
             <button
               v-for="(submission, index) in studentSubmissions"
               :key="submission.id || index"
               @click="toggleFileSelection(submission)"
-              class="relative p-2 rounded-lg border-2 transition-all hover:shadow-md"
-              :class="isFileSelected(submission) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'"
+              class="relative rounded-lg border-2 transition-all hover:shadow-md overflow-hidden"
+              :class="isFileSelected(submission) ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 bg-white hover:border-gray-300'"
             >
               <!-- Thumbnail -->
-              <div class="aspect-square rounded-md overflow-hidden bg-gray-100 mb-2">
+              <div class="aspect-square bg-gray-100">
                 <img
                   v-if="submission.isImage && submission.previewUrl"
                   :src="submission.previewUrl"
@@ -2122,14 +2140,12 @@
                   class="w-full h-full object-cover"
                 />
                 <div v-else class="w-full h-full flex items-center justify-center">
-                  <i :class="['text-2xl', submission.isImage ? 'pi pi-image text-indigo-500' : 'pi pi-file-pdf text-red-500']"></i>
+                  <i :class="['text-xl', submission.isImage ? 'pi pi-image text-indigo-500' : 'pi pi-file-pdf text-red-500']"></i>
                 </div>
               </div>
-              <!-- File name -->
-              <p class="text-xs text-gray-600 truncate">{{ submission.caption || `File ${index + 1}` }}</p>
               <!-- Selected indicator -->
-              <div v-if="isFileSelected(submission)" class="absolute top-1 right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                <i class="pi pi-check text-white text-xs"></i>
+              <div v-if="isFileSelected(submission)" class="absolute top-1 right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                <i class="pi pi-check text-white" style="font-size: 10px;"></i>
               </div>
             </button>
           </div>
@@ -2154,26 +2170,13 @@
           </div>
         </div>
 
-        <!-- Caption Input -->
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-gray-700">Caption (Optional)</label>
-          <textarea
-            v-model="postToFeedCaption"
-            placeholder="Add a caption for your post..."
-            rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
-          ></textarea>
-        </div>
-
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div class="flex items-start gap-3">
-            <i class="pi pi-info-circle text-blue-600 text-lg mt-0.5"></i>
-            <div class="text-sm text-blue-800">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="flex items-start gap-2">
+            <i class="pi pi-info-circle text-blue-600 mt-0.5"></i>
+            <div class="text-xs text-blue-800">
               <p class="font-semibold mb-1">What happens next?</p>
-              <ul class="list-disc list-inside space-y-1 text-blue-700">
+              <ul class="list-disc list-inside space-y-0.5 text-blue-700">
                 <li>Your teacher will be notified of your request</li>
-                <li>Your work will be visible to the class once approved</li>
-                <li>You cannot undo this action after approval</li>
               </ul>
             </div>
           </div>
@@ -2184,14 +2187,14 @@
         <div class="flex justify-end gap-3">
           <button
             @click="showPostToFeedConfirmDialog = false; postToFeedSelectedFiles = []; postToFeedCaption = '';"
-            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
           >
             Cancel
           </button>
           <button
             @click="confirmPostToFeed"
             :disabled="isRequestingPost || postToFeedSelectedFiles.length === 0"
-            class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i class="pi pi-send"></i>
             <span>{{ isRequestingPost ? 'Sending...' : `Confirm (${postToFeedSelectedFiles.length})` }}</span>
@@ -2228,25 +2231,25 @@
             </p>
           </div>
           <div>
-            <p class="text-xs text-gray-500 uppercase font-medium">Submitted</p>
-            <p class="text-gray-900 font-medium">{{ formatSubmittedDateTime(selectedPreviewItem.submitted_at) }}</p>
+            <p class="text-xs text-gray-500 uppercase font-medium">Date & Time Submitted</p>
+            <p class="text-gray-900 font-medium">{{ selectedPreviewItem.submitted_at ? formatSubmittedDateTime(selectedPreviewItem.submitted_at) : 'Not available' }}</p>
           </div>
           <div>
             <p class="text-xs text-gray-500 uppercase font-medium">Status</p>
             <span
               class="px-2 py-1 text-xs rounded font-medium inline-block mt-1"
               :class="{
-                'bg-green-100 text-green-800': selectedPreviewItem.status === 'scored',
-                'bg-blue-100 text-blue-800': selectedPreviewItem.status === 'submitted',
-                'bg-amber-100 text-amber-700': selectedPreviewItem.status === 'pending'
+                'bg-green-100 text-green-800': selectedPreviewItem.status === 'scored' || selectedPreviewItem.is_compilation,
+                'bg-blue-100 text-blue-800': selectedPreviewItem.status === 'unscored' || selectedPreviewItem.status === 'submitted',
+                'bg-amber-100 text-amber-700': selectedPreviewItem.status === 'pending' || selectedPreviewItem.status === 'draft'
               }">
-              {{ selectedPreviewItem.status === 'scored' ? 'Scored' : 'Submitted' }}
+              {{ getDisplayStatus(selectedPreviewItem) }}
             </span>
           </div>
           <div>
             <p class="text-xs text-gray-500 uppercase font-medium">Score</p>
-            <p class="font-bold" :class="selectedPreviewItem.status === 'scored' ? 'text-green-600' : 'text-gray-400'">
-              {{ selectedPreviewItem.status === 'scored' ? `${selectedPreviewItem.score} points` : 'Not scored yet' }}
+            <p class="font-bold" :class="selectedPreviewItem.status === 'scored' || selectedPreviewItem.score ? 'text-green-600' : 'text-gray-400'">
+              {{ selectedPreviewItem.score ? `${selectedPreviewItem.total_score || selectedPreviewItem.score} / ${selectedPreviewItem.max_score || 10}` : 'Not scored yet' }}
             </p>
           </div>
         </div>
@@ -2550,7 +2553,7 @@
       v-model:visible="showScoreDialog"
       modal
       :closable="true"
-      :style="{ width: '90%', maxWidth: '600px' }"
+      :style="{ width: '90%', maxWidth: '700px' }"
       :contentStyle="{ padding: '0' }"
       position="center"
       class="score-dialog"
@@ -3050,6 +3053,240 @@
       </template>
     </Dialog>
 
+    <!-- Compile Now Dialog (with file source tabs) -->
+    <Dialog v-model:visible="showCompileNowDialog" modal :style="{ width: '90vw', maxWidth: '700px' }" :dismissableMask="true">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-upload text-indigo-600 text-xl"></i>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800">Submit Your Work</h3>
+            <p v-if="compileNowFiles.length > 0" class="text-xs text-gray-500">
+              {{ compileNowFiles.length }} file{{ compileNowFiles.length > 1 ? 's' : '' }} attached
+            </p>
+          </div>
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <!-- Caption Input -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            v-model="compileNowCaption"
+            rows="3"
+            placeholder="Add a description to your work..."
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Upload Your Work Section -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Upload Your Work</label>
+          
+          <!-- Files List (when files exist) -->
+          <div v-if="compileNowFiles.length > 0" class="space-y-3 mb-4">
+            <div class="border-2 border-purple-200 rounded-lg p-3 bg-purple-50">
+              <div class="space-y-2">
+                <div
+                  v-for="(file, index) in compileNowFiles"
+                  :key="`compile-now-${index}-${file.id || index}`"
+                  class="flex items-center gap-3 p-2 bg-white rounded-lg border border-gray-200"
+                >
+                  <!-- File Icon -->
+                  <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                       :class="file.type === 'image' ? 'bg-blue-100' : file.type === 'pdf' ? 'bg-red-100' : 'bg-gray-100'">
+                    <i v-if="file.type === 'image'" class="pi pi-image text-blue-600"></i>
+                    <i v-else-if="file.type === 'pdf'" class="pi pi-file-pdf text-red-600"></i>
+                    <i v-else class="pi pi-file text-gray-600"></i>
+                  </div>
+                  <!-- File Info -->
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate max-w-[200px]" :title="file.name">{{ file.name }}</p>
+                    <p class="text-xs text-gray-500 capitalize">{{ file.type }}</p>
+                  </div>
+                  <!-- Remove Button -->
+                  <button
+                    @click.stop="removeCompileNowFile(index)"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
+                    title="Remove file"
+                  >
+                    <i class="pi pi-times text-red-500"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabs Navigation for File Sources -->
+          <div class="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
+            <div class="flex border-b border-gray-200 bg-gray-50">
+              <button
+                v-for="tab in uploadTabs"
+                :key="tab.id"
+                @click="compileNowActiveTab = tab.id"
+                :class="[
+                  'flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2',
+                  compileNowActiveTab === tab.id
+                    ? 'border-indigo-600 text-indigo-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                ]"
+              >
+                <div class="flex items-center justify-center gap-2">
+                  <i :class="tab.icon"></i>
+                  <span>{{ tab.name }}</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="min-h-[250px] bg-white">
+              <!-- From Device Tab -->
+              <div v-if="compileNowActiveTab === 'device'" class="flex flex-col items-center justify-center py-10">
+                <div class="text-center space-y-4">
+                  <div class="w-16 h-16 mx-auto bg-indigo-100 rounded-full flex items-center justify-center">
+                    <i class="pi pi-upload text-indigo-600 text-2xl"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-500 mb-4">Select files from your computer</p>
+                  </div>
+                  <button
+                    @click="triggerCompileNowFileUpload"
+                    class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 mx-auto"
+                  >
+                    <i class="pi pi-folder-open"></i>
+                    <span>Browse Files</span>
+                  </button>
+                  <input
+                    ref="compileNowFileInput"
+                    type="file"
+                    @change="handleCompileNowFileUpload"
+                    accept="image/*,.pdf,.doc,.docx"
+                    multiple
+                    class="hidden"
+                  />
+                  <p class="text-xs text-gray-400 mt-2">PDF, DOC, DOCX, or Images</p>
+                </div>
+              </div>
+
+              <!-- My Sketch Tab -->
+              <div v-else-if="compileNowActiveTab === 'sketch'" class="p-4">
+                <!-- Loading State -->
+                <div v-if="loadingSketches" class="flex justify-center items-center py-10">
+                  <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else-if="!loadingSketches && mySketches.length === 0" class="text-center py-10">
+                  <div class="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                    <i class="pi pi-inbox text-gray-400 text-lg"></i>
+                  </div>
+                  <p class="text-sm text-gray-500">No sketches saved yet</p>
+                  <p class="text-xs text-gray-400 mt-1">Create sketches in the Sketch page</p>
+                </div>
+
+                <!-- Sketches Grid -->
+                <div v-else class="grid grid-cols-4 gap-2 max-h-[200px] overflow-y-auto">
+                  <div
+                    v-for="sketch in mySketches"
+                    :key="sketch.id"
+                    @click="selectCompileNowSketch(sketch)"
+                    class="relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all duration-200 hover:border-purple-500 hover:shadow-md"
+                    :class="selectedCompileNowSketchId === sketch.id ? 'border-purple-600 ring-2 ring-purple-200' : 'border-gray-200'"
+                  >
+                    <div class="aspect-square bg-white p-1">
+                      <img :src="sketch.image_data" :alt="sketch.title" class="w-full h-full object-contain" />
+                    </div>
+                    <div v-if="selectedCompileNowSketchId === sketch.id" class="absolute top-1 right-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
+                      <i class="pi pi-check text-white" style="font-size: 8px;"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add Selected Sketch Button -->
+                <div v-if="selectedCompileNowSketchId && mySketches.length > 0" class="mt-3 text-center">
+                  <button
+                    @click="addCompileNowSketch"
+                    class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                  >
+                    <i class="pi pi-plus mr-1"></i>
+                    Add Selected Sketch
+                  </button>
+                </div>
+              </div>
+
+              <!-- Submitted Collection Tab -->
+              <div v-else-if="compileNowActiveTab === 'collection'" class="p-4 max-h-[250px] overflow-y-auto">
+                <div v-if="loadingCollection" class="flex flex-col items-center justify-center py-10">
+                  <i class="pi pi-spin pi-spinner text-3xl text-purple-600 mb-3"></i>
+                  <p class="text-gray-500 text-sm">Loading collection...</p>
+                </div>
+                <div v-else-if="submittedCollection.length === 0" class="flex flex-col items-center justify-center py-10 text-gray-500">
+                  <i class="pi pi-folder-open text-3xl mb-3 text-gray-300"></i>
+                  <p class="text-sm">No submitted work found</p>
+                </div>
+                <div v-else class="grid grid-cols-3 md:grid-cols-4 gap-3">
+                  <div
+                    v-for="item in submittedCollection"
+                    :key="item.id"
+                    @click="selectCompileNowCollection(item)"
+                    class="relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200"
+                    :class="selectedCompileNowCollectionId === item.id ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'"
+                  >
+                    <div class="aspect-square bg-gray-100 flex items-center justify-center p-1">
+                      <img v-if="item.file_type === 'image'" :src="item.file_path" class="w-full h-full object-cover rounded" alt="Submission" />
+                      <div v-else class="text-center">
+                        <i class="pi pi-file text-2xl text-gray-400"></i>
+                        <span class="text-[10px] uppercase font-bold text-gray-500 block">{{ item.file_type || 'FILE' }}</span>
+                      </div>
+                    </div>
+                    <div v-if="selectedCompileNowCollectionId === item.id" class="absolute inset-0 bg-purple-500 bg-opacity-10 flex items-center justify-center">
+                      <div class="bg-white rounded-full p-1.5 shadow-sm">
+                        <i class="pi pi-check text-purple-600 text-sm"></i>
+                      </div>
+                    </div>
+                    <div class="bg-white p-1.5 text-[10px] border-t border-gray-100">
+                      <div class="font-medium truncate text-gray-800">{{ item.activity_title }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add Selected Collection Item Button -->
+                <div v-if="selectedCompileNowCollectionId && submittedCollection.length > 0" class="mt-3 text-center">
+                  <button
+                    @click="addCompileNowCollection"
+                    class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                  >
+                    <i class="pi pi-plus mr-1"></i>
+                    Add Selected Item
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="closeCompileNowDialog"
+            class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="submitCompileNowWork"
+            :disabled="isSubmitting || compileNowFiles.length === 0"
+            class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+            <i v-else class="pi pi-check"></i>
+            <span>{{ isSubmitting ? 'Submitting...' : 'Submit' }}</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Submit Compilation Confirmation Dialog -->
     <Dialog v-model:visible="showSubmitCompilationDialog" modal :style="{ width: '90vw', maxWidth: '450px' }" :dismissableMask="true">
       <template #header>
@@ -3351,124 +3588,262 @@
     </Dialog>
 
     <!-- File Preview Dialog -->
-    <Dialog v-model:visible="showFilePreview" modal :style="{ width: '90vw', maxWidth: '1200px' }" :dismissableMask="true">
+    <Dialog v-model:visible="showFilePreview" modal :style="{ width: '700px', maxWidth: '95vw' }" :dismissableMask="true">
       <template #header>
-        <div class="flex items-center gap-3">
-          <i class="pi pi-eye text-indigo-600 text-xl"></i>
-          <h3 class="text-lg font-bold text-gray-800">File Preview</h3>
+        <div class="flex items-center justify-between w-full">
+          <div class="flex items-center gap-3">
+            <i class="pi pi-eye text-indigo-600 text-xl"></i>
+            <h3 class="text-lg font-bold text-gray-800">File Preview</h3>
+          </div>
         </div>
       </template>
 
       <div v-if="previewFile" class="space-y-4">
-        <!-- File Info with Edit Caption -->
-        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-              <i v-if="previewFile.type === 'image'" class="pi pi-image text-indigo-600 text-xl"></i>
-              <i v-else-if="previewFile.type === 'pdf'" class="pi pi-file-pdf text-red-600 text-xl"></i>
-              <i v-else class="pi pi-file text-gray-600 text-xl"></i>
-            </div>
-            <div class="flex-1">
-              <p class="font-semibold text-gray-900">{{ previewFile.name }}</p>
-              <p class="text-sm text-gray-500 capitalize">{{ previewFile.type }}</p>
-            </div>
-            <!-- View File Button - opens file in new tab -->
-            <button
-              v-if="previewFile.path"
-              @click="openFileInNewTab(previewFile.path, previewFile.type)"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2"
-            >
-              <i class="pi pi-external-link"></i>
-              <span>View File</span>
-            </button>
-          </div>
-
-          <!-- Caption Editor -->
-          <div v-if="!hasSubmittedWork">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Caption</label>
-            <textarea
-              v-model="previewFileCaption"
-              rows="2"
-              placeholder="Add a caption for your work..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
-            ></textarea>
-          </div>
-        </div>
-
         <!-- File Preview Content -->
-        <div class="bg-gray-100 rounded-lg p-4 min-h-[300px] flex items-center justify-center">
+        <div class="bg-gray-100 rounded-lg p-4 flex items-center justify-center" style="height: 280px;">
           <!-- Image Preview -->
           <img
             v-if="previewFile.type === 'image' && previewFile.path"
             :src="previewFile.path"
             :alt="previewFile.name"
-            class="max-w-full max-h-[400px] object-contain rounded-lg shadow-lg"
+            class="max-w-full max-h-full object-contain rounded-lg shadow-lg"
           />
 
-          <!-- PDF Preview - Card style like Word docs -->
-          <div v-else-if="previewFile.type === 'pdf'" class="w-full">
-            <div class="text-center">
-              <div class="bg-white rounded-lg p-8 border border-gray-200 max-w-md mx-auto">
-                <i class="pi pi-file-pdf text-6xl text-red-500 mb-4"></i>
-                <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
-                <p class="text-gray-500 text-sm mb-2">PDF Document</p>
-                <p class="text-gray-400 text-xs">Click "View File" button above to open PDF</p>
-              </div>
+          <!-- PDF Preview -->
+          <div v-else-if="previewFile.type === 'pdf'" class="text-center">
+            <div class="bg-white rounded-lg p-6 border border-gray-200">
+              <i class="pi pi-file-pdf text-5xl text-red-500 mb-3"></i>
+              <p class="text-gray-700 font-medium text-sm">{{ previewFile.name }}</p>
+              <p class="text-gray-400 text-xs mt-1">PDF Document</p>
+              <button
+                v-if="previewFile.path"
+                @click="openFileInNewTab(previewFile.path, previewFile.type)"
+                class="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-1.5 mx-auto"
+              >
+                <i class="pi pi-external-link text-xs"></i>
+                <span>View File</span>
+              </button>
             </div>
           </div>
 
           <!-- Document Preview (Word docs) -->
-          <div v-else-if="previewFile.type === 'document'" class="w-full">
-            <div class="text-center">
-              <div class="bg-white rounded-lg p-8 border border-gray-200 max-w-md mx-auto">
-                <i class="pi pi-file-word text-6xl text-blue-500 mb-4"></i>
-                <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
-                <p class="text-gray-500 text-sm mb-2">Word Document</p>
-                <p class="text-gray-400 text-xs">Click "View File" button above to open in Google Docs Viewer</p>
-              </div>
+          <div v-else-if="previewFile.type === 'document'" class="text-center">
+            <div class="bg-white rounded-lg p-6 border border-gray-200">
+              <i class="pi pi-file-word text-5xl text-blue-500 mb-3"></i>
+              <p class="text-gray-700 font-medium text-sm">{{ previewFile.name }}</p>
+              <p class="text-gray-400 text-xs mt-1">Word Document</p>
+              <button
+                v-if="previewFile.path"
+                @click="openFileInNewTab(previewFile.path, previewFile.type)"
+                class="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-1.5 mx-auto"
+              >
+                <i class="pi pi-external-link text-xs"></i>
+                <span>View File</span>
+              </button>
             </div>
           </div>
 
           <!-- Other Files -->
-          <div v-else class="text-center w-full">
-            <div class="bg-white rounded-lg p-8 border border-gray-200 max-w-md mx-auto">
-              <i class="pi pi-file text-6xl text-gray-400 mb-4"></i>
-              <p class="text-gray-700 font-medium mb-2">{{ previewFile.name }}</p>
-              <p class="text-gray-500 text-sm mb-4">{{ previewFile.type || 'File' }}</p>
-              <p class="text-gray-400 text-xs">Click "View File" to open the file.</p>
+          <div v-else class="text-center">
+            <div class="bg-white rounded-lg p-6 border border-gray-200">
+              <i class="pi pi-file text-5xl text-gray-400 mb-3"></i>
+              <p class="text-gray-700 font-medium text-sm">{{ previewFile.name }}</p>
+              <p class="text-gray-400 text-xs mt-1">{{ previewFile.type || 'File' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending Replacement Indicator -->
+        <div v-if="pendingReplacementFile" class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div class="flex items-center gap-2">
+            <i class="pi pi-info-circle text-amber-600"></i>
+            <span class="text-sm text-amber-800">New file selected: <strong>{{ pendingReplacementFile.name }}</strong>. Click "Save Changes" to confirm.</span>
+          </div>
+        </div>
+
+        <!-- Replace File Options -->
+        <div v-if="!hasSubmittedWork || isResubmitting">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Replace File From:</label>
+          <div class="grid grid-cols-3 gap-3">
+            <!-- From Device -->
+            <button
+              @click="replaceFromDevice"
+              class="flex flex-col items-center gap-2 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all duration-200 group"
+            >
+              <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                <i class="pi pi-upload text-indigo-600"></i>
+              </div>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-indigo-700">Device</span>
+            </button>
+
+            <!-- From My Sketch -->
+            <button
+              @click="replaceFromSketch"
+              class="flex flex-col items-center gap-2 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 group"
+            >
+              <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                <i class="pi pi-pencil text-purple-600"></i>
+              </div>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-purple-700">My Sketch</span>
+            </button>
+
+            <!-- From Submitted Collection -->
+            <button
+              @click="replaceFromCollection"
+              class="flex flex-col items-center gap-2 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl hover:border-emerald-400 hover:bg-emerald-50 transition-all duration-200 group"
+            >
+              <div class="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                <i class="pi pi-folder-open text-emerald-600"></i>
+              </div>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-emerald-700">Collection</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="cancelFilePreview"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-sm font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            v-if="(!hasSubmittedWork || isResubmitting) && pendingReplacementFile"
+            @click="confirmReplaceFile"
+            :disabled="isSubmitting"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+          >
+            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+            <i v-else class="pi pi-check"></i>
+            <span>{{ isSubmitting ? 'Saving...' : 'Save Changes' }}</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Replace from Sketch Picker Dialog -->
+    <Dialog v-model:visible="showReplaceSketchPicker" modal header="Select from My Sketches" :style="{ width: '600px', maxWidth: '95vw' }" :dismissableMask="true">
+      <div class="space-y-4">
+        <!-- Loading State -->
+        <div v-if="loadingSketches" class="flex justify-center items-center py-12">
+          <i class="pi pi-spin pi-spinner text-2xl text-indigo-600"></i>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="mySketches.length === 0" class="text-center py-12">
+          <div class="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-3">
+            <i class="pi pi-inbox text-gray-400 text-lg"></i>
+          </div>
+          <p class="text-gray-500 text-sm">No sketches found</p>
+        </div>
+
+        <!-- Sketches Grid -->
+        <div v-else class="grid grid-cols-4 gap-3 max-h-[300px] overflow-y-auto p-1">
+          <div
+            v-for="sketch in mySketches"
+            :key="sketch.id"
+            @click="selectReplaceSketch(sketch)"
+            class="relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 aspect-square"
+            :class="selectedReplaceSketchId === sketch.id ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200 hover:border-purple-300'"
+          >
+            <img
+              :src="sketch.image_url"
+              :alt="sketch.title"
+              class="w-full h-full object-cover"
+            />
+            <div v-if="selectedReplaceSketchId === sketch.id" class="absolute top-1 right-1 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+              <i class="pi pi-check text-white text-xs"></i>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+              <p class="text-white text-xs truncate">{{ sketch.title || 'Untitled' }}</p>
             </div>
           </div>
         </div>
       </div>
 
       <template #footer>
-        <div class="flex items-center justify-between w-full gap-3">
-          <!-- Left side: Replace File button (only if draft OR resubmitting) -->
-          <div v-if="!hasSubmittedWork || isResubmitting" class="flex gap-2">
-            <button
-              @click="replaceCurrentFile"
-              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
-            >
-              <i class="pi pi-refresh"></i>
-              <span>Replace File</span>
-            </button>
-            <button
-              @click="savePreviewCaption"
-              :disabled="!previewFileCaption || previewFileCaption === previewFile?.name"
-              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <i class="pi pi-save"></i>
-              <span>Save Caption</span>
-            </button>
-          </div>
-          <div v-else></div>
-
-          <!-- Right side: Close button -->
+        <div class="flex items-center justify-end gap-3">
           <button
-            @click="showFilePreview = false"
-            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+            @click="showReplaceSketchPicker = false; selectedReplaceSketchId = null;"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
           >
-            Close
+            Cancel
+          </button>
+          <button
+            @click="confirmReplaceWithSketch"
+            :disabled="!selectedReplaceSketchId || isSubmitting"
+            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+            <i v-else class="pi pi-check"></i>
+            <span>{{ isSubmitting ? 'Replacing...' : 'Replace with Sketch' }}</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Replace from Collection Picker Dialog -->
+    <Dialog v-model:visible="showReplaceCollectionPicker" modal header="Select from Submitted Collection" :style="{ width: '600px', maxWidth: '95vw' }" :dismissableMask="true">
+      <div class="space-y-4">
+        <!-- Loading State -->
+        <div v-if="isLoadingCollection" class="flex justify-center items-center py-12">
+          <i class="pi pi-spin pi-spinner text-2xl text-indigo-600"></i>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="submittedCollection.length === 0" class="text-center py-12">
+          <div class="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-3">
+            <i class="pi pi-folder-open text-gray-400 text-lg"></i>
+          </div>
+          <p class="text-gray-500 text-sm">No submitted work found in your collection</p>
+        </div>
+
+        <!-- Collection Grid -->
+        <div v-else class="grid grid-cols-4 gap-3 max-h-[300px] overflow-y-auto p-1">
+          <div
+            v-for="item in submittedCollection"
+            :key="item.id"
+            @click="selectReplaceCollection(item)"
+            class="relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 aspect-square"
+            :class="selectedReplaceCollectionId === item.id ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-gray-200 hover:border-emerald-300'"
+          >
+            <img
+              v-if="item.file_type === 'image'"
+              :src="item.file_url || item.file_path"
+              :alt="item.caption"
+              class="w-full h-full object-cover"
+            />
+            <div v-else class="w-full h-full bg-gray-100 flex items-center justify-center">
+              <i class="pi pi-file-pdf text-3xl text-red-500"></i>
+            </div>
+            <div v-if="selectedReplaceCollectionId === item.id" class="absolute top-1 right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+              <i class="pi pi-check text-white text-xs"></i>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+              <p class="text-white text-xs truncate">{{ item.caption || item.activity_title || 'Untitled' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showReplaceCollectionPicker = false; selectedReplaceCollectionId = null;"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            @click="confirmReplaceWithCollection"
+            :disabled="!selectedReplaceCollectionId || isSubmitting"
+            class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
+            <i v-else class="pi pi-check"></i>
+            <span>{{ isSubmitting ? 'Replacing...' : 'Replace from Collection' }}</span>
           </button>
         </div>
       </template>
@@ -4108,6 +4483,15 @@ const openPreviewDialog = async (item) => {
     if (submissionId) {
       const response = await axios.get(`/api/submissions/${submissionId}/`);
       if (response.data) {
+        // Update selectedPreviewItem with fresh data from API
+        selectedPreviewItem.value = {
+          ...item,
+          ...response.data,
+          // Ensure we keep the activity_title from original item if not in response
+          activity_title: response.data.activity_title || item.activity_title,
+          folder_name: response.data.folder_name || item.folder_name || 'Unknown Folder'
+        };
+        
         // Check if there are multiple files
         if (response.data.files && response.data.files.length > 0) {
           previewFiles.value = response.data.files.map(f => ({
@@ -4130,6 +4514,7 @@ const openPreviewDialog = async (item) => {
           }];
         }
         console.log('✅ Loaded preview files:', previewFiles.value.length);
+        console.log('📅 Submitted at:', selectedPreviewItem.value.submitted_at);
       }
     }
   } catch (error) {
@@ -4423,6 +4808,32 @@ const getFileExtension = (dataUrl) => {
   };
 
   return mimeToExt[mimeType] || 'file';
+};
+
+// Get display status for submissions
+const getDisplayStatus = (item) => {
+  if (!item) return 'Unknown';
+  
+  // Check for compilation
+  if (item.is_compilation || item.compiled) {
+    return item.score ? 'Compiled & Scored' : 'Compiled';
+  }
+  
+  // Check status
+  if (item.status === 'scored' || item.score) {
+    return 'Scored';
+  }
+  if (item.status === 'unscored') {
+    return 'Submitted';
+  }
+  if (item.status === 'draft') {
+    return 'Draft';
+  }
+  if (item.display_status) {
+    return item.display_status;
+  }
+  
+  return 'Submitted';
 };
 
 // Format submitted date and time (Philippine Time)
@@ -5251,6 +5662,15 @@ const uploadTabs = [
   { id: 'collection', name: 'Submitted Collection', icon: 'pi pi-folder' }
 ];
 
+// Compile Now Dialog state (separate from Turn In)
+const showCompileNowDialog = ref(false);
+const compileNowActiveTab = ref('device');
+const compileNowCaption = ref('');
+const compileNowFiles = ref([]);
+const selectedCompileNowSketchId = ref(null);
+const selectedCompileNowCollectionId = ref(null);
+const compileNowFileInput = ref(null);
+
 // My Sketches state
 const mySketches = ref([]);
 const loadingSketches = ref(false);
@@ -6030,7 +6450,7 @@ const viewDraftFile = async (file) => {
         name: file.caption || 'Submitted work',
         isSubmissionFile: false
       };
-      previewFileCaption.value = file.caption || 'Submitted work';
+      previewFileCaption.value = file.caption || '';
     } else if (isSubmissionFile) {
       // For individual files, use the file path directly
       console.log('📎 SubmissionFile - using direct path:', file.path);
@@ -6039,7 +6459,7 @@ const viewDraftFile = async (file) => {
         path: file.path,
         isSubmissionFile: true
       };
-      previewFileCaption.value = file.name;
+      previewFileCaption.value = file.caption || '';
     } else {
       // Legacy: Fetch full submission data
       const response = await axios.get(`/api/submissions/${file.id}/`);
@@ -6054,7 +6474,7 @@ const viewDraftFile = async (file) => {
         fullData: response.data,
         isSubmissionFile: false
       };
-      previewFileCaption.value = response.data.caption || file.name;
+      previewFileCaption.value = response.data.caption || '';
     }
 
     showFilePreview.value = true;
@@ -6142,6 +6562,16 @@ const openFileInNewTab = (filePath, fileType = null) => {
 // fileToReplace ref for tracking which file is being replaced
 const fileToReplace = ref(null);
 
+// Pending replacement file (saved as draft, waiting for confirmation)
+const pendingReplacementFile = ref(null);
+
+// Cancel file preview and reset pending replacement
+const cancelFilePreview = () => {
+  showFilePreview.value = false;
+  pendingReplacementFile.value = null;
+  fileToReplace.value = null;
+};
+
 // Replace current file - opens file picker to replace the specific file being previewed
 const replaceCurrentFile = () => {
   if (!previewFile.value) return;
@@ -6153,14 +6583,150 @@ const replaceCurrentFile = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*,.pdf,.doc,.docx';
-    input.onchange = handleReplaceFileUpload;
+    input.onchange = handleReplaceFileUploadDraft;
     replaceFileInput.value = input;
   }
   
   replaceFileInput.value.click();
 };
 
-// Handle the file replacement upload
+// Handle the file replacement upload - saves as draft first
+const handleReplaceFileUploadDraft = async (event) => {
+  const file = event.target.files[0];
+  if (!file || !previewFile.value) return;
+
+  try {
+    console.log('🔄 Preparing replacement file:', file.name);
+    
+    // Create a preview URL for the new file
+    const previewUrl = URL.createObjectURL(file);
+    
+    // Determine file type
+    let fileType = 'file';
+    if (file.type.startsWith('image/')) {
+      fileType = 'image';
+    } else if (file.type === 'application/pdf') {
+      fileType = 'pdf';
+    } else if (file.type.includes('word') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) {
+      fileType = 'document';
+    }
+    
+    // Store the pending replacement
+    pendingReplacementFile.value = {
+      file: file,
+      name: file.name,
+      type: fileType,
+      previewUrl: previewUrl,
+      source: 'device'
+    };
+    
+    // Update the preview to show the new file
+    previewFile.value = {
+      ...previewFile.value,
+      path: previewUrl,
+      name: file.name,
+      type: fileType
+    };
+    
+    showInfo('File selected. Click "Save Changes" to confirm.', 'Draft');
+    
+  } catch (error) {
+    console.error('❌ Error preparing replacement file:', error);
+    showError('Failed to prepare file', 'Error');
+  }
+  
+  // Reset file input
+  if (replaceFileInput.value) {
+    replaceFileInput.value.value = '';
+  }
+};
+
+// Confirm and save the replacement file
+const confirmReplaceFile = async () => {
+  if (!pendingReplacementFile.value || !fileToReplace.value) return;
+  
+  isSubmitting.value = true;
+  
+  try {
+    const file = pendingReplacementFile.value.file;
+    console.log('🔄 Confirming replacement:', file.name);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const isSubmissionFile = fileToReplace.value.submissionId !== undefined;
+    
+    if (isSubmissionFile) {
+      // Delete the old file and add new one
+      await axios.delete(`/api/submissions/${fileToReplace.value.submissionId}/files/${fileToReplace.value.id}/`);
+      
+      const uploadFormData = new FormData();
+      uploadFormData.append('files', file);
+      
+      const response = await axios.post(
+        `/api/activities/${selectedActivity.value.id}/submissions/upload-files/`,
+        uploadFormData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      
+      const submissionData = response.data.submission;
+      draftSubmission.value = submissionData;
+      
+      if (submissionData.files && submissionData.files.length > 0) {
+        draftFiles.value = submissionData.files.map(f => ({
+          id: f.id,
+          submissionId: submissionData.id,
+          name: f.file_name,
+          type: f.file_type,
+          path: f.file_url ? `${f.file_url}?t=${Date.now()}` : f.file_path,
+          size: f.file_size,
+          order: f.order
+        }));
+      }
+    } else {
+      const response = await axios.put(
+        `/api/submissions/${fileToReplace.value.id}/`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      
+      draftSubmission.value = response.data;
+      
+      const filePath = response.data.file_url || response.data.file_path || response.data.file;
+      const cacheBustedPath = filePath ? `${filePath}?t=${Date.now()}` : filePath;
+      
+      const fileIndex = draftFiles.value.findIndex(f => f.id === fileToReplace.value.id);
+      if (fileIndex !== -1) {
+        draftFiles.value[fileIndex] = {
+          ...draftFiles.value[fileIndex],
+          name: file.name,
+          type: response.data.file_type,
+          path: cacheBustedPath
+        };
+      }
+    }
+    
+    // Clean up preview URL
+    if (pendingReplacementFile.value.previewUrl) {
+      URL.revokeObjectURL(pendingReplacementFile.value.previewUrl);
+    }
+    
+    showFilePreview.value = false;
+    showSuccess('File replaced successfully!', 'Updated');
+    
+    // Reset
+    pendingReplacementFile.value = null;
+    fileToReplace.value = null;
+    
+  } catch (error) {
+    console.error('❌ Error replacing file:', error);
+    showError(error.response?.data?.error || 'Failed to replace file', 'Error');
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Handle the file replacement upload (legacy - immediate save)
 const handleReplaceFileUpload = async (event) => {
   const file = event.target.files[0];
   if (!file || !fileToReplace.value) return;
@@ -6255,6 +6821,157 @@ const openReplaceFileDialog = () => {
   showUploadDialog.value = true; // Open upload dialog
   activeUploadTab.value = 'device'; // Default to device tab
   console.log('🔄 Opening replace file dialog');
+};
+
+// Replace file from device - opens file picker
+const replaceFromDevice = () => {
+  if (!previewFile.value) return;
+  
+  fileToReplace.value = previewFile.value;
+  
+  // Create a temporary file input if it doesn't exist
+  if (!replaceFileInput.value) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.pdf,.doc,.docx';
+    input.onchange = handleReplaceFileUploadDraft;
+    replaceFileInput.value = input;
+  }
+  
+  replaceFileInput.value.click();
+};
+
+// Replace file from My Sketch - opens sketch picker dialog
+const showReplaceSketchPicker = ref(false);
+const replaceFromSketch = async () => {
+  if (!previewFile.value) return;
+  
+  fileToReplace.value = previewFile.value;
+  showReplaceSketchPicker.value = true;
+  
+  // Load sketches if not already loaded
+  if (mySketches.value.length === 0) {
+    await loadMySketches();
+  }
+};
+
+// Selected sketch for replacement
+const selectedReplaceSketchId = ref(null);
+
+// Select sketch for replacement
+const selectReplaceSketch = (sketch) => {
+  selectedReplaceSketchId.value = sketch.id;
+};
+
+// Confirm sketch replacement - saves as draft first
+const confirmReplaceWithSketch = async () => {
+  if (!selectedReplaceSketchId.value || !fileToReplace.value) return;
+  
+  const selectedSketch = mySketches.value.find(s => s.id === selectedReplaceSketchId.value);
+  if (!selectedSketch) return;
+  
+  try {
+    console.log('🔄 Preparing sketch replacement:', selectedSketch.title);
+    
+    // Convert sketch image to blob
+    const response = await fetch(selectedSketch.image_url);
+    const blob = await response.blob();
+    const file = new File([blob], `${selectedSketch.title || 'sketch'}.png`, { type: 'image/png' });
+    
+    // Store the pending replacement
+    pendingReplacementFile.value = {
+      file: file,
+      name: selectedSketch.title || 'sketch.png',
+      type: 'image',
+      previewUrl: selectedSketch.image_url,
+      source: 'sketch'
+    };
+    
+    // Update the preview to show the sketch
+    previewFile.value = {
+      ...previewFile.value,
+      path: selectedSketch.image_url,
+      name: selectedSketch.title || 'sketch.png',
+      type: 'image'
+    };
+    
+    showReplaceSketchPicker.value = false;
+    selectedReplaceSketchId.value = null;
+    showInfo('Sketch selected. Click "Save Changes" to confirm.', 'Draft');
+    
+  } catch (error) {
+    console.error('❌ Error preparing sketch replacement:', error);
+    showError('Failed to prepare sketch', 'Error');
+  }
+};
+
+// Replace file from Submitted Collection - opens collection picker dialog
+const showReplaceCollectionPicker = ref(false);
+const replaceFromCollection = async () => {
+  if (!previewFile.value) return;
+  
+  fileToReplace.value = previewFile.value;
+  showReplaceCollectionPicker.value = true;
+  
+  // Load collection if not already loaded
+  if (submittedCollection.value.length === 0) {
+    await loadSubmittedCollection();
+  }
+};
+
+// Selected collection item for replacement
+const selectedReplaceCollectionId = ref(null);
+
+// Select collection item for replacement
+const selectReplaceCollection = (item) => {
+  selectedReplaceCollectionId.value = item.id;
+};
+
+// Confirm collection replacement - saves as draft first
+const confirmReplaceWithCollection = async () => {
+  if (!selectedReplaceCollectionId.value || !fileToReplace.value) return;
+  
+  const selectedItem = submittedCollection.value.find(i => i.id === selectedReplaceCollectionId.value);
+  if (!selectedItem) return;
+  
+  try {
+    console.log('🔄 Preparing collection replacement:', selectedItem.caption);
+    
+    // Get the file URL from collection item
+    const fileUrl = selectedItem.file_url || selectedItem.file_path;
+    
+    // Fetch the file and convert to blob
+    const response = await fetch(fileUrl);
+    const blob = await response.blob();
+    const fileName = selectedItem.caption || selectedItem.activity_title || 'collection_item';
+    const fileExt = selectedItem.file_type === 'image' ? '.png' : '.pdf';
+    const file = new File([blob], `${fileName}${fileExt}`, { type: blob.type });
+    
+    // Store the pending replacement
+    pendingReplacementFile.value = {
+      file: file,
+      name: fileName,
+      type: selectedItem.file_type || 'image',
+      previewUrl: fileUrl,
+      source: 'collection'
+    };
+    
+    // Update the preview to show the collection item
+    previewFile.value = {
+      ...previewFile.value,
+      path: fileUrl,
+      name: fileName,
+      type: selectedItem.file_type || 'image'
+    };
+    
+    showReplaceCollectionPicker.value = false;
+    selectedReplaceCollectionId.value = null;
+    showInfo('Collection item selected. Click "Save Changes" to confirm.', 'Draft');
+    
+  } catch (error) {
+    console.error('❌ Error preparing collection replacement:', error);
+    showError('Failed to prepare collection item', 'Error');
+  }
 };
 
 // Save caption from preview dialog
@@ -6641,7 +7358,7 @@ const showMissingActivities = () => {
   showMissingActivitiesDialog.value = true;
 };
 
-// Compile missing activity
+// Compile missing activity - Opens Compile Now Dialog with file source tabs
 const compileActivity = (activity) => {
   console.log('Compiling activity:', activity.title);
   selectedMissingActivity.value = activity;
@@ -6649,15 +7366,18 @@ const compileActivity = (activity) => {
   // Check if there's an existing draft for this activity
   if (compilationDrafts.value[activity.id]) {
     const draft = compilationDrafts.value[activity.id];
-    submissionCaption.value = draft.caption || '';
-    draftFiles.value = draft.files || [];
+    compileNowCaption.value = draft.caption || '';
+    compileNowFiles.value = draft.files || [];
   } else {
-    submissionCaption.value = '';
-    draftFiles.value = [];
+    compileNowCaption.value = '';
+    compileNowFiles.value = [];
   }
 
-  // Open the Turn In Dialog
-  showTurnInDialog.value = true;
+  // Reset tab to device
+  compileNowActiveTab.value = 'device';
+  
+  // Open the Compile Now Dialog (with file source tabs)
+  showCompileNowDialog.value = true;
 };
 
 // Edit existing compilation draft
@@ -6666,6 +7386,223 @@ const editCompilation = (activity) => {
   compileActivity(activity); // Reuse the same function
 };
 
+// ============ Compile Now Dialog Functions ============
+
+// Close Compile Now dialog
+const closeCompileNowDialog = () => {
+  showCompileNowDialog.value = false;
+  compileNowCaption.value = '';
+  compileNowFiles.value = [];
+  selectedCompileNowSketchId.value = null;
+  selectedCompileNowCollectionId.value = null;
+  compileNowActiveTab.value = 'device';
+};
+
+// Trigger file upload for Compile Now
+const triggerCompileNowFileUpload = () => {
+  compileNowFileInput.value?.click();
+};
+
+// Handle file upload for Compile Now
+const handleCompileNowFileUpload = async (event) => {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+
+  isSubmitting.value = true;
+
+  try {
+    // Process all files using promises
+    const filePromises = Array.from(files).map(async (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const fileData = e.target.result;
+          let fileType = 'document';
+          if (file.type.startsWith('image/')) {
+            fileType = 'image';
+          } else if (file.type === 'application/pdf') {
+            fileType = 'pdf';
+          }
+
+          resolve({
+            id: Date.now() + Math.random(),
+            name: file.name,
+            type: fileType,
+            data: fileData
+          });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    });
+
+    const processedFiles = await Promise.all(filePromises);
+    compileNowFiles.value.push(...processedFiles);
+    console.log(`✅ ${processedFiles.length} file(s) added to Compile Now`);
+  } catch (error) {
+    console.error('Error reading files:', error);
+    showError('Failed to read files', 'Error');
+  } finally {
+    isSubmitting.value = false;
+  }
+
+  // Reset input
+  event.target.value = '';
+};
+
+// Remove file from Compile Now
+const removeCompileNowFile = (index) => {
+  compileNowFiles.value.splice(index, 1);
+};
+
+// Select sketch for Compile Now
+const selectCompileNowSketch = (sketch) => {
+  selectedCompileNowSketchId.value = selectedCompileNowSketchId.value === sketch.id ? null : sketch.id;
+};
+
+// Add selected sketch to Compile Now files
+const addCompileNowSketch = () => {
+  const sketch = mySketches.value.find(s => s.id === selectedCompileNowSketchId.value);
+  if (sketch) {
+    compileNowFiles.value.push({
+      id: Date.now() + Math.random(),
+      name: sketch.title || `Sketch ${sketch.id}`,
+      type: 'image',
+      data: sketch.image_data,
+      sketchId: sketch.id
+    });
+    selectedCompileNowSketchId.value = null;
+    showSuccess('Sketch added to your work', 'Added');
+  }
+};
+
+// Select collection item for Compile Now
+const selectCompileNowCollection = (item) => {
+  selectedCompileNowCollectionId.value = selectedCompileNowCollectionId.value === item.id ? null : item.id;
+};
+
+// Add selected collection item to Compile Now files
+const addCompileNowCollection = async () => {
+  const item = submittedCollection.value.find(i => i.id === selectedCompileNowCollectionId.value);
+  if (item) {
+    // Determine the file data source - prefer file_path (base64), fallback to file_url
+    let fileData = item.file_path;
+    
+    // If file_path is empty or not base64, try to fetch from file_url
+    if (!fileData || (!fileData.startsWith('data:') && item.file_url)) {
+      try {
+        // Fetch the image and convert to base64
+        const response = await fetch(item.file_url);
+        const blob = await response.blob();
+        fileData = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+        console.log('✅ Converted file_url to base64 for collection item');
+      } catch (error) {
+        console.error('❌ Error fetching file from URL:', error);
+        showError('Failed to load file from collection', 'Error');
+        return;
+      }
+    }
+    
+    compileNowFiles.value.push({
+      id: Date.now() + Math.random(),
+      name: item.activity_title || `Submission ${item.id}`,
+      type: item.file_type || 'image',
+      data: fileData,
+      collectionId: item.id
+    });
+    selectedCompileNowCollectionId.value = null;
+    showSuccess('Collection item added to your work', 'Added');
+  }
+};
+
+// Submit work from Compile Now dialog
+const submitCompileNowWork = async () => {
+  const activity = selectedMissingActivity.value;
+
+  if (!activity) {
+    showWarning('No activity selected', 'Error');
+    return;
+  }
+
+  if (compileNowFiles.value.length === 0) {
+    showWarning('Please add a file first', 'No File');
+    return;
+  }
+
+  isSubmitting.value = true;
+
+  try {
+    console.log('📤 Submitting compilation for activity:', activity.id, activity.title);
+    console.log('📁 Files to submit:', compileNowFiles.value.length);
+    
+    // Validate files have data
+    for (let i = 0; i < compileNowFiles.value.length; i++) {
+      const file = compileNowFiles.value[i];
+      if (!file.data) {
+        console.error(`❌ File ${i + 1} (${file.name}) has no data`);
+        showError(`File "${file.name}" has no data. Please re-add the file.`, 'Invalid File');
+        isSubmitting.value = false;
+        return;
+      }
+      console.log(`📎 File ${i + 1}: ${file.name}, type: ${file.type}, data length: ${file.data?.length || 0}`);
+    }
+
+    // Prepare file paths (base64 data)
+    const allFilePaths = compileNowFiles.value.map(f => f.data);
+    
+    console.log('📦 Preparing submission payload...');
+    console.log('   - Primary file type:', compileNowFiles.value[0]?.type);
+    console.log('   - Total files:', allFilePaths.length);
+
+    // Submit to API with is_compilation flag - the API handles marking as compiled
+    const response = await axios.post(`/api/activities/${activity.id}/submissions/`, {
+      caption: compileNowCaption.value || '',
+      file_path: allFilePaths[0], // Primary file (Base64 data)
+      file_type: compileNowFiles.value[0]?.type || 'image',
+      files: allFilePaths, // All files for multiple file support
+      post_to_feed: false,
+      is_late: false,
+      is_draft: false, // Final submission
+      is_compilation: true, // This tells the API to mark as compiled
+      is_portfolio_compilation: true // Skip resubmit limit for portfolio compilation
+    });
+
+    console.log('✅ Submission created:', response.data);
+
+    // Close dialog and reset
+    closeCompileNowDialog();
+    selectedMissingActivity.value = null;
+
+    // Refresh portfolio activities
+    await fetchPortfolioActivities();
+
+    showSuccess('Activity compiled and submitted successfully!', 'Compiled');
+  } catch (error) {
+    console.error('❌ Error submitting work:', error);
+    console.error('   Response data:', error.response?.data);
+    console.error('   Response status:', error.response?.status);
+    showError(error.response?.data?.error || error.response?.data?.details || 'Failed to submit work', 'Submission Failed');
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Watch for tab changes in Compile Now dialog to load data
+watch(compileNowActiveTab, async (newValue) => {
+  if (showCompileNowDialog.value) {
+    if (newValue === 'sketch' && mySketches.value.length === 0) {
+      await loadMySketches();
+    } else if (newValue === 'collection' && submittedCollection.value.length === 0) {
+      await loadSubmittedCollection();
+    }
+  }
+});
+
+// ============ End Compile Now Dialog Functions ============
 
 
 // Wrapper for Submit (handles confirmation)

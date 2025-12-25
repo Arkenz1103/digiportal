@@ -2025,8 +2025,7 @@ const getMedalDetails = (rank) => {
                                         <img v-if="currentFile && currentFile.file_type === 'image' && currentFile.file_path && currentFile.file_path.length > 0"
                                             :src="currentFile.file_path.startsWith('http') || currentFile.file_path.startsWith('/media') || currentFile.file_path.startsWith('data:') ? currentFile.file_path : `data:image/png;base64,${currentFile.file_path}`"
                                             :alt="currentFile.caption || 'Student submission'"
-                                            class="max-h-full max-w-full object-contain"
-                                            style="max-height: 100%; max-width: 100%; object-fit: contain;"
+                                            class="max-w-full max-h-[450px] object-contain rounded-lg"
                                         />
                                         <!-- PDF Display -->
                                         <div v-else-if="currentFile && currentFile.file_type === 'pdf' && currentFile.file_path" class="flex flex-col items-center justify-center text-red-600">
@@ -2210,7 +2209,7 @@ const getMedalDetails = (rank) => {
     </div>
 
     <!-- Add Score Dialog -->
-    <Dialog v-model:visible="showAddScoreDialog" modal header="Add Score" :style="{ width: '650px' }">
+    <Dialog v-model:visible="showAddScoreDialog" modal header="Add Score" :style="{ width: '800px' }">
         <div class="space-y-4">
             <!-- Student Info -->
             <div class="bg-indigo-50 p-3 rounded-lg">
@@ -2221,12 +2220,12 @@ const getMedalDetails = (rank) => {
             <!-- Scoring Criteria -->
             <div>
                 <h4 class="text-sm font-medium text-gray-700 mb-3">Scoring Criteria:</h4>
-                <div v-if="criteriaScores.length > 0" class="grid grid-cols-2 gap-3">
+                <div v-if="criteriaScores.length > 0" class="space-y-3 max-h-48 overflow-y-auto pr-1">
                     <div v-for="(criterion, index) in criteriaScores" :key="index"
                          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div class="flex items-start gap-2 flex-1 min-w-0">
                             <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                            <p class="text-sm text-gray-600 truncate">{{ criterion.name }}</p>
+                            <p class="text-sm text-gray-600 truncate" :title="criterion.name">{{ criterion.name }}</p>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
                             <input

@@ -1934,6 +1934,11 @@ def activity_submissions_api(request, activity_id):
                 else:
                     submission_status = 'draft' if is_draft else 'unscored'
 
+                # Set submitted_at for non-draft submissions
+                import pytz
+                manila_tz = pytz.timezone('Asia/Manila')
+                submission_time = timezone.now()
+
                 submission = StudentSubmission.objects.create(
                     activity=activity,
                     student=request.user,
@@ -1948,7 +1953,9 @@ def activity_submissions_api(request, activity_id):
                     is_compilation=is_compilation_req,
                     compiled=is_compilation_req,
                     missing=False if is_compilation_req else True,
-                    compiled_at=timezone.now() if is_compilation_req else None,
+                    compiled_at=submission_time if is_compilation_req else None,
+                    submitted_at=submission_time if (is_compilation_req or not is_draft) else None,  # Set submitted_at for compilations and final submissions
+                    scored_at=submission_time if is_compilation_req else None,  # Set scored_at for compilations
                     approval_status='pending' if post_to_feed else 'approved',
                     is_late=is_late
                 )
@@ -2027,6 +2034,7 @@ def activity_submissions_api(request, activity_id):
 def unscored_submissions_api(request):
     """
     GET: List all unscored submissions (teacher only)
+    Also includes compiled submissions which should appear in submitted tab
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can view unscored submissions'}, status=status.HTTP_403_FORBIDDEN)
@@ -2066,15 +2074,18 @@ def unscored_submissions_api(request):
         # Get all unscored submissions - explicitly filter by status='unscored'
         # AND exclude any that have scores (double safety check)
         # ALSO include drafts that have resubmit_count > 0 (student is resubmitting)
+        # ALSO include compiled submissions (they should appear in submitted tab, not scored)
         from django.db.models import Q, Max
 
         # First, get the latest submission ID for each student-activity pair
         latest_submissions = StudentSubmission.objects.filter(
-            Q(status='unscored') | Q(status='draft', resubmit_count__gt=0)
+            Q(status='unscored') | 
+            Q(status='draft', resubmit_count__gt=0) |
+            Q(compiled=True) |  # Include compiled submissions
+            Q(is_compilation=True)  # Include compilation submissions
         ).exclude(
-            status='scored'
-        ).exclude(
-            score__isnull=False
+            # Exclude scored submissions that are NOT compiled
+            Q(status='scored') & Q(compiled=False) & Q(is_compilation=False)
         ).values('student', 'activity').annotate(
             latest_id=Max('id')
         )
@@ -2087,7 +2098,7 @@ def unscored_submissions_api(request):
             id__in=latest_ids
         ).order_by('-submitted_at')
 
-        print(f"📊 Unscored submissions query: Found {submissions.count()} unique submissions (one per student)")
+        print(f"📊 Unscored submissions query: Found {submissions.count()} unique submissions (including compiled)")
 
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -2103,20 +2114,25 @@ def unscored_submissions_api(request):
 def scored_submissions_api(request):
     """
     GET: List all scored submissions (teacher only)
+    Excludes compiled submissions - those should only appear in submitted tab
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can view scored submissions'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
         # Get all scored submissions - filter by status='scored' OR has a score
-        # This ensures we catch all scored submissions even if status wasn't updated properly
+        # Exclude compiled submissions - they should only appear in submitted tab
         submissions = StudentSubmission.objects.filter(
             Q(status='scored') | Q(score__isnull=False)
         ).exclude(
             status='draft'
+        ).exclude(
+            compiled=True  # Exclude compiled submissions
+        ).exclude(
+            is_compilation=True  # Also exclude by is_compilation flag
         ).distinct().order_by('-scored_at', '-submitted_at')
 
-        print(f"📊 Scored submissions query: Found {submissions.count()} submissions")
+        print(f"📊 Scored submissions query: Found {submissions.count()} submissions (excluding compiled)")
 
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -5220,6 +5236,33 @@ def get_student_portfolio_activities_api(request, class_name):
                                     local_submitted_time = submission.compiled_at
                                 except:
                                     pass
+                        
+                        # Fallback to scored_at if no submitted_at or compiled_at
+                        if not local_submitted_time and submission.scored_at:
+                            try:
+                                import pytz
+                                manila_tz = pytz.timezone('Asia/Manila')
+                                if timezone.is_naive(submission.scored_at):
+                                    aware_time = timezone.make_aware(submission.scored_at, timezone=pytz.UTC)
+                                    local_submitted_time = aware_time.astimezone(manila_tz)
+                                else:
+                                    local_submitted_time = submission.scored_at.astimezone(manila_tz)
+                                submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
+                                submitted_time_str = local_submitted_time.strftime('%I:%M %p')
+                            except:
+                                pass
+                        
+                        # Final fallback to current time if nothing else available
+                        if not local_submitted_time:
+                            try:
+                                import pytz
+                                manila_tz = pytz.timezone('Asia/Manila')
+                                local_submitted_time = timezone.now().astimezone(manila_tz)
+                                submitted_date_str = local_submitted_time.strftime('%b %d, %Y')
+                                submitted_time_str = local_submitted_time.strftime('%I:%M %p')
+                                print(f"   ⚠️ Using current time as fallback for compiled submission date")
+                            except:
+                                pass
                         
                         # Get submission file for compiled submission
                         if submission.file:
