@@ -1627,6 +1627,7 @@ const loadStudents = async () => {
                 initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
                 username: student.username,
                 email: student.email,
+                profile_picture: student.profile_picture || null,
                 totalActivities: student.total_outputs,
                 completedActivities: student.scored_outputs,
                 progress: student.total_outputs > 0

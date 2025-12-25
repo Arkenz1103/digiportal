@@ -8,8 +8,15 @@
         <div class="flex flex-col">
           <div class="flex items-start justify-between">
             <div class="flex items-center gap-4">
-              <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/30">
-                <span class="text-indigo-600 text-2xl font-bold">{{ studentInfo.initial }}</span>
+              <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/30 overflow-hidden">
+                <img 
+                  v-if="studentInfo.profilePicture && !profileImageFailed" 
+                  :src="studentInfo.profilePicture" 
+                  :alt="studentInfo.name" 
+                  class="w-full h-full object-cover"
+                  @error="handleProfileImageError"
+                />
+                <span v-else class="text-indigo-600 text-2xl font-bold">{{ studentInfo.initial }}</span>
               </div>
               <div>
                 <h2 class="text-xl font-bold text-white mb-1.5">{{ studentInfo.name }}</h2>
@@ -25,38 +32,31 @@
                 </div>
               </div>
             </div>
-
-            <!-- Back Button -->
-            <button @click="goBack"
-              class="flex items-center gap-2 px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all shadow-md hover:shadow-lg text-sm font-medium">
-              <i class="pi pi-arrow-left text-sm"></i>
-              <span>Back to Student Progress</span>
-            </button>
           </div>
 
-          <!-- Teacher's Remarks Section -->
-          <div class="mt-4 bg-white/20 backdrop-blur-sm p-4 rounded-lg border border-white/30">
+          <!-- Teacher's Remarks Section - White Background -->
+          <div class="mt-4 bg-white p-4 rounded-lg shadow-sm">
             <div class="flex justify-between items-center mb-2">
               <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-white/30 rounded-lg flex items-center justify-center">
-                  <i class="pi pi-comments text-white text-sm"></i>
+                <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <i class="pi pi-comments text-indigo-600 text-sm"></i>
                 </div>
                 <div>
-                  <h3 class="text-base font-bold text-white">Recent Remarks</h3>
-                  <span class="text-xs text-white/80">{{ remarksDate }} • {{ remarksTime }}</span>
+                  <h3 class="text-base font-bold text-gray-800">Recent Remarks</h3>
+                  <span class="text-xs text-gray-500">{{ remarksDate }} • {{ remarksTime }}</span>
                 </div>
               </div>
               <button
                 @click="openRemarksDialog"
-                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-200 shadow-sm hover:shadow-md">
+                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md">
 
                 <span>View All</span>
               </button>
             </div>
-            <p v-if="latestRemark" class="text-white/90 leading-relaxed">
+            <p v-if="latestRemark" class="text-gray-700 leading-relaxed">
               {{ latestRemark.text }}
             </p>
-            <p v-else class="text-white/60 italic text-sm">
+            <p v-else class="text-gray-400 italic text-sm">
               No remarks yet for this student.
             </p>
           </div>
@@ -69,12 +69,19 @@
       <div class="flex flex-col space-y-6">
         <!-- Search Bar and Statistics Row - Aligned Horizontally -->
         <div class="flex items-center gap-2">
-            <!-- Search Bar -->
-            <div class="relative flex-shrink-0" style="width: 240px;">
+            <!-- Back Button - Left side of Search -->
+            <button @click="goBack"
+              class="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-all shadow-sm hover:shadow-md text-sm font-medium flex-shrink-0">
+              <i class="pi pi-arrow-left text-sm"></i>
+              <span>Back to Student Progress</span>
+            </button>
+
+            <!-- Search Bar - Moderate width -->
+            <div class="relative" style="min-width: 400px; max-width: 280px;">
               <input
                 v-model="searchQuery"
                 type="text"
-                placeholder="Search by folder or activity..."
+                placeholder="Search by subject or activity..."
                 class="w-full pl-9 pr-8 py-2 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 transition-all text-gray-700 placeholder-gray-400 text-sm"
               />
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -89,48 +96,54 @@
               </button>
             </div>
 
-            <!-- Total Activities -->
+            <!-- Spacer to push stats to the right -->
+            <div class="flex-1"></div>
+
+            <!-- Total Activities - Compact -->
             <div
                 @click="setFilter('all')"
-                class="flex-1 bg-gradient-to-r from-indigo-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm"
-                :class="activeFilter === 'all' ? 'border-indigo-500 border-2 ring-1 ring-indigo-200' : 'border-indigo-100'">
+                class="bg-gradient-to-r from-indigo-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm flex-shrink-0"
+                :class="activeFilter === 'all' ? 'border-indigo-500 border-2 ring-1 ring-indigo-200' : 'border-indigo-100'"
+                style="min-width: 150px;">
                 <div class="flex items-center gap-2">
                     <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <i class="pi pi-book text-xs text-indigo-600"></i>
                     </div>
-                    <div class="flex-1 min-w-0">
+                    <div class="min-w-0">
                         <p class="text-xs text-indigo-600 font-semibold leading-tight">Total Activities</p>
                         <p class="text-base font-bold text-indigo-900 leading-tight">{{ records.length }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Completed (Submitted, Submitted Late, Resubmitted, Scored) -->
+            <!-- Completed - Compact -->
             <div
                 @click="setFilter('completed')"
-                class="flex-1 bg-gradient-to-r from-green-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm"
-                :class="activeFilter === 'completed' ? 'border-green-500 border-2 ring-1 ring-green-200' : 'border-green-100'">
+                class="bg-gradient-to-r from-green-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm flex-shrink-0"
+                :class="activeFilter === 'completed' ? 'border-green-500 border-2 ring-1 ring-green-200' : 'border-green-100'"
+                style="min-width: 150px;">
                 <div class="flex items-center gap-2">
                     <div class="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <i class="pi pi-check text-xs text-green-600"></i>
                     </div>
-                    <div class="flex-1 min-w-0">
+                    <div class="min-w-0">
                         <p class="text-xs text-green-600 font-semibold leading-tight">Completed</p>
                         <p class="text-base font-bold text-green-700 leading-tight">{{ completedCount }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Incomplete (Pending + Missing) -->
+            <!-- Incomplete - Compact -->
             <div
                 @click="setFilter('incomplete')"
-                class="flex-1 bg-gradient-to-r from-red-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm"
-                :class="activeFilter === 'incomplete' ? 'border-red-500 border-2 ring-1 ring-red-200' : 'border-red-100'">
+                class="bg-gradient-to-r from-red-50 to-white px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 hover:shadow-sm flex-shrink-0"
+                :class="activeFilter === 'incomplete' ? 'border-red-500 border-2 ring-1 ring-red-200' : 'border-red-100'"
+                style="min-width: 150px;">
                 <div class="flex items-center gap-2">
                     <div class="w-7 h-7 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <i class="pi pi-times-circle text-xs text-red-600"></i>
                     </div>
-                    <div class="flex-1 min-w-0">
+                    <div class="min-w-0">
                         <p class="text-xs text-red-600 font-semibold leading-tight">Incomplete</p>
                         <p class="text-base font-bold text-red-700 leading-tight">{{ incompleteCount }}</p>
                     </div>
@@ -158,25 +171,28 @@
           class="p-datatable-rounded"
           stripedRows
           showGridlines>
-          <Column field="subject" header="Folder" class="font-semibold">
+          <Column field="subject" header="Subject" class="font-semibold">
             <template #body="slotProps">
               <div class="flex items-center gap-2">
-                <i class="pi pi-folder text-indigo-600"></i>
+                <i class="pi pi-book text-indigo-600"></i>
                 <span class="font-medium text-indigo-900">{{ slotProps.data.subject }}</span>
               </div>
             </template>
           </Column>
           <Column field="output" header="Activity" style="min-width: 200px">
             <template #body="slotProps">
-              <div>
-                <div class="font-medium text-gray-900">{{ slotProps.data.output }}</div>
+              <button @click="openActivityDetails(slotProps.data)" class="text-left hover:bg-indigo-50 p-1 rounded transition-colors w-full">
+                <div class="font-medium text-indigo-700 hover:text-indigo-900">{{ slotProps.data.output }}</div>
                 <div class="text-xs text-gray-500">{{ slotProps.data.activityType }}</div>
-              </div>
+              </button>
             </template>
           </Column>
-          <Column field="dueDate" header="Due Date">
+          <Column field="dueDate" header="Due Date & Time">
             <template #body="slotProps">
-              <span class="text-sm text-gray-700">{{ slotProps.data.dueDate }}</span>
+              <div class="text-sm text-gray-700">
+                <div>{{ slotProps.data.dueDate }}</div>
+                <div v-if="slotProps.data.dueTime" class="text-xs text-gray-500">{{ slotProps.data.dueTime }}</div>
+              </div>
             </template>
           </Column>
           <Column field="status" header="Status">
@@ -236,43 +252,135 @@
   </div>
 
   <!-- View Output Dialog -->
-  <Dialog v-model:visible="showOutputDialog" modal header="View Student Output" :style="{width: '60vw'}" class="p-fluid">
+  <Dialog v-model:visible="showOutputDialog" modal header="View Student Output" :style="{width: '650px', maxWidth: '90vw'}" class="p-fluid">
     <div v-if="selectedOutput" class="space-y-4">
-      <div class="bg-indigo-50 p-4 rounded-lg">
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <p class="text-sm text-indigo-600 font-medium">Activity</p>
-            <p class="text-indigo-900 font-semibold">{{ selectedOutput.output }}</p>
-          </div>
-          <div>
-            <p class="text-sm text-indigo-600 font-medium">Folder</p>
-            <p class="text-indigo-900 font-semibold">{{ selectedOutput.subject }}</p>
-          </div>
-          <div>
-            <p class="text-sm text-indigo-600 font-medium">Submitted</p>
-            <p class="text-indigo-900">{{ selectedOutput.submittedDate }}</p>
-          </div>
-          <div>
-            <p class="text-sm text-indigo-600 font-medium">Score</p>
-            <p class="text-indigo-900 font-bold" :class="selectedOutput.score === 'N/A' ? 'text-gray-400' : 'text-green-600'">
-              {{ selectedOutput.score }}
-            </p>
-          </div>
+      <!-- Activity Info Grid -->
+      <div class="grid grid-cols-2 gap-x-6 gap-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium">Subject</p>
+          <p class="text-gray-900 font-medium">{{ selectedOutput.subject }}</p>
         </div>
-        <div v-if="selectedOutput.caption">
-          <p class="text-sm text-indigo-600 font-medium mb-1">Caption</p>
-          <p class="text-indigo-900">{{ selectedOutput.caption }}</p>
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium">Activity Type</p>
+          <p class="text-gray-900 font-medium capitalize">{{ selectedOutput.activityType }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium">Activity Title</p>
+          <p class="text-gray-900 font-medium">{{ selectedOutput.output }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium">Date & Time Submitted</p>
+          <p class="text-gray-900 font-medium">{{ selectedOutput.submittedDate }} <span class="text-gray-500">{{ selectedOutput.time }}</span></p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium">Status</p>
+          <span
+            class="px-2 py-1 text-xs rounded font-medium inline-block mt-1"
+            :class="{
+              'bg-green-100 text-green-800': selectedOutput.status === 'Scored',
+              'bg-blue-100 text-blue-800': selectedOutput.status === 'Submitted',
+              'bg-amber-100 text-amber-700': selectedOutput.status === 'Pending',
+              'bg-red-100 text-red-800': selectedOutput.status === 'Missing'
+            }">
+            {{ selectedOutput.status }}
+          </span>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium">Score</p>
+          <p class="font-bold" :class="selectedOutput.score === 'N/A' ? 'text-gray-400' : 'text-green-600'">
+            {{ selectedOutput.score }}
+          </p>
         </div>
       </div>
 
-      <div v-if="selectedOutput.fileType === 'image'" class="bg-gray-100 rounded-lg p-4 flex items-center justify-center">
-        <img :src="selectedOutput.filePath" :alt="selectedOutput.output" class="max-w-full max-h-96 rounded shadow-lg">
+      <!-- File Display with Navigation -->
+      <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <!-- File Counter (if multiple files) -->
+        <div v-if="outputFiles.length > 1" class="bg-indigo-600 text-white px-3 py-1.5 text-center text-sm font-medium">
+          {{ currentOutputFileIndex + 1 }} / {{ outputFiles.length }}
+        </div>
+        
+        <div class="relative" style="min-height: 300px;">
+          <!-- Navigation Arrows -->
+          <div v-if="outputFiles.length > 1" class="absolute inset-0 flex items-center justify-between px-2 pointer-events-none z-10">
+            <button
+              @click="prevOutputFile"
+              :disabled="currentOutputFileIndex === 0"
+              class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <i class="pi pi-chevron-left text-indigo-600"></i>
+            </button>
+            <button
+              @click="nextOutputFile"
+              :disabled="currentOutputFileIndex >= outputFiles.length - 1"
+              class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <i class="pi pi-chevron-right text-indigo-600"></i>
+            </button>
+          </div>
+
+          <!-- File Content -->
+          <div class="flex items-center justify-center p-4 bg-gray-50" style="min-height: 300px;">
+            <template v-if="currentOutputFile && currentOutputFile.file_path">
+              <!-- Image -->
+              <img v-if="isImageFile(currentOutputFile)"
+                :src="getFileUrl(currentOutputFile.file_path)"
+                :alt="selectedOutput.output"
+                class="max-w-full max-h-72 rounded shadow-lg object-contain"
+                @error="handleImageError"
+              />
+              <!-- PDF -->
+              <div v-else-if="currentOutputFile.file_type === 'pdf'" class="flex flex-col items-center justify-center text-red-600">
+                <i class="pi pi-file-pdf text-6xl mb-3"></i>
+                <span class="text-base font-medium">PDF Document</span>
+                <span class="text-sm text-gray-500 mt-1">{{ currentOutputFile.file_name || 'Document' }}</span>
+                <a :href="getFileUrl(currentOutputFile.file_path)" target="_blank"
+                  class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                  <i class="pi pi-external-link mr-1"></i> View File
+                </a>
+              </div>
+              <!-- Document -->
+              <div v-else-if="currentOutputFile.file_type === 'document'" class="flex flex-col items-center justify-center text-blue-600">
+                <i class="pi pi-file-word text-6xl mb-3"></i>
+                <span class="text-base font-medium">Word Document</span>
+                <span class="text-sm text-gray-500 mt-1">{{ currentOutputFile.file_name || 'Document' }}</span>
+                <a :href="getFileUrl(currentOutputFile.file_path)" target="_blank"
+                  class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                  <i class="pi pi-external-link mr-1"></i> View File
+                </a>
+              </div>
+              <!-- Other file types -->
+              <div v-else class="flex flex-col items-center justify-center text-gray-500">
+                <i class="pi pi-file text-6xl mb-3"></i>
+                <span class="text-base font-medium">{{ currentOutputFile.file_type || 'File' }}</span>
+                <a v-if="currentOutputFile.file_path" :href="getFileUrl(currentOutputFile.file_path)" target="_blank"
+                  class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                  <i class="pi pi-external-link mr-1"></i> View File
+                </a>
+              </div>
+            </template>
+            <template v-else>
+              <div class="text-center text-gray-400">
+                <i class="pi pi-image text-5xl mb-2"></i>
+                <p>No file available</p>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
-      <div v-else class="bg-gray-100 rounded-lg p-8 text-center">
-        <i class="pi pi-file text-4xl text-gray-400 mb-2"></i>
-        <p class="text-gray-600">{{ selectedOutput.fileType || 'File' }} submission</p>
+
+      <!-- Caption (if any) -->
+      <div v-if="selectedOutput.caption" class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Caption</p>
+        <p class="text-gray-700">{{ selectedOutput.caption }}</p>
       </div>
     </div>
+
+    <template #footer>
+      <button @click="showOutputDialog = false" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+        Close
+      </button>
+    </template>
   </Dialog>
 
   <!-- Remarks History Dialog -->
@@ -360,6 +468,90 @@
         </div>
       </div>
     </div>
+  </Dialog>
+
+  <!-- Activity Details Dialog -->
+  <Dialog v-model:visible="showActivityDetailsDialog" modal header="Activity Details" :style="{width: '550px', maxWidth: '90vw'}" class="p-fluid">
+    <div v-if="selectedActivityDetail" class="space-y-4">
+      <!-- Title and Subject -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium mb-1">Title</p>
+          <p class="font-semibold text-gray-900">{{ selectedActivityDetail.output }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium mb-1">Subject</p>
+          <p class="font-medium text-gray-700">{{ selectedActivityDetail.subject }}</p>
+        </div>
+      </div>
+
+      <!-- Type and Due Date -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium mb-1">Type</p>
+          <p class="font-medium text-gray-700 capitalize">{{ selectedActivityDetail.activityType }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase font-medium mb-1">Due Date</p>
+          <p class="font-medium text-gray-700">
+            {{ selectedActivityDetail.dueDate }}
+            <span v-if="selectedActivityDetail.dueTime" class="text-gray-500"> {{ selectedActivityDetail.dueTime }}</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div>
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Status</p>
+        <span
+          class="px-3 py-1.5 text-sm rounded-lg font-medium inline-block"
+          :class="{
+            'bg-green-100 text-green-800 border border-green-200': selectedActivityDetail.status === 'Scored',
+            'bg-blue-100 text-blue-800 border border-blue-200': selectedActivityDetail.status === 'Submitted',
+            'bg-amber-100 text-amber-700 border border-amber-300': selectedActivityDetail.status === 'Pending',
+            'bg-red-100 text-red-800 border border-red-200': selectedActivityDetail.status === 'Missing'
+          }">
+          {{ selectedActivityDetail.status }}
+        </span>
+      </div>
+
+      <!-- Instructions (if available) -->
+      <div v-if="selectedActivityDetail.instructions">
+        <div class="flex items-center justify-between mb-1">
+          <p class="text-xs text-gray-500 uppercase font-medium">Instructions</p>
+          <button @click="expandInstructions = !expandInstructions" class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+            <i :class="expandInstructions ? 'pi pi-compress' : 'pi pi-expand'" class="text-xs"></i>
+            {{ expandInstructions ? 'Collapse' : 'Expand' }}
+          </button>
+        </div>
+        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap" :class="expandInstructions ? '' : 'max-h-24 overflow-y-auto'">
+          {{ selectedActivityDetail.instructions }}
+        </div>
+      </div>
+
+      <!-- Scoring Criteria (if available) -->
+      <div v-if="selectedActivityDetail.scoringCriteria && selectedActivityDetail.scoringCriteria.length > 0">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-2">Scoring Criteria</p>
+        <div class="space-y-1">
+          <div v-for="(criterion, index) in selectedActivityDetail.scoringCriteria" :key="index" class="flex justify-between text-sm bg-gray-50 px-3 py-2 rounded">
+            <span class="text-gray-700">{{ criterion.name }}</span>
+            <span class="font-medium text-indigo-600">{{ criterion.maxScore }} pts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score (if scored) -->
+      <div v-if="selectedActivityDetail.score && selectedActivityDetail.score !== 'N/A'">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Score</p>
+        <p class="text-lg font-bold text-green-700">{{ selectedActivityDetail.score }}</p>
+      </div>
+    </div>
+
+    <template #footer>
+      <button @click="showActivityDetailsDialog = false" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+        Close
+      </button>
+    </template>
   </Dialog>
 </template>
 
@@ -512,15 +704,31 @@ const loadStudentWork = async (studentId) => {
                                     scoreDisplay = `${submission.score}/10`;
                                 }
 
+                                // Determine proper status based on submission data
+                                // Status is "Scored" only if there's an actual score value
+                                let displayStatus = 'Submitted';
+                                const hasScore = (totalScore !== null && totalScore !== undefined) || 
+                                                 (submission.score !== null && submission.score !== undefined);
+                                
+                                if (submission.status === 'scored' && hasScore) {
+                                    displayStatus = 'Scored';
+                                } else if (submission.status === 'unscored' || submission.status === 'scored') {
+                                    // Unscored or scored without actual score value
+                                    displayStatus = 'Submitted';
+                                }
+
                                 allRecords.push({
+                                    activityId: activity.id,
+                                    submissionId: submission.id,
                                     subject: folder.name,
                                     output: activity.title,
                                     activityType: activity.activity_type,
                                     dueDate: activity.due_date ? new Date(activity.due_date).toLocaleDateString() : 'N/A',
+                                    dueTime: activity.due_time ? formatDueTime(activity.due_time) : null,
                                     dueDateRaw: activity.due_date,
                                     submittedDate: new Date(submission.submitted_at).toLocaleDateString(),
                                     time: new Date(submission.submitted_at).toLocaleTimeString(),
-                                    status: submission.status === 'scored' ? 'Scored' : 'Submitted',
+                                    status: displayStatus,
                                     score: scoreDisplay,
                                     history: `Submitted ${getTimeAgo(submission.submitted_at)}`,
                                     fileType: submission.file_type,
@@ -540,10 +748,12 @@ const loadStudentWork = async (studentId) => {
 
                             // Show activity even if not submitted
                             allRecords.push({
+                                activityId: activity.id,
                                 subject: folder.name,
                                 output: activity.title,
                                 activityType: activity.activity_type,
                                 dueDate: activity.due_date ? new Date(activity.due_date).toLocaleDateString() : 'N/A',
+                                dueTime: activity.due_time ? formatDueTime(activity.due_time) : null,
                                 dueDateRaw: activity.due_date,
                                 submittedDate: 'Not submitted',
                                 time: '-',
@@ -574,6 +784,16 @@ const loadStudentWork = async (studentId) => {
     } finally {
         isLoading.value = false;
     }
+};
+
+// Helper function to format due time (HH:MM:SS to 12-hour format)
+const formatDueTime = (timeString) => {
+    if (!timeString) return null;
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
 };
 
 // Helper function to get time ago
@@ -655,9 +875,166 @@ const getStatusColor = (status) => {
 const showOutputDialog = ref(false);
 const selectedOutput = ref(null);
 
-const viewOutput = (output) => {
+// Activity details dialog
+const showActivityDetailsDialog = ref(false);
+const selectedActivityDetail = ref(null);
+const expandInstructions = ref(false);
+
+const openActivityDetails = async (activity) => {
+    // Set basic info from the record
+    selectedActivityDetail.value = {
+        ...activity,
+        instructions: null,
+        scoringCriteria: null
+    };
+    showActivityDetailsDialog.value = true;
+    expandInstructions.value = false;
+
+    // Try to fetch additional details from API
+    try {
+        if (activity.activityId) {
+            const response = await axios.get(`/api/activities/${activity.activityId}/`);
+            if (response.data) {
+                selectedActivityDetail.value.instructions = response.data.description || null;
+                
+                // Parse scoring criteria
+                if (response.data.scoring_criteria) {
+                    try {
+                        selectedActivityDetail.value.scoringCriteria = typeof response.data.scoring_criteria === 'string'
+                            ? JSON.parse(response.data.scoring_criteria)
+                            : response.data.scoring_criteria;
+                    } catch (e) {
+                        console.error('Error parsing scoring criteria:', e);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching activity details:', error);
+    }
+};
+
+const viewOutput = async (output) => {
     selectedOutput.value = output;
+    outputFiles.value = [];
+    currentOutputFileIndex.value = 0;
     showOutputDialog.value = true;
+
+    // Try to fetch submission files from API
+    try {
+        if (output.submissionId) {
+            const response = await axios.get(`/api/submissions/${output.submissionId}/`);
+            if (response.data) {
+                // Check if there are multiple files
+                if (response.data.files && response.data.files.length > 0) {
+                    // Map files to use file_url if available
+                    outputFiles.value = response.data.files.map(f => ({
+                        file_path: f.file_url || f.file_path,
+                        file_type: f.file_type,
+                        file_name: f.file_name || 'Submission'
+                    }));
+                } else if (response.data.file_url || response.data.file_path) {
+                    // Single file - prefer file_url
+                    outputFiles.value = [{
+                        file_path: response.data.file_url || response.data.file_path,
+                        file_type: response.data.file_type,
+                        file_name: response.data.caption || 'Submission'
+                    }];
+                }
+            }
+        } else if (output.filePath) {
+            // Fallback to single file from record
+            outputFiles.value = [{
+                file_path: output.filePath,
+                file_type: output.fileType,
+                file_name: output.caption || 'Submission'
+            }];
+        }
+    } catch (error) {
+        console.error('Error fetching submission files:', error);
+        // Fallback to single file from record
+        if (output.filePath) {
+            outputFiles.value = [{
+                file_path: output.filePath,
+                file_type: output.fileType,
+                file_name: output.caption || 'Submission'
+            }];
+        }
+    }
+};
+
+// Multiple files navigation for output dialog
+const outputFiles = ref([]);
+const currentOutputFileIndex = ref(0);
+
+const currentOutputFile = computed(() => {
+    if (outputFiles.value.length > 0) {
+        return outputFiles.value[currentOutputFileIndex.value];
+    }
+    // Fallback to selectedOutput
+    if (selectedOutput.value?.filePath) {
+        return {
+            file_path: selectedOutput.value.filePath,
+            file_type: selectedOutput.value.fileType,
+            file_name: selectedOutput.value.caption || 'Submission'
+        };
+    }
+    return null;
+});
+
+const prevOutputFile = () => {
+    if (currentOutputFileIndex.value > 0) {
+        currentOutputFileIndex.value--;
+    }
+};
+
+const nextOutputFile = () => {
+    if (currentOutputFileIndex.value < outputFiles.value.length - 1) {
+        currentOutputFileIndex.value++;
+    }
+};
+
+// Helper function to check if file is an image
+const isImageFile = (file) => {
+    if (!file) return false;
+    // Check file_type first
+    if (file.file_type === 'image') return true;
+    // Check if file_path is a data URI for image
+    if (file.file_path && file.file_path.startsWith('data:image')) return true;
+    // Check if file_path is a URL ending with image extension
+    if (file.file_path) {
+        const path = file.file_path.toLowerCase();
+        if (path.match(/\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$/)) return true;
+    }
+    // Check file_name extension
+    if (file.file_name) {
+        const ext = file.file_name.toLowerCase().split('.').pop();
+        return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+    }
+    return false;
+};
+
+// Helper function to get proper file URL
+const getFileUrl = (filePath) => {
+    if (!filePath) return '';
+    // Already a proper URL or data URI
+    if (filePath.startsWith('data:') || filePath.startsWith('http') || filePath.startsWith('/media')) {
+        return filePath;
+    }
+    // Assume it's base64 encoded image data
+    return `data:image/png;base64,${filePath}`;
+};
+
+// Handle image load error
+const handleImageError = (event) => {
+    console.error('Image failed to load:', event.target.src?.substring(0, 100));
+};
+
+// Handle profile image load error - hide the image and show initials
+const profileImageFailed = ref(false);
+const handleProfileImageError = (event) => {
+    console.error('Profile image failed to load:', event.target.src?.substring(0, 100));
+    profileImageFailed.value = true;
 };
 
 const props = defineProps({
@@ -674,11 +1051,34 @@ const props = defineProps({
 // Student info - get from localStorage
 const studentData = ref(null);
 
-const studentInfo = computed(() => ({
-    name: studentData.value?.name || props.selectedStudent?.name || 'Unknown Student',
-    id: studentData.value?.id || props.selectedStudent?.id || 'N/A',
-    initial: ((studentData.value?.name || props.selectedStudent?.name || '?').charAt(0))
-}));
+// Helper to get proper profile picture URL
+const getProfilePictureUrl = (profilePic) => {
+    if (!profilePic) return null;
+    // If it's already a full URL or data URI, return as is
+    if (profilePic.startsWith('http') || profilePic.startsWith('data:') || profilePic.startsWith('/media')) {
+        return profilePic;
+    }
+    // If it's a relative path, prepend the base URL
+    return profilePic;
+};
+
+const studentInfo = computed(() => {
+    const name = studentData.value?.name || props.selectedStudent?.name || 'Unknown Student';
+    // Get initials from first and last name (e.g., "Catalina San" -> "CS")
+    const nameParts = name.trim().split(' ').filter(p => p.length > 0);
+    const initials = nameParts.length >= 2 
+        ? (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase()
+        : name.charAt(0).toUpperCase();
+    
+    const rawProfilePic = studentData.value?.profile_picture || studentData.value?.profilePicture || props.selectedStudent?.profile_picture || null;
+    
+    return {
+        name: name,
+        id: studentData.value?.id || props.selectedStudent?.id || 'N/A',
+        initial: initials,
+        profilePicture: getProfilePictureUrl(rawProfilePic)
+    };
+});
 
 // Function to handle class change event
 const handleClassChange = (event) => {
@@ -693,6 +1093,9 @@ const handleClassChange = (event) => {
 
 onMounted(() => {
     console.log('Progress.vue mounted');
+    
+    // Reset profile image failed state
+    profileImageFailed.value = false;
 
     // Get student data from localStorage (set by Sprogress.vue)
     const stored = localStorage.getItem('selected_student_progress');
@@ -703,6 +1106,7 @@ onMounted(() => {
             console.log('Loaded student from localStorage:', studentData.value);
             console.log('Student display ID:', studentData.value?.id);
             console.log('Student database ID:', studentData.value?.dbId);
+            console.log('Student profile_picture:', studentData.value?.profile_picture);
 
             // Load the student's work using database ID (dbId), not display ID
             const studentIdToUse = studentData.value?.dbId || studentData.value?.id;

@@ -4016,12 +4016,18 @@ def student_progress_list_api(request):
                 if student.classroom.teacher:
                     teacher_name = student.classroom.teacher.get_full_name() or student.classroom.teacher.username
 
+            # Build full profile picture URL
+            profile_picture_url = None
+            if student.profile_picture:
+                profile_picture_url = request.build_absolute_uri(student.profile_picture.url)
+
             student_list.append({
                 'id': student.id,
                 'student_id': student.id_number or f'STD{str(student.id).zfill(3)}',
                 'name': student.get_full_name() or student.username,
                 'username': student.username,
                 'email': student.email,
+                'profile_picture': profile_picture_url,
                 'total_outputs': total_submissions,
                 'scored_outputs': scored_submissions,
                 'average_score': round(avg_score, 2) if avg_score else 0,

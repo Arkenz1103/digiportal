@@ -1956,8 +1956,8 @@ const getMedalDetails = (rank) => {
                         <!-- Top Row - Image and Student Info -->
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <!-- Image -->
-                            <div class="lg:col-span-2">
-                                <div class="bg-white rounded-xl overflow-hidden border-2 border-indigo-100" style="height: 400px;">
+                            <div class="lg:col-span-2 flex flex-col">
+                                <div class="bg-white rounded-xl overflow-hidden border-2 border-indigo-100 flex-1" style="min-height: 350px;">
                                     <div class="w-full h-full flex items-center justify-center p-4 bg-white relative">
                                         <!-- Navigation Arrows (only show if multiple files) -->
                                         <div v-if="selectedSubmission.totalFiles > 1" class="absolute inset-0 flex items-center justify-between px-2 pointer-events-none z-10">
@@ -2001,12 +2001,30 @@ const getMedalDetails = (rank) => {
                                             <i class="pi pi-file-pdf text-8xl mb-4"></i>
                                             <span class="text-lg font-medium">PDF Document</span>
                                             <span class="text-sm text-gray-500 mt-2">{{ currentFile.caption || 'Untitled' }}</span>
+                                            <!-- View File Button for PDF -->
+                                            <a
+                                                :href="currentFile.file_path"
+                                                target="_blank"
+                                                class="mt-4 flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
+                                            >
+                                                <i class="pi pi-external-link"></i>
+                                                <span>View File</span>
+                                            </a>
                                         </div>
                                         <!-- Word Document Display -->
                                         <div v-else-if="currentFile && currentFile.file_type === 'document' && currentFile.file_path" class="flex flex-col items-center justify-center text-blue-600">
                                             <i class="pi pi-file-word text-8xl mb-4"></i>
                                             <span class="text-lg font-medium">Word Document</span>
                                             <span class="text-sm text-gray-500 mt-2">{{ currentFile.caption || 'Untitled' }}</span>
+                                            <!-- View File Button for Document -->
+                                            <a
+                                                :href="currentFile.file_path"
+                                                target="_blank"
+                                                class="mt-4 flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
+                                            >
+                                                <i class="pi pi-external-link"></i>
+                                                <span>View File</span>
+                                            </a>
                                         </div>
                                         <!-- No file data - minimal text only -->
                                         <div v-else class="flex flex-col items-center justify-center text-gray-400 px-6 text-center">
@@ -2045,28 +2063,16 @@ const getMedalDetails = (rank) => {
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- View File Button -->
-                                <div v-if="currentFile && currentFile.file_path" class="mt-4">
-                                    <a
-                                        :href="currentFile.file_path"
-                                        target="_blank"
-                                        class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
-                                    >
-                                        <i class="pi pi-external-link"></i>
-                                        <span>View File</span>
-                                    </a>
-                                </div>
                             </div>
 
-                            <!-- Student Info -->
-                            <div class="space-y-6">
-                                <div class="bg-white p-5 rounded-xl border-2 border-indigo-100">
-                                    <h4 class="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <!-- Student Info and Remarks Column -->
+                            <div class="flex flex-col gap-4">
+                                <div class="bg-white p-4 rounded-xl border-2 border-indigo-100">
+                                    <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                         <i class="pi pi-user" style="color: #6366f1;"></i>
                                         Student Information
                                     </h4>
-                                    <div class="space-y-3">
+                                    <div class="space-y-2">
                                         <div class="flex items-center gap-3">
                                             <div class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-medium"
                                                 style="background-color: #e0e7ff; color: #111827;">
@@ -2106,62 +2112,62 @@ const getMedalDetails = (rank) => {
                                     </div>
                                 </div>
 
-                            </div>
-                        </div>
-
-                        <!-- Teacher's Remarks (Optional/Collapsible) -->
-                        <div class="bg-white p-5 rounded-xl border-2 border-indigo-100">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-md font-semibold text-gray-900 flex items-center gap-2">
-                                    <i class="pi pi-comment" style="color: #6366f1;"></i>
-                                    Output Remarks
-                                    <span class="text-xs text-gray-400 font-normal">(Optional)</span>
-                                </h4>
-                                <button @click="showRemarksSection = !showRemarksSection"
-                                        class="text-indigo-600 hover:text-indigo-700">
-                                    <i :class="showRemarksSection ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
-                                </button>
-                            </div>
-
-                            <div v-show="showRemarksSection" class="space-y-3">
-                                <!-- Display existing remarks with Edit/Delete buttons -->
-                                <div v-if="studentOutputs[selectedSubmission.id]?.remarks && !isEditingRemarks" class="mb-4 p-3 bg-gray-50 rounded-lg">
-                                    <p class="text-sm text-gray-600 mb-3">{{ studentOutputs[selectedSubmission.id].remarks }}</p>
-                                    <div class="flex gap-2">
-                                        <button @click="editRemarks"
-                                                class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
-                                            <i class="pi pi-pencil text-xs"></i>
-                                            Edit
+                                <!-- Teacher's Remarks (Optional/Collapsible) - Below Student Info -->
+                                <div class="bg-white p-4 rounded-xl border-2 border-indigo-100 flex-1">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h4 class="text-md font-semibold text-gray-900 flex items-center gap-2">
+                                            <i class="pi pi-comment" style="color: #6366f1;"></i>
+                                            Output Remarks
+                                            <span class="text-xs text-gray-400 font-normal">(Optional)</span>
+                                        </h4>
+                                        <button @click="showRemarksSection = !showRemarksSection"
+                                                class="text-indigo-600 hover:text-indigo-700">
+                                            <i :class="showRemarksSection ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
                                         </button>
-                                        <button @click="deleteRemarks"
-                                                class="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
-                                            <i class="pi pi-trash text-xs"></i>
-                                            Delete
-                                        </button>
+                                    </div>
+
+                                    <div v-show="showRemarksSection" class="space-y-3">
+                                        <!-- Display existing remarks with Edit/Delete buttons -->
+                                        <div v-if="studentOutputs[selectedSubmission.id]?.remarks && !isEditingRemarks" class="mb-4 p-3 bg-gray-50 rounded-lg">
+                                            <p class="text-sm text-gray-600 mb-3">{{ studentOutputs[selectedSubmission.id].remarks }}</p>
+                                            <div class="flex gap-2">
+                                                <button @click="editRemarks"
+                                                        class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
+                                                    <i class="pi pi-pencil text-xs"></i>
+                                                    Edit
+                                                </button>
+                                                <button @click="deleteRemarks"
+                                                        class="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                                                    <i class="pi pi-trash text-xs"></i>
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Textarea for new/updated remarks -->
+                                        <div v-if="!studentOutputs[selectedSubmission.id]?.remarks || isEditingRemarks">
+                                            <Textarea v-model="selectedSubmission.newRemark"
+                                                    rows="3"
+                                                    class="w-full"
+                                                    placeholder="Add your remarks here..."
+                                                    :pt="{
+                                                        root: 'w-full rounded-xl border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500',
+                                                    }"
+                                            />
+                                            <div class="flex justify-end gap-2 mt-3">
+                                                <button @click="cancelEditRemarks"
+                                                        class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                                                    Cancel
+                                                </button>
+                                                <button @click="saveRemarks"
+                                                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                                                    {{ isEditingRemarks ? 'Update Remarks' : 'Save Remarks' }}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Textarea for new/updated remarks -->
-                                <div v-if="!studentOutputs[selectedSubmission.id]?.remarks || isEditingRemarks">
-                                    <Textarea v-model="selectedSubmission.newRemark"
-                                            rows="4"
-                                            class="w-full"
-                                            placeholder="Add your remarks here..."
-                                            :pt="{
-                                                root: 'w-full rounded-xl border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500',
-                                            }"
-                                    />
-                                    <div class="flex justify-end gap-2 mt-3">
-                                        <button @click="cancelEditRemarks"
-                                                class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                                            Cancel
-                                        </button>
-                                        <button @click="saveRemarks"
-                                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
-                                            {{ isEditingRemarks ? 'Update Remarks' : 'Save Remarks' }}
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
