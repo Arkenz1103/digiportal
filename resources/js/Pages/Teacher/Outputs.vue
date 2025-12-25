@@ -40,6 +40,16 @@ const getLastName = (name) => {
     return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : name.toLowerCase();
 };
 
+// Helper function to get initials from name (first and last name initials)
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ').filter(p => p.length > 0);
+    if (parts.length >= 2) {
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
+};
+
 // Helper function to determine accurate status
 const getAccurateStatus = (submission) => {
     if (!submission || submission.status === 'Missing' || submission.status === 'Not Submitted') {
@@ -586,6 +596,7 @@ const loadUnscoredSubmissions = async () => {
                     id: submission.id,
                     studentId: submission.student.id,
                     name: submission.student.username,
+                    profilePicture: submission.student.profile_picture_url || null,
                     activityTitle: submission.activity_title,
                     activityType: submission.activity_type,
                     caption: submission.caption,
@@ -643,6 +654,7 @@ const loadScoredSubmissions = async () => {
                     id: submission.id,
                     studentId: submission.student.id,
                     name: submission.student.username,
+                    profilePicture: submission.student.profile_picture_url || null,
                     activityTitle: submission.activity_title,
                     activityType: submission.activity_type,
                     caption: submission.caption,
@@ -1745,8 +1757,10 @@ const getMedalDetails = (rank) => {
                                         <template v-if="currentTab === 'incomplete'">
                                             <!-- Name & Avatar -->
                                             <div class="col-span-3 flex items-center gap-3">
-                                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm bg-gray-100 text-gray-600">
-                                                    {{ item.name.charAt(0).toUpperCase() }}
+                                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm overflow-hidden"
+                                                     :class="item.avatar ? '' : 'bg-gray-100 text-gray-600'">
+                                                    <img v-if="item.avatar" :src="item.avatar" :alt="item.name" class="w-full h-full object-cover" />
+                                                    <span v-else>{{ getInitials(item.name) }}</span>
                                                 </div>
                                                 <div class="font-medium text-gray-900">{{ item.name }}</div>
                                             </div>
@@ -1774,8 +1788,10 @@ const getMedalDetails = (rank) => {
                                             <!-- Standard View for Submitted/Scored -->
                                             <!-- Name & Avatar -->
                                             <div :class="currentTab === 'scored' ? 'col-span-3' : 'col-span-4'" class="flex items-center gap-3">
-                                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm bg-indigo-100 text-indigo-700">
-                                                    {{ item.name.charAt(0).toUpperCase() }}
+                                                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm overflow-hidden"
+                                                     :class="item.profilePicture ? '' : 'bg-indigo-100 text-indigo-700'">
+                                                    <img v-if="item.profilePicture" :src="item.profilePicture" :alt="item.name" class="w-full h-full object-cover" />
+                                                    <span v-else>{{ getInitials(item.name) }}</span>
                                                 </div>
                                                 <div>
                                                     <div class="font-medium text-gray-900">{{ item.name }}</div>
@@ -1876,9 +1892,13 @@ const getMedalDetails = (rank) => {
                                     <!-- Card Content -->
                                     <div class="p-4">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                                                 :class="currentTab === 'incomplete' ? 'bg-gray-100 text-gray-600' : 'bg-indigo-100 text-indigo-700'">
-                                                {{ item.name.charAt(0).toUpperCase() }}
+                                            <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden"
+                                                 :class="(currentTab === 'incomplete' ? (item.avatar ? '' : 'bg-gray-100 text-gray-600') : (item.profilePicture ? '' : 'bg-indigo-100 text-indigo-700'))">
+                                                <img v-if="currentTab === 'incomplete' ? item.avatar : item.profilePicture" 
+                                                     :src="currentTab === 'incomplete' ? item.avatar : item.profilePicture" 
+                                                     :alt="item.name" 
+                                                     class="w-full h-full object-cover" />
+                                                <span v-else>{{ getInitials(item.name) }}</span>
                                             </div>
                                             <div class="min-w-0 flex-1">
                                                 <h4 class="text-sm font-semibold text-gray-900 truncate">{{ item.name }}</h4>
@@ -2074,9 +2094,10 @@ const getMedalDetails = (rank) => {
                                     </h4>
                                     <div class="space-y-2">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-medium"
-                                                style="background-color: #e0e7ff; color: #111827;">
-                                                {{ selectedSubmission.name?.charAt(0) || 'U' }}
+                                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-medium overflow-hidden"
+                                                :style="selectedSubmission.profilePicture ? '' : 'background-color: #e0e7ff; color: #111827;'">
+                                                <img v-if="selectedSubmission.profilePicture" :src="selectedSubmission.profilePicture" :alt="selectedSubmission.name" class="w-full h-full object-cover" />
+                                                <span v-else>{{ getInitials(selectedSubmission.name) }}</span>
                                             </div>
                                             <div>
                                                 <p class="font-medium text-gray-900">{{ selectedSubmission.name || 'Unknown Student' }}</p>
@@ -2090,15 +2111,14 @@ const getMedalDetails = (rank) => {
                                                     'px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5',
                                                     selectedSubmission.resubmit_count > 0 ? 'bg-blue-100 text-blue-800' :
                                                     selectedSubmission.is_late ? 'bg-orange-100 text-orange-800' :
-                                                    selectedSubmission.status === 'Submitted' || selectedSubmission.status === 'Scored' ? 'bg-green-100 text-green-800' :
-                                                    'bg-red-100 text-red-800'
+                                                    'bg-green-100 text-green-800'
                                                 ]">
                                                     <i v-if="selectedSubmission.resubmit_count > 0" class="pi pi-refresh text-xs"></i>
                                                     <i v-else-if="selectedSubmission.is_late" class="pi pi-clock text-xs"></i>
                                                     <i v-else class="pi pi-check-circle text-xs"></i>
-                                                    <span v-if="selectedSubmission.resubmit_count > 0">Resubmitted ({{ selectedSubmission.resubmit_count }}x)</span>
-                                                    <span v-else-if="selectedSubmission.is_late">Late Submitted</span>
-                                                    <span v-else>{{ selectedSubmission.status || 'Submitted' }}</span>
+                                                    <span v-if="selectedSubmission.resubmit_count > 0">Resubmitted</span>
+                                                    <span v-else-if="selectedSubmission.is_late">Submitted Late</span>
+                                                    <span v-else>Submitted</span>
                                                 </span>
                                             </div>
                                             <div class="flex justify-between text-sm">

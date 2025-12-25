@@ -13,6 +13,16 @@ const isLoadingPending = ref(false);
 const itemsPerPage = 5;
 const displayedPendingCount = ref(itemsPerPage);
 
+// Helper function to get initials from name
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ').filter(p => p.length > 0);
+    if (parts.length >= 2) {
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
+};
+
 // Helper function to format date and time
 const formatDateTime = (dateString) => {
     if (!dateString) return { formatted: 'N/A', daysAgo: '', timestamp: 0 };
@@ -131,6 +141,7 @@ const loadPendingApprovals = async () => {
                 return {
                     id: submission.id,
                     studentName: submission.student_name || submission.student?.username || 'Unknown',
+                    profilePicture: submission.student?.profile_picture_url || null,
                     title: submission.activity_title || 'Sketch Pad',
                     subject: submission.activity_type || 'Sketch',
                     description: submission.post_caption || submission.caption || 'No caption',
@@ -443,6 +454,10 @@ const cancelRejection = () => {
                     <div class="flex justify-between items-start gap-4">
                         <div class="flex-1">
                             <div class="flex items-center space-x-3 mb-3">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0">
+                                    <img v-if="output.profilePicture" :src="output.profilePicture" :alt="output.studentName" class="w-full h-full object-cover" />
+                                    <span v-else>{{ getInitials(output.studentName) }}</span>
+                                </div>
                                 <div class="flex-1">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <h3 class="font-semibold text-indigo-900 text-base">{{ output.studentName }}</h3>

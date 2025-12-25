@@ -3,9 +3,19 @@ from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, Studen
 
 
 class UserSerializer(serializers.ModelSerializer):
+    profile_picture_url = serializers.SerializerMethodField()
+
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return None
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'date_joined']
+        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'date_joined', 'profile_picture_url']
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -442,6 +452,7 @@ class RemarkSerializer(serializers.ModelSerializer):
     """Serializer for remarks"""
     teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True)
     teacher_username = serializers.CharField(source='teacher.username', read_only=True)
+    teacher_profile_picture = serializers.SerializerMethodField()
     student_name = serializers.CharField(source='student.get_full_name', read_only=True)
     student_username = serializers.CharField(source='student.username', read_only=True)
     student_id = serializers.CharField(source='student.username', read_only=True)
@@ -449,8 +460,16 @@ class RemarkSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Remark
-        fields = ['id', 'teacher', 'teacher_name', 'teacher_username', 'student', 'student_name', 'student_username', 'student_id', 'text', 'is_read', 'created_at', 'updated_at']
+        fields = ['id', 'teacher', 'teacher_name', 'teacher_username', 'teacher_profile_picture', 'student', 'student_name', 'student_username', 'student_id', 'text', 'is_read', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_teacher_profile_picture(self, obj):
+        if obj.teacher and obj.teacher.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.teacher.profile_picture.url)
+            return obj.teacher.profile_picture.url
+        return None
 
     def get_is_read(self, obj):
         """Check if the current user has read this remark"""

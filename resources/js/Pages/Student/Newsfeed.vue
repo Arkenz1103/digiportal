@@ -34,9 +34,10 @@
                             <div class="flex items-center gap-4">
                                 <!-- Avatar -->
                                 <div class="relative">
-                                    <div :class="getAvatarColor(post.user)"
-                                        class="w-14 h-14 flex items-center justify-center rounded-full text-white font-bold text-lg shadow-lg ring-2 ring-teal-200">
-                                        {{ post.user.charAt(0).toUpperCase() }}
+                                    <div :class="post.profilePicture ? '' : getAvatarColor(post.user)"
+                                        class="w-14 h-14 flex items-center justify-center rounded-full text-white font-bold text-lg shadow-lg ring-2 ring-teal-200 overflow-hidden">
+                                        <img v-if="post.profilePicture" :src="post.profilePicture" :alt="post.user" class="w-full h-full object-cover" />
+                                        <span v-else>{{ post.user.charAt(0).toUpperCase() }}</span>
                                     </div>
                                     <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-teal-500 rounded-full border-2 border-white"></div>
                                 </div>
@@ -339,6 +340,7 @@ const loadNewsfeed = async () => {
         return {
           id: post.id,
           user: post.student_name,
+          profilePicture: post.profile_picture || null,
           content: post.caption || 'No description provided',
           image: post.file_type === 'image' ? post.file_path : null,
           files: post.files || [],

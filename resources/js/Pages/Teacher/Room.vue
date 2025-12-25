@@ -15,7 +15,7 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div class="space-y-2">
                     <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block bg-gray-100">
-                        {{ className }}
+                        {{ actualClassName }}
                     </h1>
                     <p class="text-gray-600 ml-2 flex items-center gap-2 text-sm">
                         <i class="pi pi-user"></i>
@@ -509,22 +509,22 @@
                                     </div>
                                 </div>
 
-                                <div class="max-w-5xl mx-auto p-8 relative z-10">
+                                <div class="max-w-3xl mx-auto p-8 relative z-10">
                                     <!-- Show Closed Envelope (Front Cover) -->
-                                    <div v-if="!isEnvelopeOpen" class="text-center py-12 animate-fadeIn">
-                                        <!-- Back Button -->
+                                    <div v-if="!isEnvelopeOpen" class="animate-fadeIn">
+                                        <!-- Back Button - Aligned with envelope -->
                                         <button
                                             @click="selectedEnvelope = null; studentActivities = []; currentActivityIndex = 0"
-                                            class="absolute top-4 right-4 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                            class="mb-4 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
                                         >
                                             <i class="pi pi-arrow-left text-sm"></i>
                                             Back to List
                                         </button>
 
-                                        <!-- Envelope Front Cover - Matching Student Design (Clickable) -->
+                                        <!-- Envelope Front Cover - No white container, matching Student Design -->
                                         <div
                                             @click="openEnvelope"
-                                            class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl max-w-3xl mx-auto"
+                                            class="rounded-2xl overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl"
                                         >
                                             <!-- Envelope Preview -->
                                             <div class="relative w-full aspect-[21/9]"
@@ -556,16 +556,16 @@
                                                     </div>
                                                 </div>
 
-                                                <!-- Content Area -->
+                                                <!-- Content Area - Matching Student View with Grade/Section -->
                                                 <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
                                                     <div class="bg-white/20 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 max-w-sm w-full">
                                                         <h1 class="text-2xl font-bold text-white mb-2"
                                                             style="text-shadow: 0 2px 8px rgba(0,0,0,0.3)">
                                                             {{ selectedEnvelope.name }}
                                                         </h1>
-                                                        <p class="text-sm text-white/80"
+                                                        <p class="text-base text-white/90 font-medium mb-1"
                                                            style="text-shadow: 0 1px 4px rgba(0,0,0,0.2)">
-                                                            {{ selectedEnvelope.class_name }}
+                                                            {{ selectedEnvelope.className || selectedEnvelope.class_name || actualClassName }}
                                                         </p>
 
                                                         <!-- Click to Open Text -->
@@ -581,9 +581,18 @@
 
                                     <!-- Show Opened Envelope Content -->
                                     <div v-else>
-                                        <!-- Tab Header with Back Button -->
+                                        <!-- Tab Header with Back Button on Left -->
                                         <div class="flex justify-between items-center mb-6 animate-slideDown">
-                                            <!-- Tabs on the left -->
+                                            <!-- Back Button on the left -->
+                                            <button
+                                                @click="selectedEnvelope = null; isEnvelopeOpen = false; studentActivities = []; currentActivityIndex = 0; activePortfolioTab = 'scored'"
+                                                class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                            >
+                                                <i class="pi pi-arrow-left text-sm"></i>
+                                                Back to List
+                                            </button>
+
+                                            <!-- Tabs on the right -->
                                             <div class="flex gap-2">
                                                 <button
                                                     @click="activePortfolioTab = 'scored'"
@@ -600,14 +609,6 @@
                                                     </span>
                                                 </button>
                                                                                             </div>
-
-                                            <button
-                                                @click="selectedEnvelope = null; isEnvelopeOpen = false; studentActivities = []; currentActivityIndex = 0; activePortfolioTab = 'scored'"
-                                                class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                                            >
-                                                <i class="pi pi-arrow-left text-sm"></i>
-                                                Back to List
-                                            </button>
                                         </div>
 
                                         <!-- Display Student Activities (Carousel Style like Student View) -->
@@ -877,8 +878,9 @@
                                     >
                                         <div class="grid grid-cols-5 gap-4 items-center text-sm">
                                             <div class="flex items-center gap-3">
-                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
-                                                    {{ student.name.charAt(0) }}
+                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden">
+                                                    <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
+                                                    <span v-else>{{ getInitials(student.name) }}</span>
                                                 </div>
                                                 <span class="font-medium text-gray-900">{{ student.name }}</span>
                                             </div>
@@ -990,76 +992,36 @@
                             </div>
                         </div>
 
-                        <!-- Statistics Cards -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm text-gray-600">Total Students</p>
-                                        <p class="text-2xl font-bold text-gray-900">{{ totalStudents }}</p>
-                                    </div>
-                                    <i class="pi pi-users text-blue-500 text-2xl"></i>
-                                </div>
-                            </div>
-
-                            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-500">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm text-gray-600">Total Activities</p>
-                                        <p class="text-2xl font-bold text-gray-900">{{ totalActivities }}</p>
-                                    </div>
-                                    <i class="pi pi-book text-purple-500 text-2xl"></i>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Classroom Card -->
                         <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                            <!-- Classroom Header -->
-                            <div class="bg-white border-b border-gray-200 p-6">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h2 class="text-2xl font-bold text-gray-900">{{ className }}</h2>
-                                        <p class="text-gray-600 mt-1">Room 111</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-gray-900 text-3xl font-bold">{{ totalStudents }}</p>
-                                        <p class="text-gray-600 text-sm">Students</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Students List -->
+                            <!-- Students List - Always visible like student view -->
                             <div class="p-6">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-900">Students</h3>
-                                    <button @click="showStudentList = !showStudentList"
-                                        class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-                                        {{ showStudentList ? 'Hide' : 'Show All' }}
-                                        <i class="pi ml-1" :class="showStudentList ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
-                                    </button>
+                                    <h3 class="text-lg font-semibold text-gray-900">Class Member</h3>
+                                    <span class="text-indigo-600 text-sm font-medium">{{ classroomStudents.length }} students</span>
                                 </div>
 
                                 <!-- Search Bar -->
-                                <div v-if="showStudentList" class="mb-4">
+                                <div class="mb-4">
                                     <div class="relative">
+                                        <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                         <input
                                             v-model="studentSearchQuery"
                                             type="text"
-                                            placeholder="Search students by name or email..."
+                                            placeholder="Search classmates by name..."
                                             class="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                                         />
-                                        <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                     </div>
                                 </div>
 
-                                <!-- Student Grid -->
-                                <div v-if="showStudentList" class="space-y-3 max-h-96 overflow-y-auto">
+                                <!-- Student List - Always visible -->
+                                <div class="space-y-3 max-h-96 overflow-y-auto">
                                     <div v-for="(student, index) in filteredStudents" :key="student.id"
                                         class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                         <span class="text-sm text-gray-500 font-medium w-8">{{ index + 1 }}.</span>
-                                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                                            {{ getInitials(student.name) }}
+                                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
+                                            <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
+                                            <span v-else>{{ getInitials(student.name) }}</span>
                                         </div>
                                         <div class="flex-1">
                                             <p class="font-medium text-gray-900">{{ student.name }}</p>
@@ -1068,21 +1030,9 @@
                                     </div>
 
                                     <!-- No Results -->
-                                    <div v-if="filteredStudents.length === 0" class="text-center py-8">
+                                    <div v-if="filteredStudents.length === 0 && studentSearchQuery" class="text-center py-8">
                                         <i class="pi pi-search text-gray-400 text-3xl mb-3"></i>
                                         <p class="text-gray-500">No students found matching "{{ studentSearchQuery }}"</p>
-                                    </div>
-                                </div>
-
-                                <!-- Preview when collapsed -->
-                                <div v-else class="flex -space-x-2">
-                                    <div v-for="(student, index) in classroomStudents.slice(0, 5)" :key="student.id"
-                                        class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold border-2 border-white">
-                                        {{ getInitials(student.name) }}
-                                    </div>
-                                    <div v-if="classroomStudents.length > 5"
-                                        class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold border-2 border-white">
-                                        +{{ classroomStudents.length - 5 }}
                                     </div>
                                 </div>
 
@@ -1110,24 +1060,14 @@
                 <!-- Form Fields Section -->
                 <div class="space-y-4 mb-6">
                     <div>
-                        <label for="folderTitle" class="block text-sm font-medium text-gray-900 mb-2">Title</label>
+                        <label for="folderTitle" class="block text-sm font-medium text-gray-900 mb-2">Subject Title</label>
                         <input
                             id="folderTitle"
                             v-model="newFolder.title"
                             type="text"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                            placeholder="Enter folder title"
+                            placeholder="Enter subject title"
                         >
-                    </div>
-                    <div>
-                        <label for="folderDescription" class="block text-sm font-medium text-gray-900 mb-2">Description</label>
-                        <textarea
-                            id="folderDescription"
-                            v-model="newFolder.description"
-                            rows="3"
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
-                            placeholder="Enter folder description"
-                        ></textarea>
                     </div>
                 </div>
 
@@ -1141,43 +1081,32 @@
                     </div>
                 </div>
 
-                <!-- Preview Section -->
-                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
-                    <div class="bg-white rounded-lg shadow-sm border border-indigo-100 overflow-hidden">
-                        <!-- Folder Card Preview -->
-                        <div class="relative p-6">
-                            <div class="flex items-start justify-between">
-                                <!-- Left: Title and Info -->
-                                <div class="flex-1 pr-4">
-                                    <h3 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
-                                        {{ newFolder.title || 'Science' }}
-                                    </h3>
-                                    <div class="flex items-center gap-2">
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
-                                            <i class="pi pi-file mr-1.5 text-[10px]"></i>
-                                            0 items
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <!-- Right: Stacked Folder Icon -->
-                                <div class="relative w-24 h-24 flex-shrink-0">
-                                    <div class="absolute inset-0 flex items-center justify-center">
-                                        <div class="absolute w-20 h-20 rounded-lg transform rotate-[-8deg] bg-gradient-to-br from-indigo-400 to-purple-500 opacity-30"></div>
-                                        <div class="absolute w-20 h-20 rounded-lg transform rotate-[-4deg] bg-gradient-to-br from-indigo-400 to-purple-500 opacity-50"></div>
-                                        <div class="absolute w-20 h-20 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg"></div>
-                                    </div>
-                                </div>
+                <!-- Preview Section - Matching actual folder card design -->
+                <div class="flex justify-center">
+                    <div class="w-64 bg-white rounded-xl shadow-lg overflow-hidden">
+                        <!-- Blue Gradient Header -->
+                        <div class="relative bg-gradient-to-br from-indigo-500 to-blue-600 p-5 min-h-[140px]">
+                            <!-- Decorative circle in background -->
+                            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4"></div>
+                            
+                            <!-- Content -->
+                            <div class="relative z-10">
+                                <h3 class="text-xl font-bold text-white mb-1">
+                                    {{ newFolder.title || 'Subject Title' }}
+                                </h3>
+                                <p class="text-white/80 text-sm mb-4">Subject Folder</p>
+                                <p class="text-white/90 text-sm">0 activities</p>
+                            </div>
+                            
+                            <!-- Teacher Initial Circle -->
+                            <div class="absolute right-4 bottom-4 w-14 h-14 rounded-full border-2 border-white/50 bg-indigo-400/50 flex items-center justify-center">
+                                <span class="text-white text-xl font-bold">T</span>
                             </div>
                         </div>
-
-                        <!-- Footer -->
-                        <div class="border-t border-gray-100 px-6 py-3 bg-gray-50 flex items-center justify-between">
-                            <div class="flex items-center gap-2 text-sm text-indigo-600 font-medium">
-                                <i class="pi pi-folder text-indigo-600"></i>
-                                <span>View Contents</span>
-                            </div>
-                            <i class="pi pi-arrow-right text-indigo-600"></i>
+                        
+                        <!-- White Footer -->
+                        <div class="bg-white p-4 flex justify-end">
+                            <i class="pi pi-ellipsis-v text-gray-400"></i>
                         </div>
                     </div>
                 </div>
@@ -1547,8 +1476,9 @@
                     <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
                         <div class="divide-y divide-gray-200">
                             <div v-for="student in notStartedStudents" :key="student.id" class="px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
-                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-semibold">
-                                    {{ student.name ? student.name.charAt(0) : '?' }}
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-semibold overflow-hidden">
+                                    <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
+                                    <span v-else>{{ getInitials(student.name) }}</span>
                                 </div>
                                 <div class="flex-1">
                                     <p class="font-medium text-gray-900">{{ student.name || student.username }}</p>
@@ -3340,6 +3270,15 @@ const currentUser = ref({
     role: 'teacher'
 });
 
+// Computed property for actual classroom name (similar to student view)
+const actualClassName = computed(() => {
+    // Priority: selectedClass > className default
+    if (selectedClass.value && selectedClass.value.name) {
+        return selectedClass.value.name;
+    }
+    return className.value;
+});
+
 // Function to handle class change event
 const handleClassChange = async (event) => {
     console.log('🔄 Class changed in Room, reloading data...', event.detail);
@@ -3648,6 +3587,16 @@ const authenticateWithBackend = async () => {
         const checkResponse = await axios.get('/api/validate-session/');
         if (checkResponse.data.authenticated) {
             console.log('Already authenticated:', checkResponse.data.user);
+            
+            // Load user data
+            const user = checkResponse.data.user;
+            currentUser.value = {
+                name: user.full_name || user.username || 'Teacher Name',
+                email: user.email || 'teacher@example.com',
+                role: user.role || 'teacher',
+                profile_picture: user.profile_picture || null
+            };
+            
             // Check if role is teacher - if not, logout and re-authenticate as teacher
             if (checkResponse.data.user?.role !== 'teacher') {
                 console.warn('⚠️ User is authenticated as', checkResponse.data.user?.role, '- need to switch to teacher');
@@ -3667,6 +3616,16 @@ const authenticateWithBackend = async () => {
                         role: 'teacher'
                     });
                     console.log('✅ Re-authenticated as teacher:', authResponse.data.user);
+                    
+                    // Update currentUser with new data
+                    const newUser = authResponse.data.user;
+                    currentUser.value = {
+                        name: newUser.full_name || newUser.username || 'Teacher Name',
+                        email: newUser.email || 'teacher@example.com',
+                        role: newUser.role || 'teacher',
+                        profile_picture: newUser.profile_picture || null
+                    };
+                    
                     return true;
                 } catch (switchError) {
                     console.error('❌ Failed to switch to teacher role:', switchError);
@@ -3677,6 +3636,16 @@ const authenticateWithBackend = async () => {
                             role: 'teacher'
                         });
                         console.log('✅ Authenticated as teacher (direct):', authResponse.data.user);
+                        
+                        // Update currentUser with new data
+                        const newUser = authResponse.data.user;
+                        currentUser.value = {
+                            name: newUser.full_name || newUser.username || 'Teacher Name',
+                            email: newUser.email || 'teacher@example.com',
+                            role: newUser.role || 'teacher',
+                            profile_picture: newUser.profile_picture || null
+                        };
+                        
                         return true;
                     } catch (directError) {
                         console.error('❌ Direct auth also failed:', directError);
@@ -3694,6 +3663,16 @@ const authenticateWithBackend = async () => {
                 role: 'teacher'
             });
             console.log('Authentication successful:', authResponse.data.user);
+            
+            // Load user data
+            const user = authResponse.data.user;
+            currentUser.value = {
+                name: user.full_name || user.username || 'Teacher Name',
+                email: user.email || 'teacher@example.com',
+                role: user.role || 'teacher',
+                profile_picture: user.profile_picture || null
+            };
+            
             return true;
         } catch (authError) {
             console.error('Authentication failed:', authError);
@@ -3964,6 +3943,7 @@ const fetchPortfolioEnvelopes = async () => {
                 student_id: env.student_id, // Add student_id for fetching activities
                 name: env.student_name || env.name,
                 idNumber: env.id_number,
+                profile_picture: env.profile_picture || null,
                 dateCreated: env.date_created,
                 timeCreated: env.time_created,
                 // Store full envelope data for viewing

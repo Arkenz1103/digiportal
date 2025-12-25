@@ -58,8 +58,9 @@
                      :class="remark.is_read ? 'border-indigo-100' : 'border-indigo-300 bg-indigo-50/30'">
                   <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center gap-3">
-                      <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md ring-2 ring-indigo-200">
-                        {{ remark.teacherInitial }}
+                      <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md ring-2 ring-indigo-200 overflow-hidden">
+                        <img v-if="remark.teacherProfilePicture" :src="remark.teacherProfilePicture" :alt="remark.teacherName" class="w-full h-full object-cover" />
+                        <span v-else>{{ remark.teacherInitial }}</span>
                       </div>
                       <div>
                         <div class="flex items-center gap-2">
@@ -135,8 +136,9 @@
                      class="bg-white p-4 rounded-xl border-2 border-indigo-100 hover:shadow-md transition-all duration-200 hover:border-indigo-300 hover:scale-[1.02]">
                   <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center gap-3">
-                      <div class="bg-gradient-to-br from-violet-600 to-purple-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md ring-2 ring-violet-200">
-                        {{ remark.teacherInitial }}
+                      <div class="bg-gradient-to-br from-violet-600 to-purple-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md ring-2 ring-violet-200 overflow-hidden">
+                        <img v-if="remark.teacherProfilePicture" :src="remark.teacherProfilePicture" :alt="remark.teacherName" class="w-full h-full object-cover" />
+                        <span v-else>{{ remark.teacherInitial }}</span>
                       </div>
                       <div>
                         <h4 class="font-bold text-indigo-900 text-sm">{{ remark.activityName }}</h4>
@@ -200,8 +202,9 @@
 
       <!-- Teacher Info -->
       <div class="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg">
-        <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md">
-          {{ selectedRemark.teacherInitial }}
+        <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md overflow-hidden">
+          <img v-if="selectedRemark.teacherProfilePicture" :src="selectedRemark.teacherProfilePicture" :alt="selectedRemark.teacherName" class="w-full h-full object-cover" />
+          <span v-else>{{ selectedRemark.teacherInitial }}</span>
         </div>
         <div>
           <p class="text-sm text-indigo-600 font-medium">From Teacher</p>
@@ -242,6 +245,7 @@ const loadRemarks = async () => {
           id: remark.id,
           teacherName: remark.teacher_name || remark.teacher_username,
           teacherInitial: (remark.teacher_name || remark.teacher_username).split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+          teacherProfilePicture: remark.teacher_profile_picture || null,
           subject: 'General',
           date: remarkDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
           time: remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -265,6 +269,7 @@ const loadRemarks = async () => {
             activityName: remark.activity_title || 'Activity',
             teacherName: remark.teacher_name || remark.teacher_username,
             teacherInitial: (remark.teacher_name || remark.teacher_username || 'T').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+            teacherProfilePicture: remark.teacher_profile_picture || null,
             subject: remark.activity_type || 'General',
             date: remarkDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
             time: remarkDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -367,7 +372,8 @@ onMounted(() => {
 import StudentLayout from '@/Layouts/MainLayout.vue';
 
 export default {
-    layout: StudentLayout
+    layout: StudentLayout,
+    inheritAttrs: false
 };
 </script>
 

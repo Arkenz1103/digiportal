@@ -50,8 +50,9 @@
                           : 'hover:bg-indigo-50 border-transparent hover:border-indigo-200 hover:shadow-sm',
                       ]">
                     <div class="flex items-center gap-3">
-                      <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md ring-2 ring-indigo-200">
-                        {{ student.initial }}
+                      <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold w-10 h-10 flex items-center justify-center rounded-full shadow-md ring-2 ring-indigo-200 overflow-hidden">
+                        <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
+                        <span v-else>{{ student.initial }}</span>
                       </div>
                       <div>
                         <span class="font-semibold text-indigo-900 block">{{ student.name }}</span>
@@ -255,6 +256,7 @@ const loadStudents = async () => {
         initial: student.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
         username: student.username,
         email: student.email,
+        profile_picture: student.profile_picture || null,
         remarks: [] // Will be loaded when student is selected
       }));
       console.log('Loaded students:', students.value.length);

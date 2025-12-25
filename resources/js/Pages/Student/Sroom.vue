@@ -1202,9 +1202,18 @@
 
               <!-- Activities Carousel - Show when envelope is opened -->
               <div v-if="isEnvelopeOpen && portfolioActivities.length > 0" class="relative animate-fadeIn">
-                <!-- Portfolio Tabs with Back Button -->
+                <!-- Portfolio Tabs with Back Button on Left -->
                 <div class="flex justify-between items-center mb-6 animate-slideDown">
-                  <!-- Tabs on the left -->
+                  <!-- Back Button on the left -->
+                  <button
+                    @click="isEnvelopeOpen = false"
+                    class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                  >
+                    <i class="pi pi-arrow-left text-sm"></i>
+                    Back to Envelope
+                  </button>
+
+                  <!-- Tabs on the right -->
                   <div class="flex gap-2">
                     <button
                       @click="activePortfolioTab = 'all'"
@@ -1235,15 +1244,6 @@
                       </span>
                     </button>
                   </div>
-
-                  <!-- Back Button on the right -->
-                  <button
-                    @click="isEnvelopeOpen = false"
-                    class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                  >
-                    <i class="pi pi-arrow-left text-sm"></i>
-                    Back to Envelope
-                  </button>
                 </div>
 
                 <!-- All Activities Tab Content -->
@@ -1664,34 +1664,17 @@
 
             <!-- Classroom Card -->
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-              <!-- Classroom Header -->
-              <div class="bg-white border-b border-gray-200 p-6">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h2 class="text-2xl font-bold text-gray-900">{{ actualClassName }}</h2>
-                    <p class="text-gray-600 mt-1">Room 111</p>
-                  </div>
-                  <div class="text-right">
-                    <p class="text-gray-900 text-3xl font-bold">{{ studentClassmates.length }}</p>
-                    <p class="text-gray-600 text-sm">Classmates</p>
-                  </div>
-                </div>
-              </div>
-
               <!-- Class Adviser Section -->
               <div class="p-6 border-b border-gray-200 bg-gray-50">
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">Class Adviser</h3>
                 <div class="flex items-center gap-3 p-3 bg-white rounded-lg">
-                  <div class="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-gray-700 font-bold text-lg">
-                    {{ getTeacherInitials(classTeacher) }}
+                  <div class="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-gray-700 font-bold text-lg overflow-hidden">
+                    <img v-if="classTeacherProfilePicture" :src="classTeacherProfilePicture" :alt="classTeacher" class="w-full h-full object-cover" />
+                    <span v-else>{{ getTeacherInitials(classTeacher) }}</span>
                   </div>
                   <div>
                     <p class="font-medium text-gray-900">{{ classTeacher }}</p>
                     <p class="text-sm text-gray-600">{{ classTeacherEmail }}</p>
-                    <p class="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                      <i class="pi pi-book text-gray-500"></i>
-                      Mathematics
-                    </p>
                   </div>
                 </div>
               </div>
@@ -1721,8 +1704,9 @@
                   <div v-for="(classmate, index) in filteredClassmates" :key="classmate.id"
                     class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <span class="text-sm text-gray-500 font-medium w-8">{{ index + 1 }}.</span>
-                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {{ getInitials(classmate.name) }}
+                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
+                      <img v-if="classmate.profile_picture" :src="classmate.profile_picture" :alt="classmate.name" class="w-full h-full object-cover" />
+                      <span v-else>{{ getInitials(classmate.name) }}</span>
                     </div>
                     <div class="flex-1">
                       <p class="font-medium text-gray-900">{{ classmate.name }}</p>
@@ -3662,6 +3646,7 @@ const portfolioFolders = ref([]);
 const studentClassmates = ref([]);
 const classTeacher = ref('Teacher Name');
 const classTeacherEmail = ref('');
+const classTeacherProfilePicture = ref(null);
 const classmateSearchQuery = ref('');
 
 // Filtered classmates based on search
@@ -4946,6 +4931,13 @@ const loadClassmates = async () => {
                 classTeacherEmail.value = currentClassroom.teacher.email;
             } else {
                 classTeacherEmail.value = currentUser.value.classroom?.teacher?.email || '';
+            }
+
+            // Get teacher profile picture
+            if (currentClassroom.teacher && currentClassroom.teacher.profile_picture) {
+                classTeacherProfilePicture.value = currentClassroom.teacher.profile_picture;
+            } else {
+                classTeacherProfilePicture.value = null;
             }
 
             console.log('✅ Loaded classmates:', studentClassmates.value.length);

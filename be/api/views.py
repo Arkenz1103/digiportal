@@ -2538,9 +2538,15 @@ def newsfeed_api(request):
                     'order': 0
                 }]
 
+            # Build profile picture URL
+            profile_picture_url = None
+            if post.student and post.student.profile_picture:
+                profile_picture_url = request.build_absolute_uri(post.student.profile_picture.url)
+
             post_dict = {
                 'id': post.id,
                 'student_name': post.student_name,
+                'profile_picture': profile_picture_url,
                 'caption': post.caption,
                 'file_path': file_url,
                 'file_type': post.file_type,
@@ -5905,6 +5911,11 @@ def get_portfolio_envelopes_api(request, class_name):
             # Determine status based on is_submitted flag
             status_text = 'Done' if envelope.is_submitted else 'In Progress'
 
+            # Build profile picture URL
+            profile_picture_url = None
+            if envelope.student.profile_picture:
+                profile_picture_url = request.build_absolute_uri(envelope.student.profile_picture.url)
+
             envelope_list.append({
                 'id': envelope.id,
                 'student_id': envelope.student.id,
@@ -5912,6 +5923,7 @@ def get_portfolio_envelopes_api(request, class_name):
                 'name': envelope.student_name,  # Add 'name' field for consistency
                 'student_username': envelope.student.username,
                 'id_number': envelope.student.id_number if envelope.student.id_number else str(envelope.student.id),
+                'profile_picture': profile_picture_url,
                 'title': envelope.title,
                 'color': envelope.color,
                 'pattern': envelope.pattern,
@@ -7108,7 +7120,8 @@ def classroom_list_api(request):
                     'id': classroom.teacher.id,
                     'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
                     'email': classroom.teacher.email,
-                    'department': classroom.teacher.department
+                    'department': classroom.teacher.department,
+                    'profile_picture': request.build_absolute_uri(classroom.teacher.profile_picture.url) if classroom.teacher.profile_picture else None
                 } if classroom.teacher else None,
                 'student_count': students.count(),
                 'is_full': students.count() >= classroom.capacity,
@@ -7118,7 +7131,7 @@ def classroom_list_api(request):
                         'name': f"{student.first_name} {student.last_name}".strip() or student.username,
                         'email': student.email,
                         'id_number': student.id_number,
-                        'profile_picture': student.profile_picture.url if student.profile_picture else None
+                        'profile_picture': request.build_absolute_uri(student.profile_picture.url) if student.profile_picture else None
                     } for student in students
                 ]
             }

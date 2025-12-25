@@ -1261,7 +1261,8 @@ const setFilter = (filter) => {
 import TeacherLayout from '@/Layouts/MainLayout.vue';
 
 export default {
-    layout: TeacherLayout
+    layout: TeacherLayout,
+    inheritAttrs: false
 };
 </script>
 

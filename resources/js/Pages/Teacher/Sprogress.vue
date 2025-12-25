@@ -94,8 +94,9 @@
                         </div>
                     </div>
                     <div class="col-span-3 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md">
-                            <span class="text-white font-bold text-sm">{{ student.initial }}</span>
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md overflow-hidden">
+                            <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
+                            <span v-else class="text-white font-bold text-sm">{{ getInitials(student.name) }}</span>
                         </div>
                         <div>
                             <span class="font-semibold text-gray-800 block text-sm">{{ student.name }}</span>
@@ -222,8 +223,9 @@
                         <!-- Dialog Header -->
                         <div class="flex items-center justify-between px-6 py-4 border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 flex-shrink-0">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold shadow-lg">
-                                    {{ selectedStudent?.initial || 'S' }}
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold shadow-lg overflow-hidden">
+                                    <img v-if="selectedStudent?.profile_picture" :src="selectedStudent.profile_picture" :alt="selectedStudent.name" class="w-full h-full object-cover" />
+                                    <span v-else>{{ getInitials(selectedStudent?.name) }}</span>
                                 </div>
                                 <div>
                                     <h3 class="text-xl font-bold text-indigo-900">{{ selectedStudent?.name }}'s Outputs</h3>
@@ -416,6 +418,16 @@ import * as XLSX from 'xlsx';
 import { useToast } from '../../composables/useToast';
 
 const { showSuccess, showError, showInfo, showWarning } = useToast();
+
+// Helper function to get initials from name (first and last name initials)
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ').filter(p => p.length > 0);
+    if (parts.length >= 2) {
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
+};
 
 // Define props
 const props = defineProps({
