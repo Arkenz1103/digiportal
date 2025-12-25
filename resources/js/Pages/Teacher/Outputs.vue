@@ -720,6 +720,7 @@ const loadSubmissionDetail = async (submissionId) => {
 // Add score dialog state
 const showAddScoreDialog = ref(false);
 const showInstructionExpandDialog = ref(false);
+const showDeleteRemarksDialog = ref(false); // Delete remarks confirmation dialog
 const creativityScore = ref('');
 const technicalScore = ref('');
 const requirementsScore = ref('');
@@ -816,30 +817,34 @@ const editRemarks = () => {
     selectedSubmission.value.newRemark = studentOutputs.value[selectedSubmission.value.id]?.remarks || '';
 };
 
+// Show delete confirmation dialog
+const confirmDeleteRemarks = () => {
+    showDeleteRemarksDialog.value = true;
+};
+
 const deleteRemarks = async () => {
-    if (confirm('Are you sure you want to delete these remarks?')) {
-        try {
-            const submissionId = selectedSubmission.value.id;
-            const remarkId = studentOutputs.value[submissionId]?.remarkId;
+    showDeleteRemarksDialog.value = false;
+    try {
+        const submissionId = selectedSubmission.value.id;
+        const remarkId = studentOutputs.value[submissionId]?.remarkId;
 
-            if (remarkId) {
-                await axios.delete(`/api/submissions/${submissionId}/remarks/${remarkId}/`);
-                console.log('Remark deleted successfully');
-            }
-
-            // Update local state
-            if (studentOutputs.value[submissionId]) {
-                studentOutputs.value[submissionId].remarks = '';
-                studentOutputs.value[submissionId].remarkId = null;
-            }
-            selectedSubmission.value.newRemark = '';
-            isEditingRemarks.value = false;
-
-            showSuccess('Remark deleted successfully!', 'Deleted');
-        } catch (error) {
-            console.error('Error deleting remark:', error);
-            showError(error.response?.data?.error || error.message, 'Delete Failed');
+        if (remarkId) {
+            await axios.delete(`/api/submissions/${submissionId}/remarks/${remarkId}/`);
+            console.log('Remark deleted successfully');
         }
+
+        // Update local state
+        if (studentOutputs.value[submissionId]) {
+            studentOutputs.value[submissionId].remarks = '';
+            studentOutputs.value[submissionId].remarkId = null;
+        }
+        selectedSubmission.value.newRemark = '';
+        isEditingRemarks.value = false;
+
+        showSuccess('Remark deleted successfully!', 'Deleted');
+    } catch (error) {
+        console.error('Error deleting remark:', error);
+        showError(error.response?.data?.error || error.message, 'Delete Failed');
     }
 };
 
@@ -1507,6 +1512,13 @@ const getMedalDetails = (rank) => {
     <div class="flex flex-col lg:flex-row gap-4 lg:items-stretch">
         <!-- Left: Activity Details (50%) -->
         <div class="lg:w-1/2 flex flex-col gap-2">
+            <!-- Subject Folder -->
+            <div class="flex flex-col gap-1">
+                <p class="text-sm text-black">
+                    <span class="font-bold">Subject Folder:</span> {{ activity.subject || activity.folder || 'N/A' }}
+                </p>
+            </div>
+
             <!-- Activity Title -->
             <div class="flex flex-col gap-1">
                 <p class="text-sm text-black">
@@ -1722,8 +1734,8 @@ const getMedalDetails = (rank) => {
 
                         <!-- Lists -->
                         <template v-else>
-                            <!-- List View -->
-                            <div v-if="viewMode === 'list'">
+                            <!-- List View (always show for incomplete tab) -->
+                            <div v-if="viewMode === 'list' || currentTab === 'incomplete'">
                                 <!-- Table Header -->
                                 <div class="bg-gray-50/50 border-b border-gray-100 grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                     <template v-if="currentTab === 'incomplete'">
@@ -1758,7 +1770,7 @@ const getMedalDetails = (rank) => {
                                             <!-- Name & Avatar -->
                                             <div class="col-span-3 flex items-center gap-3">
                                                 <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm overflow-hidden"
-                                                     :class="item.avatar ? '' : 'bg-gray-100 text-gray-600'">
+                                                     :class="item.avatar ? '' : 'bg-indigo-100 text-indigo-700'">
                                                     <img v-if="item.avatar" :src="item.avatar" :alt="item.name" class="w-full h-full object-cover" />
                                                     <span v-else>{{ getInitials(item.name) }}</span>
                                                 </div>
@@ -2156,7 +2168,7 @@ const getMedalDetails = (rank) => {
                                                     <i class="pi pi-pencil text-xs"></i>
                                                     Edit
                                                 </button>
-                                                <button @click="deleteRemarks"
+                                                <button @click="confirmDeleteRemarks"
                                                         class="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
                                                     <i class="pi pi-trash text-xs"></i>
                                                     Delete
@@ -2198,7 +2210,7 @@ const getMedalDetails = (rank) => {
     </div>
 
     <!-- Add Score Dialog -->
-    <Dialog v-model:visible="showAddScoreDialog" modal header="Add Score" :style="{ width: '450px' }">
+    <Dialog v-model:visible="showAddScoreDialog" modal header="Add Score" :style="{ width: '650px' }">
         <div class="space-y-4">
             <!-- Student Info -->
             <div class="bg-indigo-50 p-3 rounded-lg">
@@ -2209,14 +2221,14 @@ const getMedalDetails = (rank) => {
             <!-- Scoring Criteria -->
             <div>
                 <h4 class="text-sm font-medium text-gray-700 mb-3">Scoring Criteria:</h4>
-                <div v-if="criteriaScores.length > 0" class="space-y-3">
+                <div v-if="criteriaScores.length > 0" class="grid grid-cols-2 gap-3">
                     <div v-for="(criterion, index) in criteriaScores" :key="index"
                          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div class="flex items-start gap-2">
-                            <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5"></div>
-                            <p class="text-sm text-gray-600">{{ criterion.name }}</p>
+                        <div class="flex items-start gap-2 flex-1 min-w-0">
+                            <div class="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                            <p class="text-sm text-gray-600 truncate">{{ criterion.name }}</p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-shrink-0">
                             <input
                                 v-model.number="criterion.score"
                                 type="number"
@@ -2343,6 +2355,30 @@ const getMedalDetails = (rank) => {
                     @click="confirmExportAction"
                     class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors">
                     Export
+                </button>
+            </div>
+        </template>
+    </Dialog>
+
+    <!-- Delete Remarks Confirmation Dialog -->
+    <Dialog v-model:visible="showDeleteRemarksDialog" modal header="Delete Remarks" :style="{ width: '400px' }">
+        <div class="text-center py-4">
+            <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <i class="pi pi-trash text-3xl text-red-600"></i>
+            </div>
+            <p class="text-gray-600 text-sm">Are you sure you want to delete these remarks? This action cannot be undone.</p>
+        </div>
+        <template #footer>
+            <div class="flex gap-3 justify-center">
+                <button
+                    @click="showDeleteRemarksDialog = false"
+                    class="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button
+                    @click="deleteRemarks"
+                    class="px-6 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors">
+                    Delete
                 </button>
             </div>
         </template>

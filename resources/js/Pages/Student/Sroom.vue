@@ -1666,7 +1666,7 @@
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
               <!-- Class Adviser Section -->
               <div class="p-6 border-b border-gray-200 bg-gray-50">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">Class Adviser</h3>
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Class Teacher</h3>
                 <div class="flex items-center gap-3 p-3 bg-white rounded-lg">
                   <div class="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-gray-700 font-bold text-lg overflow-hidden">
                     <img v-if="classTeacherProfilePicture" :src="classTeacherProfilePicture" :alt="classTeacher" class="w-full h-full object-cover" />
@@ -2201,7 +2201,7 @@
     </Dialog>
 
     <!-- Preview Collection Dialog -->
-    <Dialog v-model:visible="showPreviewDialog" modal :style="{ width: '90vw', maxWidth: '900px' }" :dismissableMask="true">
+    <Dialog v-model:visible="showPreviewDialog" modal :style="{ width: '650px', maxWidth: '90vw' }" :dismissableMask="true">
       <template #header>
         <div class="flex items-center gap-3">
           <i class="pi pi-eye text-indigo-600 text-xl"></i>
@@ -2210,126 +2210,147 @@
       </template>
 
       <div v-if="selectedPreviewItem" class="space-y-4">
-        <!-- Submission Image/File -->
-        <div class="bg-gray-50 rounded-lg p-4 flex items-center justify-center" style="min-height: 250px;">
-          <!-- Image Preview -->
-          <img
-            v-if="selectedPreviewItem.file_path && (selectedPreviewItem.file_type === 'image' || selectedPreviewItem.file_path.startsWith('data:image'))"
-            :src="selectedPreviewItem.file_path"
-            :alt="selectedPreviewItem.activity_title"
-            class="max-w-full max-h-[300px] object-contain rounded-lg shadow-md"
-            @error="handlePreviewImageError"
-          />
-
-          <!-- PDF Preview -->
-          <div v-else-if="selectedPreviewItem.file_path && (selectedPreviewItem.file_type === 'pdf' || selectedPreviewItem.file_path.startsWith('data:application/pdf'))" class="w-full">
-            <iframe
-              :src="selectedPreviewItem.file_path"
-              class="w-full h-[400px] rounded-lg border-2 border-gray-300"
-              frameborder="0"
-            ></iframe>
-            <div class="mt-3 text-center">
-              <a
-                :href="selectedPreviewItem.file_path"
-                target="_blank"
-                download="document.pdf"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <i class="pi pi-download"></i>
-                <span>Download PDF</span>
-              </a>
-            </div>
+        <!-- Activity Info Grid -->
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div>
+            <p class="text-xs text-gray-500 uppercase font-medium">Activity Title</p>
+            <p class="text-gray-900 font-medium">{{ selectedPreviewItem.activity_title }}</p>
           </div>
-
-          <!-- Document/Other File Types -->
-          <div v-else-if="selectedPreviewItem.file_path && selectedPreviewItem.file_path.startsWith('data:')" class="text-center">
-            <div class="mb-4">
-              <i v-if="selectedPreviewItem.file_type === 'document'" class="pi pi-file-word text-6xl text-blue-500"></i>
-              <i v-else class="pi pi-file text-6xl text-gray-500"></i>
-            </div>
-            <p class="text-gray-700 font-semibold mb-2">{{ selectedPreviewItem.file_type === 'document' ? 'Document' : 'File' }} Uploaded</p>
-            <p class="text-sm text-gray-500 mb-4">Type: {{ selectedPreviewItem.file_type || 'Unknown' }}</p>
-
-            <!-- Download button for base64 files -->
-            <a
-              :href="selectedPreviewItem.file_path"
-              :download="`${selectedPreviewItem.activity_title || 'file'}.${getFileExtension(selectedPreviewItem.file_path)}`"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <i class="pi pi-download"></i>
-              <span>Download File</span>
-            </a>
-
-            <div v-if="selectedPreviewItem.caption" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p class="text-xs text-blue-700 font-semibold mb-1">Caption:</p>
-              <p class="text-sm text-gray-700">{{ selectedPreviewItem.caption }}</p>
-            </div>
+          <div>
+            <p class="text-xs text-gray-500 uppercase font-medium">Activity Type</p>
+            <p class="text-gray-900 font-medium capitalize">{{ selectedPreviewItem.activity_type }}</p>
           </div>
-
-          <!-- No File Available -->
-          <div v-else class="text-center">
-            <i class="pi pi-file text-4xl text-gray-400 mb-3"></i>
-            <p class="text-gray-600 font-semibold">File not available</p>
-            <p class="text-sm text-gray-500 mt-2">Type: {{ selectedPreviewItem.file_type || 'Unknown' }}</p>
-            <p class="text-xs text-gray-400 mt-2">
-              {{ selectedPreviewItem.file_path ? 'File path exists but cannot be displayed' : 'No file was uploaded with this submission' }}
+          <div>
+            <p class="text-xs text-gray-500 uppercase font-medium">Folder</p>
+            <p class="text-gray-900 font-medium flex items-center gap-2">
+              <i class="pi pi-folder text-indigo-600"></i>
+              {{ selectedPreviewItem.folder_name }}
             </p>
-            <div v-if="selectedPreviewItem.caption" class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p class="text-xs text-yellow-700 font-semibold mb-1">Caption/Text Submission:</p>
-              <p class="text-sm text-gray-700">{{ selectedPreviewItem.caption }}</p>
-            </div>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 uppercase font-medium">Submitted</p>
+            <p class="text-gray-900 font-medium">{{ formatSubmittedDateTime(selectedPreviewItem.submitted_at) }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 uppercase font-medium">Status</p>
+            <span
+              class="px-2 py-1 text-xs rounded font-medium inline-block mt-1"
+              :class="{
+                'bg-green-100 text-green-800': selectedPreviewItem.status === 'scored',
+                'bg-blue-100 text-blue-800': selectedPreviewItem.status === 'submitted',
+                'bg-amber-100 text-amber-700': selectedPreviewItem.status === 'pending'
+              }">
+              {{ selectedPreviewItem.status === 'scored' ? 'Scored' : 'Submitted' }}
+            </span>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 uppercase font-medium">Score</p>
+            <p class="font-bold" :class="selectedPreviewItem.status === 'scored' ? 'text-green-600' : 'text-gray-400'">
+              {{ selectedPreviewItem.status === 'scored' ? `${selectedPreviewItem.score} points` : 'Not scored yet' }}
+            </p>
           </div>
         </div>
 
-        <!-- Submission Details -->
-        <div class="grid grid-cols-2 gap-4 bg-indigo-50 rounded-lg p-4">
-          <div>
-            <div class="text-xs text-gray-600 mb-1">Activity Title:</div>
-            <div class="font-semibold text-gray-900">{{ selectedPreviewItem.activity_title }}</div>
+        <!-- File Display with Navigation -->
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <!-- File Counter (if multiple files) -->
+          <div v-if="previewFiles.length > 1" class="bg-indigo-600 text-white px-3 py-1.5 text-center text-sm font-medium">
+            {{ currentPreviewFileIndex + 1 }} / {{ previewFiles.length }}
           </div>
-          <div>
-            <div class="text-xs text-gray-600 mb-1">Activity Type:</div>
-            <div class="font-semibold text-gray-900 capitalize">{{ selectedPreviewItem.activity_type }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-600 mb-1">Folder:</div>
-            <div class="flex items-center gap-2 font-semibold text-gray-900">
-              <i class="pi pi-folder text-indigo-600"></i>
-              <span>{{ selectedPreviewItem.folder_name }}</span>
+          
+          <div class="relative" style="min-height: 300px;">
+            <!-- Navigation Arrows -->
+            <div v-if="previewFiles.length > 1" class="absolute inset-0 flex items-center justify-between px-2 pointer-events-none z-10">
+              <button
+                @click="prevPreviewFile"
+                :disabled="currentPreviewFileIndex === 0"
+                class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <i class="pi pi-chevron-left text-indigo-600"></i>
+              </button>
+              <button
+                @click="nextPreviewFile"
+                :disabled="currentPreviewFileIndex >= previewFiles.length - 1"
+                class="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <i class="pi pi-chevron-right text-indigo-600"></i>
+              </button>
             </div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-600 mb-1">Submitted:</div>
-            <div class="font-semibold text-gray-900">{{ formatSubmittedDateTime(selectedPreviewItem.submitted_at) }}</div>
-          </div>
-          <div v-if="selectedPreviewItem.status === 'scored'" class="col-span-2">
-            <div class="text-xs text-gray-600 mb-1">Score:</div>
-            <div class="text-2xl font-bold text-indigo-600">{{ selectedPreviewItem.score }} points</div>
+
+            <!-- File Content -->
+            <div class="flex items-center justify-center p-4 bg-gray-50" style="min-height: 300px;">
+              <!-- Loading State -->
+              <template v-if="isLoadingPreview">
+                <div class="flex flex-col items-center justify-center">
+                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-3"></div>
+                  <p class="text-gray-500">Loading files...</p>
+                </div>
+              </template>
+              <template v-else-if="currentPreviewFile && currentPreviewFile.file_path">
+                <!-- Image -->
+                <img v-if="isPreviewImageFile(currentPreviewFile)"
+                  :src="getPreviewFileUrl(currentPreviewFile.file_path)"
+                  :alt="selectedPreviewItem.activity_title"
+                  class="max-w-full max-h-72 rounded shadow-lg object-contain"
+                  @error="handlePreviewImageError"
+                />
+                <!-- PDF -->
+                <div v-else-if="currentPreviewFile.file_type === 'pdf' || currentPreviewFile.file_path?.includes('.pdf')" class="flex flex-col items-center justify-center text-red-600">
+                  <i class="pi pi-file-pdf text-6xl mb-3"></i>
+                  <span class="text-base font-medium">PDF Document</span>
+                  <span class="text-sm text-gray-500 mt-1">{{ currentPreviewFile.file_name || 'Document' }}</span>
+                  <a :href="getPreviewFileUrl(currentPreviewFile.file_path)" target="_blank"
+                    class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                    <i class="pi pi-external-link mr-1"></i> View File
+                  </a>
+                </div>
+                <!-- Document -->
+                <div v-else-if="currentPreviewFile.file_type === 'document'" class="flex flex-col items-center justify-center text-blue-600">
+                  <i class="pi pi-file-word text-6xl mb-3"></i>
+                  <span class="text-base font-medium">Word Document</span>
+                  <span class="text-sm text-gray-500 mt-1">{{ currentPreviewFile.file_name || 'Document' }}</span>
+                  <a :href="getPreviewFileUrl(currentPreviewFile.file_path)" target="_blank"
+                    class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                    <i class="pi pi-external-link mr-1"></i> View File
+                  </a>
+                </div>
+                <!-- Other file types -->
+                <div v-else class="flex flex-col items-center justify-center text-gray-500">
+                  <i class="pi pi-file text-6xl mb-3"></i>
+                  <span class="text-base font-medium">{{ currentPreviewFile.file_type || 'File' }}</span>
+                  <a v-if="currentPreviewFile.file_path" :href="getPreviewFileUrl(currentPreviewFile.file_path)" target="_blank"
+                    class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+                    <i class="pi pi-external-link mr-1"></i> View File
+                  </a>
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-center text-gray-400">
+                  <i class="pi pi-image text-5xl mb-2"></i>
+                  <p>No file available</p>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
 
         <!-- Caption (if exists) -->
-        <div v-if="selectedPreviewItem.caption" class="bg-white rounded-lg p-4 border border-gray-200">
-          <div class="text-xs text-gray-600 mb-2">Caption:</div>
-          <p class="text-gray-800">{{ selectedPreviewItem.caption }}</p>
+        <div v-if="selectedPreviewItem.caption" class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-xs text-gray-500 uppercase font-medium mb-1">Caption</p>
+          <p class="text-gray-700">{{ selectedPreviewItem.caption }}</p>
         </div>
 
         <!-- Feedback (if scored) -->
         <div v-if="selectedPreviewItem.status === 'scored' && selectedPreviewItem.feedback" class="bg-green-50 rounded-lg p-4 border border-green-200">
-          <div class="text-xs text-green-700 font-semibold mb-2">Teacher Feedback:</div>
+          <p class="text-xs text-green-700 font-semibold mb-2">Teacher Feedback</p>
           <p class="text-gray-800">{{ selectedPreviewItem.feedback }}</p>
         </div>
       </div>
 
       <template #footer>
-        <div class="flex items-center justify-end gap-3">
-          <button
-            @click="closePreviewDialog"
-            class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200"
-          >
-            Close
-          </button>
-        </div>
+        <button @click="closePreviewDialog" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+          Close
+        </button>
       </template>
     </Dialog>
 
@@ -4068,25 +4089,111 @@ const toggleSubmissionSelection = (submissionId) => {
   }
 };
 
-// Open preview dialog
-const openPreviewDialog = (item) => {
+// Open preview dialog with multiple file support
+const openPreviewDialog = async (item) => {
   // Don't open if clicking checkbox in select mode
   if (isSelectMode.value) return;
 
   selectedPreviewItem.value = item;
+  previewFiles.value = [];
+  currentPreviewFileIndex.value = 0;
+  isLoadingPreview.value = true;
   showPreviewDialog.value = true;
+  
   console.log('📸 Opening preview for submission:', item.id);
-  console.log('   File path:', item.file_path ? `${item.file_path.substring(0, 50)}...` : 'No file path');
-  console.log('   File path starts with data:', item.file_path?.startsWith('data:'));
-  console.log('   File type:', item.file_type);
-  console.log('   Activity title:', item.activity_title);
-  console.log('   Caption:', item.caption);
 
-  // Debug file type detection
-  if (item.file_path && item.file_path.startsWith('data:')) {
-    const mimeMatch = item.file_path.match(/data:([^;]+);/);
-    console.log('   Detected MIME type:', mimeMatch ? mimeMatch[1] : 'Unknown');
+  // Try to fetch submission files from API
+  try {
+    const submissionId = item.submission_id || item.id;
+    if (submissionId) {
+      const response = await axios.get(`/api/submissions/${submissionId}/`);
+      if (response.data) {
+        // Check if there are multiple files
+        if (response.data.files && response.data.files.length > 0) {
+          previewFiles.value = response.data.files.map(f => ({
+            file_path: f.file_url || f.file_path,
+            file_type: f.file_type,
+            file_name: f.file_name || 'Submission'
+          }));
+        } else if (response.data.submission_files && response.data.submission_files.length > 0) {
+          previewFiles.value = response.data.submission_files.map(f => ({
+            file_path: f.file_url || f.file_path || f.file,
+            file_type: f.file_type || 'image',
+            file_name: f.file_name || 'Submission'
+          }));
+        } else if (response.data.file_url || response.data.file_path) {
+          // Single file
+          previewFiles.value = [{
+            file_path: response.data.file_url || response.data.file_path,
+            file_type: response.data.file_type || item.file_type,
+            file_name: item.activity_title || 'Submission'
+          }];
+        }
+        console.log('✅ Loaded preview files:', previewFiles.value.length);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching submission files:', error);
   }
+
+  // Fallback to single file from item
+  if (previewFiles.value.length === 0 && item.file_path) {
+    previewFiles.value = [{
+      file_path: item.file_path,
+      file_type: item.file_type,
+      file_name: item.activity_title || 'Submission'
+    }];
+  }
+
+  isLoadingPreview.value = false;
+};
+
+// Computed property for current preview file
+const currentPreviewFile = computed(() => {
+  if (previewFiles.value.length > 0 && currentPreviewFileIndex.value < previewFiles.value.length) {
+    return previewFiles.value[currentPreviewFileIndex.value];
+  }
+  return null;
+});
+
+// Navigation for preview files
+const prevPreviewFile = () => {
+  if (currentPreviewFileIndex.value > 0) {
+    currentPreviewFileIndex.value--;
+  }
+};
+
+const nextPreviewFile = () => {
+  if (currentPreviewFileIndex.value < previewFiles.value.length - 1) {
+    currentPreviewFileIndex.value++;
+  }
+};
+
+// Check if file is an image for preview
+const isPreviewImageFile = (file) => {
+  if (!file) return false;
+  const imageTypes = ['image', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+  const fileType = file.file_type?.toLowerCase() || '';
+  const fileName = file.file_name?.toLowerCase() || '';
+  const filePath = file.file_path?.toLowerCase() || '';
+  
+  // Check data URI
+  if (filePath.startsWith('data:image')) return true;
+  
+  return imageTypes.some(type => 
+    fileType.includes(type) || 
+    fileName.includes(`.${type}`) || 
+    filePath.includes(`.${type}`)
+  );
+};
+
+// Get file URL for preview
+const getPreviewFileUrl = (filePath) => {
+  if (!filePath) return '';
+  if (filePath.startsWith('data:') || filePath.startsWith('http') || filePath.startsWith('/media')) {
+    return filePath;
+  }
+  return `/media/${filePath}`;
 };
 
 // Handle preview image load error
@@ -4103,6 +4210,8 @@ const handlePreviewImageError = (event) => {
 const closePreviewDialog = () => {
   showPreviewDialog.value = false;
   selectedPreviewItem.value = null;
+  previewFiles.value = [];
+  currentPreviewFileIndex.value = 0;
 };
 
 // Get submission image URL
@@ -5017,6 +5126,9 @@ const showDeleteConfirmDialog = ref(false);
 const deleteAction = ref(null); // 'all' or 'selected'
 const showPreviewDialog = ref(false);
 const selectedPreviewItem = ref(null);
+const previewFiles = ref([]); // Multiple files for preview dialog
+const currentPreviewFileIndex = ref(0); // Current file index for navigation
+const isLoadingPreview = ref(false); // Loading state for preview
 const showPostOutputDialog = ref(false);
 const postOutputCaption = ref('');
 const includeScore = ref(false);
