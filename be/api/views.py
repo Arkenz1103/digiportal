@@ -815,8 +815,8 @@ def portfolio_activities_api(request, folder_id):
         if request.user.is_authenticated and request.user.role == 'teacher':
             activities = folder.activities.all().order_by('-created_at')
         else:
-            # Students only see published activities
-            activities = folder.activities.filter(is_published=True).order_by('-created_at')
+            # Students only see published activities, ordered by most recently published first
+            activities = folder.activities.filter(is_published=True).order_by('-published_at', '-created_at')
 
         serializer = PortfolioActivitySerializer(activities, many=True, context={'request': request})
         activities_data = serializer.data
@@ -1739,6 +1739,18 @@ def activity_submissions_api(request, activity_id):
                     existing_submission.save()
                     print(f"✅ First submission turned in - resubmit_count: {existing_submission.resubmit_count}")
 
+                    # Send notification to teacher about the first submission
+                    teacher = activity.folder.teacher
+                    print(f"📧 Sending 'submission_received' notification to {teacher.username} for first submission")
+                    create_notification(
+                        recipient=teacher,
+                        notification_type='submission_received',
+                        title='New Submission Received',
+                        message=f'{request.user.username} submitted work for "{activity.title}"',
+                        submission=existing_submission,
+                        activity=activity
+                    )
+
                     serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
                     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1858,6 +1870,18 @@ def activity_submissions_api(request, activity_id):
                             print(f"⚠️ Error adding file {idx + 1}: {str(file_error)}")
 
                 print(f"✅ Resubmission #{existing_submission.resubmit_count} (Version {existing_submission.submission_version}) for student {request.user.username}")
+
+                # Send notification to teacher about resubmission
+                teacher = activity.folder.teacher
+                print(f"📧 Sending 'submission_received' notification to {teacher.username} for resubmission")
+                create_notification(
+                    recipient=teacher,
+                    notification_type='submission_received',
+                    title='Work Resubmitted',
+                    message=f'{request.user.username} resubmitted work for "{activity.title}" (Resubmission #{existing_submission.resubmit_count})',
+                    submission=existing_submission,
+                    activity=activity
+                )
 
                 serializer = StudentSubmissionSerializer(existing_submission, context={'request': request})
                 return Response(serializer.data, status=status.HTTP_200_OK)

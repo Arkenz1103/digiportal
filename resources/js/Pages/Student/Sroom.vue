@@ -4332,13 +4332,22 @@ const loadFolderActivities = async (folderId) => {
             isLate: isLate,
             resubmit_count: resubmitCount,
             scoringCriteria: scoringCriteria,
-            instruction_files: activity.instruction_files || []
+            instruction_files: activity.instruction_files || [],
+            published_at: activity.published_at,
+            created_at: activity.created_at
           };
         })
       );
 
+      // Sort by published_at (newest first), fallback to created_at
+      activitiesWithStatus.sort((a, b) => {
+        const dateA = new Date(a.published_at || a.created_at);
+        const dateB = new Date(b.published_at || b.created_at);
+        return dateB - dateA; // Descending order (newest first)
+      });
+
       folderActivities.value = activitiesWithStatus;
-      console.log('Loaded activities for student:', folderActivities.value);
+      console.log('Loaded activities for student (sorted by latest published):', folderActivities.value);
     }
   } catch (error) {
     console.error('Error loading activities:', error);
@@ -5346,6 +5355,43 @@ const handleClassChange = async (event) => {
   await loadPortfolioFolders();
 };
 
+// Function to handle notification navigation event (when already on this page)
+const handleNotificationNavigation = async (event) => {
+  console.log('📬 Notification navigation event received:', event.detail);
+  const context = event.detail;
+  
+  if (context && context.activityId) {
+    const targetActivityId = parseInt(context.activityId);
+    console.log('🎯 Loading specific activity from notification event:', targetActivityId);
+    
+    // Reload folders first to ensure we have the latest data
+    await loadPortfolioFolders();
+    
+    // Find the folder containing this activity and navigate to it
+    for (const folder of portfolioFolders.value) {
+      console.log('🔍 Searching in folder:', folder.title, 'ID:', folder.id);
+      await loadFolderActivities(folder.id);
+      
+      // Use parseInt to ensure type consistency when comparing IDs
+      const activity = folderActivities.value.find(a => parseInt(a.id) === targetActivityId);
+      if (activity) {
+        console.log('✅ Found activity in folder:', folder.title, 'Activity:', activity.title);
+        selectedFolder.value = folder;
+        activeTab.value = 'portfolio';
+        // Use openActivity to load full activity details including instruction files
+        await openActivity(activity);
+        localStorage.removeItem('notification_context');
+        return;
+      }
+    }
+    
+    console.warn('⚠️ Activity not found in any folder. Activity ID:', targetActivityId);
+  }
+  
+  // Clear the notification context
+  localStorage.removeItem('notification_context');
+};
+
 // Check if teacher has requested portfolio compilation
 const checkPortfolioCompilationStatus = async () => {
   isLoadingCompilationStatus.value = true;
@@ -5479,6 +5525,79 @@ onMounted(async () => {
     await checkExistingEnvelope();
     await loadClassmates();
 
+    // Check if we're coming from a notification click
+    const notificationContext = localStorage.getItem('notification_context');
+    if (notificationContext) {
+      try {
+        const context = JSON.parse(notificationContext);
+        // Only use if recent (within 10 seconds) to avoid stale data
+        if (Date.now() - context.timestamp < 10000) {
+          console.log('📬 Coming from notification:', context);
+          
+          // If notification has an activity ID, navigate to that activity
+          if (context.activityId) {
+            const targetActivityId = parseInt(context.activityId);
+            console.log('🎯 Loading specific activity from notification:', targetActivityId);
+            let activityFound = false;
+            
+            // Find the folder containing this activity and navigate to it
+            for (const folder of portfolioFolders.value) {
+              console.log('🔍 Searching in folder:', folder.title, 'ID:', folder.id);
+              await loadFolderActivities(folder.id);
+              console.log('📋 Folder activities:', folderActivities.value.map(a => ({ id: a.id, title: a.title })));
+              
+              // Use parseInt to ensure type consistency when comparing IDs
+              const activity = folderActivities.value.find(a => parseInt(a.id) === targetActivityId);
+              if (activity) {
+                console.log('✅ Found activity in folder:', folder.title, 'Activity:', activity.title);
+                selectedFolder.value = folder;
+                activeTab.value = 'portfolio';
+                // Use openActivity to load full activity details including instruction files
+                await openActivity(activity);
+                activityFound = true;
+                localStorage.removeItem('notification_context');
+                
+                // Add event listeners and return early
+                document.addEventListener('click', handleDocumentClick, true);
+                document.addEventListener('click', handleClickOutside);
+                window.addEventListener('classChanged', handleClassChange);
+                window.addEventListener('subjectChanged', handleSubjectChange);
+                window.addEventListener('notificationNavigation', handleNotificationNavigation);
+                const folderEventHandler = () => { if (!selectedFolder.value) loadPortfolioFolders(); };
+                window.addEventListener('folderCreated', folderEventHandler);
+                window.addEventListener('folderDeleted', folderEventHandler);
+                window.addEventListener('folderUpdated', folderEventHandler);
+                return;
+              }
+            }
+            
+            if (!activityFound) {
+              console.warn('⚠️ Activity not found in any folder. Activity ID:', targetActivityId);
+            }
+          }
+        } else {
+          console.log('⏰ Notification context is stale (older than 10 seconds)');
+        }
+        // Clear stale notification context
+        localStorage.removeItem('notification_context');
+      } catch (error) {
+        console.error('❌ Error handling notification context:', error);
+        localStorage.removeItem('notification_context');
+      }
+    }
+
+    // Check if we need to navigate to a specific tab (from notification)
+    const navigateToTab = localStorage.getItem('student_navigate_to_tab');
+    if (navigateToTab) {
+      console.log('📂 Navigating to tab from notification:', navigateToTab);
+      if (navigateToTab === 'compilation') {
+        activeTab.value = 'compilation';
+        // Refresh compilation status
+        await checkPortfolioCompilationStatus();
+      }
+      localStorage.removeItem('student_navigate_to_tab');
+    }
+
     // Restore previous view state if it exists
     const savedView = localStorage.getItem('student_current_view');
     if (savedView) {
@@ -5510,6 +5629,7 @@ onMounted(async () => {
   document.addEventListener('click', handleClickOutside);
   window.addEventListener('classChanged', handleClassChange);
   window.addEventListener('subjectChanged', handleSubjectChange);
+  window.addEventListener('notificationNavigation', handleNotificationNavigation);
   const folderEventHandler = () => { if (!selectedFolder.value) loadPortfolioFolders(); };
   window.addEventListener('folderCreated', folderEventHandler);
   window.addEventListener('folderDeleted', folderEventHandler);
@@ -5522,6 +5642,7 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
   window.removeEventListener('classChanged', handleClassChange);
   window.removeEventListener('subjectChanged', handleSubjectChange);
+  window.removeEventListener('notificationNavigation', handleNotificationNavigation);
   const folderEventHandler = () => { if (!selectedFolder.value) loadPortfolioFolders(); };
   window.removeEventListener('folderCreated', folderEventHandler);
   window.removeEventListener('folderDeleted', folderEventHandler);

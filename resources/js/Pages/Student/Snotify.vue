@@ -303,6 +303,11 @@ const loadNotifications = async () => {
           date: new Date(notif.created_at),
           isNew: isNew,
           isUnread: !notif.is_read,
+          // Include related entity IDs for navigation
+          activityId: notif.activity,
+          submissionId: notif.submission,
+          portfolioId: notif.portfolio,
+          remarkId: notif.remark,
         };
       });
       console.log('✅ Loaded student notifications:', notifications.value.length);
@@ -506,6 +511,13 @@ const handleNotificationClick = async (notification) => {
   if (type === 'activity_created' || type === 'activity_updated') {
     // Navigate to classroom to view the activity
     console.log('📍 Navigating to classroom for activity notification');
+    // Set notification context with activity ID for direct navigation
+    if (notification.activityId) {
+      localStorage.setItem('notification_context', JSON.stringify({
+        activityId: notification.activityId,
+        timestamp: Date.now()
+      }));
+    }
     if (window.navigateTo) {
       window.navigateTo('StudentRoom');
     } else {
@@ -528,8 +540,15 @@ const handleNotificationClick = async (notification) => {
       window.location.href = '/student/sketch';
     }
   } else if (type === 'score_added') {
-    // Navigate to classroom to view score
-    console.log('📍 Navigating to classroom for score notification');
+    // Navigate to classroom to view the specific scored activity
+    console.log('📍 Navigating to classroom for score notification, activityId:', notification.activityId);
+    // Set notification context with activity ID for direct navigation to the scored activity
+    if (notification.activityId) {
+      localStorage.setItem('notification_context', JSON.stringify({
+        activityId: notification.activityId,
+        timestamp: Date.now()
+      }));
+    }
     if (window.navigateTo) {
       window.navigateTo('StudentRoom');
     } else {

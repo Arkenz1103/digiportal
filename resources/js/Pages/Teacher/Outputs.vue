@@ -276,7 +276,7 @@ const activity = ref({
 });
 
 // Load activity data from API
-const loadActivityFromAPI = async (activityId) => {
+const loadActivityFromAPI = async (activityId, setClassContext = false) => {
     try {
         console.log('🔄 Reloading activity from API:', activityId);
         const response = await axios.get(`/api/activities/${activityId}/`);
@@ -312,6 +312,7 @@ const loadActivityFromAPI = async (activityId) => {
         // Update activity with fresh data from API
         activity.value = {
             ...activity.value,
+            id: activityId,
             title: response.data.title,
             description: response.data.description,
             type: response.data.activity_type,
@@ -320,10 +321,22 @@ const loadActivityFromAPI = async (activityId) => {
             formattedDateTime: formattedDateTime,
             scoringCriteria: scoringCriteria,
             instruction_files: response.data.instruction_files || [],
-            class: response.data.classroom_name || activity.value.class // Get from API, fallback to existing
+            class: response.data.classroom_name || activity.value.class, // Get from API, fallback to existing
+            subject: response.data.folder_name || activity.value.subject // Get folder name as subject
         };
 
         console.log('✅ Activity updated from API:', activity.value);
+
+        // If coming from notification, set the class context in localStorage
+        // This ensures "Back to Activities" works correctly
+        if (setClassContext && response.data.classroom_id && response.data.classroom_name) {
+            const classContext = {
+                id: response.data.classroom_id,
+                name: response.data.classroom_name
+            };
+            localStorage.setItem('digiportal_selected_class', JSON.stringify(classContext));
+            console.log('✅ Set class context from notification:', classContext);
+        }
         
         // After activity is fully updated (including class), load class members
         if (activity.value.class) {
@@ -347,6 +360,45 @@ const handleClassChange = (event) => {
 
 // Load selected activity on component mount
 onMounted(async () => {
+    // Check if we're coming from a notification click
+    const notificationContext = localStorage.getItem('notification_context');
+    if (notificationContext) {
+        try {
+            const context = JSON.parse(notificationContext);
+            // Only use if recent (within 10 seconds) to avoid stale data
+            if (Date.now() - context.timestamp < 10000) {
+                console.log('📬 Coming from notification:', context);
+                
+                // If notification has an activity ID, load that specific activity
+                if (context.activityId) {
+                    console.log('🎯 Loading specific activity from notification:', context.activityId);
+                    // Pass true to set class context since we're coming from notification
+                    await loadActivityFromAPI(context.activityId, true);
+                    // Clear the notification context after using it
+                    localStorage.removeItem('notification_context');
+                    
+                    // Load submissions for this activity
+                    await Promise.all([
+                        loadUnscoredSubmissions(),
+                        loadScoredSubmissions()
+                    ]);
+                    loadClassMembers();
+                    
+                    // Listen for events
+                    window.addEventListener('classChanged', handleClassChange);
+                    document.addEventListener('click', handleExportClickOutside);
+                    return; // Exit early since we've loaded the activity
+                }
+            }
+            // Clear stale notification context
+            localStorage.removeItem('notification_context');
+        } catch (e) {
+            console.error('Error parsing notification context:', e);
+            localStorage.removeItem('notification_context');
+        }
+    }
+
+    // Default behavior: load from saved activity
     const savedActivity = localStorage.getItem('selected_activity');
     if (savedActivity) {
         const parsedActivity = JSON.parse(savedActivity);
@@ -403,6 +455,15 @@ const emit = defineEmits(['navigate']);
 const goBack = () => {
     // Store the subject/folder context so Room.vue can show the activities list
     console.log('Going back with activity:', activity.value);
+    
+    // Ensure class context is set (in case it wasn't set earlier)
+    const existingClass = localStorage.getItem('digiportal_selected_class');
+    if (!existingClass && activity.value.class) {
+        // Try to construct class context from activity data
+        console.log('⚠️ No class context found, attempting to set from activity');
+        // We need classroom_id which might not be available, so just ensure class name is there
+    }
+    
     if (activity.value.subject) {
         const returnData = {
             subject: activity.value.subject,
@@ -412,7 +473,9 @@ const goBack = () => {
         console.log('Storing return context:', returnData);
         localStorage.setItem('return_to_activities', JSON.stringify(returnData));
     } else {
-        console.warn('No subject found in activity, cannot restore activities view');
+        console.warn('No subject found in activity, will show folders view instead');
+        // Clear any stale return context
+        localStorage.removeItem('return_to_activities');
     }
     emit('navigate', 'TeacherRoom');
 };

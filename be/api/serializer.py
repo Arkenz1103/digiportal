@@ -118,12 +118,16 @@ class PortfolioActivitySerializer(serializers.ModelSerializer):
 
     classroom_id = serializers.SerializerMethodField()
     classroom_name = serializers.SerializerMethodField()
+    folder_name = serializers.SerializerMethodField()
 
     def get_classroom_id(self, obj):
         return obj.folder.classroom.id if obj.folder and obj.folder.classroom else None
 
     def get_classroom_name(self, obj):
         return obj.folder.classroom.name if obj.folder and obj.folder.classroom else "General"
+
+    def get_folder_name(self, obj):
+        return obj.folder.name if obj.folder else None
 
     class Meta:
         model = PortfolioActivity

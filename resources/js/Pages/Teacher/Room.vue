@@ -3283,12 +3283,15 @@ const actualClassName = computed(() => {
 const handleClassChange = async (event) => {
     console.log('🔄 Class changed in Room, reloading data...', event.detail);
 
+    // Extract class from event detail (can be event.detail.classItem or event.detail directly)
+    const classData = event.detail.classItem || event.detail;
+
     // Update selected class in localStorage (already done by MainLayout, but ensure it's set)
-    localStorage.setItem('digiportal_selected_class', JSON.stringify(event.detail));
+    localStorage.setItem('digiportal_selected_class', JSON.stringify(classData));
 
     // Update local state
-    selectedClass.value = event.detail;
-    className.value = event.detail.name;
+    selectedClass.value = classData;
+    className.value = classData.name;
 
     // Clear current view state - go back to folders view
     showingActivities.value = false;
@@ -3305,7 +3308,21 @@ const handleClassChange = async (event) => {
     // Reload folders for the new class
     await loadPortfolioFolders();
 
-    console.log('✅ Folders reloaded for class:', event.detail.name);
+    // Check if we need to navigate to a specific tab (from notification)
+    const navigateToTab = localStorage.getItem('teacher_navigate_to_tab');
+    if (navigateToTab) {
+        console.log('📂 Navigating to tab from notification:', navigateToTab);
+        if (navigateToTab === 'compilation') {
+            activeTab.value = 'portfolio';
+            // Refresh portfolio compilation status
+            await checkPortfolioCompilationStatus();
+            // Load portfolio students
+            await fetchPortfolioEnvelopes();
+        }
+        localStorage.removeItem('teacher_navigate_to_tab');
+    }
+
+    console.log('✅ Folders reloaded for class:', classData.name);
 };
 
 // Load selected class on mount
@@ -3990,6 +4007,21 @@ onMounted(async () => {
     document.addEventListener('click', handleClickOutside);
     document.addEventListener('click', closeFolderMenu);
 
+    // Check if we're coming from a notification that needs to navigate to a specific tab
+    // Do this BEFORE loading folders to ensure class is set correctly
+    const navigateToTab = localStorage.getItem('teacher_navigate_to_tab');
+    if (navigateToTab === 'compilation') {
+        console.log('📂 Coming from notification, will navigate to compilation tab');
+        // Ensure the class is loaded from localStorage first
+        const savedClass = localStorage.getItem('digiportal_selected_class');
+        if (savedClass) {
+            const classData = JSON.parse(savedClass);
+            selectedClass.value = classData;
+            className.value = classData.name;
+            console.log('✅ Class loaded from notification context:', classData.name);
+        }
+    }
+
     // Authenticate with backend first, then load folders
     const authenticated = await authenticateWithBackend();
     if (authenticated) {
@@ -4084,6 +4116,20 @@ onMounted(async () => {
                 console.error('❌ Error restoring teacher view state:', error);
                 localStorage.removeItem('teacher_current_view');
             }
+        }
+
+        // Check if we need to navigate to a specific tab (from notification)
+        const navigateToTab = localStorage.getItem('teacher_navigate_to_tab');
+        if (navigateToTab) {
+            console.log('📂 Navigating to tab from notification:', navigateToTab);
+            if (navigateToTab === 'compilation') {
+                activeTab.value = 'portfolio';
+                // Refresh portfolio compilation status
+                await checkPortfolioCompilationStatus();
+                // Load portfolio students
+                await fetchPortfolioEnvelopes();
+            }
+            localStorage.removeItem('teacher_navigate_to_tab');
         }
     } else {
         console.error('Failed to authenticate with backend');

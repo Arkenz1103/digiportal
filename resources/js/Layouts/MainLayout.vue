@@ -13,6 +13,23 @@ const emit = defineEmits(['navigate']);
 // Use a runtime URL so Vite doesn't transform it to an import
 const logoUrl = '/logo.jpg';
 
+// Helper to get CSRF token from cookie
+const getCsrfToken = () => {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+};
+
 // Sidebar collapse state
 const isCollapsed = ref(false);
 provide('isSidebarCollapsed', isCollapsed);
@@ -113,6 +130,11 @@ const loadNotifications = async () => {
                     date: new Date(notif.created_at),
                     isNew: isNew,
                     isUnread: !notif.is_read,
+                    // Store related IDs for specific navigation
+                    activityId: notif.activity,
+                    submissionId: notif.submission,
+                    portfolioId: notif.portfolio,
+                    remarkId: notif.remark,
                 };
             });
 
@@ -179,34 +201,70 @@ watch(showNotifications, (isOpen) => {
 const getNotificationIcon = (type) => {
     // Map notification types to icons
     const iconMap = {
+        // Portfolio notifications
         'portfolio_created': 'pi-folder-open',
         'portfolio_updated': 'pi-folder',
         'portfolio_deleted': 'pi-trash',
+        'portfolio_compilation': 'pi-book',
+        'portfolio_envelope': 'pi-envelope',
+        'portfolio_submitted': 'pi-send',
+        
+        // Activity notifications
         'activity_created': 'pi-plus-circle',
         'activity_updated': 'pi-pencil',
         'activity_deleted': 'pi-times-circle',
+        
+        // Submission notifications
+        'submission_received': 'pi-file-edit',
+        'submission_created': 'pi-file-edit',
         'submission_approved': 'pi-check-circle',
         'submission_rejected': 'pi-times-circle',
-        'score_added': 'pi-star',
-        'submission_received': 'pi-file-edit',
+        
+        // Approval notifications
         'approval_requested': 'pi-question-circle',
+        
+        // Score notifications
+        'score_added': 'pi-star',
+        
+        // Remark notifications
+        'remark_added': 'pi-comment',
+        'remark_updated': 'pi-comments',
+        'remark_deleted': 'pi-comment-slash',
     };
     return iconMap[type] || 'pi-bell';
 };
 
 const getNotificationColor = (type) => {
     const colorMap = {
+        // Portfolio notifications
         'portfolio_created': 'bg-gradient-to-br from-green-400 to-emerald-500',
         'portfolio_updated': 'bg-gradient-to-br from-blue-400 to-blue-500',
         'portfolio_deleted': 'bg-gradient-to-br from-red-400 to-rose-500',
+        'portfolio_compilation': 'bg-gradient-to-br from-purple-400 to-purple-600',
+        'portfolio_envelope': 'bg-gradient-to-br from-teal-400 to-teal-600',
+        'portfolio_submitted': 'bg-gradient-to-br from-green-500 to-emerald-600',
+        
+        // Activity notifications
         'activity_created': 'bg-gradient-to-br from-indigo-400 to-indigo-500',
         'activity_updated': 'bg-gradient-to-br from-blue-400 to-cyan-500',
         'activity_deleted': 'bg-gradient-to-br from-red-400 to-pink-500',
+        
+        // Submission notifications
+        'submission_received': 'bg-gradient-to-br from-indigo-400 to-purple-500',
+        'submission_created': 'bg-gradient-to-br from-indigo-400 to-purple-500',
         'submission_approved': 'bg-gradient-to-br from-green-400 to-teal-500',
         'submission_rejected': 'bg-gradient-to-br from-red-500 to-orange-500',
-        'score_added': 'bg-gradient-to-br from-yellow-400 to-amber-500',
-        'submission_received': 'bg-gradient-to-br from-indigo-400 to-purple-500',
+        
+        // Approval notifications
         'approval_requested': 'bg-gradient-to-br from-violet-400 to-purple-500',
+        
+        // Score notifications
+        'score_added': 'bg-gradient-to-br from-yellow-400 to-amber-500',
+        
+        // Remark notifications
+        'remark_added': 'bg-gradient-to-br from-blue-400 to-indigo-500',
+        'remark_updated': 'bg-gradient-to-br from-cyan-400 to-blue-500',
+        'remark_deleted': 'bg-gradient-to-br from-gray-400 to-gray-500',
     };
     return colorMap[type] || 'bg-gradient-to-br from-indigo-400 to-purple-500';
 };
@@ -223,13 +281,18 @@ const markAsRead = async (id) => {
         // Find the notification first to get its type
         const notification = notifications.value.find(n => n.id === id) ||
                            allNotifications.value.find(n => n.id === id);
+        
+        // Track if notification was new (for badge count)
+        const wasNew = notification?.isNew || false;
 
+        const csrfToken = getCsrfToken();
         const response = await fetch('/api/notifications/', {
             method: 'PUT',
-            credentials: 'include', // Include session cookies
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest', // Help Django recognize AJAX requests
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken || '',
             },
             body: JSON.stringify({ notification_id: id })
         });
@@ -240,6 +303,11 @@ const markAsRead = async (id) => {
                 notification.isNew = false;
             }
             unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
+            
+            // Decrease badge count if notification was new
+            if (wasNew && newNotificationsCount.value > 0) {
+                newNotificationsCount.value--;
+            }
 
             // Close the dropdown
             showNotifications.value = false;
@@ -250,7 +318,14 @@ const markAsRead = async (id) => {
             }
         } else if (response.status === 403 || response.status === 401) {
             console.error('❌ Authentication failed - Please refresh the page');
-            // Just navigate without marking as read
+            // Still update local state and navigate
+            if (notification) {
+                notification.isUnread = false;
+                notification.isNew = false;
+                if (wasNew && newNotificationsCount.value > 0) {
+                    newNotificationsCount.value--;
+                }
+            }
             showNotifications.value = false;
             if (notification) {
                 handleNotificationNavigation(notification);
@@ -263,8 +338,72 @@ const markAsRead = async (id) => {
         const notification = notifications.value.find(n => n.id === id) ||
                            allNotifications.value.find(n => n.id === id);
         if (notification) {
+            // Update local state even if API fails
+            const wasNew = notification.isNew;
+            notification.isUnread = false;
+            notification.isNew = false;
+            if (wasNew && newNotificationsCount.value > 0) {
+                newNotificationsCount.value--;
+            }
             handleNotificationNavigation(notification);
         }
+    }
+};
+
+// State for notification menu
+const activeNotificationMenu = ref(null);
+
+// Toggle notification menu
+const toggleNotificationMenu = (notificationId, event) => {
+    event.stopPropagation();
+    activeNotificationMenu.value = activeNotificationMenu.value === notificationId ? null : notificationId;
+};
+
+// Delete a single notification
+const deleteNotification = async (notificationId, event) => {
+    event.stopPropagation();
+    activeNotificationMenu.value = null;
+    
+    // Find the notification before deleting to check if it was unread/new
+    const notificationToDelete = allNotifications.value.find(n => n.id === notificationId);
+    const wasUnread = notificationToDelete?.isUnread || false;
+    const wasNew = notificationToDelete?.isNew || false;
+    
+    try {
+        const csrfToken = getCsrfToken();
+        const response = await fetch('/api/notifications/', {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken || '',
+            },
+            body: JSON.stringify({ notification_id: notificationId })
+        });
+
+        if (response.ok) {
+            // Remove from arrays
+            allNotifications.value = allNotifications.value.filter(n => n.id !== notificationId);
+            notifications.value = notifications.value.filter(n => n.id !== notificationId);
+            
+            // Update unread count
+            unreadCount.value = allNotifications.value.filter(n => n.isUnread).length;
+            
+            // Update badge count if the deleted notification was new
+            if (wasNew && newNotificationsCount.value > 0) {
+                newNotificationsCount.value--;
+            }
+            
+            showSuccess('Notification deleted', 'Deleted');
+        } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Delete failed:', response.status, errorData);
+            showError('Failed to delete notification', 'Error');
+        }
+    } catch (error) {
+        console.error('Error deleting notification:', error);
+        showError('Failed to delete notification', 'Error');
     }
 };
 
@@ -274,80 +413,164 @@ const handleNotificationNavigation = (notification) => {
     const userRole = currentUser.value.role;
 
     console.log(`📍 Navigating for notification type: ${type}, user role: ${userRole}`);
+    console.log(`📋 Notification details:`, notification);
+
+    // Store notification context for the target page to use (includes activity/submission IDs)
+    const notificationContext = {
+        type: type,
+        title: notification.title,
+        message: notification.message,
+        activityId: notification.activityId,
+        submissionId: notification.submissionId,
+        portfolioId: notification.portfolioId,
+        remarkId: notification.remarkId,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('notification_context', JSON.stringify(notificationContext));
 
     if (userRole === 'student') {
-        // Student navigation
-        if (type === 'activity_created' || type === 'activity_updated') {
-            if (window.navigateTo) {
-                window.navigateTo('StudentRoom');
-            } else {
-                window.location.href = '/student/room';
-            }
-        } else if (type === 'submission_approved') {
-            if (window.navigateTo) {
-                window.navigateTo('StudentNewsfeed');
-            } else {
-                window.location.href = '/student/newsfeed';
-            }
-        } else if (type === 'submission_rejected') {
-            if (window.navigateTo) {
-                window.navigateTo('StudentSketch');
-            } else {
-                window.location.href = '/student/sketch';
-            }
-        } else if (type === 'score_added') {
-            if (window.navigateTo) {
-                window.navigateTo('StudentRoom');
-            } else {
-                window.location.href = '/student/room';
-            }
-        } else if (type === 'portfolio_created' || type === 'portfolio_updated') {
-            if (window.navigateTo) {
-                window.navigateTo('StudentRoom');
-            } else {
-                window.location.href = '/student/room';
-            }
-        } else {
-            // Default: navigate to classroom
-            if (window.navigateTo) {
-                window.navigateTo('StudentRoom');
-            } else {
-                window.location.href = '/student/room';
-            }
+        // Student navigation - be specific about where to go
+        switch (type) {
+            // Activity notifications - go to Student Room (activities list)
+            case 'activity_created':
+            case 'activity_updated':
+            case 'activity_deleted':
+                navigateToPage('StudentRoom');
+                // Dispatch event for already-mounted components to handle
+                window.dispatchEvent(new CustomEvent('notificationNavigation', { detail: notificationContext }));
+                break;
+            
+            // Score added - go to Student Room to see the score
+            case 'score_added':
+                navigateToPage('StudentRoom');
+                // Dispatch event for already-mounted components to handle
+                window.dispatchEvent(new CustomEvent('notificationNavigation', { detail: notificationContext }));
+                break;
+            
+            // Submission approved - go to Newsfeed to see the post
+            case 'submission_approved':
+                navigateToPage('StudentNewsfeed');
+                break;
+            
+            // Submission rejected - go to Sketch to resubmit
+            case 'submission_rejected':
+                navigateToPage('StudentSketch');
+                break;
+            
+            // Portfolio created/updated/deleted - go to Student Room
+            case 'portfolio_created':
+            case 'portfolio_updated':
+            case 'portfolio_deleted':
+                navigateToPage('StudentRoom');
+                break;
+            
+            // Portfolio compilation request - go to Student Room Portfolio Compilation tab
+            // This handles both "started" and "cancelled" notifications
+            case 'portfolio_compilation':
+                // Store that we want to show Portfolio Compilation tab
+                localStorage.setItem('student_navigate_to_tab', 'compilation');
+                navigateToPage('StudentRoom');
+                break;
+            
+            // Remark notifications - go to Remarked page
+            case 'remark_added':
+            case 'remark_updated':
+            case 'remark_deleted':
+                navigateToPage('StudentRemarked');
+                break;
+            
+            // Default: go to Student Room
+            default:
+                navigateToPage('StudentRoom');
+                break;
         }
     } else if (userRole === 'teacher') {
-        // Teacher navigation
-        if (type === 'submission_received' || type === 'approval_requested') {
-            if (window.navigateTo) {
-                window.navigateTo('TeacherNotice');
-            } else {
-                window.location.href = '/teacher/notice';
-            }
-        } else if (type === 'submission_approved' || type === 'submission_rejected') {
-            if (window.navigateTo) {
-                window.navigateTo('TeacherOutputs');
-            } else {
-                window.location.href = '/teacher/outputs';
-            }
-        } else if (type === 'activity_created' || type === 'activity_updated') {
-            if (window.navigateTo) {
-                window.navigateTo('TeacherRoom');
-            } else {
-                window.location.href = '/teacher/room';
-            }
-        } else if (type === 'portfolio_created' || type === 'portfolio_updated') {
-            if (window.navigateTo) {
-                window.navigateTo('TeacherRoom');
-            } else {
-                window.location.href = '/teacher/room';
-            }
-        } else {
-            // Default: navigate to home
-            if (window.navigateTo) {
-                window.navigateTo('TeacherHome');
-            } else {
-                window.location.href = '/teacher/home';
-            }
+        // Teacher navigation - be specific about where to go
+        switch (type) {
+            // Student submitted work - go to Outputs page to review submissions
+            case 'submission_received':
+            case 'submission_created':
+                navigateToPage('TeacherOutputs');
+                break;
+            
+            // Student requested to post to feed - go to Notice for approval
+            case 'approval_requested':
+                navigateToPage('TeacherNotice');
+                break;
+            
+            // Portfolio envelope created/submitted - go to Teacher Room Portfolio Compilation tab
+            case 'portfolio_envelope':
+            case 'portfolio_submitted':
+                // Extract class name from notification message (e.g., "... for Grade 3 - B")
+                // Message format: "Student has created their portfolio envelope for Grade X - Y"
+                const classMatch = notification.message.match(/for\s+(Grade\s+\d+\s*-\s*[A-Za-z])/i);
+                if (classMatch && classMatch[1]) {
+                    const targetClassName = classMatch[1].trim();
+                    console.log('🎯 Extracted class name from notification:', targetClassName);
+                    
+                    // Find the matching class from loaded classes
+                    const matchingClass = classes.value.find(c => 
+                        c.name.toLowerCase().replace(/\s+/g, ' ') === targetClassName.toLowerCase().replace(/\s+/g, ' ')
+                    );
+                    
+                    if (matchingClass) {
+                        console.log('✅ Found matching class:', matchingClass);
+                        // Set the selected class in localStorage so TeacherRoom can use it
+                        localStorage.setItem('digiportal_selected_class', JSON.stringify(matchingClass));
+                        
+                        // Dispatch classChanged event so Room component knows to reload
+                        window.dispatchEvent(new CustomEvent('classChanged', {
+                            detail: {
+                                classItem: matchingClass,
+                                subject: null
+                            }
+                        }));
+                    } else {
+                        console.warn('⚠️ Could not find matching class for:', targetClassName);
+                    }
+                }
+                
+                // Store that we want to show Portfolio Compilation tab
+                localStorage.setItem('teacher_navigate_to_tab', 'compilation');
+                navigateToPage('TeacherRoom');
+                break;
+            
+            // Activity notifications - go to Teacher Room
+            case 'activity_created':
+            case 'activity_updated':
+            case 'activity_deleted':
+                navigateToPage('TeacherRoom');
+                break;
+            
+            // Portfolio created/updated/deleted - go to Teacher Room
+            case 'portfolio_created':
+            case 'portfolio_updated':
+            case 'portfolio_deleted':
+                navigateToPage('TeacherRoom');
+                break;
+            
+            // Score added - go to Outputs to see scored submissions
+            case 'score_added':
+                navigateToPage('TeacherOutputs');
+                break;
+            
+            // Submission approved/rejected - go to Notice
+            case 'submission_approved':
+            case 'submission_rejected':
+                navigateToPage('TeacherNotice');
+                break;
+            
+            // Remark notifications - go to Remarks page
+            case 'remark_added':
+            case 'remark_updated':
+            case 'remark_deleted':
+                navigateToPage('TeacherRemarks');
+                break;
+            
+            // Default: go to Teacher Home
+            default:
+                navigateToPage('TeacherHome');
+                break;
         }
     }
 };
@@ -359,25 +582,35 @@ const deleteAllNotifications = () => {
 
 const confirmDeleteAllNotifications = async () => {
     try {
-        // Delete all notifications via API
-        const deletePromises = allNotifications.value.map(notif =>
-            fetch(`/api/notifications/${notif.id}/`, {
-                method: 'DELETE',
-                credentials: 'include',
-            })
-        );
+        const csrfToken = getCsrfToken();
+        
+        // Delete all notifications via API using the delete_all flag
+        const response = await fetch('/api/notifications/', {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken || '',
+            },
+            body: JSON.stringify({ delete_all: true })
+        });
 
-        await Promise.all(deletePromises);
+        if (response.ok) {
+            // Clear local state
+            allNotifications.value = [];
+            notifications.value = [];
+            unreadCount.value = 0;
+            newNotificationsCount.value = 0;
+            showDeleteAllDialog.value = false;
 
-        // Clear local state
-        allNotifications.value = [];
-        notifications.value = [];
-        unreadCount.value = 0;
-        newNotificationsCount.value = 0;
-        showDeleteAllDialog.value = false;
-
-        console.log('✅ All notifications deleted');
-        showSuccess('All notifications deleted successfully', 'Deleted');
+            console.log('✅ All notifications deleted');
+            showSuccess('All notifications deleted successfully', 'Deleted');
+        } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Delete all failed:', response.status, errorData);
+            showError('Failed to delete notifications', 'Error');
+        }
     } catch (error) {
         console.error('❌ Error deleting notifications:', error);
         showError('Failed to delete notifications. Please try again.', 'Error');
@@ -723,9 +956,33 @@ const navigateToNotifications = () => {
 };
 
 // Close dropdowns when clicking outside
-const closeDropdowns = () => {
-    isDropdownOpen.value = false;
-    showNotifications.value = false;
+const closeDropdowns = (event) => {
+    // Check if click is outside the notification dropdown
+    const notificationDropdown = document.querySelector('.notification-dropdown');
+    const notificationButton = document.querySelector('.notification-bell-button');
+    
+    if (notificationDropdown && notificationButton) {
+        if (!notificationDropdown.contains(event.target) && !notificationButton.contains(event.target)) {
+            showNotifications.value = false;
+            activeNotificationMenu.value = null;
+        }
+    } else {
+        // Fallback: close if clicking outside
+        showNotifications.value = false;
+        activeNotificationMenu.value = null;
+    }
+    
+    // Close profile dropdown
+    const profileDropdown = document.querySelector('.profile-dropdown');
+    const profileButton = document.querySelector('.profile-button');
+    
+    if (profileDropdown && profileButton) {
+        if (!profileDropdown.contains(event.target) && !profileButton.contains(event.target)) {
+            isDropdownOpen.value = false;
+        }
+    } else {
+        isDropdownOpen.value = false;
+    }
 };
 
 // Listen for storage changes (when user logs in/out in another tab or page refreshes)
@@ -845,6 +1102,9 @@ const loadSubjectsForAllClasses = async () => {
 
 
 onMounted(async () => {
+    // Add click outside listener
+    document.addEventListener('click', closeDropdowns);
+    
     // Load user data and notifications
     await loadUserProfile(); // Load from API first
     await loadNotifications(); // Load notifications
@@ -1105,12 +1365,12 @@ const auth = computed(() => ({
                                 <div class="relative">
                                     <button
                                         @click.stop="showNotifications = !showNotifications"
-                                        class="relative w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-full transition-all duration-300 focus:outline-none group"
+                                        class="notification-bell-button relative w-12 h-12 flex items-center justify-center hover:bg-gray-100 rounded-full transition-all duration-300 focus:outline-none group"
                                         :class="{ 'bg-gray-100': showNotifications }"
                                     >
                                         <i class="pi pi-bell text-gray-700 text-2xl transition-transform duration-300 group-hover:scale-110"
                                            :class="{ 'animate-bounce text-indigo-600': newNotificationsCount > 0 && !showNotifications }"></i>
-                                        <!-- Notification Badge -->
+                                        <!-- Notification Badge - shows new notifications since last opened -->
                                         <div
                                             v-if="newNotificationsCount > 0 && !showNotifications"
                                             class="absolute top-0 right-0 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow-lg animate-pulse"
@@ -1122,28 +1382,20 @@ const auth = computed(() => ({
                                     <!-- Notifications Dropdown -->
                                     <div
                                         v-show="showNotifications"
-                                        class="absolute right-0 top-full mt-2 w-96 max-h-[600px] bg-white rounded-2xl shadow-2xl border-2 border-indigo-100 overflow-hidden z-50 transform transition-all duration-300"
+                                        class="notification-dropdown absolute right-0 top-full mt-2 w-96 max-h-[600px] bg-white rounded-2xl shadow-2xl border-2 border-indigo-100 overflow-hidden z-50 transform transition-all duration-300"
                                         :class="showNotifications ? 'scale-100 opacity-100' : 'scale-95 opacity-0'"
                                         @click.stop
                                     >
                                         <!-- Header -->
                                         <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center gap-2">
-                                                    <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-                                                        <i class="pi pi-bell text-white text-sm"></i>
-                                                    </div>
-                                                    <h3 class="font-bold text-gray-900">Notifications</h3>
-                                                    <span v-if="unreadCount > 0" class="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
-                                                        {{ unreadCount }}
-                                                    </span>
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                                                    <i class="pi pi-bell text-white text-sm"></i>
                                                 </div>
-                                                <button
-                                                    @click="navigateToNotifications"
-                                                    class="text-sm text-indigo-600 hover:text-indigo-900 font-semibold hover:underline transition-all"
-                                                >
-                                                    View All
-                                                </button>
+                                                <h3 class="font-bold text-gray-900">Notifications</h3>
+                                                <span v-if="unreadCount > 0" class="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
+                                                    {{ unreadCount }}
+                                                </span>
                                             </div>
                                         </div>
 
@@ -1152,14 +1404,18 @@ const auth = computed(() => ({
                                             <div
                                                 v-for="notification in notifications"
                                                 :key="notification.id"
-                                                @click="markAsRead(notification.id)"
-                                                class="group px-5 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 cursor-pointer border-b border-gray-100 last:border-0"
-                                                :class="{ 'bg-gradient-to-r from-indigo-50/50 to-purple-50/50': notification.isUnread }"
+                                                class="group px-5 py-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 border-b border-gray-100 last:border-0 relative"
+                                                :class="{ 'bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border-l-4 border-l-indigo-500': notification.isUnread }"
                                             >
+                                                <!-- Unread indicator dot on the left -->
+                                                <div 
+                                                    v-if="notification.isUnread" 
+                                                    class="absolute left-1.5 top-1/2 -translate-y-1/2 w-2 h-2 bg-indigo-500 rounded-full animate-pulse"
+                                                ></div>
 
-                                                <div class="flex items-start gap-3">
+                                                <div class="flex items-start gap-3" @click="markAsRead(notification.id)">
                                                     <!-- Icon -->
-                                                    <div class="relative">
+                                                    <div class="relative cursor-pointer">
                                                         <div
                                                             class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md transition-transform duration-200 group-hover:scale-110"
                                                             :class="getNotificationColor(notification.type)"
@@ -1170,9 +1426,12 @@ const auth = computed(() => ({
                                                     </div>
 
                                                     <!-- Content -->
-                                                    <div class="flex-1 min-w-0">
+                                                    <div class="flex-1 min-w-0 cursor-pointer">
                                                         <div class="flex items-start justify-between gap-2 mb-1">
-                                                            <p class="font-semibold text-sm text-gray-900 line-clamp-1">
+                                                            <p 
+                                                                class="text-sm line-clamp-1"
+                                                                :class="notification.isUnread ? 'font-bold text-gray-900' : 'font-medium text-gray-700'"
+                                                            >
                                                                 {{ notification.title }}
                                                             </p>
                                                             <span
@@ -1180,6 +1439,12 @@ const auth = computed(() => ({
                                                                 class="px-2 py-0.5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold shrink-0"
                                                             >
                                                                 New
+                                                            </span>
+                                                            <span
+                                                                v-else-if="notification.isUnread"
+                                                                class="px-2 py-0.5 bg-indigo-500 text-white text-xs rounded-full font-medium shrink-0"
+                                                            >
+                                                                Unread
                                                             </span>
                                                         </div>
                                                         <p class="text-sm text-gray-600 line-clamp-2">
@@ -1190,6 +1455,30 @@ const auth = computed(() => ({
                                                         </p>
                                                     </div>
 
+                                                    <!-- 3-dot Menu Button -->
+                                                    <div class="relative">
+                                                        <button
+                                                            @click.stop="toggleNotificationMenu(notification.id, $event)"
+                                                            class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <i class="pi pi-ellipsis-v text-gray-500 text-sm"></i>
+                                                        </button>
+                                                        
+                                                        <!-- Dropdown Menu -->
+                                                        <div
+                                                            v-if="activeNotificationMenu === notification.id"
+                                                            class="absolute right-0 top-full mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                                                            @click.stop
+                                                        >
+                                                            <button
+                                                                @click="deleteNotification(notification.id, $event)"
+                                                                class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                                            >
+                                                                <i class="pi pi-trash text-xs"></i>
+                                                                <span>Delete</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -1223,17 +1512,6 @@ const auth = computed(() => ({
                                                 <span>{{ isLoadingMore ? 'Loading...' : 'See previous notifications' }}</span>
                                             </button>
                                         </div>
-
-                                        <!-- View All Button (when all loaded) -->
-                                        <div v-else-if="allNotifications.length > 5" class="border-t border-gray-100 p-3 bg-gray-50">
-                                            <button
-                                                @click="navigateToNotifications"
-                                                class="w-full py-3 px-4 bg-gradient-to-r from-indigo-100 to-purple-100 hover:from-indigo-200 hover:to-purple-200 text-indigo-700 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group"
-                                            >
-                                                <i class="pi pi-external-link text-sm group-hover:scale-110 transition-transform"></i>
-                                                <span>View all in notifications page</span>
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
 
@@ -1241,7 +1519,7 @@ const auth = computed(() => ({
                                 <div class="relative">
                                     <button
                                         @click.stop="toggleDropdown"
-                                        class="flex items-center gap-3 hover:bg-gray-100 rounded-full py-1.5 px-2 transition-all duration-200"
+                                        class="profile-button flex items-center gap-3 hover:bg-gray-100 rounded-full py-1.5 px-2 transition-all duration-200"
                                     >
                                         <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                                             <img
@@ -1269,7 +1547,7 @@ const auth = computed(() => ({
                                     <!-- Dropdown Menu -->
                                     <div
                                         v-show="isDropdownOpen"
-                                        class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50"
+                                        class="profile-dropdown absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50"
                                         @click.stop
                                     >
                                         <!-- User Info -->
