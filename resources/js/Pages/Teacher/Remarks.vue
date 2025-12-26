@@ -4,7 +4,7 @@
     <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 shadow-lg rounded-t-xl h-40 md:h-36 flex items-center px-6 md:px-8">
       <h1 class="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
         <i class="pi pi-comments"></i>
-        Pupil's Management Remarks
+        Remarks Management
       </h1>
     </div>
 

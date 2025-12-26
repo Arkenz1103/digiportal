@@ -1554,27 +1554,6 @@ const auth = computed(() => ({
                                         <div class="px-4 py-3 border-b border-gray-100">
                                             <p class="text-sm font-medium text-gray-900">{{ auth?.user?.name }}</p>
                                             <p class="text-xs text-gray-500">{{ auth?.user?.email }}</p>
-                                            <!-- Student/Teacher ID and Grade/Department -->
-                                            <div v-if="auth?.user?.role === 'student'" class="mt-2 space-y-1">
-                                                <p class="text-xs text-indigo-600">
-                                                    <i class="pi pi-id-card mr-1"></i>
-                                                    ID: {{ auth?.user?.student_id || auth?.user?.id_number || 'Not assigned' }}
-                                                </p>
-                                                <p v-if="auth?.user?.grade_level && auth?.user?.section" class="text-xs text-gray-600">
-                                                    <i class="pi pi-book mr-1"></i>
-                                                    {{ auth?.user?.grade_level }} - {{ auth?.user?.section }}
-                                                </p>
-                                            </div>
-                                            <div v-else-if="auth?.user?.role === 'teacher'" class="mt-2 space-y-1">
-                                                <p class="text-xs text-indigo-600">
-                                                    <i class="pi pi-id-card mr-1"></i>
-                                                    ID: {{ auth?.user?.id_number || 'Not assigned' }}
-                                                </p>
-                                                <p v-if="auth?.user?.department" class="text-xs text-gray-600">
-                                                    <i class="pi pi-briefcase mr-1"></i>
-                                                    {{ auth?.user?.department }}
-                                                </p>
-                                            </div>
                                         </div>
 
                                         <!-- Menu Items -->

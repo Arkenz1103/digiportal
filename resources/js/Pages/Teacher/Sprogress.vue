@@ -16,7 +16,7 @@
 
             <!-- Page Title -->
             <div class="mt-6 md:mt-8">
-                <h2 class="text-2xl md:text-3xl font-bold text-white">Student Progress Tracking</h2>
+                <h2 class="text-2xl md:text-3xl font-bold text-white">Student Progress</h2>
             </div>
         </div>
 

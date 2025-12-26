@@ -32,10 +32,9 @@ const sketchToDelete = ref(null);
 const isPostingToFeed = ref(false);
 const showPostConfirmDialog = ref(false); // New confirmation dialog
 const currentPreviewIndex = ref(0); // For navigating multiple selected sketches
-const attachedImage = ref(null);
-const imagePosition = ref({ x: 0, y: 0 });
-const imageSize = ref({ width: 0, height: 0 });
-const imageScale = ref(1);
+// Multiple images support
+const attachedImages = ref([]); // Array of { image, position, size, scale }
+const selectedImageIndex = ref(-1); // Currently selected image for manipulation
 const isDraggingImage = ref(false);
 const isResizingImage = ref(false);
 const resizeCorner = ref(null);
@@ -100,39 +99,56 @@ const initCanvas = () => {
 const startDrawing = (e) => {
     const [x, y] = getCoordinates(e);
     
-    if (currentTool.value === 'hand' && attachedImage.value) {
-        // Check if clicking on resize corner
-        const corner = getResizeCorner(x, y);
-        if (corner) {
-            isResizingImage.value = true;
-            resizeCorner.value = corner;
-            dragStartPos.value = { 
-                x, 
-                y, 
-                width: imageSize.value.width * imageScale.value, 
-                height: imageSize.value.height * imageScale.value,
-                startX: imagePosition.value.x,
-                startY: imagePosition.value.y
-            };
-        } else {
-            isDraggingImage.value = true;
-            dragStartPos.value = { x: x - imagePosition.value.x, y: y - imagePosition.value.y };
+    if (currentTool.value === 'hand' && attachedImages.value.length > 0) {
+        // Check if clicking on any image's resize corner or body
+        for (let i = attachedImages.value.length - 1; i >= 0; i--) {
+            const img = attachedImages.value[i];
+            const corner = getResizeCornerForImage(x, y, img);
+            if (corner) {
+                selectedImageIndex.value = i;
+                isResizingImage.value = true;
+                resizeCorner.value = corner;
+                dragStartPos.value = { 
+                    x, 
+                    y, 
+                    width: img.size.width * img.scale, 
+                    height: img.size.height * img.scale,
+                    startX: img.position.x,
+                    startY: img.position.y
+                };
+                return;
+            }
+            
+            // Check if clicking inside image bounds
+            const scaledWidth = img.size.width * img.scale;
+            const scaledHeight = img.size.height * img.scale;
+            if (x >= img.position.x && x <= img.position.x + scaledWidth &&
+                y >= img.position.y && y <= img.position.y + scaledHeight) {
+                selectedImageIndex.value = i;
+                isDraggingImage.value = true;
+                dragStartPos.value = { x: x - img.position.x, y: y - img.position.y };
+                return;
+            }
         }
-    } else {
-        isDrawing.value = true;
-        [lastX.value, lastY.value] = [x, y];
+        // Clicked outside all images, deselect
+        selectedImageIndex.value = -1;
     }
+    
+    // Start drawing
+    isDrawing.value = true;
+    [lastX.value, lastY.value] = [x, y];
 };
 
 const draw = (e) => {
     const [x, y] = getCoordinates(e);
     
-    if (currentTool.value === 'hand' && attachedImage.value) {
+    if (currentTool.value === 'hand' && selectedImageIndex.value >= 0) {
+        const img = attachedImages.value[selectedImageIndex.value];
         if (isResizingImage.value) {
-            handleResize(x, y);
+            handleResize(x, y, img);
             return;
         } else if (isDraggingImage.value) {
-            imagePosition.value = {
+            img.position = {
                 x: x - dragStartPos.value.x,
                 y: y - dragStartPos.value.y
             };
@@ -170,10 +186,7 @@ const stopDrawing = () => {
         saveDrawingsLayer();
         saveToHistory();
     }
-    if (isResizingImage.value) {
-        saveToHistory();
-    }
-    if (isDraggingImage.value) {
+    if (isResizingImage.value || isDraggingImage.value) {
         saveToHistory();
     }
     isDrawing.value = false;
@@ -182,11 +195,9 @@ const stopDrawing = () => {
     resizeCorner.value = null;
 };
 
-// Save the drawings layer (without the image)
+// Save the drawings layer (without the images)
 const saveDrawingsLayer = () => {
-    if (!attachedImage.value) return;
-    
-    // Create a new canvas for drawings
+    // Create a new canvas for drawings only
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.value.width;
     tempCanvas.height = canvas.value.height;
@@ -195,32 +206,32 @@ const saveDrawingsLayer = () => {
     // Copy the current canvas
     tempCtx.drawImage(canvas.value, 0, 0);
     
-    // Remove the image area by clearing it
-    const scaledWidth = imageSize.value.width * imageScale.value;
-    const scaledHeight = imageSize.value.height * imageScale.value;
-    tempCtx.clearRect(
-        imagePosition.value.x - 1,
-        imagePosition.value.y - 1,
-        scaledWidth + 2,
-        scaledHeight + 2
-    );
+    // Clear all image areas to isolate drawings
+    for (const img of attachedImages.value) {
+        const scaledWidth = img.size.width * img.scale;
+        const scaledHeight = img.size.height * img.scale;
+        tempCtx.clearRect(
+            img.position.x - 1,
+            img.position.y - 1,
+            scaledWidth + 2,
+            scaledHeight + 2
+        );
+    }
     
     canvasDrawings.value = tempCanvas;
 };
 
-// Get resize corner if mouse is near corner
-const getResizeCorner = (x, y) => {
-    if (!attachedImage.value) return null;
-    
-    const scaledWidth = imageSize.value.width * imageScale.value;
-    const scaledHeight = imageSize.value.height * imageScale.value;
+// Get resize corner for a specific image
+const getResizeCornerForImage = (x, y, img) => {
+    const scaledWidth = img.size.width * img.scale;
+    const scaledHeight = img.size.height * img.scale;
     const cornerSize = 20;
     
     const corners = {
-        'top-left': { x: imagePosition.value.x, y: imagePosition.value.y },
-        'top-right': { x: imagePosition.value.x + scaledWidth, y: imagePosition.value.y },
-        'bottom-left': { x: imagePosition.value.x, y: imagePosition.value.y + scaledHeight },
-        'bottom-right': { x: imagePosition.value.x + scaledWidth, y: imagePosition.value.y + scaledHeight }
+        'top-left': { x: img.position.x, y: img.position.y },
+        'top-right': { x: img.position.x + scaledWidth, y: img.position.y },
+        'bottom-left': { x: img.position.x, y: img.position.y + scaledHeight },
+        'bottom-right': { x: img.position.x + scaledWidth, y: img.position.y + scaledHeight }
     };
     
     for (const [corner, pos] of Object.entries(corners)) {
@@ -233,11 +244,11 @@ const getResizeCorner = (x, y) => {
 };
 
 // Handle image resize
-const handleResize = (x, y) => {
+const handleResize = (x, y, img) => {
     const dx = x - dragStartPos.value.x;
     const dy = y - dragStartPos.value.y;
     
-    const aspectRatio = imageSize.value.width / imageSize.value.height;
+    const aspectRatio = img.size.width / img.size.height;
     let newWidth = dragStartPos.value.width;
     let newHeight = dragStartPos.value.height;
     let newX = dragStartPos.value.startX;
@@ -276,15 +287,13 @@ const handleResize = (x, y) => {
         newHeight = newWidth / aspectRatio;
     }
     
-    imagePosition.value.x = newX;
-    imagePosition.value.y = newY;
-    imageScale.value = newWidth / imageSize.value.width;
+    img.position.x = newX;
+    img.position.y = newY;
+    img.scale = newWidth / img.size.width;
     redrawCanvas();
 };
 
 const redrawCanvas = () => {
-    if (!attachedImage.value) return;
-    
     // Clear canvas
     ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height);
     ctx.value.fillStyle = '#ffffff';
@@ -295,17 +304,68 @@ const redrawCanvas = () => {
         ctx.value.drawImage(canvasDrawings.value, 0, 0);
     }
     
-    // Then draw the attached image on top at the new position with scale
-    const scaledWidth = imageSize.value.width * imageScale.value;
-    const scaledHeight = imageSize.value.height * imageScale.value;
+    // Then draw all attached images
+    for (let i = 0; i < attachedImages.value.length; i++) {
+        const img = attachedImages.value[i];
+        const scaledWidth = img.size.width * img.scale;
+        const scaledHeight = img.size.height * img.scale;
+        
+        ctx.value.drawImage(
+            img.image,
+            img.position.x,
+            img.position.y,
+            scaledWidth,
+            scaledHeight
+        );
+        
+        // Draw resize handles for selected image when hand tool is active
+        if (currentTool.value === 'hand' && i === selectedImageIndex.value) {
+            drawResizeHandles(img);
+        }
+    }
+};
+
+// Draw resize handles at corners of selected image
+const drawResizeHandles = (img) => {
+    const scaledWidth = img.size.width * img.scale;
+    const scaledHeight = img.size.height * img.scale;
+    const handleSize = 12;
     
-    ctx.value.drawImage(
-        attachedImage.value,
-        imagePosition.value.x,
-        imagePosition.value.y,
-        scaledWidth,
-        scaledHeight
-    );
+    // Draw border around selected image
+    ctx.value.strokeStyle = '#4F46E5';
+    ctx.value.lineWidth = 2;
+    ctx.value.setLineDash([5, 5]);
+    ctx.value.strokeRect(img.position.x, img.position.y, scaledWidth, scaledHeight);
+    ctx.value.setLineDash([]);
+    
+    // Corner positions
+    const corners = [
+        { x: img.position.x, y: img.position.y }, // top-left
+        { x: img.position.x + scaledWidth, y: img.position.y }, // top-right
+        { x: img.position.x, y: img.position.y + scaledHeight }, // bottom-left
+        { x: img.position.x + scaledWidth, y: img.position.y + scaledHeight } // bottom-right
+    ];
+    
+    // Draw corner handles
+    for (const corner of corners) {
+        // White fill
+        ctx.value.fillStyle = '#ffffff';
+        ctx.value.fillRect(
+            corner.x - handleSize / 2,
+            corner.y - handleSize / 2,
+            handleSize,
+            handleSize
+        );
+        // Indigo border
+        ctx.value.strokeStyle = '#4F46E5';
+        ctx.value.lineWidth = 2;
+        ctx.value.strokeRect(
+            corner.x - handleSize / 2,
+            corner.y - handleSize / 2,
+            handleSize,
+            handleSize
+        );
+    }
 };
 
 const clearCanvas = () => {
@@ -316,6 +376,10 @@ const confirmClearCanvas = () => {
     const canvasElement = canvas.value;
     ctx.value.fillStyle = '#ffffff';
     ctx.value.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    // Clear all attached images
+    attachedImages.value = [];
+    selectedImageIndex.value = -1;
+    canvasDrawings.value = null;
     showClearCanvasDialog.value = false;
     showInfo('Canvas cleared', 'Cleared');
 };
@@ -327,11 +391,16 @@ const setTool = (toolId) => {
     } else {
         brushSize.value = 5;
     }
+    // Redraw canvas to show/hide resize handles
+    if (attachedImages.value.length > 0) {
+        redrawCanvas();
+    }
 };
 
 // Computed property for cursor style
 const canvasCursor = computed(() => {
     if (currentTool.value === 'hand') {
+        if (isResizingImage.value) return 'cursor-nwse-resize';
         return isDraggingImage.value ? 'cursor-grabbing' : 'cursor-grab';
     } else if (currentTool.value === 'eraser') {
         return 'cursor-pointer';
@@ -534,39 +603,46 @@ const handleImageUpload = (e) => {
     reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
+            // Save current canvas state as drawings before adding new image
+            if (attachedImages.value.length === 0) {
+                // First image - save existing drawings
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.value.width;
+                tempCanvas.height = canvas.value.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(canvas.value, 0, 0);
+                canvasDrawings.value = tempCanvas;
+            }
+            
             const hRatio = canvas.value.width / img.width;
             const vRatio = canvas.value.height / img.height;
-            const ratio = Math.min(hRatio, vRatio);
+            const ratio = Math.min(hRatio, vRatio) * 0.5; // Start at 50% to fit multiple images
             const centerShiftX = (canvas.value.width - img.width * ratio) / 2;
             const centerShiftY = (canvas.value.height - img.height * ratio) / 2;
             
-            // Save current drawings before adding image
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.value.width;
-            tempCanvas.height = canvas.value.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(canvas.value, 0, 0);
-            canvasDrawings.value = tempCanvas;
+            // Add new image to array
+            const newImage = {
+                image: img,
+                position: { x: centerShiftX + (attachedImages.value.length * 20), y: centerShiftY + (attachedImages.value.length * 20) },
+                size: { width: img.width * ratio, height: img.height * ratio },
+                scale: 1
+            };
             
-            // Store the image and position for dragging
-            attachedImage.value = img;
-            imagePosition.value = { x: centerShiftX, y: centerShiftY };
-            imageSize.value = { width: img.width * ratio, height: img.height * ratio };
-            imageScale.value = 1;
+            attachedImages.value.push(newImage);
+            selectedImageIndex.value = attachedImages.value.length - 1;
             
-            // Draw the image on top of existing drawings
-            ctx.value.drawImage(
-                img, 
-                0, 0, img.width, img.height,
-                centerShiftX, centerShiftY, 
-                img.width * ratio, img.height * ratio
-            );
+            // Redraw canvas with all images
+            redrawCanvas();
             
             saveToHistory();
+            showSuccess(`Image ${attachedImages.value.length} attached! Use Hand tool to move/resize.`, 'Image Added');
         };
         img.src = event.target.result;
     };
     reader.readAsDataURL(file);
+    
+    // Reset file input to allow selecting same file again
+    e.target.value = '';
 };
 
 // Undo/Redo functionality
@@ -617,22 +693,24 @@ const handleKeyboard = (e) => {
 
 // Image zoom in/out
 const zoomIn = () => {
-    if (!attachedImage.value) return;
-    imageScale.value = Math.min(imageScale.value + 0.1, 3);
+    if (selectedImageIndex.value < 0 || attachedImages.value.length === 0) return;
+    const img = attachedImages.value[selectedImageIndex.value];
+    img.scale = Math.min(img.scale + 0.1, 3);
     redrawCanvas();
     saveToHistory();
 };
 
 const zoomOut = () => {
-    if (!attachedImage.value) return;
-    imageScale.value = Math.max(imageScale.value - 0.1, 0.1);
+    if (selectedImageIndex.value < 0 || attachedImages.value.length === 0) return;
+    const img = attachedImages.value[selectedImageIndex.value];
+    img.scale = Math.max(img.scale - 0.1, 0.1);
     redrawCanvas();
     saveToHistory();
 };
 
 // Crop functionality
 const startCrop = () => {
-    if (!attachedImage.value) {
+    if (attachedImages.value.length === 0) {
         showWarning('Please attach an image first!', 'No Image');
         return;
     }
@@ -654,12 +732,24 @@ const applyCrop = () => {
         canvas.value.height = height;
         ctx.value.putImageData(imageData, 0, 0);
         
-        attachedImage.value = null;
+        attachedImages.value = [];
+        selectedImageIndex.value = -1;
         saveToHistory();
     }
     
     isCropping.value = false;
     currentTool.value = 'brush';
+};
+
+// Delete selected image
+const deleteSelectedImage = () => {
+    if (selectedImageIndex.value >= 0 && attachedImages.value.length > 0) {
+        attachedImages.value.splice(selectedImageIndex.value, 1);
+        selectedImageIndex.value = attachedImages.value.length > 0 ? attachedImages.value.length - 1 : -1;
+        redrawCanvas();
+        saveToHistory();
+        showInfo('Image removed', 'Deleted');
+    }
 };
 </script>
 
@@ -852,6 +942,18 @@ const applyCrop = () => {
                                     class="px-3 py-1.5 text-[#0E1836] hover:bg-[#B8AAFF]/10 rounded-lg transition-colors flex items-center gap-1">
                                 <i class="pi pi-image"></i>
                                 <span>Attach Photo</span>
+                                <span v-if="attachedImages.length > 0" class="ml-1 px-1.5 py-0.5 bg-indigo-600 text-white text-xs rounded-full">
+                                    {{ attachedImages.length }}
+                                </span>
+                            </button>
+                            
+                            <!-- Delete Selected Image -->
+                            <button v-if="selectedImageIndex >= 0 && attachedImages.length > 0"
+                                    @click="deleteSelectedImage" 
+                                    class="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
+                                    title="Delete selected image">
+                                <i class="pi pi-trash"></i>
+                                <span>Remove Image</span>
                             </button>
                         </div>
                         

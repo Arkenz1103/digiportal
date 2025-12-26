@@ -265,18 +265,7 @@ onMounted(() => {
                             <div class="flex-1">
                                 <h3 class="text-xl font-bold text-gray-900">{{ user.first_name }} {{ user.last_name }}</h3>
                                 <p class="text-gray-600">{{ user.email }}</p>
-                                <div class="flex items-center gap-3 mt-1">
-                                    <span class="text-sm text-indigo-600">
-                                        Student ID: {{ user.student_id || 'Not assigned' }}
-                                    </span>
-                                    <span v-if="user.grade_level && user.section" class="text-sm text-gray-500">•</span>
-                                    <span v-if="user.grade_level && user.section" class="text-sm text-gray-600">
-                                        {{ user.grade_level }} - {{ user.section }}
-                                    </span>
-                                    <span v-else class="text-sm text-gray-400 italic">
-                                        Grade & Section: Not assigned
-                                    </span>
-                                </div>
+                                <p class="text-sm text-indigo-600 mt-1">Student</p>
                             </div>
 
                             <!-- Hidden file input -->
@@ -365,15 +354,20 @@ onMounted(() => {
                             <!-- Phone Number -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                                <input
-                                    v-model="user.phone_number"
-                                    @input="user.phone_number = user.phone_number.replace(/\D/g, '').slice(0, 13)"
-                                    :disabled="!isEditingProfile"
-                                    type="tel"
-                                    placeholder="+123-456-7890"
-                                    maxlength="13"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
-                                />
+                                <div class="flex">
+                                    <span class="inline-flex items-center px-3 text-sm text-gray-600 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg">
+                                        +63
+                                    </span>
+                                    <input
+                                        v-model="user.phone_number"
+                                        @input="user.phone_number = user.phone_number.replace(/\D/g, '').slice(0, 10)"
+                                        :disabled="!isEditingProfile"
+                                        type="tel"
+                                        placeholder="9123456789"
+                                        maxlength="10"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                                    />
+                                </div>
                             </div>
 
                             <!-- Student ID (Read-only) -->
