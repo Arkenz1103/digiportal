@@ -509,7 +509,7 @@
                                     </div>
                                 </div>
 
-                                <div class="max-w-3xl mx-auto p-8 relative z-10">
+                                <div class="max-w-6xl mx-auto p-8 relative z-10">
                                     <!-- Show Closed Envelope (Front Cover) -->
                                     <div v-if="!isEnvelopeOpen" class="animate-fadeIn">
                                         <!-- Back Button - Aligned with envelope -->
@@ -827,13 +827,7 @@
                                                 {{ notStartedStudents.length }}
                                             </span>
                                         </button>
-                                        <button
-                                            @click="showDropCompilationDialog = true"
-                                            class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
-                                        >
-                                            <i class="pi pi-trash"></i>
-                                            Drop Portfolio Compilation
-                                        </button>
+                                        <!-- Drop Portfolio Compilation button hidden -->
                                     </div>
                                 </div>
 
@@ -867,14 +861,13 @@
 
                                 <!-- Table Body -->
                                 <div class="divide-y divide-gray-200">
-                                    <!-- Student Rows - Clickable only when Done -->
+                                    <!-- Student Rows - Clickable when Done -->
                                     <div
                                         v-for="student in portfolioStudents"
                                         :key="student.id"
-                                        @click="student.isSubmitted ? viewStudentEnvelope(student) : null"
-                                        class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150"
-                                        :class="student.isSubmitted ? 'cursor-pointer' : ''"
-                                        :title="student.isSubmitted ? 'Click to view portfolio' : ''"
+                                        @click="viewStudentEnvelope(student)"
+                                        class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150 cursor-pointer"
+                                        title="Click to view portfolio"
                                     >
                                         <div class="grid grid-cols-5 gap-4 items-center text-sm">
                                             <div class="flex items-center gap-3">
@@ -888,7 +881,7 @@
                                             <div class="text-gray-700">{{ student.dateCreated }}</div>
                                             <div class="text-gray-700">{{ student.timeCreated }}</div>
                                             <div>
-                                                <span v-if="student.isSubmitted" class="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Done</span>
+                                                <span v-if="student.isSubmitted || student.status === 'Done'" class="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Done</span>
                                                 <span v-else class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">In Progress</span>
                                             </div>
                                         </div>
@@ -3359,7 +3352,21 @@ const isReturningFromOutputs = () => {
     return false;
 };
 
-const activeTab = ref(isReturningFromOutputs() ? 'pupil' : 'classroom');
+// Get saved tab from localStorage or use default
+const getSavedTab = () => {
+    const savedTab = localStorage.getItem('teacher_room_active_tab');
+    if (savedTab && ['classroom', 'pupil', 'portfolio'].includes(savedTab)) {
+        return savedTab;
+    }
+    return isReturningFromOutputs() ? 'pupil' : 'classroom';
+};
+
+const activeTab = ref(getSavedTab());
+
+// Watch for tab changes and save to localStorage
+watch(activeTab, (newTab) => {
+    localStorage.setItem('teacher_room_active_tab', newTab);
+});
 
 // Tab configurations
 const tabs = [
@@ -3970,7 +3977,9 @@ const fetchPortfolioEnvelopes = async () => {
                 className: env.class_name || props.className || className.value,
                 isSubmitted: env.is_submitted,
                 status: env.status || (env.is_submitted ? 'Done' : 'In Progress'),
-                submittedAt: env.submitted_at
+                submittedAt: env.submitted_at,
+                compiled_count: env.compiled_count || 0,
+                total_activities: env.total_activities || 0
             }));
 
             console.log(`✅ Loaded ${portfolioStudents.value.length} portfolio envelopes`);

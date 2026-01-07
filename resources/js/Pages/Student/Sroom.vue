@@ -1122,7 +1122,7 @@
             <div class="relative z-10 p-4 md:p-6">
 
             <!-- Show designed portfolio envelope if created -->
-            <div v-if="portfolioEnvelopeCreated" class="max-w-3xl mx-auto relative z-10">
+            <div v-if="portfolioEnvelopeCreated" class="max-w-6xl mx-auto relative z-10">
               <!-- Portfolio Envelope Display - Hide when opened -->
               <div
                 v-if="!isEnvelopeOpen"
@@ -1201,7 +1201,7 @@
               </div>
 
               <!-- Activities Carousel - Show when envelope is opened -->
-              <div v-if="isEnvelopeOpen && portfolioActivities.length > 0" class="relative animate-fadeIn">
+              <div v-if="isEnvelopeOpen" class="relative animate-fadeIn">
                 <!-- Portfolio Tabs with Back Button on Left -->
                 <div class="flex justify-between items-center mb-6 animate-slideDown">
                   <!-- Back Button on the left -->
@@ -1284,8 +1284,26 @@
                   <!-- Activity Display -->
                   <div class="relative p-6 z-10">
 
+                    <!-- Empty State - No compiled activities yet -->
+                    <div v-if="portfolioActivities.length === 0" class="flex flex-col items-center justify-center min-h-[500px] text-white">
+                      <div class="bg-white/20 rounded-full p-8 mb-6">
+                        <i class="pi pi-inbox text-6xl"></i>
+                      </div>
+                      <h3 class="text-2xl font-bold mb-3">No Compiled Activities Yet</h3>
+                      <p class="text-white/80 text-center max-w-md mb-6">
+                        You haven't compiled any activities yet. Go to the "Missing Activity Compilation" tab to compile your activities.
+                      </p>
+                      <button
+                        @click="activePortfolioTab = 'missing'"
+                        class="px-6 py-3 bg-white text-gray-800 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
+                      >
+                        <i class="pi pi-exclamation-triangle"></i>
+                        View Missing Activities ({{ missingActivities.length }})
+                      </button>
+                    </div>
+
                     <!-- Activity Content -->
-                    <div v-if="portfolioActivities[currentActivityIndex]"
+                    <div v-else-if="portfolioActivities[currentActivityIndex]"
                          :key="currentActivityIndex"
                          @vue:mounted="currentFileIndex = 0">
                       
@@ -3932,9 +3950,23 @@ const actualClassName = computed(() => {
     return props.className;
 });
 
-const activeTab = ref('classroom');
+// Get saved tab from localStorage or use default
+const getSavedStudentTab = () => {
+    const savedTab = localStorage.getItem('student_room_active_tab');
+    if (savedTab && ['classroom', 'portfolio', 'compilation'].includes(savedTab)) {
+        return savedTab;
+    }
+    return 'classroom';
+};
+
+const activeTab = ref(getSavedStudentTab());
 const activeContentTab = ref('samples');
 const portfolioData = ref({ teacher_requested_compilation: false }); // Reactive object for portfolio state
+
+// Watch for tab changes and save to localStorage
+watch(activeTab, (newTab) => {
+    localStorage.setItem('student_room_active_tab', newTab);
+});
 
 const isCompilationReady = computed(() => {
     return portfolioData.value?.teacher_requested_compilation === true;

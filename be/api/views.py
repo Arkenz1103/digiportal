@@ -2105,11 +2105,8 @@ def unscored_submissions_api(request):
         latest_submissions = StudentSubmission.objects.filter(
             Q(status='unscored') | 
             Q(status='draft', resubmit_count__gt=0) |
-            Q(compiled=True) |  # Include compiled submissions
-            Q(is_compilation=True)  # Include compilation submissions
-        ).exclude(
-            # Exclude scored submissions that are NOT compiled
-            Q(status='scored') & Q(compiled=False) & Q(is_compilation=False)
+            (Q(compiled=True) & Q(status='unscored')) |  # Only include compiled if unscored
+            (Q(is_compilation=True) & Q(status='unscored'))  # Only include compilation if unscored
         ).values('student', 'activity').annotate(
             latest_id=Max('id')
         )
@@ -2122,7 +2119,7 @@ def unscored_submissions_api(request):
             id__in=latest_ids
         ).order_by('-submitted_at')
 
-        print(f"📊 Unscored submissions query: Found {submissions.count()} unique submissions (including compiled)")
+        print(f"📊 Unscored submissions query: Found {submissions.count()} unique submissions (including unscored compiled)")
 
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -2138,25 +2135,21 @@ def unscored_submissions_api(request):
 def scored_submissions_api(request):
     """
     GET: List all scored submissions (teacher only)
-    Excludes compiled submissions - those should only appear in submitted tab
+    Only includes submissions with status='scored' AND has a score AND has scored_at timestamp
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can view scored submissions'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        # Get all scored submissions - filter by status='scored' OR has a score
-        # Exclude compiled submissions - they should only appear in submitted tab
+        # Get ONLY submissions with status='scored' AND has actual score AND scored_at timestamp
+        # This triple-check ensures only actually scored submissions appear in the Scored tab
         submissions = StudentSubmission.objects.filter(
-            Q(status='scored') | Q(score__isnull=False)
-        ).exclude(
-            status='draft'
-        ).exclude(
-            compiled=True  # Exclude compiled submissions
-        ).exclude(
-            is_compilation=True  # Also exclude by is_compilation flag
+            status='scored',
+            score__isnull=False,
+            scored_at__isnull=False
         ).distinct().order_by('-scored_at', '-submitted_at')
 
-        print(f"📊 Scored submissions query: Found {submissions.count()} submissions (excluding compiled)")
+        print(f"📊 Scored submissions query: Found {submissions.count()} submissions with status='scored' AND score AND scored_at")
 
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -3648,10 +3641,11 @@ def unread_notifications_count_api(request):
 
 
 @csrf_exempt
-@api_view(['POST'])
+@api_view(['POST', 'PUT'])
 def score_submission_api(request, submission_id):
     """
-    POST: Score a student submission with multiple criteria
+    POST: Score a student submission with multiple criteria (new score)
+    PUT: Update an existing score (edit score)
     Expected data:
     {
         "scores": {
@@ -3671,16 +3665,22 @@ def score_submission_api(request, submission_id):
         from .models import SubmissionScore
 
         submission = StudentSubmission.objects.get(id=submission_id)
+        
+        # Check if this is an edit (PUT) or new score (POST)
+        is_edit = request.method == 'PUT' or (submission.status == 'scored' and submission.score is not None)
 
         # Get scoring data from request
         score = request.data.get('score', 0)
         feedback = request.data.get('feedback', '')
         criteria_scores = request.data.get('criteria_scores', '[]')
 
-        print(f"Scoring submission {submission_id}:")
+        print(f"{'Editing' if is_edit else 'Scoring'} submission {submission_id}:")
         print(f"  Score: {score}")
         print(f"  Feedback: {feedback}")
         print(f"  Criteria scores: {criteria_scores}")
+
+        # Store old score for comparison (for edit notification)
+        old_score = submission.score if is_edit else None
 
         # Update submission with score, feedback, and criteria scores
         print(f"📝 Before update - Status: {submission.status}, Score: {submission.score}")
@@ -3694,7 +3694,7 @@ def score_submission_api(request, submission_id):
 
         # Refresh from database to confirm the save
         submission.refresh_from_db()
-        print(f"✅ Submission {submission_id} marked as scored")
+        print(f"✅ Submission {submission_id} {'edited' if is_edit else 'scored'}")
         print(f"📝 After update - Status: {submission.status}, Score: {submission.score}, Scored at: {submission.scored_at}")
 
         # Check if there are any remarks and feedback for this submission
@@ -3704,22 +3704,30 @@ def score_submission_api(request, submission_id):
         # Send notification to student
         activity_title = submission.activity.title if submission.activity else 'your submission'
 
-        # Create specific notification message based on what was added
-        notification_parts = []
-
-        if has_feedback and has_remarks:
-            notification_message = f'Your submission for "{activity_title}" has been scored and includes feedback and output remarks. Check your outputs to view your score and feedback.'
-        elif has_feedback:
-            notification_message = f'Your submission for "{activity_title}" has been scored and includes feedback. Check your outputs to view your score and feedback.'
-        elif has_remarks:
-            notification_message = f'Your submission for "{activity_title}" has been scored and includes output remarks. Check your outputs to view your score and remarks.'
+        # Create specific notification message based on whether it's an edit or new score
+        if is_edit:
+            notification_title = 'Score Updated'
+            notification_type = 'score_updated'
+            if old_score is not None:
+                notification_message = f'Your score for "{activity_title}" has been updated from {old_score} to {score}. Check your outputs to view the updated score.'
+            else:
+                notification_message = f'Your score for "{activity_title}" has been updated to {score}. Check your outputs to view the updated score.'
         else:
-            notification_message = f'Your submission for "{activity_title}" has been scored. Check your outputs to view your score.'
+            notification_title = 'Submission Scored'
+            notification_type = 'score_added'
+            if has_feedback and has_remarks:
+                notification_message = f'Your submission for "{activity_title}" has been scored and includes feedback and output remarks. Check your outputs to view your score and feedback.'
+            elif has_feedback:
+                notification_message = f'Your submission for "{activity_title}" has been scored and includes feedback. Check your outputs to view your score and feedback.'
+            elif has_remarks:
+                notification_message = f'Your submission for "{activity_title}" has been scored and includes output remarks. Check your outputs to view your score and remarks.'
+            else:
+                notification_message = f'Your submission for "{activity_title}" has been scored. Check your outputs to view your score.'
 
         create_notification(
             recipient=submission.student,
-            notification_type='score_added',
-            title='Submission Scored',
+            notification_type=notification_type,
+            title=notification_title,
             message=notification_message,
             submission=submission,
             activity=submission.activity
@@ -3727,8 +3735,9 @@ def score_submission_api(request, submission_id):
 
         serializer = StudentSubmissionSerializer(submission)
         return Response({
-            'message': 'Submission scored successfully',
-            'submission': serializer.data
+            'message': f'Submission {"updated" if is_edit else "scored"} successfully',
+            'submission': serializer.data,
+            'is_edit': is_edit
         }, status=status.HTTP_200_OK)
     except StudentSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -5959,24 +5968,43 @@ def get_portfolio_envelopes_api(request, class_name):
             submitted_time = timezone.localtime(envelope.submitted_at) if envelope.submitted_at else local_time
 
             # Count activities for this student in this class
-            from .models import StudentSubmission, PortfolioFolder
+            from .models import StudentSubmission, PortfolioFolder, PortfolioActivity
+            from django.db.models import Q
+            
+            # Get folders for this class and teacher
             folders = PortfolioFolder.objects.filter(
                 class_name=class_name,
                 teacher=request.user
             )
 
-            activity_count = 0
-            for folder in folders:
-                # Count scored submissions and compilation submissions
-                activity_count += StudentSubmission.objects.filter(
-                    activity__folder=folder,
-                    student=envelope.student,
-                    status='scored',
-                    is_active=True
-                ).count()
-
-            # Determine status based on is_submitted flag
-            status_text = 'Done' if envelope.is_submitted else 'In Progress'
+            # Get all unique published activity IDs using a single query
+            all_activity_ids = list(PortfolioActivity.objects.filter(
+                folder__in=folders,
+                is_published=True
+            ).values_list('id', flat=True).distinct())
+            
+            total_activities = len(all_activity_ids)
+            
+            # Count compiled activities in a single query
+            compiled_count = StudentSubmission.objects.filter(
+                activity_id__in=all_activity_ids,
+                student=envelope.student,
+                is_active=True
+            ).filter(
+                Q(status='scored') | Q(compiled=True) | Q(is_compilation=True)
+            ).values('activity_id').distinct().count()
+            
+            missing_count = total_activities - compiled_count
+            
+            # Determine status based on is_submitted flag only
+            # In Progress = student is still working on compilation
+            # Done = student has submitted their portfolio
+            if envelope.is_submitted:
+                status_text = 'Done'
+            else:
+                status_text = 'In Progress'
+            
+            activity_count = 0  # Not needed for simple status
 
             # Build profile picture URL
             profile_picture_url = None
@@ -6001,7 +6029,9 @@ def get_portfolio_envelopes_api(request, class_name):
                 'submitted_at': submitted_time.isoformat() if envelope.is_submitted else None,
                 'date_created': local_time.strftime('%b %d, %Y'),
                 'time_created': local_time.strftime('%I:%M %p'),
-                'activity_count': activity_count
+                'activity_count': activity_count,
+                'total_activities': total_activities,
+                'compiled_count': compiled_count
             })
 
         print(f"✅ Found {len(envelope_list)} portfolio envelopes for {class_name} (filtered by student's classroom assignment)")

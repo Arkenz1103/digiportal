@@ -722,6 +722,8 @@ const loadScoredSubmissions = async () => {
                     activityType: submission.activity_type,
                     caption: submission.caption,
                     score: submission.score,
+                    feedback: submission.feedback || '',  // Include feedback for editing
+                    criteria_scores: submission.criteria_scores || null,  // Include criteria scores for editing
                     status: submission.display_status || 'Scored',  // Use display_status from backend
                     date: dateStr,
                     time: timeStr,
@@ -789,6 +791,7 @@ const technicalScore = ref('');
 const requirementsScore = ref('');
 const criteriaScores = ref([]); // Dynamic scores based on activity criteria
 const scoreFeedback = ref(''); // Feedback for the student
+const isEditingScore = ref(false); // Track if we're editing an existing score
 
 // Remarks section state
 const showRemarksSection = ref(true); // Show by default
@@ -968,6 +971,7 @@ const addScore = () => {
     technicalScore.value = '';
     requirementsScore.value = '';
     scoreFeedback.value = '';
+    isEditingScore.value = false; // Not editing, adding new score
 
     // Initialize criteria scores from activity
     console.log('Full activity object:', activity.value);
@@ -988,6 +992,56 @@ const addScore = () => {
     }
 
     // Show the add score dialog
+    showAddScoreDialog.value = true;
+};
+
+// Edit existing score
+const editScore = () => {
+    // Set editing mode
+    isEditingScore.value = true;
+    
+    // Load existing feedback
+    scoreFeedback.value = selectedSubmission.value.feedback || '';
+    
+    console.log('📝 Editing score for submission:', selectedSubmission.value.id);
+    console.log('📊 Existing criteria_scores:', selectedSubmission.value.criteria_scores);
+    
+    // Try to load existing criteria scores
+    let existingCriteriaScores = [];
+    if (selectedSubmission.value.criteria_scores) {
+        try {
+            existingCriteriaScores = typeof selectedSubmission.value.criteria_scores === 'string'
+                ? JSON.parse(selectedSubmission.value.criteria_scores)
+                : selectedSubmission.value.criteria_scores;
+            console.log('✅ Parsed existing criteria scores:', existingCriteriaScores);
+        } catch (e) {
+            console.error('❌ Error parsing existing criteria scores:', e);
+        }
+    }
+    
+    // Initialize criteria scores - prefer existing scores, fallback to activity criteria
+    if (existingCriteriaScores && existingCriteriaScores.length > 0) {
+        // Use existing scores
+        criteriaScores.value = existingCriteriaScores.map(criterion => ({
+            name: criterion.name,
+            maxScore: parseInt(criterion.maxScore),
+            score: parseInt(criterion.score)
+        }));
+        console.log('✅ Loaded existing criteria scores for editing:', criteriaScores.value);
+    } else if (activity.value.scoringCriteria && activity.value.scoringCriteria.length > 0) {
+        // Fallback to activity criteria with empty scores
+        criteriaScores.value = activity.value.scoringCriteria.map(criterion => ({
+            name: criterion.name,
+            maxScore: criterion.maxScore,
+            score: ''
+        }));
+        console.log('⚠️ No existing scores, using activity criteria:', criteriaScores.value);
+    } else {
+        criteriaScores.value = [];
+        console.log('❌ No scoring criteria found');
+    }
+    
+    // Show the score dialog
     showAddScoreDialog.value = true;
 };
 
@@ -1026,8 +1080,7 @@ const saveScore = async () => {
             };
         });
 
-        // Call the backend API to save the score
-        const response = await axios.post(`/api/submissions/${selectedSubmission.value.id}/score/`, {
+        const requestData = {
             score: totalScore,
             feedback: scoreFeedback.value.trim() || '',
             criteria_scores: JSON.stringify(criteriaScores.value.map(c => ({
@@ -1035,14 +1088,18 @@ const saveScore = async () => {
                 score: parseInt(c.score),
                 maxScore: parseInt(c.maxScore)
             })))
-        });
+        };
 
-        console.log('✅ Score saved successfully:', response.data);
+        // Use PUT for editing, POST for new scores
+        const method = isEditingScore.value ? 'put' : 'post';
+        const response = await axios[method](`/api/submissions/${selectedSubmission.value.id}/score/`, requestData);
+
+        console.log(`✅ Score ${isEditingScore.value ? 'updated' : 'saved'} successfully:`, response.data);
 
         // Small delay to ensure database is updated
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Refresh both lists to move submission from unscored to scored
+        // Refresh both lists to update the submission data
         console.log('🔄 Reloading submissions...');
         await Promise.all([
             loadUnscoredSubmissions(),
@@ -1053,7 +1110,10 @@ const saveScore = async () => {
         console.log('📊 Scored count:', scoredSubmissionsData.value.length);
 
         // Show success message
-        showSuccess('Score saved successfully!', 'Scored');
+        showSuccess(isEditingScore.value ? 'Score updated successfully!' : 'Score saved successfully!', isEditingScore.value ? 'Updated' : 'Scored');
+
+        // Switch to Scored tab to show the scored submission
+        currentTab.value = 'scored';
 
         // Close both dialogs AFTER everything is done
         closeAddScoreDialog();
@@ -1083,6 +1143,29 @@ const calculateMaxTotalScore = () => {
     return criteriaScores.value.reduce((total, criterion) => {
         return total + (parseInt(criterion.maxScore) || 0);
     }, 0);
+};
+
+// Get max score for a submission (from criteria_scores or activity scoring criteria)
+const getMaxScoreForSubmission = (submission) => {
+    // First try to get from submission's criteria_scores
+    if (submission.criteria_scores) {
+        try {
+            const criteria = typeof submission.criteria_scores === 'string'
+                ? JSON.parse(submission.criteria_scores)
+                : submission.criteria_scores;
+            if (criteria && criteria.length > 0) {
+                return criteria.reduce((total, c) => total + (parseInt(c.maxScore) || 0), 0);
+            }
+        } catch (e) {
+            console.error('Error parsing criteria_scores:', e);
+        }
+    }
+    // Fallback to activity scoring criteria
+    if (activity.value.scoringCriteria && activity.value.scoringCriteria.length > 0) {
+        return activity.value.scoringCriteria.reduce((sum, c) => sum + (parseInt(c.maxScore) || 0), 0);
+    }
+    // Default fallback
+    return 100;
 };
 
 // Computed properties for filtering submissions
@@ -1116,6 +1199,7 @@ const closeAddScoreDialog = () => {
     requirementsScore.value = '';
     criteriaScores.value = [];
     scoreFeedback.value = '';
+    isEditingScore.value = false; // Reset editing state
 };
 
 const closeDialog = () => {
@@ -1693,7 +1777,7 @@ const getMedalDetails = (rank) => {
                             @click="showExportConfirmDialog = true"
                             class="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm text-sm">
                             <i class="pi pi-file-excel text-xs"></i>
-                            <span class="font-medium">Export All Students</span>
+                            <span class="font-medium">Export Activity Record</span>
                         </button>
                     </div>
 
@@ -1902,7 +1986,7 @@ const getMedalDetails = (rank) => {
                                             <!-- Score (only for scored tab) -->
                                             <div v-if="currentTab === 'scored'" class="col-span-2 flex justify-center">
                                                 <div class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
-                                                    {{ item.score }} pts
+                                                    {{ item.score }}<span class="text-gray-400">/</span><span class="text-gray-600">{{ getMaxScoreForSubmission(item) }}</span> <span class="text-xs text-gray-500">pts</span>
                                                 </div>
                                             </div>
                                         </template>
@@ -1986,7 +2070,7 @@ const getMedalDetails = (rank) => {
                                             </div>
                                             <!-- Score on Card -->
                                             <div v-if="currentTab === 'scored'" class="shrink-0 font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded text-xs">
-                                                {{ item.score }}
+                                                {{ item.score }}/{{ getMaxScoreForSubmission(item) }}
                                             </div>
                                         </div>
                                     </div>
@@ -2026,14 +2110,14 @@ const getMedalDetails = (rank) => {
                             {{ selectedSubmission.caption || selectedSubmission.activityTitle || 'Submission Details' }}
                         </h3>
 
-                        <!-- Add Score Button (replaced with badge if already scored) -->
+                        <!-- Add Score Button (replaced with Edit Score if already scored) -->
                         <button
                             v-if="selectedSubmission.score !== null && selectedSubmission.score !== undefined"
-                            disabled
-                            class="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium flex items-center gap-2 border border-green-300 cursor-default"
+                            @click="editScore"
+                            class="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg font-medium flex items-center gap-2 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
                         >
-                            <i class="pi pi-check-circle"></i>
-                            <span>Already Scored</span>
+                            <i class="pi pi-pencil"></i>
+                            <span>Edit Score</span>
                         </button>
                         <button
                             v-else
@@ -2202,6 +2286,13 @@ const getMedalDetails = (rank) => {
                                                     <div class="text-xs text-gray-400 mt-0.5">{{ formatSubmissionTime(selectedSubmission.submitted_at) }}</div>
                                                 </div>
                                             </div>
+                                            <!-- Score Display (only if scored) -->
+                                            <div v-if="selectedSubmission.score !== null && selectedSubmission.score !== undefined" class="flex justify-between items-center text-sm pt-2 border-t border-indigo-100 mt-2">
+                                                <span class="text-gray-500">Score:</span>
+                                                <div class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+                                                    {{ selectedSubmission.score }}<span class="text-gray-400">/</span><span class="text-gray-600">{{ getMaxScoreForSubmission(selectedSubmission) }}</span> <span class="text-xs text-gray-500">pts</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2271,8 +2362,8 @@ const getMedalDetails = (rank) => {
         </div>
     </div>
 
-    <!-- Add Score Dialog -->
-    <Dialog v-model:visible="showAddScoreDialog" modal header="Add Score" :style="{ width: '800px' }">
+    <!-- Add/Edit Score Dialog -->
+    <Dialog v-model:visible="showAddScoreDialog" modal :header="isEditingScore ? 'Edit Score' : 'Add Score'" :style="{ width: '800px' }">
         <div class="space-y-4">
             <!-- Student Info -->
             <div class="bg-indigo-50 p-3 rounded-lg">
@@ -2354,7 +2445,7 @@ const getMedalDetails = (rank) => {
                 :disabled="criteriaScores.length === 0 || !criteriaScores.every(c => c.score !== '' && c.score !== null)"
                 :class="{ 'opacity-50 cursor-not-allowed': criteriaScores.length === 0 || !criteriaScores.every(c => c.score !== '' && c.score !== null) }"
             >
-                Confirm
+                {{ isEditingScore ? 'Update Score' : 'Confirm' }}
             </button>
         </template>
     </Dialog>
