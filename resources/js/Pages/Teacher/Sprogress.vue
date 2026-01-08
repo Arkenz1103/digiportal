@@ -54,13 +54,45 @@
                     </div>
                 </div>
 
-                <!-- Export Class Record Button -->
-                <button
-                    @click="showExportConfirmDialog = true"
-                    class="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm">
-                    <i class="pi pi-file-excel text-sm"></i>
-                    <span class="text-sm font-medium">Export Class Record</span>
-                </button>
+                <!-- Export Class Record Button with Dropdown -->
+                <div class="relative">
+                    <button
+                        @click="showExportDropdown = !showExportDropdown"
+                        class="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all shadow-sm">
+                        <i class="pi pi-file-excel text-sm"></i>
+                        <span class="text-sm font-medium">Export Class Record</span>
+                        <i class="pi pi-chevron-down text-xs ml-1"></i>
+                    </button>
+                    
+                    <!-- Export Dropdown Menu -->
+                    <div v-if="showExportDropdown" 
+                         class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-2">
+                        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                            Export Options
+                        </div>
+                        <button 
+                            @click="exportClassRecord('all')"
+                            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
+                            <i class="pi pi-th-large text-emerald-600"></i>
+                            All Subjects
+                        </button>
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <div class="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            By Subject
+                        </div>
+                        <button 
+                            v-for="folder in portfolioFolders" 
+                            :key="folder.id"
+                            @click="exportClassRecord(folder.name)"
+                            class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2">
+                            <i class="pi pi-folder text-indigo-500"></i>
+                            {{ folder.name }}
+                        </button>
+                        <div v-if="portfolioFolders.length === 0" class="px-4 py-2 text-sm text-gray-400 italic">
+                            No subjects available
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Search Results Info -->
@@ -444,10 +476,257 @@ const emit = defineEmits(['navigate']);
 const showDownloadDropdown = ref(false);
 const downloadDropdownRef = ref(null);
 
+// Export dropdown state for class record
+const showExportDropdown = ref(false);
+
 // Export confirmation dialog states
 const showExportConfirmDialog = ref(false);
 const showStudentExportConfirmDialog = ref(false);
 const studentToExport = ref(null);
+
+// Export class record function with subject filter
+const exportClassRecord = async (subjectFilter) => {
+    showExportDropdown.value = false;
+    
+    try {
+        const studentsToExport = [...filteredStudents.value].sort((a, b) => {
+            const getLastName = (name) => {
+                const parts = name.trim().split(' ');
+                return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : name.toLowerCase();
+            };
+            return getLastName(a.name).localeCompare(getLastName(b.name));
+        });
+
+        if (studentsToExport.length === 0) {
+            showError('No students to export', 'Export Error');
+            return;
+        }
+
+        showInfo('Generating class record...', 'Export');
+
+        const classRecordData = await fetchClassRecordData(studentsToExport);
+        
+        if (!classRecordData || Object.keys(classRecordData.subjects).length === 0) {
+            showError('No activities found for this class', 'Export Error');
+            return;
+        }
+
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const className = currentClassName.value.replace(/\s+/g, '_') || 'Class';
+        const workbook = XLSX.utils.book_new();
+
+        // Filter subjects based on selection
+        const subjectsToExport = subjectFilter === 'all' 
+            ? Object.entries(classRecordData.subjects)
+            : Object.entries(classRecordData.subjects).filter(([name]) => name === subjectFilter);
+
+        if (subjectsToExport.length === 0) {
+            showError('No activities found for the selected subject', 'Export Error');
+            return;
+        }
+
+        // Helper function to format due date/time
+        const formatDueDateTime = (act) => {
+            if (!act.due_date) return 'N/A';
+            const dueDate = new Date(act.due_date);
+            let result = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            if (act.due_time) {
+                const timeParts = act.due_time.split(':');
+                if (timeParts.length >= 2) {
+                    let hours = parseInt(timeParts[0], 10);
+                    const minutes = timeParts[1];
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    hours = hours % 12 || 12;
+                    result += ` ${hours}:${minutes} ${ampm}`;
+                }
+            }
+            return result;
+        };
+
+        // Create a sheet for each subject with new format
+        for (const [subjectName, subjectData] of subjectsToExport) {
+            const activities = subjectData.activities;
+            
+            if (activities.length === 0) continue;
+
+            // Build sheet data
+            const sheetData = [];
+
+            // Row 1: Empty row for spacing
+            sheetData.push([]);
+
+            // Row 2: Title
+            sheetData.push([`ACTIVITY CLASS RECORD - ${subjectName.toUpperCase()}`]);
+
+            // Row 3: Empty row
+            sheetData.push([]);
+
+            // Build header row 1: Activity headers with combined info
+            // Format: "Activity 1 - Title - Type - Due Date & Time"
+            const activityHeaderRow = ['No', 'Student ID', 'Student Name'];
+            
+            activities.forEach((act, actIndex) => {
+                const actNum = actIndex + 1;
+                const actType = act.activity_type || 'N/A';
+                const dueDateTime = formatDueDateTime(act);
+                // Combined activity header spanning 3 columns
+                activityHeaderRow.push(`Activity ${actNum} - ${act.title} - ${actType} - ${dueDateTime}`);
+                activityHeaderRow.push(''); // Merged cell placeholder
+                activityHeaderRow.push(''); // Merged cell placeholder
+                
+                // Add empty column as separator (except for last activity)
+                if (actIndex < activities.length - 1) {
+                    activityHeaderRow.push('');
+                }
+            });
+
+            sheetData.push(activityHeaderRow);
+
+            // Build header row 2: Sub-headers (Status, Date Submitted, Score) - aligned under activity
+            const subHeaderRow = ['', '', ''];
+            
+            activities.forEach((_, actIndex) => {
+                subHeaderRow.push('Status', 'Date Submitted', 'Score');
+                
+                // Add empty column as separator (except for last activity)
+                if (actIndex < activities.length - 1) {
+                    subHeaderRow.push('');
+                }
+            });
+
+            sheetData.push(subHeaderRow);
+
+            // Track completion stats per activity
+            const activityStats = activities.map(() => ({ completed: 0, incomplete: 0 }));
+
+            // Data rows: each student with their activity details
+            studentsToExport.forEach((student, index) => {
+                const studentId = student.dbId || student.id;
+                const row = [index + 1, student.id, student.formattedName || student.name];
+
+                activities.forEach((act, actIndex) => {
+                    const submission = classRecordData.submissions[`${studentId}-${act.id}`];
+
+                    if (submission) {
+                        // Count as completed
+                        activityStats[actIndex].completed++;
+
+                        // Format submitted date/time
+                        let submittedDateTime = 'N/A';
+                        if (submission.submitted_at) {
+                            const subDate = new Date(submission.submitted_at);
+                            submittedDateTime = subDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            submittedDateTime += ' ' + subDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                        }
+
+                        // Determine status - priority order (exclude scored statuses)
+                        // Priority: Compiled > Resubmitted > Submitted Late > Submitted
+                        let status = 'Submitted';
+                        
+                        // Check for late submission
+                        if (submission.is_late) {
+                            status = 'Submitted Late';
+                        }
+                        
+                        // Check for resubmit count (higher priority than late)
+                        if (submission.resubmit_count && submission.resubmit_count > 0) {
+                            status = `Resubmitted x${submission.resubmit_count}`;
+                        }
+                        
+                        // Check for compiled status (highest priority)
+                        if (submission.is_compiled) {
+                            status = 'Compiled';
+                        }
+
+                        // Format score
+                        let score = 'None';
+                        if (submission.score !== null && submission.score !== undefined && submission.score !== 'N/A') {
+                            score = submission.score;
+                        }
+
+                        row.push(status, submittedDateTime, score);
+                    } else {
+                        // No submission - count as incomplete
+                        activityStats[actIndex].incomplete++;
+                        row.push('Missing', 'N/A', 'None');
+                    }
+
+                    // Add empty column as separator (except for last activity)
+                    if (actIndex < activities.length - 1) {
+                        row.push('');
+                    }
+                });
+
+                sheetData.push(row);
+            });
+
+            // Add empty row before summary
+            sheetData.push([]);
+
+            // Add summary row for each activity
+            const summaryRow = ['', '', 'SUMMARY'];
+            activities.forEach((_, actIndex) => {
+                const stats = activityStats[actIndex];
+                summaryRow.push(`Completed: ${stats.completed}`, `Incomplete: ${stats.incomplete}`, '');
+                
+                // Add empty column as separator (except for last activity)
+                if (actIndex < activities.length - 1) {
+                    summaryRow.push('');
+                }
+            });
+            sheetData.push(summaryRow);
+
+            // Create worksheet
+            const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+            // Set column widths - ensure proper alignment
+            const colWidths = [
+                { wch: 5 },   // No
+                { wch: 14 },  // Student ID
+                { wch: 22 },  // Student Name
+            ];
+            activities.forEach((_, actIndex) => {
+                colWidths.push({ wch: 18 }); // Status
+                colWidths.push({ wch: 22 }); // Date Submitted
+                colWidths.push({ wch: 12 }); // Score
+                if (actIndex < activities.length - 1) {
+                    colWidths.push({ wch: 2 }); // Separator
+                }
+            });
+            worksheet['!cols'] = colWidths;
+
+            // Merge cells for activity headers (row 4, which is index 3)
+            const merges = [];
+            let colIndex = 3; // Start after No, Student ID, Student Name
+            activities.forEach((_, actIndex) => {
+                // Merge 3 columns for each activity header
+                merges.push({
+                    s: { r: 3, c: colIndex },     // Start: row 4 (index 3), column
+                    e: { r: 3, c: colIndex + 2 }  // End: same row, 3 columns span
+                });
+                colIndex += 3;
+                if (actIndex < activities.length - 1) {
+                    colIndex += 1; // Skip separator column
+                }
+            });
+            worksheet['!merges'] = merges;
+
+            // Sanitize sheet name
+            let sheetName = subjectName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '');
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        }
+
+        // Generate filename
+        const subjectSuffix = subjectFilter === 'all' ? 'AllSubjects' : subjectFilter.replace(/\s+/g, '_');
+        const filename = `ClassRecord_${subjectSuffix}_${className}_${timestamp}.xlsx`;
+        XLSX.writeFile(workbook, filename);
+
+        showSuccess('Class record downloaded!', 'Export');
+    } catch (error) {
+        console.error('Export error:', error);
+        showError('Failed to export class record', 'Export Error');
+    }
+};
 
 // Confirm student export - show dialog
 const confirmStudentExport = (student) => {
@@ -479,6 +758,10 @@ const handleClickOutside = (event) => {
     if (downloadDropdownRef.value && !downloadDropdownRef.value.contains(event.target)) {
         showDownloadDropdown.value = false;
     }
+    // Also close export dropdown
+    if (!event.target.closest('.relative')) {
+        showExportDropdown.value = false;
+    }
 };
 
 // Download records function - generates Excel/CSV from displayed student data
@@ -486,15 +769,34 @@ const downloadRecords = async (exportType) => {
     showDownloadDropdown.value = false;
 
     try {
+        // Helper function to format name properly (convert username format to proper name)
+        const formatStudentName = (student) => {
+            let name = student.name || '';
+            // If name looks like a username (contains dots or underscores), format it
+            if (name.includes('.') || name.includes('_')) {
+                name = name
+                    .replace(/[._]/g, ' ')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(' ');
+            }
+            return name;
+        };
+
         // Get students to export and sort by last name alphabetically
-        const studentsToExport = [...filteredStudents.value].sort((a, b) => {
-            // Extract last name (assume format is "First Last" or just use full name)
-            const getLastName = (name) => {
-                const parts = name.trim().split(' ');
-                return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : name.toLowerCase();
-            };
-            return getLastName(a.name).localeCompare(getLastName(b.name));
-        });
+        const studentsToExport = [...filteredStudents.value]
+            .map(student => ({
+                ...student,
+                formattedName: formatStudentName(student)
+            }))
+            .sort((a, b) => {
+                // Extract last name (assume format is "First Last" or just use full name)
+                const getLastName = (name) => {
+                    const parts = name.trim().split(' ');
+                    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : name.toLowerCase();
+                };
+                return getLastName(a.formattedName).localeCompare(getLastName(b.formattedName));
+            });
 
         if (studentsToExport.length === 0) {
             showError('No students to export', 'Export Error');
@@ -552,7 +854,8 @@ const downloadRecords = async (exportType) => {
                 // Data rows: each student with their scores (sorted by last name)
                 studentsToExport.forEach((student, index) => {
                     const studentId = student.dbId || student.id;
-                    const row = [index + 1, student.id, student.name];
+                    // Use student.id for the actual student ID number, formattedName for display
+                    const row = [index + 1, student.id, student.formattedName];
 
                     activities.forEach((act) => {
                         const submission =
@@ -613,7 +916,7 @@ const downloadRecords = async (exportType) => {
             // Summary export - basic student info
             csvContent = 'No,Student ID,Student Name,Grade Level,Section,Classroom,Teacher\n';
             studentsToExport.forEach((student, index) => {
-                csvContent += `${index + 1},"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
+                csvContent += `${index + 1},"${student.id}","${student.formattedName}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
             });
             filename = `Student_Summary_${className}_${timestamp}.csv`;
 
@@ -633,7 +936,7 @@ const downloadRecords = async (exportType) => {
                     for (const act of subjectData.activities) {
                         const submission = classRecordData.submissions[`${studentId}-${act.id}`];
                         if (submission && submission.status === 'scored') {
-                            csvContent += `${rowNum++},"${student.id}","${student.name}","${subjectName}","${act.title}","${act.type}","${submission.score}","${submission.submitted_at || 'N/A'}"\n`;
+                            csvContent += `${rowNum++},"${student.id}","${student.formattedName}","${subjectName}","${act.title}","${act.type}","${submission.score}","${submission.submitted_at || 'N/A'}"\n`;
                         }
                     }
                 }
@@ -656,7 +959,7 @@ const downloadRecords = async (exportType) => {
                     for (const act of subjectData.activities) {
                         const submission = classRecordData.submissions[`${studentId}-${act.id}`];
                         if (!submission) {
-                            csvContent += `${rowNum++},"${student.id}","${student.name}","${subjectName}","${act.title}","${act.type}","${act.due_date || 'N/A'}"\n`;
+                            csvContent += `${rowNum++},"${student.id}","${student.formattedName}","${subjectName}","${act.title}","${act.type}","${act.due_date || 'N/A'}"\n`;
                         }
                     }
                 }
@@ -667,7 +970,7 @@ const downloadRecords = async (exportType) => {
             // Default - basic list
             csvContent = 'No,Student ID,Student Name,Grade Level,Section,Classroom,Teacher\n';
             studentsToExport.forEach((student, index) => {
-                csvContent += `${index + 1},"${student.id}","${student.name}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
+                csvContent += `${index + 1},"${student.id}","${student.formattedName}","${student.gradeLevel || 'N/A'}","${student.section || 'N/A'}","${student.classroom || 'N/A'}","${student.teacher || 'N/A'}"\n`;
             });
             filename = `Student_List_${className}_${timestamp}.csv`;
         }
@@ -767,9 +1070,7 @@ const downloadStudentRecord = async (student) => {
             sheetData.push(['STUDENT INFORMATION']);
             sheetData.push(['Student Name:', student.name]);
             sheetData.push(['Student ID:', student.id]);
-            sheetData.push(['Grade Level:', student.gradeLevel || 'N/A']);
-            sheetData.push(['Section:', student.section || 'N/A']);
-            sheetData.push(['Teacher:', student.teacher || 'N/A']);
+            sheetData.push(['Grade Level & Section:', `${student.gradeLevel || 'N/A'} - ${student.section || 'N/A'}`]);
             sheetData.push([]); // Empty row
 
             // Summary Section for this subject
@@ -785,7 +1086,11 @@ const downloadStudentRecord = async (student) => {
 
             // Add activities for this subject
             activities.forEach((activity, index) => {
-                const score = activity.score || 'None';
+                // Handle score - convert N/A to None
+                let score = activity.score;
+                if (!score || score === 'N/A' || score === 'n/a' || score === null || score === undefined) {
+                    score = 'None';
+                }
                 const status = activity.status || 'Pending';
                 const dueDateTime = activity.due_datetime || 'N/A';
                 const submittedDateTime = activity.submitted_datetime || 'N/A';
@@ -832,9 +1137,7 @@ const downloadStudentRecord = async (student) => {
             sheetData.push(['STUDENT INFORMATION']);
             sheetData.push(['Student Name:', student.name]);
             sheetData.push(['Student ID:', student.id]);
-            sheetData.push(['Grade Level:', student.gradeLevel || 'N/A']);
-            sheetData.push(['Section:', student.section || 'N/A']);
-            sheetData.push(['Teacher:', student.teacher || 'N/A']);
+            sheetData.push(['Grade Level & Section:', `${student.gradeLevel || 'N/A'} - ${student.section || 'N/A'}`]);
             sheetData.push([]);
             sheetData.push(['No activities found for this student']);
 

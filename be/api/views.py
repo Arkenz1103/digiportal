@@ -3980,8 +3980,9 @@ def class_record_api(request):
             subjects[folder_name]['activities'].append({
                 'id': activity.id,
                 'title': activity.title,
-                'type': activity.activity_type,
+                'activity_type': activity.activity_type,
                 'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else None,
+                'due_time': activity.due_time.strftime('%H:%M') if activity.due_time else None,
             })
 
         # Get all submissions for these activities
@@ -4014,7 +4015,9 @@ def class_record_api(request):
                 'status': sub.status,
                 'score': score_display,
                 'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %I:%M %p') if sub.submitted_at else None,
-                'is_late': sub.is_late,
+                'is_late': sub.is_late if hasattr(sub, 'is_late') else False,
+                'is_compiled': sub.compiled if hasattr(sub, 'compiled') else False,
+                'resubmit_count': sub.resubmit_count if hasattr(sub, 'resubmit_count') else 0,
             }
 
         print(f"📊 Class record: {len(subjects)} subjects, {len(activity_ids)} activities, {len(submission_map)} submissions")

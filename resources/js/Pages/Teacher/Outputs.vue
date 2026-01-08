@@ -40,6 +40,20 @@ const getLastName = (name) => {
     return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : name.toLowerCase();
 };
 
+// Helper function to format student name properly (convert username format to proper name)
+const formatStudentName = (name) => {
+    if (!name) return 'Unknown';
+    // If name looks like a username (contains dots or underscores), format it
+    if (name.includes('.') || name.includes('_')) {
+        return name
+            .replace(/[._]/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+    return name;
+};
+
 // Helper function to get initials from name (first and last name initials)
 const getInitials = (name) => {
     if (!name) return '?';
@@ -92,7 +106,7 @@ const exportActivityResults = (exportType) => {
             const sortedSubs = [...submissions.value].sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name)));
             sortedSubs.forEach((sub, index) => {
                 const dateTime = sub.date && sub.time ? `${sub.date} ${sub.time}` : 'N/A';
-                csvContent += `${index + 1},"${sub.studentId}","${sub.name}","Pending","${dateTime}","${sub.is_late ? 'Yes' : 'No'}","${sub.resubmit_count || 0}"\n`;
+                csvContent += `${index + 1},"${sub.studentId}","${formatStudentName(sub.name)}","Pending","${dateTime}","${sub.is_late ? 'Yes' : 'No'}","${sub.resubmit_count || 0}"\n`;
             });
             
             const filename = `${activityName}_Pending_${className}_${timestamp}.csv`;
@@ -119,7 +133,7 @@ const exportActivityResults = (exportType) => {
             let csvContent = 'No,Student ID,Student Name,Status\n';
             const sortedStudents = [...incompleteSubmissions.value].sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name)));
             sortedStudents.forEach((student, index) => {
-                csvContent += `${index + 1},"${student.studentIdNumber}","${student.name}","Missing"\n`;
+                csvContent += `${index + 1},"${student.studentIdNumber}","${formatStudentName(student.name)}","Missing"\n`;
             });
             
             const filename = `${activityName}_NotSubmitted_${className}_${timestamp}.csv`;
@@ -160,19 +174,34 @@ const exportActivityResults = (exportType) => {
 
             // Combine all students and sort by last name
             const allStudents = [];
+            const seenStudentIds = new Set(); // Track seen student IDs to prevent duplicates
 
             // Add scored submissions
             scoredSubmissionsData.value.forEach(sub => {
+                const studentKey = sub.studentId || sub.studentDbId;
+                if (seenStudentIds.has(studentKey)) return; // Skip duplicates
+                seenStudentIds.add(studentKey);
+                
                 // Format score with overall
                 let scoreDisplay = 'None';
                 if (sub.score !== null && sub.score !== undefined && sub.score !== 'None') {
                     scoreDisplay = maxScore > 0 ? `${sub.score}/${maxScore}` : `${sub.score}`;
                 }
                 
+                // Determine status including compiled and resubmitted
+                let status = 'Submitted';
+                if (sub.compiled || sub.is_compilation) {
+                    status = 'Compiled';
+                } else if (sub.resubmit_count > 0) {
+                    status = `Resubmitted x${sub.resubmit_count}`;
+                } else if (sub.is_late) {
+                    status = 'Submitted Late';
+                }
+                
                 allStudents.push({
                     studentId: sub.studentId,
-                    name: sub.name,
-                    status: sub.is_late ? 'Submitted Late' : 'Submitted',
+                    name: formatStudentName(sub.name),
+                    status: status,
                     dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'N/A'),
                     score: scoreDisplay
                 });
@@ -180,15 +209,22 @@ const exportActivityResults = (exportType) => {
 
             // Add unscored/pending submissions
             submissions.value.forEach(sub => {
+                const studentKey = sub.studentId || sub.studentDbId;
+                if (seenStudentIds.has(studentKey)) return; // Skip duplicates
+                seenStudentIds.add(studentKey);
+                
+                // Determine status including compiled
                 let status = 'Pending';
-                if (sub.resubmit_count > 0) {
+                if (sub.compiled || sub.is_compilation) {
+                    status = 'Compiled';
+                } else if (sub.resubmit_count > 0) {
                     status = `Resubmitted x${sub.resubmit_count}`;
                 } else if (sub.is_late) {
                     status = 'Submitted Late';
                 }
                 allStudents.push({
                     studentId: sub.studentId,
-                    name: sub.name,
+                    name: formatStudentName(sub.name),
                     status: status,
                     dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'N/A'),
                     score: 'None'
@@ -197,9 +233,13 @@ const exportActivityResults = (exportType) => {
 
             // Add students who haven't submitted
             incompleteSubmissions.value.forEach(student => {
+                const studentKey = student.studentIdNumber || student.studentPk;
+                if (seenStudentIds.has(studentKey)) return; // Skip duplicates
+                seenStudentIds.add(studentKey);
+                
                 allStudents.push({
                     studentId: student.studentIdNumber,
-                    name: student.name,
+                    name: formatStudentName(student.name),
                     status: 'Missing',
                     dateTimeSubmitted: 'N/A',
                     score: 'None'
@@ -209,6 +249,33 @@ const exportActivityResults = (exportType) => {
             // Sort by last name alphabetically
             allStudents.sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name)));
 
+            // Format deadline date and time (12-hour format)
+            let deadlineDisplay = 'N/A';
+            if (activity.value.dueDate) {
+                const dueDate = new Date(activity.value.dueDate);
+                const dateStr = dueDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                // Format time to 12-hour format
+                let timeStr = activity.value.formattedTime || '11:59 PM';
+                if (activity.value.dueTime && !activity.value.formattedTime) {
+                    // Convert 24-hour format (HH:MM:SS) to 12-hour format
+                    const timeParts = activity.value.dueTime.split(':');
+                    if (timeParts.length >= 2) {
+                        let hours = parseInt(timeParts[0], 10);
+                        const minutes = timeParts[1];
+                        const ampm = hours >= 12 ? 'PM' : 'AM';
+                        hours = hours % 12;
+                        hours = hours ? hours : 12; // 0 should be 12
+                        timeStr = `${hours}:${minutes} ${ampm}`;
+                    }
+                }
+                deadlineDisplay = `${dateStr}, ${timeStr}`;
+            }
+
             // Build sheet data
             const sheetData = [];
 
@@ -216,7 +283,9 @@ const exportActivityResults = (exportType) => {
             sheetData.push([]);
             sheetData.push([`ACTIVITY REPORT - ${activity.value.title.toUpperCase()}`]);
             sheetData.push([`Subject/Folder: ${activity.value.subject || 'N/A'}`]);
+            sheetData.push([`Activity Type: ${activity.value.type || activity.value.activityType || 'N/A'}`]);
             sheetData.push([`Class: ${activity.value.class || 'N/A'}`]);
+            sheetData.push([`Deadline: ${deadlineDisplay}`]);
             sheetData.push([`Generated: ${new Date().toLocaleString()}`]);
             sheetData.push([]);
             sheetData.push([`Total Submissions: ${totalSubmissions}`]);
@@ -551,10 +620,11 @@ const loadClassMembers = async () => {
 const incompleteSubmissions = computed(() => {
     if (!classMembers.value || !classMembers.value.length) return [];
     
-    // Get IDs of students who have submitted (either scored or unscored)
-    const submittedStudentIds = new Set([
-        ...submissions.value.map(s => String(s.studentId)),
-        ...scoredSubmissionsData.value.map(s => String(s.studentId))
+    // Get database IDs of students who have submitted (either scored or unscored)
+    // Use studentDbId (database ID) for accurate comparison with classMembers
+    const submittedStudentDbIds = new Set([
+        ...submissions.value.map(s => String(s.studentDbId || s.studentId)),
+        ...scoredSubmissionsData.value.map(s => String(s.studentDbId || s.studentId))
     ]);
     
     // Logic for Pending vs Missing
@@ -574,18 +644,52 @@ const incompleteSubmissions = computed(() => {
         }
     }
     
-    // Filter class members who are NOT in the submitted set
-    const list = classMembers.value.filter(student => !submittedStudentIds.has(String(student.id)))
-        .map(student => ({
-            id: `missing-${student.id}`, // specific ID for this list
-            studentPk: student.id,
-            studentIdNumber: student.id || 'N/A', // Use student.id as the ID number
-            name: student.name || student.username || 'Unknown',
-            // Add other necessary fields for the simplified view
-            status: isPastDue ? 'Missing' : 'Pending',
-            avatar: student.profile_picture || null,
-            email: student.email || 'No email available'
-        }));
+    // Filter class members who are NOT in the submitted set (using database ID)
+    // Also deduplicate by student ID to prevent repeated names
+    const seenStudentIds = new Set();
+    const list = classMembers.value
+        .filter(student => {
+            // Check if student has already submitted
+            if (submittedStudentDbIds.has(String(student.id))) {
+                return false;
+            }
+            // Deduplicate by student_id to prevent repeated names
+            const studentIdKey = student.student_id || student.id;
+            if (seenStudentIds.has(studentIdKey)) {
+                return false;
+            }
+            seenStudentIds.add(studentIdKey);
+            return true;
+        })
+        .map(student => {
+            // Format name properly: "FirstName LastName" format
+            let displayName = student.name || '';
+            // If name looks like a username (contains dots or underscores), try to format it
+            if (displayName.includes('.') || displayName.includes('_')) {
+                // Try to use first_name and last_name if available
+                if (student.first_name && student.last_name) {
+                    displayName = `${student.first_name} ${student.last_name}`.trim();
+                } else {
+                    // Convert username format to proper name (e.g., "pablo.aguilar" -> "Pablo Aguilar")
+                    displayName = displayName
+                        .replace(/[._]/g, ' ')
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(' ');
+                }
+            }
+            
+            return {
+                id: `missing-${student.id}`, // specific ID for this list
+                studentPk: student.id,
+                studentIdNumber: student.student_id || student.id_number || 'N/A', // Use actual student_id from API
+                name: displayName || student.username || 'Unknown',
+                // Add other necessary fields for the simplified view
+                status: isPastDue ? 'Missing' : 'Pending',
+                avatar: student.profile_picture || null,
+                email: student.email || 'No email available'
+            };
+        });
 
     // Sort alphabetically by last name
     return list.sort((a, b) => {
@@ -664,10 +768,26 @@ const loadUnscoredSubmissions = async () => {
                     timeZone: 'Asia/Manila'
                 });
 
+                // Format student name properly
+                let studentName = submission.student.full_name || '';
+                if (!studentName || studentName === submission.student.username) {
+                    if (submission.student.first_name && submission.student.last_name) {
+                        studentName = `${submission.student.first_name} ${submission.student.last_name}`.trim();
+                    } else if (submission.student.username) {
+                        // Convert username format to proper name (e.g., "pablo.aguilar" -> "Pablo Aguilar")
+                        studentName = submission.student.username
+                            .replace(/[._]/g, ' ')
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                            .join(' ');
+                    }
+                }
+
                 return {
                     id: submission.id,
-                    studentId: submission.student.id,
-                    name: submission.student.username,
+                    studentDbId: submission.student.id, // Database ID for comparison with classMembers
+                    studentId: submission.student.student_id || submission.student.id_number || submission.student.id,
+                    name: studentName,
                     profilePicture: submission.student.profile_picture_url || null,
                     activityTitle: submission.activity_title,
                     activityType: submission.activity_type,
@@ -728,10 +848,26 @@ const loadScoredSubmissions = async () => {
                     timeZone: 'Asia/Manila'
                 });
 
+                // Format student name properly
+                let studentName = submission.student.full_name || '';
+                if (!studentName || studentName === submission.student.username) {
+                    if (submission.student.first_name && submission.student.last_name) {
+                        studentName = `${submission.student.first_name} ${submission.student.last_name}`.trim();
+                    } else if (submission.student.username) {
+                        // Convert username format to proper name (e.g., "pablo.aguilar" -> "Pablo Aguilar")
+                        studentName = submission.student.username
+                            .replace(/[._]/g, ' ')
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                            .join(' ');
+                    }
+                }
+
                 return {
                     id: submission.id,
-                    studentId: submission.student.id,
-                    name: submission.student.username,
+                    studentDbId: submission.student.id, // Database ID for comparison with classMembers
+                    studentId: submission.student.student_id || submission.student.id_number || submission.student.id,
+                    name: studentName,
                     profilePicture: submission.student.profile_picture_url || null,
                     activityTitle: submission.activity_title,
                     activityType: submission.activity_type,

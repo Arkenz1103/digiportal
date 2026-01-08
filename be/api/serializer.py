@@ -4,6 +4,8 @@ from .models import User, LessonPlan, PortfolioFolder, PortfolioActivity, Studen
 
 class UserSerializer(serializers.ModelSerializer):
     profile_picture_url = serializers.SerializerMethodField()
+    student_id = serializers.CharField(source='id_number', read_only=True)
+    full_name = serializers.SerializerMethodField()
 
     def get_profile_picture_url(self, obj):
         if obj.profile_picture:
@@ -13,9 +15,15 @@ class UserSerializer(serializers.ModelSerializer):
             return obj.profile_picture.url
         return None
 
+    def get_full_name(self, obj):
+        """Return properly formatted full name"""
+        if obj.first_name and obj.last_name:
+            return f"{obj.first_name} {obj.last_name}".strip()
+        return obj.username
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'date_joined', 'profile_picture_url']
+        fields = ['id', 'username', 'email', 'role', 'first_name', 'last_name', 'full_name', 'student_id', 'id_number', 'date_joined', 'profile_picture_url']
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
