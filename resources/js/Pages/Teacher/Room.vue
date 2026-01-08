@@ -3321,7 +3321,6 @@ const handleClassChange = async (event) => {
     selectedSubject.value = '';
     selectedFolderId.value = null;
     activities.value = [];
-    selectedActivity.value = null;
 
     // Clear saved view state - this ensures clicking a class always shows folders
     localStorage.removeItem('teacher_current_view');
@@ -3330,6 +3329,9 @@ const handleClassChange = async (event) => {
 
     // Reload folders for the new class
     await loadPortfolioFolders();
+    
+    // Reload students for the new class
+    await loadClassroomStudents();
 
     // Check if we need to navigate to a specific tab (from notification)
     const navigateToTab = localStorage.getItem('teacher_navigate_to_tab');
@@ -4034,20 +4036,42 @@ const fetchPortfolioEnvelopes = async () => {
 // Load classroom students
 const loadClassroomStudents = async () => {
     try {
-        const response = await axios.get('/api/classrooms/');
-        if (response.data && response.data.classrooms && response.data.classrooms.length > 0) {
-            // Get the first classroom (current class)
-            const currentClassroom = response.data.classrooms[0];
-            classroomStudents.value = currentClassroom.students || [];
-            console.log('✅ Loaded classroom students:', classroomStudents.value.length);
-            console.log('📊 Classroom data:', currentClassroom);
+        // Use the selected class ID to load students for that specific classroom
+        const classroomId = selectedClass.value?.id;
+        
+        if (!classroomId) {
+            console.warn('⚠️ No class selected, cannot load students');
+            classroomStudents.value = [];
+            return;
+        }
+        
+        // Load specific classroom details
+        const response = await axios.get(`/api/classrooms/${classroomId}/`);
+        if (response.data) {
+            classroomStudents.value = response.data.students || [];
+            console.log(`✅ Loaded ${classroomStudents.value.length} students for classroom ${classroomId}`);
         } else {
             console.warn('⚠️ No classroom data found');
             classroomStudents.value = [];
         }
     } catch (error) {
         console.error('❌ Error loading classroom students:', error);
-        classroomStudents.value = [];
+        // Fallback: try loading from classrooms list
+        try {
+            const response = await axios.get('/api/classrooms/?all=true');
+            if (response.data && response.data.classrooms) {
+                const classroom = response.data.classrooms.find(c => c.id === selectedClass.value?.id);
+                if (classroom) {
+                    classroomStudents.value = classroom.students || [];
+                    console.log(`✅ Loaded ${classroomStudents.value.length} students (fallback)`);
+                } else {
+                    classroomStudents.value = [];
+                }
+            }
+        } catch (fallbackError) {
+            console.error('❌ Fallback also failed:', fallbackError);
+            classroomStudents.value = [];
+        }
     }
 };
 

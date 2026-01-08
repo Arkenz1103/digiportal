@@ -564,16 +564,11 @@ def portfolio_folders_api(request):
                         ).order_by('-created_at')
                         print(f"📚 Teacher {request.user.username} viewing their own folders in classroom: {classroom.name}")
                     else:
-                        # Students see folders from classroom's assigned teacher
-                        if classroom.teacher:
-                            folders = PortfolioFolder.objects.filter(
-                                classroom=classroom,
-                                teacher=classroom.teacher
-                            ).order_by('-created_at')
-                            print(f"📚 Student {request.user.username} viewing folders from assigned teacher in classroom: {classroom.name}")
-                        else:
-                            folders = PortfolioFolder.objects.filter(classroom=classroom).order_by('-created_at')
-                            print(f"📚 {request.user.username} viewing all folders in classroom: {classroom.name} (no assigned teacher)")
+                        # Students see ALL folders for their classroom (from any teacher)
+                        folders = PortfolioFolder.objects.filter(
+                            classroom=classroom
+                        ).order_by('-created_at')
+                        print(f"📚 Student viewing all folders in classroom: {classroom.name}, found {folders.count()}")
                 except Classroom.DoesNotExist:
                     return Response({'error': 'Classroom not found.'}, status=status.HTTP_404_NOT_FOUND)
             else:
@@ -583,20 +578,14 @@ def portfolio_folders_api(request):
                     folders = PortfolioFolder.objects.filter(teacher=request.user).order_by('-created_at')
                     print(f"📚 Teacher {request.user.username} viewing all their folders for the sidebar.")
                 elif request.user.role == 'student':
-                    # Student gets folders from their assigned classroom AND classroom's teacher
+                    # Student gets ALL folders for their assigned classroom (from any teacher)
                     student_classroom = request.user.classroom
                     if student_classroom:
-                        # Get folders that belong to the classroom's assigned teacher
-                        if student_classroom.teacher:
-                            folders = PortfolioFolder.objects.filter(
-                                classroom=student_classroom,
-                                teacher=student_classroom.teacher
-                            ).order_by('-created_at')
-                            print(f"📚 Student {request.user.username} viewing folders from teacher {student_classroom.teacher.username} for classroom: {student_classroom.name}")
-                        else:
-                            # Fallback: if classroom has no assigned teacher, show all folders for that classroom
-                            folders = PortfolioFolder.objects.filter(classroom=student_classroom).order_by('-created_at')
-                            print(f"📚 Student {request.user.username} viewing all folders for classroom: {student_classroom.name} (no assigned teacher)")
+                        # Show all folders for the student's classroom regardless of which teacher created them
+                        folders = PortfolioFolder.objects.filter(
+                            classroom=student_classroom
+                        ).order_by('-created_at')
+                        print(f"📚 Student {request.user.username} viewing all folders in classroom: {student_classroom.name}, found {folders.count()} folders")
                     else:
                         folders = PortfolioFolder.objects.none()
                         print(f"⚠️ Student {request.user.username} has no classroom assigned.")
@@ -656,12 +645,11 @@ def portfolio_folders_api(request):
 
             print(f"Creating folder - Name: {name}, User: {request.user.username}, Class: {class_name}")
 
-            # Get teacher's classroom based on class_name
+            # Get classroom based on class_name (any classroom, not just teacher's)
             classroom = None
             try:
                 # Try to find classroom by matching name (e.g., "Grade 1 - A")
                 classroom = Classroom.objects.filter(
-                    teacher=request.user,
                     name=class_name
                 ).first()
 
@@ -759,17 +747,34 @@ def portfolio_folder_detail_api(request, folder_id):
         try:
             data = json.loads(request.body)
             new_name = data.get('name', folder.name).strip()
+            new_class_name = data.get('class_name', folder.class_name)
 
             if not new_name:
                 return Response({'error': 'Folder name cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if new_name != folder.name:
-                if PortfolioFolder.objects.filter(classroom=folder.classroom, name=new_name).exclude(id=folder.id).exists():
+            # Check if class is being changed
+            if new_class_name and new_class_name != folder.class_name:
+                # Find the new classroom
+                new_classroom = Classroom.objects.filter(name=new_class_name).first()
+                if new_classroom:
+                    # Check if folder with same name exists in new class
+                    if PortfolioFolder.objects.filter(classroom=new_classroom, name=new_name, teacher=request.user).exclude(id=folder.id).exists():
+                        return Response({'error': f'A folder named "{new_name}" already exists in {new_class_name}.'}, status=status.HTTP_400_BAD_REQUEST)
+                    folder.classroom = new_classroom
+                    folder.class_name = new_class_name
+                    print(f"📂 Moving folder to {new_class_name}")
+                else:
+                    return Response({'error': f'Classroom "{new_class_name}" not found.'}, status=status.HTTP_404_NOT_FOUND)
+            elif new_name != folder.name:
+                # Just renaming, check for duplicates in same class
+                if PortfolioFolder.objects.filter(classroom=folder.classroom, name=new_name, teacher=request.user).exclude(id=folder.id).exists():
                     return Response({'error': f'A folder named "{new_name}" already exists in this class.'}, status=status.HTTP_400_BAD_REQUEST)
 
             folder.name = new_name
             folder.description = data.get('description', folder.description)
             folder.save()
+            
+            print(f"✅ Folder updated: {folder.name} in {folder.class_name}")
             serializer = PortfolioFolderSerializer(folder)
             return Response(serializer.data)
 
@@ -4037,38 +4042,54 @@ def class_record_api(request):
 @csrf_exempt
 @api_view(['GET'])
 def student_progress_list_api(request):
-    """Get list of students from teacher's assigned classroom(s) with their progress summary"""
+    """Get list of students with their progress summary"""
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Teacher authentication required'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
         from django.db.models import Count, Avg, Q
 
-        # Get teacher's assigned classrooms
-        teacher_classrooms = Classroom.objects.filter(teacher=request.user)
-
-        if not teacher_classrooms.exists():
-            # Teacher has no assigned classrooms
-            return Response([], status=status.HTTP_200_OK)
-
         # Get classroom_id from query parameter for specific classroom filtering
         classroom_id = request.GET.get('classroom_id', None)
         class_name = request.GET.get('class', None)
         
-        # Filter classrooms if specific one is requested
-        if classroom_id:
-            teacher_classrooms = teacher_classrooms.filter(id=classroom_id)
-        elif class_name:
-            teacher_classrooms = teacher_classrooms.filter(name=class_name)
-
-        # Get ONLY students from teacher's assigned classroom(s)
-        students = User.objects.filter(
-            role='student',
-            classroom__in=teacher_classrooms
-        ).exclude(username='admin').select_related('classroom').order_by('last_name', 'first_name')
-
-        print(f"🎓 Teacher {request.user.username} has {teacher_classrooms.count()} classroom(s)")
-        print(f"👥 Found {students.count()} students in assigned classroom(s)")
+        print(f"📊 student_progress_list_api called - classroom_id: {classroom_id}, class_name: {class_name}")
+        
+        # If specific class is requested, get students from that classroom
+        if class_name:
+            target_classroom = Classroom.objects.filter(name=class_name).first()
+            if target_classroom:
+                students = User.objects.filter(
+                    role='student',
+                    classroom=target_classroom
+                ).exclude(username='admin').select_related('classroom').order_by('last_name', 'first_name')
+                print(f"👥 Found {students.count()} students in classroom {class_name}")
+            else:
+                print(f"⚠️ Classroom {class_name} not found")
+                return Response([], status=status.HTTP_200_OK)
+        elif classroom_id:
+            target_classroom = Classroom.objects.filter(id=classroom_id).first()
+            if target_classroom:
+                students = User.objects.filter(
+                    role='student',
+                    classroom=target_classroom
+                ).exclude(username='admin').select_related('classroom').order_by('last_name', 'first_name')
+                print(f"👥 Found {students.count()} students in classroom ID {classroom_id}")
+            else:
+                print(f"⚠️ Classroom ID {classroom_id} not found")
+                return Response([], status=status.HTTP_200_OK)
+        else:
+            # No specific class - get teacher's assigned classrooms
+            teacher_classrooms = Classroom.objects.filter(teacher=request.user)
+            if teacher_classrooms.exists():
+                students = User.objects.filter(
+                    role='student',
+                    classroom__in=teacher_classrooms
+                ).exclude(username='admin').select_related('classroom').order_by('last_name', 'first_name')
+                print(f"👥 Found {students.count()} students in teacher's assigned classrooms")
+            else:
+                print(f"⚠️ Teacher has no assigned classrooms")
+                return Response([], status=status.HTTP_200_OK)
 
         student_list = []
         for student in students:
@@ -4647,11 +4668,11 @@ def request_portfolio_compilation_api(request):
         if not class_name:
             return Response({'error': 'class_name is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Find the specific classroom instance
+        # Find the classroom instance - teachers can request compilation for any class they have folders in
         try:
-            classroom = Classroom.objects.get(name=class_name, teacher=request.user)
+            classroom = Classroom.objects.get(name=class_name)
         except Classroom.DoesNotExist:
-            return Response({'error': f'Classroom "{class_name}" not found or you are not the teacher.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f'Classroom "{class_name}" not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Create or update compilation request for this specific classroom
         print(f"Creating/updating compilation request for classroom: {classroom.id}")
@@ -4764,11 +4785,25 @@ def check_portfolio_compilation_status_api(request, classroom_id):
 
             elif request.user.role == 'teacher':
                 try:
-                    classroom = Classroom.objects.get(id=classroom_id, teacher=request.user)
-                    print(f"✅ Found classroom for teacher: {classroom.id}")
+                    # First try to find classroom where teacher is assigned
+                    classroom = Classroom.objects.filter(id=classroom_id, teacher=request.user).first()
+                    if classroom:
+                        print(f"✅ Found assigned classroom for teacher: {classroom.id}")
+                    else:
+                        # If not assigned, check if teacher has folders in this classroom
+                        has_folders = PortfolioFolder.objects.filter(
+                            classroom_id=classroom_id,
+                            teacher=request.user
+                        ).exists()
+                        if has_folders:
+                            classroom = Classroom.objects.get(id=classroom_id)
+                            print(f"✅ Found classroom where teacher has folders: {classroom.id}")
+                        else:
+                            print(f"❌ Classroom {classroom_id} not found for teacher {request.user.username}")
+                            return Response({'error': 'Classroom not found or you have no access.'}, status=status.HTTP_404_NOT_FOUND)
                 except Classroom.DoesNotExist:
-                    print(f"❌ Classroom {classroom_id} not found for teacher {request.user.username}")
-                    return Response({'error': 'Classroom not found or you are not the teacher.'}, status=status.HTTP_404_NOT_FOUND)
+                    print(f"❌ Classroom {classroom_id} does not exist")
+                    return Response({'error': 'Classroom not found.'}, status=status.HTTP_404_NOT_FOUND)
 
             else:
                 return Response({'error': 'Unauthorized role.'}, status=status.HTTP_403_FORBIDDEN)
@@ -5027,83 +5062,6 @@ def get_student_envelope_api(request, class_name):
     except Exception as e:
         import traceback
         print(f"❌ Error fetching student envelope: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-@csrf_exempt
-@api_view(['GET'])
-def get_portfolio_envelopes_api(request, class_name):
-    """Get all portfolio envelopes for a specific class (Teacher view)"""
-    try:
-        from .models import PortfolioEnvelope, Classroom
-
-        print(f"📋 Fetching all portfolio envelopes for class: {class_name}")
-
-        # Check teacher permissions
-        if not request.user.is_authenticated or request.user.role != 'teacher':
-             return Response({'error': 'Only teachers can view all envelopes'}, status=status.HTTP_403_FORBIDDEN)
-
-        # Get the teacher's classroom for this class_name
-        teacher_classroom = Classroom.objects.filter(
-            teacher=request.user,
-            name=class_name
-        ).first()
-
-        if not teacher_classroom:
-            print(f"⚠️ Teacher {request.user.username} does not have a classroom named {class_name}")
-            return Response({
-                'envelopes': []
-            }, status=status.HTTP_200_OK)
-
-        print(f"📚 Found teacher's classroom: {teacher_classroom.name} (ID: {teacher_classroom.id})")
-
-        # Get envelopes ONLY for students who are actually assigned to this classroom
-        # This ensures we filter by the student's actual classroom assignment, not just the class_name in the envelope
-        envelopes = PortfolioEnvelope.objects.filter(
-            class_name=class_name,
-            student__classroom=teacher_classroom  # Filter by student's actual classroom assignment
-        ).select_related('student', 'student__classroom').order_by('-updated_at')
-        
-        envelope_data = []
-        for env in envelopes:
-            # Format dates
-            from django.utils import timezone
-            local_created = timezone.localtime(env.created_at)
-            date_created = local_created.strftime('%b %d, %Y')
-            time_created = local_created.strftime('%I:%M %p')
-            
-            # Get student ID
-            student_id = env.student.id
-            id_number = env.student.id_number if hasattr(env.student, 'id_number') else 'N/A'
-
-            # Determine status based on is_submitted flag
-            status_text = 'Done' if env.is_submitted else 'In Progress'
-
-            envelope_data.append({
-                'id': env.id,
-                'student_id': student_id,
-                'student_name': env.student_name,
-                'id_number': id_number,
-                'date_created': date_created,
-                'time_created': time_created,
-                'title': env.title,
-                'color': env.color,
-                'pattern': env.pattern,
-                'class_name': env.class_name,
-                'is_submitted': env.is_submitted,
-                'status': status_text,
-                'submitted_at': env.submitted_at.isoformat() if env.submitted_at else None
-            })
-
-        print(f"✅ Found {len(envelope_data)} envelopes for class {class_name} (filtered by student's classroom assignment)")
-
-        return Response({
-            'envelopes': envelope_data
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        import traceback
-        print(f"❌ Error fetching portfolio envelopes: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -5980,26 +5938,23 @@ def get_portfolio_envelopes_api(request, class_name):
                 'error': 'Only teachers can view portfolio envelopes'
             }, status=status.HTTP_403_FORBIDDEN)
 
-        # Get the teacher's classroom for this class_name
-        teacher_classroom = Classroom.objects.filter(
-            teacher=request.user,
-            name=class_name
-        ).first()
+        # Get the classroom for this class_name (any classroom, not just teacher's assigned one)
+        target_classroom = Classroom.objects.filter(name=class_name).first()
 
-        if not teacher_classroom:
-            print(f"⚠️ Teacher {request.user.username} does not have a classroom named {class_name}")
+        if not target_classroom:
+            print(f"⚠️ Classroom {class_name} not found")
             return Response({
                 'envelopes': [],
                 'count': 0
             }, status=status.HTTP_200_OK)
 
-        print(f"📚 Found teacher's classroom: {teacher_classroom.name} (ID: {teacher_classroom.id})")
+        print(f"📚 Found classroom: {target_classroom.name} (ID: {target_classroom.id})")
 
         # Get all envelopes for students who are actually assigned to this classroom
         # This ensures we filter by the student's actual classroom assignment, not just the class_name in the envelope
         envelopes = PortfolioEnvelope.objects.filter(
             class_name=class_name,
-            student__classroom=teacher_classroom  # Filter by student's actual classroom assignment
+            student__classroom=target_classroom  # Filter by student's actual classroom assignment
         ).select_related('student', 'student__classroom')
 
         envelope_list = []
@@ -6012,10 +5967,9 @@ def get_portfolio_envelopes_api(request, class_name):
             from .models import StudentSubmission, PortfolioFolder, PortfolioActivity
             from django.db.models import Q
             
-            # Get folders for this class and teacher
+            # Get folders for this class (from any teacher, since we're viewing the class)
             folders = PortfolioFolder.objects.filter(
-                class_name=class_name,
-                teacher=request.user
+                class_name=class_name
             )
 
             # Get all unique published activity IDs using a single query
@@ -6785,94 +6739,222 @@ def export_user_data_api(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def student_list_api(request):
-    """List students - for teachers, only show students from their assigned classroom(s)"""
+    """List students - for teachers, show students based on query parameters or their assigned classroom(s)"""
     if request.method == 'GET':
         # Get query parameters
         grade_level = request.query_params.get('grade_level', '').strip() or None
         section = request.query_params.get('section', '').strip() or None
         search = request.query_params.get('search', '').strip() or None
+        
+        print(f"📥 student_list_api called - grade_level: {grade_level}, section: {section}, user: {request.user.username}")
 
+        students_data = []
+        
         # Filter based on user role
         if request.user.role == 'teacher':
-            # Get teacher's assigned classrooms
-            teacher_classrooms = Classroom.objects.filter(teacher=request.user)
-
-            if teacher_classrooms.exists():
-                # Get students from teacher's classrooms
-                students = User.objects.filter(
-                    role='student',
-                    classroom__in=teacher_classrooms
-                )
+            # If specific grade_level and section are provided, find students for that class
+            if grade_level and section:
+                # Extract grade number from "Grade 4" format
+                extracted_grade = None
+                if isinstance(grade_level, str) and 'Grade ' in grade_level:
+                    try:
+                        parts = grade_level.split('Grade ')
+                        if len(parts) > 1:
+                            grade_part = parts[1].strip()
+                            # Handle "Grade 4" -> 4
+                            if grade_part.isdigit():
+                                extracted_grade = int(grade_part)
+                    except (IndexError, ValueError):
+                        pass
+                elif str(grade_level).isdigit():
+                    extracted_grade = int(grade_level)
+                
+                print(f"🔢 Extracted grade: {extracted_grade}")
+                
+                if extracted_grade is not None:
+                    # First, try to get students from User model via Classroom (these are actual login accounts)
+                    target_classroom = Classroom.objects.filter(
+                        grade_level=extracted_grade,
+                        section=section
+                    ).first()
+                    
+                    if target_classroom:
+                        users = User.objects.filter(
+                            role='student',
+                            classroom=target_classroom
+                        ).order_by('last_name', 'first_name')
+                        print(f"📚 Found {users.count()} users in User model for classroom {target_classroom.name}")
+                        
+                        for student in users:
+                            students_data.append({
+                                'id': student.id,
+                                'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+                                'student_id': student.id_number,
+                                'first_name': student.first_name,
+                                'last_name': student.last_name,
+                                'username': student.username,
+                                'email': student.email,
+                                'grade_level': student.grade_level,
+                                'section': student.section,
+                                'classroom': {
+                                    'id': target_classroom.id,
+                                    'name': target_classroom.name,
+                                    'room_number': target_classroom.room_number
+                                },
+                                'is_active': student.is_active
+                            })
+                    else:
+                        # Fallback: try to get from Student model (comprehensive records)
+                        print(f"⚠️ No classroom found for Grade {extracted_grade} - {section}, trying Student model")
+                        student_records = Student.objects.filter(
+                            grade_level=extracted_grade,
+                            section=section,
+                            is_active=True
+                        ).order_by('last_name', 'first_name')
+                        
+                        print(f"📚 Found {student_records.count()} students in Student model")
+                        
+                        for student in student_records:
+                            user_account = student.user
+                            students_data.append({
+                                'id': user_account.id if user_account else student.id,
+                                'name': f"{student.first_name} {student.last_name}".strip(),
+                                'student_id': student.student_id,
+                                'first_name': student.first_name,
+                                'last_name': student.last_name,
+                                'username': user_account.username if user_account else student.student_id,
+                                'email': student.email or (user_account.email if user_account else ''),
+                                'grade_level': f"Grade {student.grade_level}",
+                                'section': student.section,
+                                'classroom': {
+                                    'id': None,
+                                    'name': f"Grade {student.grade_level} - {student.section}",
+                                    'room_number': ''
+                                },
+                                'is_active': student.is_active
+                            })
+                else:
+                    print(f"⚠️ Could not extract grade number from: {grade_level}")
             else:
-                # Teacher has no assigned classrooms
-                students = User.objects.none()
+                # No specific class requested - get teacher's assigned classrooms
+                teacher_classrooms = Classroom.objects.filter(teacher=request.user)
+
+                if teacher_classrooms.exists():
+                    users = User.objects.filter(
+                        role='student',
+                        classroom__in=teacher_classrooms
+                    ).order_by('classroom__grade_level', 'classroom__section', 'last_name', 'first_name')
+                    
+                    for student in users:
+                        students_data.append({
+                            'id': student.id,
+                            'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+                            'student_id': student.id_number,
+                            'first_name': student.first_name,
+                            'last_name': student.last_name,
+                            'username': student.username,
+                            'email': student.email,
+                            'grade_level': student.grade_level,
+                            'section': student.section,
+                            'classroom': {
+                                'id': student.classroom.id,
+                                'name': student.classroom.name,
+                                'room_number': student.classroom.room_number
+                            } if student.classroom else None,
+                            'is_active': student.is_active
+                        })
+                        
         elif request.user.role == 'admin':
             # Admin can see all students
-            students = User.objects.filter(role='student')
+            if grade_level and section:
+                extracted_grade = None
+                if isinstance(grade_level, str) and 'Grade ' in grade_level:
+                    try:
+                        parts = grade_level.split('Grade ')
+                        if len(parts) > 1 and parts[1].strip().isdigit():
+                            extracted_grade = int(parts[1].strip())
+                    except (IndexError, ValueError):
+                        pass
+                elif str(grade_level).isdigit():
+                    extracted_grade = int(grade_level)
+                
+                if extracted_grade is not None:
+                    student_records = Student.objects.filter(
+                        grade_level=extracted_grade,
+                        section=section,
+                        is_active=True
+                    ).order_by('last_name', 'first_name')
+                    
+                    for student in student_records:
+                        user_account = student.user
+                        students_data.append({
+                            'id': user_account.id if user_account else student.id,
+                            'name': f"{student.first_name} {student.last_name}".strip(),
+                            'student_id': student.student_id,
+                            'first_name': student.first_name,
+                            'last_name': student.last_name,
+                            'username': user_account.username if user_account else student.student_id,
+                            'email': student.email or (user_account.email if user_account else ''),
+                            'grade_level': f"Grade {student.grade_level}",
+                            'section': student.section,
+                            'classroom': None,
+                            'is_active': student.is_active
+                        })
+            else:
+                users = User.objects.filter(role='student').order_by('last_name', 'first_name')
+                for student in users:
+                    students_data.append({
+                        'id': student.id,
+                        'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+                        'student_id': student.id_number,
+                        'first_name': student.first_name,
+                        'last_name': student.last_name,
+                        'username': student.username,
+                        'email': student.email,
+                        'grade_level': student.grade_level,
+                        'section': student.section,
+                        'classroom': {
+                            'id': student.classroom.id,
+                            'name': student.classroom.name,
+                            'room_number': student.classroom.room_number
+                        } if student.classroom else None,
+                        'is_active': student.is_active
+                    })
         else:
             # Students can only see themselves
-            students = User.objects.filter(id=request.user.id, role='student')
+            student = request.user
+            if student.role == 'student':
+                students_data.append({
+                    'id': student.id,
+                    'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+                    'student_id': student.id_number,
+                    'first_name': student.first_name,
+                    'last_name': student.last_name,
+                    'username': student.username,
+                    'email': student.email,
+                    'grade_level': student.grade_level,
+                    'section': student.section,
+                    'classroom': {
+                        'id': student.classroom.id,
+                        'name': student.classroom.name,
+                        'room_number': student.classroom.room_number
+                    } if student.classroom else None,
+                    'is_active': student.is_active
+                })
 
-        # Apply additional filters
-        if grade_level:
-            # Handle "Grade 3" -> 3 for Classroom matching
-            gl_query = Q(grade_level__iexact=grade_level)
-            
-            # Try to extract integer from "Grade 3" or direct digit
-            extracted_grade = None
-            if isinstance(grade_level, str) and 'Grade ' in grade_level:
-                try:
-                    parts = grade_level.split('Grade ')
-                    if len(parts) > 1 and parts[1].strip().isdigit():
-                        extracted_grade = int(parts[1].strip())
-                except (IndexError, ValueError):
-                    pass
-            elif str(grade_level).isdigit():
-                extracted_grade = int(grade_level)
-                
-            if extracted_grade is not None:
-                # Match against User string OR Classroom integer OR simple digit string
-                gl_query |= Q(classroom__grade_level=extracted_grade)
-                gl_query |= Q(grade_level=str(extracted_grade))
-                gl_query |= Q(grade_level__iexact=f"Grade {extracted_grade}")
-                
-            students = students.filter(gl_query)
-
-        if section:
-            students = students.filter(Q(section=section) | Q(classroom__section=section))
+        # Apply search filter if provided
         if search:
-            students = students.filter(
-                Q(id_number__icontains=search) |
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(username__icontains=search) |
-                Q(email__icontains=search)
-            )
+            search_lower = search.lower()
+            students_data = [
+                s for s in students_data
+                if search_lower in (s.get('student_id') or '').lower()
+                or search_lower in (s.get('first_name') or '').lower()
+                or search_lower in (s.get('last_name') or '').lower()
+                or search_lower in (s.get('username') or '').lower()
+                or search_lower in (s.get('email') or '').lower()
+            ]
 
-        # Order by grade, section, then name
-        students = students.order_by('grade_level', 'section', 'last_name', 'first_name')
-
-        # Prepare response data
-        students_data = []
-        for student in students:
-            students_data.append({
-                'id': student.id,
-                'name': f"{student.first_name} {student.last_name}".strip() or student.username,
-                'student_id': student.id_number,
-                'first_name': student.first_name,
-                'last_name': student.last_name,
-                'username': student.username,
-                'email': student.email,
-                'grade_level': student.grade_level,
-                'section': student.section,
-                'classroom': {
-                    'id': student.classroom.id,
-                    'name': student.classroom.name,
-                    'room_number': student.classroom.room_number
-                } if student.classroom else None,
-                'is_active': student.is_active
-            })
-
+        print(f"📤 Returning {len(students_data)} students")
         return Response({
             'count': len(students_data),
             'students': students_data
@@ -7226,13 +7308,20 @@ def export_students_api(request):
 def classroom_list_api(request):
     """
     GET: List all classrooms with teacher and student information
-    For teachers: Show their assigned classroom(s)
+    For teachers: Show their assigned classroom(s), or all if ?all=true
     For students: Show their classroom
     """
     try:
+        # Check if requesting all classrooms (for manage class page)
+        show_all = request.query_params.get('all', 'false').lower() == 'true'
+        
         if request.user.role == 'teacher':
-            # Get classrooms taught by this teacher
-            classrooms = Classroom.objects.filter(teacher=request.user)
+            if show_all:
+                # Show all classrooms for manage class functionality
+                classrooms = Classroom.objects.all().order_by('grade_level', 'section')
+            else:
+                # Get classrooms taught by this teacher
+                classrooms = Classroom.objects.filter(teacher=request.user)
         elif request.user.role == 'student':
             # Get the student's classroom
             if request.user.classroom:
@@ -7302,10 +7391,15 @@ def classroom_detail_api(request, classroom_id):
         classroom = Classroom.objects.get(id=classroom_id)
 
         # Check permissions
-        if request.user.role == 'teacher' and classroom.teacher != request.user:
-            return Response({
-                'error': 'You do not have permission to view this classroom'
-            }, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role == 'teacher':
+            # Allow if teacher is assigned to this classroom OR has folders in this classroom
+            is_assigned = classroom.teacher == request.user
+            has_folders = PortfolioFolder.objects.filter(teacher=request.user, classroom=classroom).exists()
+            
+            if not is_assigned and not has_folders:
+                return Response({
+                    'error': 'You do not have permission to view this classroom'
+                }, status=status.HTTP_403_FORBIDDEN)
 
         if request.user.role == 'student' and request.user.classroom != classroom:
             return Response({
@@ -7322,22 +7416,41 @@ def classroom_detail_api(request, classroom_id):
                 student=student
             ).order_by('-submitted_at')[:5]
 
+            # Safely get profile picture URL
+            profile_pic_url = None
+            if student.profile_picture:
+                try:
+                    profile_pic_url = student.profile_picture.url
+                except (ValueError, AttributeError):
+                    profile_pic_url = None
+
             students_data.append({
                 'id': student.id,
                 'name': f"{student.first_name} {student.last_name}".strip() or student.username,
                 'email': student.email,
                 'id_number': student.id_number,
-                'profile_picture': student.profile_picture.url if student.profile_picture else None,
+                'profile_picture': profile_pic_url,
                 'recent_submissions': [
                     {
                         'id': sub.id,
                         'activity': sub.activity.title if sub.activity else 'Sketch',
-                        'submitted_at': sub.submitted_at.isoformat(),
+                        'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
                         'status': sub.status,
                         'score': sub.score
                     } for sub in recent_submissions
                 ]
             })
+
+        # Safely build teacher data
+        teacher_data = None
+        if classroom.teacher:
+            teacher_data = {
+                'id': classroom.teacher.id,
+                'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
+                'email': classroom.teacher.email,
+                'department': getattr(classroom.teacher, 'department', None),
+                'phone': getattr(classroom.teacher, 'phone_number', None)
+            }
 
         classroom_data = {
             'id': classroom.id,
@@ -7347,18 +7460,12 @@ def classroom_detail_api(request, classroom_id):
             'room_number': classroom.room_number,
             'capacity': classroom.capacity,
             'school_year': classroom.school_year,
-            'teacher': {
-                'id': classroom.teacher.id,
-                'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
-                'email': classroom.teacher.email,
-                'department': classroom.teacher.department,
-                'phone': classroom.teacher.phone_number
-            } if classroom.teacher else None,
+            'teacher': teacher_data,
             'student_count': len(students_data),
             'is_full': len(students_data) >= classroom.capacity,
             'students': students_data,
-            'created_at': classroom.created_at.isoformat(),
-            'updated_at': classroom.updated_at.isoformat()
+            'created_at': classroom.created_at.isoformat() if classroom.created_at else None,
+            'updated_at': classroom.updated_at.isoformat() if classroom.updated_at else None
         }
 
         return Response(classroom_data)

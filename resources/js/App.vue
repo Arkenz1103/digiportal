@@ -25,6 +25,7 @@
       <TeacherNotice v-if="currentPage === 'TeacherNotice'" @navigate="handleNavigation" />
       <TeacherNotify v-if="currentPage === 'TeacherNotify'" @navigate="handleNavigation" />
       <TeacherArchived v-if="currentPage === 'TeacherArchived'" @navigate="handleNavigation" />
+      <TeacherManageClass v-if="currentPage === 'TeacherManageClass'" @navigate="handleNavigation" />
       <TeacherProfile v-if="currentPage === 'Profile' && userRole === 'teacher'" @navigate="handleNavigation" />
       <TeacherSettings v-if="currentPage === 'Settings' && userRole === 'teacher'" @navigate="handleNavigation" />
     </MainLayout>
@@ -64,6 +65,7 @@ import TeacherNotify from './Pages/Teacher/Notify.vue'
 import TeacherArchived from './Pages/Teacher/Archived.vue'
 import TeacherProfile from './Pages/Teacher/Profile.vue'
 import TeacherSettings from './Pages/Teacher/Settings.vue'
+import TeacherManageClass from './Pages/Teacher/ManageClass.vue'
 
 // Student components
 import StudentNewsfeed from './Pages/Student/Newsfeed.vue'
@@ -136,6 +138,7 @@ const handleNavigation = (page) => {
     'TeacherNotice': 'Announcements | DigiPortal',
     'TeacherNotify': 'Notifications | DigiPortal',
     'TeacherArchived': 'Archive | DigiPortal',
+    'TeacherManageClass': 'Manage Classes | DigiPortal',
     'Profile': 'My Profile | DigiPortal',
     'Settings': 'Account Settings | DigiPortal',
     'StudentNewsfeed': 'Home | DigiPortal Student',
@@ -163,6 +166,7 @@ const handleNavigation = (page) => {
     'TeacherNotice': '/teacher/notice',
     'TeacherNotify': '/teacher/notify',
     'TeacherArchived': '/teacher/archived',
+    'TeacherManageClass': '/teacher/manage-class',
     'StudentNewsfeed': '/student/newsfeed',
     'StudentClassroom': '/student/classroom',
     'StudentRoom': '/student/room',
