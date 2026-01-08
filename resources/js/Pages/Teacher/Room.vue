@@ -4249,13 +4249,6 @@ onMounted(async () => {
         }
     });
 
-    // Watch for class changes to update AI grade level lock status
-    watch(className, (newClassName) => {
-        if (showAIGenerationDialog.value) {
-            setGradeLevelFromClass();
-        }
-    });
-
     // Listen for subject change events from sidebar
     window.addEventListener('subjectChanged', handleSubjectChange);
 

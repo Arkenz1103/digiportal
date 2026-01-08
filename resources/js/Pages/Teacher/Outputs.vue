@@ -563,6 +563,7 @@ const submissions = ref([]);
 const scoredSubmissionsData = ref([]);
 const classMembers = ref([]); // Store all students in the class
 const currentTab = ref('submitted'); // 'submitted', 'scored', 'incomplete'
+const searchQuery = ref(''); // Search filter for student name and ID
 const isLoadingSubmissions = ref(false);
 const isClassMembersLoaded = ref(false);
 const visibleIncompleteCount = ref(10); // Number of students to show initially in Incomplete tab
@@ -706,13 +707,25 @@ const incompleteSubmissions = computed(() => {
     });
 });
 
-// Paginated incomplete submissions
+// Paginated incomplete submissions with search filter
+const filteredIncompleteSubmissions = computed(() => {
+    if (!searchQuery.value.trim()) {
+        return incompleteSubmissions.value;
+    }
+    const query = searchQuery.value.toLowerCase().trim();
+    return incompleteSubmissions.value.filter(item => {
+        const name = (item.name || '').toLowerCase();
+        const studentId = (item.studentIdNumber || '').toString().toLowerCase();
+        return name.includes(query) || studentId.includes(query);
+    });
+});
+
 const displayedIncompleteSubmissions = computed(() => {
-    return incompleteSubmissions.value.slice(0, visibleIncompleteCount.value);
+    return filteredIncompleteSubmissions.value.slice(0, visibleIncompleteCount.value);
 });
 
 const hasMoreIncomplete = computed(() => {
-    return visibleIncompleteCount.value < incompleteSubmissions.value.length;
+    return visibleIncompleteCount.value < filteredIncompleteSubmissions.value.length;
 });
 
 const loadMoreIncomplete = () => {
@@ -1324,12 +1337,29 @@ const getMaxScoreForSubmission = (submission) => {
 // Computed properties for filtering submissions
 const unscoredSubmissions = computed(() => {
     // Backend already filters by status='unscored', so just return the submissions
-    // No need to filter again on frontend
-    return submissions.value;
+    // Apply search filter if query exists
+    if (!searchQuery.value.trim()) {
+        return submissions.value;
+    }
+    const query = searchQuery.value.toLowerCase().trim();
+    return submissions.value.filter(item => {
+        const name = (item.name || item.studentName || '').toLowerCase();
+        const studentId = (item.studentIdNumber || item.studentId || '').toString().toLowerCase();
+        return name.includes(query) || studentId.includes(query);
+    });
 });
 
 const scoredSubmissions = computed(() => {
-    return scoredSubmissionsData.value;
+    // Apply search filter if query exists
+    if (!searchQuery.value.trim()) {
+        return scoredSubmissionsData.value;
+    }
+    const query = searchQuery.value.toLowerCase().trim();
+    return scoredSubmissionsData.value.filter(item => {
+        const name = (item.name || item.studentName || '').toLowerCase();
+        const studentId = (item.studentIdNumber || item.studentId || '').toString().toLowerCase();
+        return name.includes(query) || studentId.includes(query);
+    });
 });
 
 const validateScoreInput = (value, type) => {
@@ -1981,13 +2011,26 @@ const getMedalDetails = (rank) => {
                     </div>
 
                     <!-- Filter & View Controls -->
-                    <div class="px-6 py-3 border-b border-gray-200 bg-gray-50/30 flex justify-between items-center">
-                        <div class="text-sm text-gray-500">
-                            Showing {{ 
-                                currentTab === 'submitted' ? unscoredSubmissions.length : 
-                                currentTab === 'scored' ? scoredSubmissions.length : 
-                                incompleteSubmissions.length 
-                            }} students
+                    <div class="px-6 py-3 border-b border-gray-200 bg-gray-50/30 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
+                        <div class="flex items-center gap-4">
+                            <!-- Search Input -->
+                            <div class="relative">
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Search by name or ID..."
+                                    class="w-64 px-4 py-2 pl-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                                />
+                                <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <button 
+                                    v-if="searchQuery" 
+                                    @click="searchQuery = ''"
+                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    <i class="pi pi-times text-xs"></i>
+                                </button>
+                            </div>
+
                         </div>
                         <div v-if="currentTab !== 'incomplete'" class="flex items-center rounded-lg bg-white border border-gray-200 p-1 shadow-sm">
                             <button @click="toggleView('list')"
@@ -2162,7 +2205,7 @@ const getMedalDetails = (rank) => {
 
                             <!-- Card View -->
                             <div v-else class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                <div v-for="item in (currentTab === 'submitted' ? unscoredSubmissions : currentTab === 'scored' ? scoredSubmissions : incompleteSubmissions)" 
+                                <div v-for="item in (currentTab === 'submitted' ? unscoredSubmissions : currentTab === 'scored' ? scoredSubmissions : filteredIncompleteSubmissions)" 
                                      :key="item.id"
                                      class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all transform hover:-translate-y-1 duration-200 group"
                                      :class="{'cursor-pointer': currentTab !== 'incomplete'}"

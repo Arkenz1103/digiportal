@@ -982,14 +982,18 @@
                           <div class="text-xs text-white/70">{{ folder.items }} activities</div>
                         </div>
 
-                        <!-- Student Avatar/Profile Picture -->
-                        <div class="absolute bottom-2 right-4 w-16 h-16 rounded-full bg-white shadow-lg border-4 border-white flex items-center justify-center overflow-hidden">
-                          <div v-if="currentUser?.profile_picture" class="w-full h-full">
-                            <img :src="currentUser.profile_picture" :alt="currentUser?.name" class="w-full h-full object-cover">
-                          </div>
-                          <div v-else class="w-full h-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white font-bold text-lg">
-                            {{ currentUser?.name?.charAt(0) || 'S' }}
-                          </div>
+                        <!-- Teacher Avatar/Profile Picture -->
+                        <div class="absolute bottom-2 right-4 w-16 h-16 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 shadow-lg border-4 border-white flex items-center justify-center overflow-hidden">
+                          <img 
+                            v-if="folder.teacher?.profile_picture" 
+                            :src="folder.teacher.profile_picture" 
+                            :alt="folder.teacher?.name" 
+                            class="w-full h-full object-cover"
+                            @error="handleFolderImageError($event, folder)"
+                          >
+                          <span v-if="!folder.teacher?.profile_picture || folder.imageError" class="text-white font-bold text-lg">
+                            {{ folder.teacher?.name ? getInitials(folder.teacher.name) : 'T' }}
+                          </span>
                         </div>
                       </div>
 
@@ -1689,17 +1693,35 @@
 
             <!-- Classroom Card -->
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-              <!-- Class Adviser Section -->
+              <!-- Class Teachers Section -->
               <div class="p-6 border-b border-gray-200 bg-gray-50">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">Class Teacher</h3>
-                <div class="flex items-center gap-3 p-3 bg-white rounded-lg">
-                  <div class="w-12 h-12 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center text-gray-700 font-bold text-lg overflow-hidden">
-                    <img v-if="classTeacherProfilePicture" :src="classTeacherProfilePicture" :alt="classTeacher" class="w-full h-full object-cover" />
-                    <span v-else>{{ getTeacherInitials(classTeacher) }}</span>
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Class Teachers</h3>
+                <div class="space-y-3">
+                  <!-- Show all teachers with their subjects -->
+                  <div v-for="teacher in classTeachers" :key="teacher.id" class="flex items-center gap-3 p-3 bg-white rounded-lg">
+                    <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden flex-shrink-0">
+                      <img v-if="teacher.profile_picture" :src="teacher.profile_picture" :alt="teacher.name" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+                      <span v-if="!teacher.profile_picture">{{ getInitials(teacher.name) }}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium text-gray-900">{{ teacher.name }}</p>
+                      <p class="text-sm text-gray-600 truncate">{{ teacher.email }}</p>
+                    </div>
+                    <div v-if="teacher.subjects && teacher.subjects.length > 0" class="text-right flex-shrink-0 max-w-[150px]">
+                      <p class="text-xs text-gray-500">Subject</p>
+                      <p class="text-sm text-indigo-600 font-medium truncate" :title="teacher.subjects.join(', ')">{{ teacher.subjects.join(', ') }}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p class="font-medium text-gray-900">{{ classTeacher }}</p>
-                    <p class="text-sm text-gray-600">{{ classTeacherEmail }}</p>
+                  <!-- Fallback if no teachers data -->
+                  <div v-if="classTeachers.length === 0" class="flex items-center gap-3 p-3 bg-white rounded-lg">
+                    <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden flex-shrink-0">
+                      <img v-if="classTeacherProfilePicture" :src="classTeacherProfilePicture" :alt="classTeacher" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+                      <span v-if="!classTeacherProfilePicture">{{ getInitials(classTeacher) }}</span>
+                    </div>
+                    <div>
+                      <p class="font-medium text-gray-900">{{ classTeacher }}</p>
+                      <p class="text-sm text-gray-600">{{ classTeacherEmail }}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4075,6 +4097,7 @@ const studentClassmates = ref([]);
 const classTeacher = ref('Teacher Name');
 const classTeacherEmail = ref('');
 const classTeacherProfilePicture = ref(null);
+const classTeachers = ref([]); // All teachers with their subjects
 const classmateSearchQuery = ref('');
 
 // Filtered classmates based on search
@@ -4108,6 +4131,12 @@ const getInitials = (name) => {
         return (parts[0][0] + parts[1][0]).toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
+};
+
+// Handle folder image error - hide image and show initials
+const handleFolderImageError = (event, folder) => {
+    event.target.style.display = 'none';
+    folder.imageError = true;
 };
 
 const isLoadingFolders = ref(false);
@@ -4409,7 +4438,12 @@ const loadPortfolioFolders = async (classId = null) => {
           id: folder.id,
           title: folder.name,
           items: publishedActivities.length,
-          description: folder.description || ''
+          description: folder.description || '',
+          teacher: folder.teacher ? {
+            id: folder.teacher.id,
+            name: folder.teacher.full_name || `${folder.teacher.first_name || ''} ${folder.teacher.last_name || ''}`.trim() || folder.teacher.username,
+            profile_picture: folder.teacher.profile_picture_url
+          } : null
         };
       });
     } else {
@@ -5510,7 +5544,15 @@ const loadClassmates = async () => {
             // Filter out the current student from the list
             studentClassmates.value = (currentClassroom.students || []).filter(s => s.id !== currentUser.value.id);
 
-            // Get teacher name - try multiple possible field names
+            // Get all teachers with their subjects
+            if (currentClassroom.teachers && currentClassroom.teachers.length > 0) {
+                classTeachers.value = currentClassroom.teachers;
+                console.log('👨‍🏫 All teachers:', classTeachers.value);
+            } else {
+                classTeachers.value = [];
+            }
+
+            // Get teacher name - try multiple possible field names (for backward compatibility)
             if (currentClassroom.teacher_name) {
                 classTeacher.value = currentClassroom.teacher_name;
             } else if (currentClassroom.teacher && currentClassroom.teacher.name) {
@@ -5545,6 +5587,7 @@ const loadClassmates = async () => {
     } catch (error) {
         console.error('❌ Error loading classmates:', error);
         studentClassmates.value = [];
+        classTeachers.value = [];
     }
 };
 

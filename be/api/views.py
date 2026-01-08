@@ -593,7 +593,7 @@ def portfolio_folders_api(request):
                     # Fallback for other roles
                     folders = PortfolioFolder.objects.none()
 
-            serializer = PortfolioFolderSerializer(folders, many=True)
+            serializer = PortfolioFolderSerializer(folders, many=True, context={'request': request})
             return Response(serializer.data)
         except Exception as e:
             print(f"Error fetching folders: {str(e)}")
@@ -7340,6 +7340,60 @@ def classroom_list_api(request):
             # Get students in this classroom
             students = User.objects.filter(classroom=classroom, role='student').order_by('last_name', 'first_name')
 
+            # Get ALL teachers who have folders in this classroom (including via ManageClass)
+            teachers_with_subjects = []
+            classroom_folders = PortfolioFolder.objects.filter(classroom=classroom).select_related('teacher')
+            
+            # Group folders by teacher
+            teacher_subjects = {}
+            for folder in classroom_folders:
+                if folder.teacher:
+                    teacher_id = folder.teacher.id
+                    if teacher_id not in teacher_subjects:
+                        # Safely get profile picture URL
+                        profile_pic_url = None
+                        if folder.teacher.profile_picture:
+                            try:
+                                profile_pic_url = request.build_absolute_uri(folder.teacher.profile_picture.url)
+                            except (ValueError, AttributeError):
+                                profile_pic_url = None
+                        
+                        teacher_subjects[teacher_id] = {
+                            'id': folder.teacher.id,
+                            'name': f"{folder.teacher.first_name} {folder.teacher.last_name}".strip() or folder.teacher.username,
+                            'email': folder.teacher.email,
+                            'profile_picture': profile_pic_url,
+                            'subjects': []
+                        }
+                    teacher_subjects[teacher_id]['subjects'].append(folder.name)
+            
+            # Convert to list
+            teachers_with_subjects = list(teacher_subjects.values())
+            
+            # If assigned teacher has no folders, still include them
+            if classroom.teacher and classroom.teacher.id not in teacher_subjects:
+                profile_pic_url = None
+                if classroom.teacher.profile_picture:
+                    try:
+                        profile_pic_url = request.build_absolute_uri(classroom.teacher.profile_picture.url)
+                    except (ValueError, AttributeError):
+                        profile_pic_url = None
+                
+                teachers_with_subjects.insert(0, {
+                    'id': classroom.teacher.id,
+                    'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
+                    'email': classroom.teacher.email,
+                    'profile_picture': profile_pic_url,
+                    'subjects': [],
+                    'is_assigned': True
+                })
+            else:
+                # Mark the assigned teacher
+                for t in teachers_with_subjects:
+                    if classroom.teacher and t['id'] == classroom.teacher.id:
+                        t['is_assigned'] = True
+                        break
+
             classroom_data = {
                 'id': classroom.id,
                 'name': classroom.name,
@@ -7355,6 +7409,7 @@ def classroom_list_api(request):
                     'department': classroom.teacher.department,
                     'profile_picture': request.build_absolute_uri(classroom.teacher.profile_picture.url) if classroom.teacher.profile_picture else None
                 } if classroom.teacher else None,
+                'teachers': teachers_with_subjects,  # All teachers with their subjects
                 'student_count': students.count(),
                 'is_full': students.count() >= classroom.capacity,
                 'students': [
@@ -7441,7 +7496,7 @@ def classroom_detail_api(request, classroom_id):
                 ]
             })
 
-        # Safely build teacher data
+        # Safely build assigned teacher data
         teacher_data = None
         if classroom.teacher:
             teacher_data = {
@@ -7452,6 +7507,63 @@ def classroom_detail_api(request, classroom_id):
                 'phone': getattr(classroom.teacher, 'phone_number', None)
             }
 
+        # Get ALL teachers who have folders in this classroom (including via ManageClass)
+        # This includes both the assigned teacher and teachers who created folders via ManageClass
+        teachers_with_subjects = []
+        
+        # Get all folders for this classroom
+        classroom_folders = PortfolioFolder.objects.filter(classroom=classroom).select_related('teacher')
+        
+        # Group folders by teacher
+        teacher_subjects = {}
+        for folder in classroom_folders:
+            if folder.teacher:
+                teacher_id = folder.teacher.id
+                if teacher_id not in teacher_subjects:
+                    # Safely get profile picture URL
+                    profile_pic_url = None
+                    if folder.teacher.profile_picture:
+                        try:
+                            profile_pic_url = folder.teacher.profile_picture.url
+                        except (ValueError, AttributeError):
+                            profile_pic_url = None
+                    
+                    teacher_subjects[teacher_id] = {
+                        'id': folder.teacher.id,
+                        'name': f"{folder.teacher.first_name} {folder.teacher.last_name}".strip() or folder.teacher.username,
+                        'email': folder.teacher.email,
+                        'profile_picture': profile_pic_url,
+                        'subjects': []
+                    }
+                teacher_subjects[teacher_id]['subjects'].append(folder.name)
+        
+        # Convert to list
+        teachers_with_subjects = list(teacher_subjects.values())
+        
+        # If assigned teacher has no folders, still include them
+        if classroom.teacher and classroom.teacher.id not in teacher_subjects:
+            profile_pic_url = None
+            if classroom.teacher.profile_picture:
+                try:
+                    profile_pic_url = classroom.teacher.profile_picture.url
+                except (ValueError, AttributeError):
+                    profile_pic_url = None
+            
+            teachers_with_subjects.insert(0, {
+                'id': classroom.teacher.id,
+                'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
+                'email': classroom.teacher.email,
+                'profile_picture': profile_pic_url,
+                'subjects': [],
+                'is_assigned': True
+            })
+        else:
+            # Mark the assigned teacher
+            for t in teachers_with_subjects:
+                if classroom.teacher and t['id'] == classroom.teacher.id:
+                    t['is_assigned'] = True
+                    break
+
         classroom_data = {
             'id': classroom.id,
             'name': classroom.name,
@@ -7461,6 +7573,7 @@ def classroom_detail_api(request, classroom_id):
             'capacity': classroom.capacity,
             'school_year': classroom.school_year,
             'teacher': teacher_data,
+            'teachers': teachers_with_subjects,  # All teachers with their subjects
             'student_count': len(students_data),
             'is_full': len(students_data) >= classroom.capacity,
             'students': students_data,
