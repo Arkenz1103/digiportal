@@ -2098,28 +2098,52 @@ def unscored_submissions_api(request):
         # Get all unscored submissions - explicitly filter by status='unscored'
         # AND exclude any that have scores (double safety check)
         # ALSO include drafts that have resubmit_count > 0 (student is resubmitting)
-        # ALSO include compiled submissions (they should appear in submitted tab, not scored)
+        # ALSO include compiled submissions (they should appear in submitted tab)
+        # Compiled submissions should appear here if they are NOT scored yet
         from django.db.models import Q, Max
 
-        # First, get the latest submission ID for each student-activity pair
-        latest_submissions = StudentSubmission.objects.filter(
-            Q(status='unscored') | 
+        # SIMPLIFIED QUERY: Get all submissions that should appear in "Submitted" tab
+        # This includes:
+        # 1. Regular unscored submissions (status='unscored')
+        # 2. Drafts with resubmit_count > 0 (student is resubmitting)
+        # 3. Compiled submissions that don't have an actual score (score is null)
+        #    - Even if scored_at is set (legacy data), if score is null, show in Submitted
+        all_unscored = StudentSubmission.objects.filter(
+            is_active=True
+        ).filter(
+            Q(status='unscored') |
             Q(status='draft', resubmit_count__gt=0) |
-            (Q(compiled=True) & Q(status='unscored')) |  # Only include compiled if unscored
-            (Q(is_compilation=True) & Q(status='unscored'))  # Only include compilation if unscored
-        ).values('student', 'activity').annotate(
+            # Include ANY compiled submission that doesn't have an actual score
+            (Q(compiled=True) & Q(score__isnull=True)) |
+            (Q(is_compilation=True) & Q(score__isnull=True))
+        )
+
+        # Debug: Log all matching submissions before grouping
+        print(f"📊 All unscored/compiled submissions before grouping: {all_unscored.count()}")
+        for sub in all_unscored:
+            print(f"  - id={sub.id}, student={sub.student.username}, activity={sub.activity_id}, status={sub.status}, compiled={sub.compiled}, is_compilation={sub.is_compilation}, score={sub.score}, scored_at={sub.scored_at}")
+
+        # Now group by student-activity to get latest
+        latest_submissions = all_unscored.values('student', 'activity').annotate(
             latest_id=Max('id')
         )
 
-        # Extract the IDs
-        latest_ids = [item['latest_id'] for item in latest_submissions]
+        # Extract the IDs - filter out None values
+        latest_ids = [item['latest_id'] for item in latest_submissions if item['latest_id'] is not None]
 
         # Get only the latest submissions (one per student per activity)
         submissions = StudentSubmission.objects.filter(
-            id__in=latest_ids
+            id__in=latest_ids,
+            is_active=True  # Double-check is_active
         ).order_by('-submitted_at')
 
-        print(f"📊 Unscored submissions query: Found {submissions.count()} unique submissions (including unscored compiled)")
+        # Debug: Log compiled submissions
+        compiled_count = submissions.filter(Q(compiled=True) | Q(is_compilation=True)).count()
+        print(f"📊 Final unscored submissions: Found {submissions.count()} unique submissions (including {compiled_count} compiled)")
+        
+        # Log details of compiled submissions for debugging
+        for sub in submissions.filter(Q(compiled=True) | Q(is_compilation=True)):
+            print(f"  📦 Compiled submission: id={sub.id}, student={sub.student.username}, activity={sub.activity_id}, status={sub.status}")
 
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -2135,21 +2159,27 @@ def unscored_submissions_api(request):
 def scored_submissions_api(request):
     """
     GET: List all scored submissions (teacher only)
-    Only includes submissions with status='scored' AND has a score AND has scored_at timestamp
+    Includes submissions with status='scored' AND has a score AND has scored_at timestamp
+    Also includes compiled submissions that have been scored
     """
     if not request.user.is_authenticated or request.user.role != 'teacher':
         return Response({'error': 'Only teachers can view scored submissions'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        # Get ONLY submissions with status='scored' AND has actual score AND scored_at timestamp
-        # This triple-check ensures only actually scored submissions appear in the Scored tab
+        from django.db.models import Q
+        
+        # Get submissions that are scored
+        # This includes regular scored submissions AND compiled submissions that have been scored
         submissions = StudentSubmission.objects.filter(
-            status='scored',
+            Q(status='scored') |  # Regular scored submissions
+            (Q(compiled=True) & Q(score__isnull=False) & Q(scored_at__isnull=False)) |  # Compiled and scored
+            (Q(is_compilation=True) & Q(score__isnull=False) & Q(scored_at__isnull=False))  # Compilation and scored
+        ).filter(
             score__isnull=False,
             scored_at__isnull=False
         ).distinct().order_by('-scored_at', '-submitted_at')
 
-        print(f"📊 Scored submissions query: Found {submissions.count()} submissions with status='scored' AND score AND scored_at")
+        print(f"📊 Scored submissions query: Found {submissions.count()} submissions with score (including compiled)")
 
         # Use lightweight serializer for list (excludes large file_path)
         from .serializer import StudentSubmissionListSerializer
@@ -5347,8 +5377,15 @@ def get_student_portfolio_activities_api(request, class_name):
                     # Check if this is a compilation submission
                     is_compilation = submission.compiled if hasattr(submission, 'compiled') else getattr(submission, 'is_compilation', False)
 
-                    if is_compilation:
+                    # Check if the submission has been scored (has a score value)
+                    has_score = submission.score is not None
+
+                    if is_compilation and not has_score:
+                        # Compiled but not yet scored by teacher
                         submission_status = 'compiled'
+                    elif is_compilation and has_score:
+                        # Compiled AND scored by teacher - show as scored with compilation flag
+                        submission_status = 'scored'
                     elif is_resubmitted:
                         submission_status = 'scored_resubmitted'
                     elif is_late:
@@ -5356,7 +5393,7 @@ def get_student_portfolio_activities_api(request, class_name):
                     else:
                         submission_status = 'scored'
 
-                    print(f"   ✅ Found SCORED submission: ID={submission.id}, Score={submission.score}, Compilation={is_compilation}, Resubmit={is_resubmitted}, Late={is_late}")
+                    print(f"   ✅ Found SCORED submission: ID={submission.id}, Score={submission.score}, Compilation={is_compilation}, HasScore={has_score}, Resubmit={is_resubmitted}, Late={is_late}")
 
                 # Get submission files (multiple files support)
                 submission_files = []
@@ -5625,6 +5662,7 @@ def submit_missing_activity_api(request, activity_id):
                 is_compilation=True,  # Mark as compilation submission
                 compiled=True,  # Mark as compiled
                 missing=False,  # No longer missing
+                is_active=True,  # Explicitly set as active
                 compiled_at=timezone.now(),  # Set compilation timestamp
                 submitted_at=timezone.now()  # Set submission timestamp
             )
@@ -5642,6 +5680,7 @@ def submit_missing_activity_api(request, activity_id):
                 is_compilation=True,  # Mark as compilation submission
                 compiled=True,  # Mark as compiled
                 missing=False,  # No longer missing
+                is_active=True,  # Explicitly set as active
                 compiled_at=timezone.now(),  # Set compilation timestamp
                 submitted_at=timezone.now()  # Set submission timestamp
             )
@@ -5730,6 +5769,7 @@ def submit_missing_activity_api(request, activity_id):
 def compile_activity_api(request):
     """
     POST: Compile an activity (mark as compiled and not missing)
+    This creates an UNSCORED submission that will appear in teacher's Submitted tab
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
@@ -5750,11 +5790,11 @@ def compile_activity_api(request):
             student=request.user,
             activity=activity,
             defaults={
-                'status': 'scored',
-                'approval_status': 'approved',
+                'status': 'unscored',  # Changed from 'scored' to 'unscored' so it appears in Submitted tab
+                'approval_status': 'pending',
                 'is_active': True,
-                'submitted_at': timezone.now(), # Set submitted time for new creates
-                'scored_at': timezone.now()
+                'submitted_at': timezone.now(),
+                'scored_at': None  # Don't set scored_at - teacher needs to score it
             }
         )
 
@@ -5764,19 +5804,17 @@ def compile_activity_api(request):
         submission.missing = False
         submission.compiled_at = timezone.now()
 
-        # Ensure status and timestamps are appropriate
-        if submission.status == 'draft':
-            submission.status = 'scored'
+        # For existing submissions, update status to unscored if not already scored by teacher
+        if not created and submission.score is None:
+            submission.status = 'unscored'
+            submission.scored_at = None
 
         if not submission.submitted_at:
             submission.submitted_at = timezone.now()
 
-        if not submission.scored_at:
-            submission.scored_at = timezone.now()
-
         submission.save()
 
-        print(f"✅ Activity {activity_id} compiled for user {request.user.username}")
+        print(f"✅ Activity {activity_id} compiled for user {request.user.username} (status: {submission.status})")
 
         return Response({
             'success': True,
@@ -6247,9 +6285,14 @@ def get_teacher_student_activities_api(request, class_name, student_id):
                     is_compilation = submission.compiled if hasattr(submission, 'compiled') else getattr(submission, 'is_compilation', False)
                     is_resubmitted = submission.resubmit_count > 0 if hasattr(submission, 'resubmit_count') else False
                     is_late = submission.is_late if hasattr(submission, 'is_late') else False
+                    has_score = submission.score is not None
                     
-                    if is_compilation:
+                    if is_compilation and not has_score:
+                        # Compiled but not yet scored by teacher
                         activity_data['submission_status'] = 'compiled'
+                    elif is_compilation and has_score:
+                        # Compiled AND scored by teacher - show as scored
+                        activity_data['submission_status'] = 'scored'
                     elif is_resubmitted:
                         activity_data['submission_status'] = 'scored_resubmitted'
                     elif is_late:

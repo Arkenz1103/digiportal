@@ -790,7 +790,7 @@
                                                   <!-- Score -->
                                                   <div class="pt-2 border-t border-gray-100">
                                                     <span class="text-xs text-gray-400 uppercase">Score</span>
-                                                    <p class="text-xl font-bold" :class="currentTabActivities[currentActivityIndex].submission_score !== null && !currentTabActivities[currentActivityIndex].is_compilation ? 'text-green-600' : 'text-gray-400'">
+                                                    <p class="text-xl font-bold" :class="currentTabActivities[currentActivityIndex].submission_score !== null ? 'text-green-600' : 'text-gray-400'">
                                                       {{ getScoreDisplayTeacher(currentTabActivities[currentActivityIndex]) }}
                                                     </p>
                                                   </div>
@@ -814,9 +814,27 @@
                             <!-- Show table if not viewing an envelope -->
                             <div v-else>
                                 <!-- Header with Buttons -->
-                                <div class="flex justify-between items-center mb-6">
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                                     <h2 class="text-2xl font-bold text-gray-900">Portfolio Compilation Status</h2>
-                                    <div class="flex gap-3">
+                                    <div class="flex flex-wrap gap-3 items-center">
+                                        <!-- Search Filter -->
+                                        <div class="relative">
+                                            <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                            <input
+                                                v-model="portfolioSearchQuery"
+                                                type="text"
+                                                placeholder="Search by name or ID..."
+                                                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm w-64"
+                                                @input="displayedPortfolioCount = portfolioItemsPerPage"
+                                            />
+                                            <button 
+                                                v-if="portfolioSearchQuery" 
+                                                @click="portfolioSearchQuery = ''; displayedPortfolioCount = portfolioItemsPerPage"
+                                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <i class="pi pi-times text-sm"></i>
+                                            </button>
+                                        </div>
                                         <button
                                             @click="showNotStartedStudentsDialog = true"
                                             class="px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
@@ -863,7 +881,7 @@
                                 <div class="divide-y divide-gray-200">
                                     <!-- Student Rows - Clickable when Done -->
                                     <div
-                                        v-for="student in portfolioStudents"
+                                        v-for="student in filteredPortfolioStudents.slice(0, displayedPortfolioCount)"
                                         :key="student.id"
                                         @click="viewStudentEnvelope(student)"
                                         class="px-6 py-4 hover:bg-indigo-50 transition-colors duration-150 cursor-pointer"
@@ -888,17 +906,29 @@
                                     </div>
 
                                     <!-- Empty State -->
-                                    <div v-if="portfolioStudents.length === 0" class="px-6 py-12 text-center">
+                                    <div v-if="filteredPortfolioStudents.length === 0" class="px-6 py-12 text-center">
                                         <i class="pi pi-inbox text-5xl text-gray-300 mb-4"></i>
-                                        <p class="text-gray-500 text-lg font-medium">No students have started yet</p>
-                                        <p class="text-gray-400 text-sm mt-2">Students will appear here once they create their portfolio envelope</p>
+                                        <p v-if="portfolioSearchQuery" class="text-gray-500 text-lg font-medium">No students found matching "{{ portfolioSearchQuery }}"</p>
+                                        <p v-else class="text-gray-500 text-lg font-medium">No students have started yet</p>
+                                        <p v-if="!portfolioSearchQuery" class="text-gray-400 text-sm mt-2">Students will appear here once they create their portfolio envelope</p>
                                     </div>
                                 </div>
 
-                                <!-- Table Footer -->
+                                <!-- Table Footer with Load More -->
                                 <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                                    <div class="text-sm text-gray-600">
-                                        <span>Total Students: <strong class="text-indigo-600">{{ portfolioStudents.length }}</strong></span>
+                                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                                        <div class="text-sm text-gray-600">
+                                            <span>Showing <strong class="text-indigo-600">{{ Math.min(displayedPortfolioCount, filteredPortfolioStudents.length) }}</strong> of <strong class="text-indigo-600">{{ filteredPortfolioStudents.length }}</strong> students</span>
+                                            <span v-if="portfolioSearchQuery" class="ml-2 text-gray-400">(filtered from {{ portfolioStudents.length }} total)</span>
+                                        </div>
+                                        <button 
+                                            v-if="displayedPortfolioCount < filteredPortfolioStudents.length"
+                                            @click="displayedPortfolioCount += portfolioItemsPerPage"
+                                            class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
+                                        >
+                                            <i class="pi pi-chevron-down"></i>
+                                            Load More ({{ Math.min(portfolioItemsPerPage, filteredPortfolioStudents.length - displayedPortfolioCount) }} more)
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -3415,6 +3445,9 @@ const portfolioCompilationActive = ref(false); // Track if compilation is alread
 
 // Portfolio students data
 const portfolioStudents = ref([]);
+const portfolioSearchQuery = ref(''); // Search filter for portfolio students
+const displayedPortfolioCount = ref(10); // Number of students to display initially
+const portfolioItemsPerPage = 10; // Items to load per "Load More" click
 const showEnvelopeViewDialog = ref(false);
 const selectedEnvelope = ref(null);
 const isEnvelopeOpen = ref(false);
@@ -3430,6 +3463,18 @@ const notStartedStudents = computed(() => {
     
     // Filter classroom students who haven't started
     return classroomStudents.value.filter(student => !startedStudentIds.has(student.id));
+});
+
+// Computed property for filtered portfolio students (search by name or ID)
+const filteredPortfolioStudents = computed(() => {
+    const query = portfolioSearchQuery.value.toLowerCase().trim();
+    if (!query) {
+        return portfolioStudents.value;
+    }
+    return portfolioStudents.value.filter(student => 
+        student.name.toLowerCase().includes(query) || 
+        (student.idNumber && student.idNumber.toLowerCase().includes(query))
+    );
 });
 
 // Computed properties for filtered activities
@@ -3927,12 +3972,7 @@ const getStatusLabelTeacher = (activity) => {
 const getScoreDisplayTeacher = (activity) => {
   if (!activity) return 'None';
   
-  // If it's a compilation submission, don't show score
-  if (activity.is_compilation || activity.submission_status === 'compiled') {
-    return 'None';
-  }
-  
-  // If no score yet
+  // If no score yet (regardless of compilation status)
   if (activity.submission_score === null || activity.submission_score === undefined) {
     return 'None';
   }

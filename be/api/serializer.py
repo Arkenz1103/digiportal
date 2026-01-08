@@ -289,6 +289,11 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
 
     def get_display_status(self, obj):
         """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""
+        # Check for compiled submissions first
+        if obj.compiled or obj.is_compilation:
+            if obj.status == 'scored' or (obj.score is not None and obj.scored_at is not None):
+                return 'Scored'
+            return 'Compiled'
         # For teachers, always show 'Submitted' for the original submission
         # even if student is resubmitting (status = draft with resubmit_count > 0)
         if obj.status == 'draft' and obj.resubmit_count > 0:
@@ -406,6 +411,11 @@ class StudentSubmissionListSerializer(serializers.ModelSerializer):
 
     def get_display_status(self, obj):
         """Return display status - always show 'Submitted' to teacher even when student is resubmitting"""
+        # Check for compiled submissions first
+        if obj.compiled or obj.is_compilation:
+            if obj.status == 'scored' or (obj.score is not None and obj.scored_at is not None):
+                return 'Scored'
+            return 'Compiled'
         # For teachers, always show 'Submitted' for the original submission
         # even if student is resubmitting (status = draft with resubmit_count > 0)
         if obj.status == 'draft' and obj.resubmit_count > 0:

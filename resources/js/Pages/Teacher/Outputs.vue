@@ -621,16 +621,33 @@ const loadUnscoredSubmissions = async () => {
     try {
         const response = await axios.get('/api/submissions/unscored/');
         if (response.data) {
-            console.log('All unscored submissions:', response.data);
-            console.log('Filtering by activity ID:', activity.value.id);
+            console.log('📥 All unscored submissions from API:', response.data.length);
+            console.log('🎯 Filtering by activity ID:', activity.value.id, 'type:', typeof activity.value.id);
+
+            // Log compiled submissions before filtering
+            const compiledSubs = response.data.filter(s => s.compiled || s.is_compilation);
+            console.log('📦 Compiled submissions in response:', compiledSubs.length);
+            compiledSubs.forEach(s => {
+                console.log(`  - ID: ${s.id}, Student: ${s.student?.username}, Activity: ${s.activity || s.activity_id} (type: ${typeof (s.activity || s.activity_id)}), Status: ${s.display_status}`);
+            });
 
             // Filter submissions by the current activity ID
+            // Use == for loose comparison to handle string/number type differences
             const filteredSubmissions = response.data.filter(submission => {
                 // Try both activity and activity_id fields
                 const submissionActivityId = submission.activity || submission.activity_id;
-                console.log('Submission activity ID:', submissionActivityId, 'matches:', submissionActivityId === activity.value.id);
-                return submissionActivityId === activity.value.id;
+                // Use loose equality (==) to handle type differences (string vs number)
+                const matches = submissionActivityId == activity.value.id;
+                
+                // Log compiled submissions that don't match
+                if ((submission.compiled || submission.is_compilation) && !matches) {
+                    console.log(`⚠️ Compiled submission ${submission.id} has activity ${submissionActivityId} (type: ${typeof submissionActivityId}), expected ${activity.value.id} (type: ${typeof activity.value.id})`);
+                }
+                
+                return matches;
             });
+
+            console.log('✅ Filtered submissions count:', filteredSubmissions.length);
 
             submissions.value = filteredSubmissions.map(submission => {
                 const submittedDate = new Date(submission.submitted_at);
@@ -647,14 +664,6 @@ const loadUnscoredSubmissions = async () => {
                     timeZone: 'Asia/Manila'
                 });
 
-                console.log('📊 Submission data:', {
-                    id: submission.id,
-                    has_file_path: !!submission.file_path,
-                    file_path_length: submission.file_path?.length,
-                    file_type: submission.file_type,
-                    file_path_preview: submission.file_path?.substring(0, 100)
-                });
-
                 return {
                     id: submission.id,
                     studentId: submission.student.id,
@@ -664,17 +673,22 @@ const loadUnscoredSubmissions = async () => {
                     activityType: submission.activity_type,
                     caption: submission.caption,
                     score: submission.score,
-                    status: submission.display_status || 'Submitted',  // Use display_status from backend
+                    status: submission.display_status || 'Submitted',
                     date: dateStr,
                     time: timeStr,
-                    file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
+                    file_path: submission.file_url || submission.file_path,
                     file_type: submission.file_type,
                     submitted_at: submission.submitted_at,
                     is_late: submission.is_late || false,
-                    resubmit_count: submission.resubmit_count || 0
+                    resubmit_count: submission.resubmit_count || 0,
+                    compiled: submission.compiled || false,
+                    is_compilation: submission.is_compilation || false
                 };
             });
-            console.log('Loaded unscored submissions for activity:', activity.value.id, submissions.value);
+            
+            // Log final compiled submissions
+            const finalCompiled = submissions.value.filter(s => s.compiled || s.is_compilation);
+            console.log('📦 Final compiled submissions in list:', finalCompiled.length);
         }
     } catch (error) {
         console.error('Error loading submissions:', error);
@@ -689,13 +703,14 @@ const loadScoredSubmissions = async () => {
     try {
         const response = await axios.get('/api/submissions/scored/');
         if (response.data) {
-            console.log('All scored submissions:', response.data);
+            console.log('📥 All scored submissions from API:', response.data.length);
 
             // Filter submissions by the current activity ID
+            // Use == for loose comparison to handle string/number type differences
             const filteredSubmissions = response.data.filter(submission => {
                 // Try both activity and activity_id fields
                 const submissionActivityId = submission.activity || submission.activity_id;
-                return submissionActivityId === activity.value.id;
+                return submissionActivityId == activity.value.id;
             });
 
             scoredSubmissionsData.value = filteredSubmissions.map(submission => {
@@ -722,19 +737,21 @@ const loadScoredSubmissions = async () => {
                     activityType: submission.activity_type,
                     caption: submission.caption,
                     score: submission.score,
-                    feedback: submission.feedback || '',  // Include feedback for editing
-                    criteria_scores: submission.criteria_scores || null,  // Include criteria scores for editing
-                    status: submission.display_status || 'Scored',  // Use display_status from backend
+                    feedback: submission.feedback || '',
+                    criteria_scores: submission.criteria_scores || null,
+                    status: submission.display_status || 'Scored',
                     date: dateStr,
                     time: timeStr,
-                    file_path: submission.file_url || submission.file_path,  // Use file_url first, fallback to file_path
+                    file_path: submission.file_url || submission.file_path,
                     file_type: submission.file_type,
                     submitted_at: submission.submitted_at,
                     is_late: submission.is_late || false,
-                    resubmit_count: submission.resubmit_count || 0
+                    resubmit_count: submission.resubmit_count || 0,
+                    compiled: submission.compiled || false,
+                    is_compilation: submission.is_compilation || false
                 };
             });
-            console.log('Loaded scored submissions for activity:', activity.value.id, scoredSubmissionsData.value);
+            console.log('✅ Loaded scored submissions for activity:', activity.value.id, scoredSubmissionsData.value.length);
         }
     } catch (error) {
         console.error('Error loading scored submissions:', error);
@@ -1966,14 +1983,16 @@ const getMedalDetails = (rank) => {
                                             <div :class="currentTab === 'scored' ? 'col-span-2' : 'col-span-3'">
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border"
                                                       :class="{
-                                                          'bg-blue-50 text-blue-700 border-blue-200': item.resubmit_count > 0,
-                                                          'bg-orange-50 text-orange-700 border-orange-200': item.is_late && !item.resubmit_count,
-                                                          'bg-green-50 text-green-700 border-green-200': !item.is_late && !item.resubmit_count
+                                                          'bg-purple-50 text-purple-700 border-purple-200': item.status === 'Compiled' || item.compiled || item.is_compilation,
+                                                          'bg-blue-50 text-blue-700 border-blue-200': item.resubmit_count > 0 && item.status !== 'Compiled',
+                                                          'bg-orange-50 text-orange-700 border-orange-200': item.is_late && !item.resubmit_count && item.status !== 'Compiled',
+                                                          'bg-green-50 text-green-700 border-green-200': !item.is_late && !item.resubmit_count && item.status !== 'Compiled' && !item.compiled && !item.is_compilation
                                                       }">
-                                                    <i v-if="item.resubmit_count > 0" class="pi pi-refresh mr-1 text-[10px]"></i>
+                                                    <i v-if="item.status === 'Compiled' || item.compiled || item.is_compilation" class="pi pi-folder-open mr-1 text-[10px]"></i>
+                                                    <i v-else-if="item.resubmit_count > 0" class="pi pi-refresh mr-1 text-[10px]"></i>
                                                     <i v-else-if="item.is_late" class="pi pi-clock mr-1 text-[10px]"></i>
                                                     <i v-else class="pi pi-check-circle mr-1 text-[10px]"></i>
-                                                    {{ item.resubmit_count > 0 ? `Resubmitted x${item.resubmit_count}` : (item.is_late ? 'Submitted Late' : 'Submitted') }}
+                                                    {{ (item.status === 'Compiled' || item.compiled || item.is_compilation) ? 'Compiled' : (item.resubmit_count > 0 ? `Resubmitted x${item.resubmit_count}` : (item.is_late ? 'Submitted Late' : 'Submitted')) }}
                                                 </span>
                                             </div>
 
@@ -2039,11 +2058,12 @@ const getMedalDetails = (rank) => {
                                         <div v-if="currentTab !== 'incomplete'" class="absolute top-3 left-3">
                                             <span class="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md shadow-sm"
                                                   :class="{
-                                                      'bg-blue-500 text-white': item.resubmit_count > 0,
-                                                      'bg-orange-500 text-white': item.is_late && !item.resubmit_count,
-                                                      'bg-green-500 text-white': item.status === 'Submitted' || item.status === 'Scored'
+                                                      'bg-purple-500 text-white': item.status === 'Compiled' || item.compiled || item.is_compilation,
+                                                      'bg-blue-500 text-white': item.resubmit_count > 0 && item.status !== 'Compiled',
+                                                      'bg-orange-500 text-white': item.is_late && !item.resubmit_count && item.status !== 'Compiled',
+                                                      'bg-green-500 text-white': (item.status === 'Submitted' || item.status === 'Scored') && !item.compiled && !item.is_compilation
                                                   }">
-                                                {{ item.resubmit_count > 0 ? 'Resubmitted' : (item.is_late ? 'Late' : item.status) }}
+                                                {{ (item.status === 'Compiled' || item.compiled || item.is_compilation) ? 'Compiled' : (item.resubmit_count > 0 ? 'Resubmitted' : (item.is_late ? 'Late' : item.status)) }}
                                             </span>
                                         </div>
                                     </div>
@@ -2267,14 +2287,17 @@ const getMedalDetails = (rank) => {
                                                 <span class="text-gray-500">Status:</span>
                                                 <span :class="[
                                                     'px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5',
+                                                    (selectedSubmission.status === 'Compiled' || selectedSubmission.compiled || selectedSubmission.is_compilation) ? 'bg-purple-100 text-purple-800' :
                                                     selectedSubmission.resubmit_count > 0 ? 'bg-blue-100 text-blue-800' :
                                                     selectedSubmission.is_late ? 'bg-orange-100 text-orange-800' :
                                                     'bg-green-100 text-green-800'
                                                 ]">
-                                                    <i v-if="selectedSubmission.resubmit_count > 0" class="pi pi-refresh text-xs"></i>
+                                                    <i v-if="selectedSubmission.status === 'Compiled' || selectedSubmission.compiled || selectedSubmission.is_compilation" class="pi pi-folder-open text-xs"></i>
+                                                    <i v-else-if="selectedSubmission.resubmit_count > 0" class="pi pi-refresh text-xs"></i>
                                                     <i v-else-if="selectedSubmission.is_late" class="pi pi-clock text-xs"></i>
                                                     <i v-else class="pi pi-check-circle text-xs"></i>
-                                                    <span v-if="selectedSubmission.resubmit_count > 0">Resubmitted</span>
+                                                    <span v-if="selectedSubmission.status === 'Compiled' || selectedSubmission.compiled || selectedSubmission.is_compilation">Compiled</span>
+                                                    <span v-else-if="selectedSubmission.resubmit_count > 0">Resubmitted</span>
                                                     <span v-else-if="selectedSubmission.is_late">Submitted Late</span>
                                                     <span v-else>Submitted</span>
                                                 </span>

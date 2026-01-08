@@ -1237,7 +1237,7 @@
                         : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'"
                     >
                       <i class="pi pi-exclamation-triangle"></i>
-                      Missing Activity Compilation
+                      On a Compiled
                       <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
                             :class="activePortfolioTab === 'missing' ? 'bg-white/20' : 'bg-orange-100 text-orange-800'">
                         {{ missingActivities.length }}
@@ -1461,7 +1461,7 @@
                               <!-- Score -->
                               <div class="pt-2 border-t border-gray-100">
                                 <span class="text-xs text-gray-400 uppercase">Score</span>
-                                <p class="text-xl font-bold" :class="portfolioActivities[currentActivityIndex].submission_score !== null && !portfolioActivities[currentActivityIndex].is_compilation ? 'text-green-600' : 'text-gray-400'">
+                                <p class="text-xl font-bold" :class="portfolioActivities[currentActivityIndex].submission_score !== null ? 'text-green-600' : 'text-gray-400'">
                                   {{ getScoreDisplay(portfolioActivities[currentActivityIndex]) }}
                                 </p>
                               </div>
@@ -7315,12 +7315,7 @@ const getStatusLabel = (activity) => {
 const getScoreDisplay = (activity) => {
   if (!activity) return 'None';
   
-  // If it's a compilation submission, don't show score
-  if (activity.is_compilation || activity.submission_status === 'submitted_compilation' || activity.submission_status === 'compiled') {
-    return 'None';
-  }
-  
-  // If no score yet
+  // If no score yet (regardless of compilation status)
   if (activity.submission_score === null || activity.submission_score === undefined) {
     return 'None';
   }
