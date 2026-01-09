@@ -761,18 +761,29 @@ const sideBarItems = computed(() => {
 
 // Logout Function
 const logout = async () => {
+    console.log('logout @ MainLayout.vue');
     try {
+        // Get CSRF token from cookie
+        const csrfToken = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1];
+
         // Call backend logout API to clear server-side session
         await fetch('/api/auth/logout/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken || '',
             },
+            credentials: 'include',
         });
     } catch (error) {
         console.error('Logout API error:', error);
     }
 
+    console.log('User logged out, clearing data');
+    
     // Clear ALL localStorage items related to user session
     localStorage.removeItem('digiportal_logged_in');
     localStorage.removeItem('digiportal_user_role');
@@ -1691,7 +1702,7 @@ const auth = computed(() => ({
                                         <!-- User Info -->
                                         <div class="px-4 py-3 border-b border-gray-100">
                                             <p class="text-sm font-medium text-gray-900">{{ auth?.user?.name }}</p>
-                                            <p class="text-xs text-gray-500">{{ auth?.user?.email }}</p>
+                                            <p class="text-xs text-gray-500 truncate max-w-[200px]" :title="auth?.user?.email">{{ auth?.user?.email }}</p>
                                         </div>
 
                                         <!-- Menu Items -->

@@ -373,6 +373,9 @@ import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import { useToast } from '../../composables/useToast';
 
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
 const { showSuccess, showError, showInfo, showWarning } = useToast();
 
 const remarks = ref([]);

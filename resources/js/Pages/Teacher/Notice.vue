@@ -3,6 +3,9 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useToast } from '../../composables/useToast';
 
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
 // Initialize toast
 const { showSuccess, showError, showInfo, showWarning } = useToast();
 import Dialog from 'primevue/dialog';

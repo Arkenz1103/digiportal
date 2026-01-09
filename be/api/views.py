@@ -90,6 +90,7 @@ def logout_view(request):
 
 
 @csrf_exempt
+@csrf_exempt
 @api_view(['POST'])
 def logout_api(request):
     """

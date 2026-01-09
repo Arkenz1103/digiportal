@@ -328,6 +328,9 @@ import axios from '../../axios';
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
 
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
 // Toast notification
 const toast = useToast();
 

@@ -183,6 +183,9 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
 const isLoading = ref(false);
 const classroom = ref(null);
 const searchQuery = ref('');

@@ -274,6 +274,9 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
 const isLoading = ref(false);
 const classrooms = ref([]);
 const selectedStudent = ref(null);

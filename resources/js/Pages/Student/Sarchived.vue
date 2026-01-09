@@ -418,6 +418,9 @@ import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
 import Dialog from 'primevue/dialog';
 
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
 // Toast notification
 const toast = useToast();
 

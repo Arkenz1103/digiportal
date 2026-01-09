@@ -5,6 +5,9 @@ import { useToast } from '../../composables/useToast';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 
+// Define emits for navigation
+const emit = defineEmits(['navigate']);
+
 const { showSuccess, showError, showInfo } = useToast();
 
 // User data
