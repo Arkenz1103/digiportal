@@ -889,9 +889,15 @@
                                     >
                                         <div class="grid grid-cols-5 gap-4 items-center text-sm">
                                             <div class="flex items-center gap-3">
-                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden">
-                                                    <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
-                                                    <span v-else>{{ getInitials(student.name) }}</span>
+                                                <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                                    <img v-if="student.profile_picture" 
+                                                        :src="student.profile_picture" 
+                                                        :alt="student.name" 
+                                                        class="w-full h-full object-cover"
+                                                        @error="$event.target.style.display='none'; $event.target.nextElementSibling.style.display='flex'" />
+                                                    <div :class="['w-full h-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold', student.profile_picture ? 'hidden' : '']">
+                                                        {{ getInitials(student.name) }}
+                                                    </div>
                                                 </div>
                                                 <span class="font-medium text-gray-900">{{ student.name }}</span>
                                             </div>
@@ -1010,7 +1016,7 @@
                                 </div>
                                 <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
                                     <span class="text-sm text-gray-500">School Year:</span>
-                                    <span class="text-sm font-medium text-indigo-700">2024-2025</span>
+                                    <span class="text-sm font-medium text-indigo-700">{{ classroomSchoolYear || 'Not set' }}</span>
                                 </div>
                             </div>
                         </div>
@@ -1042,9 +1048,15 @@
                                     <div v-for="(student, index) in filteredStudents" :key="student.id"
                                         class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                         <span class="text-sm text-gray-500 font-medium w-8">{{ index + 1 }}.</span>
-                                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
-                                            <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
-                                            <span v-else>{{ getInitials(student.name) }}</span>
+                                        <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                            <img v-if="student.profile_picture" 
+                                                :src="student.profile_picture" 
+                                                :alt="student.name" 
+                                                class="w-full h-full object-cover"
+                                                @error="$event.target.style.display='none'; $event.target.nextElementSibling.style.display='flex'" />
+                                            <div :class="['w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold', student.profile_picture ? 'hidden' : '']">
+                                                {{ getInitials(student.name) }}
+                                            </div>
                                         </div>
                                         <div class="flex-1">
                                             <p class="font-medium text-gray-900">{{ student.name }}</p>
@@ -1499,9 +1511,15 @@
                     <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
                         <div class="divide-y divide-gray-200">
                             <div v-for="student in notStartedStudents" :key="student.id" class="px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
-                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-semibold overflow-hidden">
-                                    <img v-if="student.profile_picture" :src="student.profile_picture" :alt="student.name" class="w-full h-full object-cover" />
-                                    <span v-else>{{ getInitials(student.name) }}</span>
+                                <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                    <img v-if="student.profile_picture" 
+                                        :src="student.profile_picture" 
+                                        :alt="student.name" 
+                                        class="w-full h-full object-cover"
+                                        @error="$event.target.style.display='none'; $event.target.nextElementSibling.style.display='flex'" />
+                                    <div :class="['w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-semibold', student.profile_picture ? 'hidden' : '']">
+                                        {{ getInitials(student.name) }}
+                                    </div>
                                 </div>
                                 <div class="flex-1">
                                     <p class="font-medium text-gray-900">{{ student.name || student.username }}</p>
@@ -2377,6 +2395,7 @@ const editScoringCriteria = ref([]);
 
 // Classroom Management Data
 const classroomStudents = ref([]);
+const classroomSchoolYear = ref(''); // Dynamic school year from API
 const showStudentList = ref(false);
 const studentSearchQuery = ref('');
 const totalStudents = computed(() => classroomStudents.value.length);
@@ -4042,6 +4061,7 @@ const loadClassroomStudents = async () => {
         if (!classroomId) {
             console.warn('⚠️ No class selected, cannot load students');
             classroomStudents.value = [];
+            classroomSchoolYear.value = '';
             return;
         }
         
@@ -4049,10 +4069,12 @@ const loadClassroomStudents = async () => {
         const response = await axios.get(`/api/classrooms/${classroomId}/`);
         if (response.data) {
             classroomStudents.value = response.data.students || [];
-            console.log(`✅ Loaded ${classroomStudents.value.length} students for classroom ${classroomId}`);
+            classroomSchoolYear.value = response.data.school_year || '';
+            console.log(`✅ Loaded ${classroomStudents.value.length} students for classroom ${classroomId}, school year: ${classroomSchoolYear.value}`);
         } else {
             console.warn('⚠️ No classroom data found');
             classroomStudents.value = [];
+            classroomSchoolYear.value = '';
         }
     } catch (error) {
         console.error('❌ Error loading classroom students:', error);
@@ -4063,14 +4085,17 @@ const loadClassroomStudents = async () => {
                 const classroom = response.data.classrooms.find(c => c.id === selectedClass.value?.id);
                 if (classroom) {
                     classroomStudents.value = classroom.students || [];
-                    console.log(`✅ Loaded ${classroomStudents.value.length} students (fallback)`);
+                    classroomSchoolYear.value = classroom.school_year || '';
+                    console.log(`✅ Loaded ${classroomStudents.value.length} students (fallback), school year: ${classroomSchoolYear.value}`);
                 } else {
                     classroomStudents.value = [];
+                    classroomSchoolYear.value = '';
                 }
             }
         } catch (fallbackError) {
             console.error('❌ Fallback also failed:', fallbackError);
             classroomStudents.value = [];
+            classroomSchoolYear.value = '';
         }
     }
 };

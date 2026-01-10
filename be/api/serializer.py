@@ -189,6 +189,20 @@ class StudentSubmissionSerializer(serializers.ModelSerializer):
     submitted_at = serializers.SerializerMethodField()
     post_requested_at = serializers.SerializerMethodField()
     files = serializers.SerializerMethodField()  # Changed to method to filter by post_file_ids
+    classroom_id = serializers.SerializerMethodField()
+    classroom_name = serializers.SerializerMethodField()
+
+    def get_classroom_id(self, obj):
+        """Return the student's classroom ID"""
+        if obj.student and obj.student.classroom:
+            return obj.student.classroom.id
+        return None
+
+    def get_classroom_name(self, obj):
+        """Return the student's classroom name"""
+        if obj.student and obj.student.classroom:
+            return obj.student.classroom.name
+        return None
 
     def get_files(self, obj):
         """Return files - filter by post_file_ids if this is a pending approval"""

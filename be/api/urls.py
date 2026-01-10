@@ -129,6 +129,16 @@ urlpatterns = [
     path('api/classrooms/', views.classroom_list_api, name='classroom_list_api'),
     path('api/classrooms/<int:classroom_id>/', views.classroom_detail_api, name='classroom_detail_api'),
 
+    # School Year routes
+    path('api/school-years/', views.school_year_api, name='school_year_api'),
+    path('api/school-years/<int:school_year_id>/', views.school_year_detail_api, name='school_year_detail_api'),
+    path('api/school-years/<int:school_year_id>/archive/', views.archive_school_year_api, name='archive_school_year_api'),
+    path('api/school-years/<int:school_year_id>/undo-promotion/', views.undo_promotion_api, name='undo_promotion_api'),
+    path('api/school-years/<int:school_year_id>/promotion-status/', views.promotion_status_api, name='promotion_status_api'),
+    path('api/school-years/start-new/', views.start_new_school_year_api, name='start_new_school_year_api'),
+    path('api/school-years/archived/', views.archived_school_years_api, name='archived_school_years_api'),
+    path('api/school-years/<int:school_year_id>/classrooms/<int:classroom_id>/', views.archived_classroom_detail_api, name='archived_classroom_detail_api'),
+
 
     # AI routes
     path('api/ai/test/', views.ai_test, name='ai_test'),

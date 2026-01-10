@@ -8,7 +8,7 @@
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-gray-500">School Year:</span>
                         <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-                            2024-2025
+                            {{ classroom?.school_year || 'Not set' }}
                         </span>
                     </div>
                 </div>

@@ -1626,7 +1626,7 @@
               <h2 class="text-xl font-bold text-gray-900">NOVEMBER 2025</h2>
               <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
                 <span class="text-sm text-gray-500">School Year:</span>
-                <span class="text-sm font-medium text-indigo-700">2024-2025</span>
+                <span class="text-sm font-medium text-indigo-700">{{ classroomSchoolYear || 'Not set' }}</span>
               </div>
             </div>
 
@@ -1686,7 +1686,7 @@
                 </div>
                 <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
                   <span class="text-sm text-gray-500">School Year:</span>
-                  <span class="text-sm font-medium text-indigo-700">2024-2025</span>
+                  <span class="text-sm font-medium text-indigo-700">{{ classroomSchoolYear || 'Not set' }}</span>
                 </div>
               </div>
             </div>
@@ -4097,6 +4097,7 @@ const portfolioFolders = ref([]);
 
 // Classroom data for students
 const studentClassmates = ref([]);
+const classroomSchoolYear = ref(''); // Dynamic school year from API
 const classTeacher = ref('Teacher Name');
 const classTeacherEmail = ref('');
 const classTeacherProfilePicture = ref(null);
@@ -5544,6 +5545,10 @@ const loadClassmates = async () => {
         if (response.data && response.data.classrooms && response.data.classrooms.length > 0) {
             const currentClassroom = response.data.classrooms[0];
 
+            // Get school year from classroom
+            classroomSchoolYear.value = currentClassroom.school_year || '';
+            console.log('📅 School Year:', classroomSchoolYear.value);
+
             // Filter out the current student from the list
             studentClassmates.value = (currentClassroom.students || []).filter(s => s.id !== currentUser.value.id);
 
@@ -5591,6 +5596,7 @@ const loadClassmates = async () => {
         console.error('❌ Error loading classmates:', error);
         studentClassmates.value = [];
         classTeachers.value = [];
+        classroomSchoolYear.value = '';
     }
 };
 

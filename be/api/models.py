@@ -3,6 +3,69 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
 
+class SchoolYear(models.Model):
+    """School Year model for managing academic years - per teacher"""
+    name = models.CharField(max_length=20)  # e.g., "2024-2025"
+    teacher = models.ForeignKey('User', on_delete=models.CASCADE, null=True, blank=True, 
+                                related_name='school_years', limit_choices_to={'role': 'teacher'})
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_current = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    promotion_done = models.BooleanField(default=False)  # Track if promotion was done
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'school_years'
+        ordering = ['-start_date']
+        unique_together = ['name', 'teacher']  # Each teacher can have their own school years
+
+    def __str__(self):
+        return f"{self.name} ({self.teacher.username if self.teacher else 'Global'})"
+
+    def save(self, *args, **kwargs):
+        # Ensure only one school year is current per teacher
+        if self.is_current and self.teacher:
+            SchoolYear.objects.filter(is_current=True, teacher=self.teacher).exclude(pk=self.pk).update(is_current=False)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_current_for_teacher(cls, teacher):
+        """Get the current active school year for a specific teacher"""
+        return cls.objects.filter(is_current=True, is_archived=False, teacher=teacher).first()
+
+    @classmethod
+    def get_current(cls):
+        """Get the current active school year (legacy - returns first current)"""
+        return cls.objects.filter(is_current=True, is_archived=False).first()
+
+
+class StudentPromotionHistory(models.Model):
+    """Track student promotions for undo functionality - per teacher"""
+    student = models.ForeignKey('User', on_delete=models.CASCADE, related_name='promotion_history')
+    teacher = models.ForeignKey('User', on_delete=models.CASCADE, null=True, blank=True, 
+                                related_name='promotions_made', limit_choices_to={'role': 'teacher'})
+    school_year = models.ForeignKey('SchoolYear', on_delete=models.CASCADE, related_name='promotions')
+    previous_classroom = models.ForeignKey('Classroom', on_delete=models.SET_NULL, null=True, blank=True, related_name='previous_students')
+    previous_grade_level = models.IntegerField(null=True, blank=True)
+    previous_section = models.CharField(max_length=10, null=True, blank=True)
+    new_classroom = models.ForeignKey('Classroom', on_delete=models.SET_NULL, null=True, blank=True, related_name='promoted_students')
+    new_grade_level = models.IntegerField(null=True, blank=True)
+    new_section = models.CharField(max_length=10, null=True, blank=True)
+    is_graduated = models.BooleanField(default=False)  # True if student graduated (was Grade 6)
+    promoted_at = models.DateTimeField(auto_now_add=True)
+    is_undone = models.BooleanField(default=False)  # Track if promotion was undone
+
+    class Meta:
+        db_table = 'student_promotion_history'
+        ordering = ['-promoted_at']
+
+    def __str__(self):
+        return f"{self.student.username}: Grade {self.previous_grade_level} -> Grade {self.new_grade_level}"
+
+
 class Classroom(models.Model):
     """Classroom model for managing classes"""
     name = models.CharField(max_length=100)  # e.g., "Grade 1 - A"
@@ -11,6 +74,7 @@ class Classroom(models.Model):
     room_number = models.CharField(max_length=50)  # Room 111, Room 121, etc.
     capacity = models.IntegerField(default=30)
     school_year = models.CharField(max_length=20, default='2024-2025')
+    school_year_obj = models.ForeignKey('SchoolYear', on_delete=models.SET_NULL, null=True, blank=True, related_name='classrooms')
 
     # Teacher assignment
     teacher = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,

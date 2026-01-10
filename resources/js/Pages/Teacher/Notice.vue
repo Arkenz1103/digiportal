@@ -10,11 +10,17 @@ const emit = defineEmits(['navigate']);
 const { showSuccess, showError, showInfo, showWarning } = useToast();
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
+import Dropdown from 'primevue/dropdown';
 
 const pendingOutputs = ref([]);
+const allPendingOutputs = ref([]); // Store all outputs before filtering
 const isLoadingPending = ref(false);
 const itemsPerPage = 5;
 const displayedPendingCount = ref(itemsPerPage);
+
+// Classroom filter
+const classrooms = ref([]);
+const selectedClassroom = ref(null);
 
 // Helper function to get initials from name
 const getInitials = (name) => {
@@ -72,6 +78,94 @@ const formatDateTime = (dateString) => {
         daysAgo,
         timestamp: date.getTime()
     };
+};
+
+// Load classrooms for dropdown
+const loadClassrooms = async () => {
+    try {
+        // Get teacher's assigned classrooms
+        const assignedResponse = await axios.get('/api/classrooms/');
+        let assignedClassrooms = [];
+        if (assignedResponse.data && assignedResponse.data.classrooms) {
+            assignedClassrooms = assignedResponse.data.classrooms;
+        }
+        
+        // Get classrooms where teacher has folders
+        const foldersResponse = await axios.get('/api/portfolio/folders/?current_school_year=true');
+        let folderClassroomIds = new Set();
+        if (foldersResponse.data) {
+            foldersResponse.data.forEach(folder => {
+                if (folder.classroom) {
+                    folderClassroomIds.add(folder.classroom);
+                }
+            });
+        }
+        
+        // Build classroom map
+        const classroomMap = new Map();
+        assignedClassrooms.forEach(c => {
+            classroomMap.set(c.id, {
+                id: c.id,
+                name: c.name,
+                isAssigned: true
+            });
+        });
+        
+        // Add classrooms from folders
+        for (const classroomId of folderClassroomIds) {
+            if (!classroomMap.has(classroomId)) {
+                try {
+                    const classroomResponse = await axios.get(`/api/classrooms/${classroomId}/`);
+                    if (classroomResponse.data && !classroomResponse.data.is_archived) {
+                        classroomMap.set(classroomId, {
+                            id: classroomResponse.data.id,
+                            name: classroomResponse.data.name,
+                            isAssigned: false
+                        });
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch classroom ${classroomId}:`, err);
+                }
+            }
+        }
+        
+        // Convert to array - assigned first
+        const allClassrooms = Array.from(classroomMap.values());
+        allClassrooms.sort((a, b) => {
+            if (a.isAssigned && !b.isAssigned) return -1;
+            if (!a.isAssigned && b.isAssigned) return 1;
+            return a.name.localeCompare(b.name);
+        });
+        
+        classrooms.value = allClassrooms;
+        
+        // Auto-select first classroom
+        if (classrooms.value.length > 0) {
+            selectedClassroom.value = classrooms.value[0];
+        }
+        
+        console.log('📚 Loaded classrooms for approvals:', classrooms.value);
+    } catch (error) {
+        console.error('Error loading classrooms:', error);
+    }
+};
+
+// Handle classroom change
+const onClassroomChange = () => {
+    filterPendingByClassroom();
+};
+
+// Filter pending outputs by selected classroom
+const filterPendingByClassroom = () => {
+    if (!selectedClassroom.value) {
+        pendingOutputs.value = allPendingOutputs.value;
+    } else {
+        pendingOutputs.value = allPendingOutputs.value.filter(output => 
+            output.classroomId === selectedClassroom.value.id ||
+            output.classroomName === selectedClassroom.value.name
+        );
+    }
+    displayedPendingCount.value = itemsPerPage;
 };
 
 // Load pending approvals from API
@@ -159,30 +253,40 @@ const loadPendingApprovals = async () => {
                     isImageFile: fileTypes.some(t => t === 'image'),
                     isSketchPad: isSketchPad,
                     status: 'Pending',
-                    files: submissionFiles
+                    files: submissionFiles,
+                    // Classroom info for filtering
+                    classroomId: submission.classroom_id || submission.student?.classroom_id,
+                    classroomName: submission.classroom_name || submission.student?.classroom_name
                 };
             });
 
-            console.log('✅ Loaded pending approvals:', pendingOutputs.value.length, 'items');
+            // Store all outputs for filtering
+            allPendingOutputs.value = pendingOutputs.value;
+            
+            // Apply classroom filter
+            filterPendingByClassroom();
+
+            console.log('✅ Loaded pending approvals:', allPendingOutputs.value.length, 'items');
             console.log('📊 Display order (as received from backend - already sorted):');
             pendingOutputs.value.forEach((item, index) => {
                 console.log(`   ${index + 1}. ${item.studentName} - ${item.title} - ${item.submittedDate} - ${item.sampleImages.length} files`);
             });
-            displayedPendingCount.value = itemsPerPage;
         }
     } catch (error) {
         console.error('❌ Error loading pending approvals:', error);
         console.error('   Error response:', error.response?.data);
         console.error('   Error status:', error.response?.status);
         pendingOutputs.value = [];
+        allPendingOutputs.value = [];
     } finally {
         isLoadingPending.value = false;
     }
 };
 
 // Load on mount
-onMounted(() => {
-    loadPendingApprovals();
+onMounted(async () => {
+    await loadClassrooms();
+    await loadPendingApprovals();
 });
 
 // Old hardcoded data (keeping for reference)
@@ -430,8 +534,26 @@ const cancelRejection = () => {
                 <div class="rounded-2xl shadow-lg bg-white/90 backdrop-blur-sm border border-indigo-100 overflow-hidden">
 
             <!-- Pending Count -->
-            <div class="px-6 py-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                <h2 class="text-lg font-medium text-indigo-900">Pending Approvals</h2>
+            <div class="px-6 py-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-lg font-medium text-indigo-900 whitespace-nowrap">Pending Approvals</h2>
+                    <Dropdown
+                        v-model="selectedClassroom"
+                        :options="classrooms"
+                        optionLabel="name"
+                        placeholder="Select Class"
+                        class="w-40"
+                        @change="onClassroomChange"
+                    >
+                        <template #value="slotProps">
+                            <span v-if="slotProps.value" class="font-medium text-sm">{{ slotProps.value.name }}</span>
+                            <span v-else class="text-gray-500 text-sm">Select Class</span>
+                        </template>
+                        <template #option="slotProps">
+                            <span class="font-medium">{{ slotProps.option.name }}</span>
+                        </template>
+                    </Dropdown>
+                </div>
                 <span class="bg-indigo-600 text-white text-sm font-medium px-3 py-1 rounded-full">
                     {{ pendingOutputs.length }} Pending
                 </span>

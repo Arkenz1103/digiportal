@@ -1725,10 +1725,10 @@ const updateStudentProgress = async () => {
     console.log('Updated student outputs:', students.value);
 };
 
-// Load portfolio folders
+// Load portfolio folders - only from current school year
 const loadPortfolioFolders = async () => {
     try {
-        const response = await axios.get('/api/portfolio/folders/');
+        const response = await axios.get('/api/portfolio/folders/?current_school_year=true');
         if (response.data) {
             portfolioFolders.value = response.data;
 
@@ -1741,7 +1741,7 @@ const loadPortfolioFolders = async () => {
                 }))
             ];
 
-            console.log('Loaded portfolio folders:', portfolioFolders.value);
+            console.log('Loaded portfolio folders (current school year):', portfolioFolders.value);
 
             // Update student progress after loading folders
             await updateStudentProgress();

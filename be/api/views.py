@@ -575,9 +575,28 @@ def portfolio_folders_api(request):
             else:
                 # If no classroom_id, use role-based logic (for sidebar and student view)
                 if request.user.role == 'teacher':
+                    # Check if we should filter by current school year only
+                    current_sy_only = request.query_params.get('current_school_year', 'false').lower() == 'true'
+                    
                     # Teacher sidebar gets all folders they own
                     folders = PortfolioFolder.objects.filter(teacher=request.user).order_by('-created_at')
-                    print(f"📚 Teacher {request.user.username} viewing all their folders for the sidebar.")
+                    
+                    # If current_school_year=true, filter to only show folders from current school year
+                    if current_sy_only:
+                        from .models import SchoolYear
+                        current_sy = SchoolYear.get_current_for_teacher(request.user)
+                        if current_sy:
+                            folders = folders.filter(
+                                classroom__school_year=current_sy.name,
+                                classroom__is_archived=False
+                            )
+                            print(f"📚 Teacher {request.user.username} viewing folders for current school year: {current_sy.name}, found {folders.count()}")
+                        else:
+                            # Fallback: show folders from non-archived classrooms
+                            folders = folders.filter(classroom__is_archived=False)
+                            print(f"📚 Teacher {request.user.username} viewing folders from non-archived classrooms")
+                    else:
+                        print(f"📚 Teacher {request.user.username} viewing all their folders for the sidebar.")
                 elif request.user.role == 'student':
                     # Student gets ALL folders for their assigned classroom (from any teacher)
                     student_classroom = request.user.classroom
@@ -631,35 +650,59 @@ def portfolio_folders_api(request):
             if not name:
                 return Response({'error': 'Folder name is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Check for duplicate folder name for this teacher and class (case-sensitive)
-            existing_folder = PortfolioFolder.objects.filter(
-                teacher=request.user,
-                name=name,  # Case-sensitive comparison (exact match)
-                class_name=class_name
-            ).first()
+            print(f"Creating folder - Name: {name}, User: {request.user.username}, Class: {class_name}")
+
+            # Get classroom based on class_name - prioritize non-archived classrooms for the current school year
+            classroom = None
+            try:
+                # First try to find a non-archived classroom with this name assigned to the teacher
+                classroom = Classroom.objects.filter(
+                    name=class_name,
+                    is_archived=False,
+                    teacher=request.user
+                ).first()
+                
+                # If not found, try any non-archived classroom with this name
+                if not classroom:
+                    classroom = Classroom.objects.filter(
+                        name=class_name,
+                        is_archived=False
+                    ).first()
+                
+                # Last resort: any classroom with this name
+                if not classroom:
+                    classroom = Classroom.objects.filter(
+                        name=class_name
+                    ).first()
+
+                if classroom:
+                    print(f"✅ Found classroom: {classroom.name} (ID: {classroom.id}, School Year: {classroom.school_year}, Archived: {classroom.is_archived})")
+                else:
+                    print(f"⚠️ No classroom found for class_name: {class_name}")
+            except Exception as e:
+                print(f"❌ Error finding classroom: {str(e)}")
+
+            # Check for duplicate folder name - use classroom (which is unique per school year) instead of class_name
+            if classroom:
+                existing_folder = PortfolioFolder.objects.filter(
+                    teacher=request.user,
+                    name=name,
+                    classroom=classroom  # Check against specific classroom (includes school year context)
+                ).first()
+            else:
+                # Fallback to class_name check if no classroom found
+                existing_folder = PortfolioFolder.objects.filter(
+                    teacher=request.user,
+                    name=name,
+                    class_name=class_name,
+                    classroom__isnull=True  # Only check folders without classroom link
+                ).first()
 
             if existing_folder:
                 return Response({
                     'error': 'Duplicate folder name',
                     'detail': f'A folder with the exact name "{name}" already exists in {class_name}. Please choose a different name.'
                 }, status=status.HTTP_400_BAD_REQUEST)
-
-            print(f"Creating folder - Name: {name}, User: {request.user.username}, Class: {class_name}")
-
-            # Get classroom based on class_name (any classroom, not just teacher's)
-            classroom = None
-            try:
-                # Try to find classroom by matching name (e.g., "Grade 1 - A")
-                classroom = Classroom.objects.filter(
-                    name=class_name
-                ).first()
-
-                if classroom:
-                    print(f"✅ Found classroom: {classroom.name} (ID: {classroom.id})")
-                else:
-                    print(f"⚠️ No classroom found for class_name: {class_name}")
-            except Exception as e:
-                print(f"❌ Error finding classroom: {str(e)}")
 
             folder = PortfolioFolder.objects.create(
                 teacher=request.user,
@@ -755,8 +798,29 @@ def portfolio_folder_detail_api(request, folder_id):
 
             # Check if class is being changed
             if new_class_name and new_class_name != folder.class_name:
-                # Find the new classroom
-                new_classroom = Classroom.objects.filter(name=new_class_name).first()
+                # Find the new classroom - prioritize current school year
+                from .models import SchoolYear
+                current_sy = SchoolYear.get_current_for_teacher(request.user)
+                
+                new_classroom = None
+                if current_sy:
+                    new_classroom = Classroom.objects.filter(
+                        name=new_class_name,
+                        school_year=current_sy.name,
+                        is_archived=False
+                    ).first()
+                
+                # Fallback: try any non-archived classroom
+                if not new_classroom:
+                    new_classroom = Classroom.objects.filter(
+                        name=new_class_name,
+                        is_archived=False
+                    ).first()
+                
+                # Last resort: any classroom with this name
+                if not new_classroom:
+                    new_classroom = Classroom.objects.filter(name=new_class_name).first()
+                
                 if new_classroom:
                     # Check if folder with same name exists in new class
                     if PortfolioFolder.objects.filter(classroom=new_classroom, name=new_name, teacher=request.user).exclude(id=folder.id).exists():
@@ -2288,27 +2352,46 @@ def pending_approvals_api(request):
         return Response({'error': 'Only teachers can view pending approvals'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        # Get all submissions with pending approval for this teacher's classroom ONLY
+        # Get all submissions with pending approval for this teacher's classrooms
         from django.db.models import Q
 
-        teacher_classroom = request.user.classroom
+        # Get teacher's classrooms from the CURRENT school year
+        # This includes classrooms where the teacher has folders
+        from .models import SchoolYear
+        current_sy = SchoolYear.get_current_for_teacher(request.user)
+        
+        # Get classroom IDs where teacher has folders in current school year
+        teacher_folder_classroom_ids = []
+        if current_sy:
+            teacher_folder_classroom_ids = list(PortfolioFolder.objects.filter(
+                teacher=request.user,
+                classroom__school_year=current_sy.name,
+                classroom__is_archived=False
+            ).values_list('classroom_id', flat=True).distinct())
+            print(f"📚 Teacher {request.user.username} has folders in classrooms: {teacher_folder_classroom_ids} (School Year: {current_sy.name})")
+        
+        # Also include teacher's directly assigned classroom if it's in current school year
+        if request.user.classroom and current_sy:
+            if request.user.classroom.school_year == current_sy.name and not request.user.classroom.is_archived:
+                if request.user.classroom.id not in teacher_folder_classroom_ids:
+                    teacher_folder_classroom_ids.append(request.user.classroom.id)
 
-        if not teacher_classroom:
-            print(f"⚠️ Teacher {request.user.username} has no assigned classroom")
+        if not teacher_folder_classroom_ids:
+            print(f"⚠️ Teacher {request.user.username} has no classrooms in current school year")
             return Response([], status=status.HTTP_200_OK)
 
         # Filter by:
         # 1. Pending approval status
-        # 2. Student is in the SAME classroom as the teacher
+        # 2. Student is in one of the teacher's classrooms (current school year)
         # 3. Either has activity from teacher's folder OR is a sketch (activity_id is None)
         from django.db.models import Case, When, Value, IntegerField
         from datetime import datetime
 
-        # Get all pending submissions
+        # Get all pending submissions from students in teacher's classrooms
         submissions = StudentSubmission.objects.filter(
             Q(approval_status='pending') &
-            Q(student__classroom=teacher_classroom) &  # CRITICAL: Only students in teacher's classroom
-            (Q(activity__folder__classroom=teacher_classroom) | Q(activity__isnull=True))
+            Q(student__classroom_id__in=teacher_folder_classroom_ids) &  # Students in teacher's classrooms
+            (Q(activity__folder__teacher=request.user) | Q(activity__isnull=True))  # Teacher's activities or sketches
         ).select_related('student', 'activity', 'activity__folder')
 
         # Sort by post_requested_at (when student requested to post) - newest first
@@ -2324,6 +2407,8 @@ def pending_approvals_api(request):
 
         print(f"\n{'='*60}")
         print(f"📝 PENDING APPROVALS CHECK for teacher: {request.user.username}")
+        print(f"📚 School Year: {current_sy.name if current_sy else 'None'}")
+        print(f"📚 Classrooms: {teacher_folder_classroom_ids}")
         print(f"{'='*60}")
         print(f"Found {submissions.count()} pending approvals")
         print(f"\n📊 SORTED ORDER (Most Recent Request First):")
@@ -2331,7 +2416,7 @@ def pending_approvals_api(request):
         # Debug: Print each submission with full details in sorted order
         for index, sub in enumerate(submissions, 1):
             print(f"\n   {index}. 📋 Submission #{sub.id}:")
-            print(f"      Student: {sub.student.username}")
+            print(f"      Student: {sub.student.username} (Classroom: {sub.student.classroom.name if sub.student.classroom else 'None'})")
             print(f"      Activity: {sub.activity.title if sub.activity else 'Sketch Pad'}")
             print(f"      Caption: {sub.caption[:50] if sub.caption else 'No caption'}...")
             print(f"      Status: {sub.status}")
@@ -2540,22 +2625,51 @@ def approve_submission_api(request, submission_id):
 @api_view(['GET'])
 def newsfeed_api(request):
     """
-    GET: Get newsfeed posts filtered by user's classroom
+    GET: Get newsfeed posts filtered by user's classroom(s)
     """
     try:
-        # Filter posts by user's classroom
-        if request.user.is_authenticated and hasattr(request.user, 'classroom') and request.user.classroom:
-            # Get posts from the same classroom
-            posts = NewsfeedPost.objects.filter(classroom=request.user.classroom).order_by('-posted_at')
-            print(f"📊 Filtering newsfeed for classroom: {request.user.classroom.name}")
-        else:
-            # If user has no classroom, show no posts (or all posts for admin)
-            if request.user.is_authenticated and request.user.role == 'admin':
+        posts = NewsfeedPost.objects.none()
+        
+        if request.user.is_authenticated:
+            if request.user.role == 'admin':
+                # Admin sees all posts
                 posts = NewsfeedPost.objects.all().order_by('-posted_at')
                 print(f"👑 Admin viewing all newsfeed posts")
+            elif request.user.role == 'teacher':
+                # Teacher sees posts from classrooms where they have folders (current school year)
+                from .models import SchoolYear
+                current_sy = SchoolYear.get_current_for_teacher(request.user)
+                
+                # Get classroom IDs where teacher has folders in current school year
+                teacher_classroom_ids = []
+                if current_sy:
+                    teacher_classroom_ids = list(PortfolioFolder.objects.filter(
+                        teacher=request.user,
+                        classroom__school_year=current_sy.name,
+                        classroom__is_archived=False
+                    ).values_list('classroom_id', flat=True).distinct())
+                    print(f"📚 Teacher {request.user.username} has folders in classrooms: {teacher_classroom_ids} (School Year: {current_sy.name})")
+                
+                # Also include teacher's directly assigned classroom if it's in current school year
+                if request.user.classroom and current_sy:
+                    if request.user.classroom.school_year == current_sy.name and not request.user.classroom.is_archived:
+                        if request.user.classroom.id not in teacher_classroom_ids:
+                            teacher_classroom_ids.append(request.user.classroom.id)
+                
+                if teacher_classroom_ids:
+                    posts = NewsfeedPost.objects.filter(classroom_id__in=teacher_classroom_ids).order_by('-posted_at')
+                    print(f"📊 Teacher viewing newsfeed from {len(teacher_classroom_ids)} classrooms, found {posts.count()} posts")
+                else:
+                    print(f"⚠️ Teacher {request.user.username} has no classrooms in current school year")
+            elif request.user.role == 'student':
+                # Student sees posts from their assigned classroom
+                if request.user.classroom:
+                    posts = NewsfeedPost.objects.filter(classroom=request.user.classroom).order_by('-posted_at')
+                    print(f"📊 Student viewing newsfeed for classroom: {request.user.classroom.name}")
+                else:
+                    print(f"⚠️ Student {request.user.username} has no classroom assigned")
             else:
-                posts = NewsfeedPost.objects.none()
-                print(f"⚠️ User has no classroom, showing no posts")
+                print(f"⚠️ Unknown role: {request.user.role}")
 
         # Serialize posts with additional data
         posts_data = []
@@ -3962,9 +4076,10 @@ def class_record_api(request):
         if classroom_id:
             try:
                 classroom = Classroom.objects.get(id=classroom_id)
-                teacher_folders = teacher_folders.filter(
-                    Q(classroom=classroom) | Q(class_name=str(classroom))
-                )
+                # Only filter by the actual classroom object, not by class_name string
+                # This prevents counting activities from old school years with the same class name
+                teacher_folders = teacher_folders.filter(classroom=classroom)
+                print(f"📚 Class record: Filtering folders for classroom ID: {classroom.id}, SY: {classroom.school_year}")
             except Classroom.DoesNotExist:
                 pass
 
@@ -4058,13 +4173,39 @@ def student_progress_list_api(request):
         
         # If specific class is requested, get students from that classroom
         if class_name:
-            target_classroom = Classroom.objects.filter(name=class_name).first()
+            # IMPORTANT: Prioritize non-archived classrooms from the current school year
+            from .models import SchoolYear
+            current_sy = SchoolYear.get_current_for_teacher(request.user)
+            
+            # Try to find classroom in current school year first
+            target_classroom = None
+            if current_sy:
+                target_classroom = Classroom.objects.filter(
+                    name=class_name,
+                    school_year=current_sy.name,
+                    is_archived=False
+                ).first()
+                print(f"🔍 Looking for classroom '{class_name}' in current school year: {current_sy.name}")
+            
+            # Fallback: try any non-archived classroom with this name
+            if not target_classroom:
+                target_classroom = Classroom.objects.filter(
+                    name=class_name,
+                    is_archived=False
+                ).first()
+                print(f"🔍 Fallback: Looking for any non-archived classroom '{class_name}'")
+            
+            # Last resort: any classroom with this name
+            if not target_classroom:
+                target_classroom = Classroom.objects.filter(name=class_name).first()
+                print(f"🔍 Last resort: Any classroom named '{class_name}'")
+            
             if target_classroom:
                 students = User.objects.filter(
                     role='student',
                     classroom=target_classroom
                 ).exclude(username='admin').select_related('classroom').order_by('last_name', 'first_name')
-                print(f"👥 Found {students.count()} students in classroom {class_name}")
+                print(f"👥 Found {students.count()} students in classroom {class_name} (ID: {target_classroom.id}, SY: {target_classroom.school_year})")
             else:
                 print(f"⚠️ Classroom {class_name} not found")
                 return Response([], status=status.HTTP_200_OK)
@@ -4080,8 +4221,25 @@ def student_progress_list_api(request):
                 print(f"⚠️ Classroom ID {classroom_id} not found")
                 return Response([], status=status.HTTP_200_OK)
         else:
-            # No specific class - get teacher's assigned classrooms
-            teacher_classrooms = Classroom.objects.filter(teacher=request.user)
+            # No specific class - get teacher's assigned classrooms from CURRENT school year only
+            from .models import SchoolYear
+            current_sy = SchoolYear.get_current_for_teacher(request.user)
+            
+            if current_sy:
+                teacher_classrooms = Classroom.objects.filter(
+                    teacher=request.user,
+                    school_year=current_sy.name,
+                    is_archived=False
+                )
+                print(f"📚 Getting students from teacher's classrooms in current school year: {current_sy.name}")
+            else:
+                # Fallback: get non-archived classrooms
+                teacher_classrooms = Classroom.objects.filter(
+                    teacher=request.user,
+                    is_archived=False
+                )
+                print(f"⚠️ No current school year, using non-archived classrooms")
+            
             if teacher_classrooms.exists():
                 students = User.objects.filter(
                     role='student',
@@ -4165,13 +4323,16 @@ def student_progress_detail_api(request, student_id):
         student = User.objects.get(id=student_id, role='student')
 
         # Get teacher's folders for this student's classroom ONLY
+        # IMPORTANT: Only get folders linked to the student's ACTUAL classroom (not by class_name string)
+        # This ensures we only count activities from the current school year
         teacher_folders = PortfolioFolder.objects.filter(teacher=request.user)
         
-        # If student has a classroom, filter folders by that classroom
+        # If student has a classroom, filter folders by that SPECIFIC classroom only
         if student.classroom:
-            teacher_folders = teacher_folders.filter(
-                Q(classroom=student.classroom) | Q(class_name=str(student.classroom))
-            )
+            # Only filter by the actual classroom object, not by class_name string
+            # This prevents counting activities from old school years with the same class name
+            teacher_folders = teacher_folders.filter(classroom=student.classroom)
+            print(f"📚 Filtering folders for classroom: {student.classroom.name} (ID: {student.classroom.id}, SY: {student.classroom.school_year})")
 
         # Get ONLY PUBLISHED activities from teacher's folders (students can only see published)
         all_activities = PortfolioActivity.objects.filter(
@@ -4669,11 +4830,39 @@ def request_portfolio_compilation_api(request):
         if not class_name:
             return Response({'error': 'class_name is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Find the classroom instance - teachers can request compilation for any class they have folders in
+        # Find the classroom instance - prioritize current school year
+        from .models import SchoolYear
+        current_sy = SchoolYear.get_current_for_teacher(request.user)
+        
+        classroom = None
         try:
-            classroom = Classroom.objects.get(name=class_name)
-        except Classroom.DoesNotExist:
-            return Response({'error': f'Classroom "{class_name}" not found.'}, status=status.HTTP_404_NOT_FOUND)
+            # First try to find classroom in current school year
+            if current_sy:
+                classroom = Classroom.objects.filter(
+                    name=class_name,
+                    school_year=current_sy.name,
+                    is_archived=False
+                ).first()
+                print(f"📚 Looking for classroom in current school year: {current_sy.name}")
+            
+            # Fallback: any non-archived classroom with this name
+            if not classroom:
+                classroom = Classroom.objects.filter(
+                    name=class_name,
+                    is_archived=False
+                ).first()
+            
+            # Last resort: any classroom with this name
+            if not classroom:
+                classroom = Classroom.objects.filter(name=class_name).first()
+            
+            if not classroom:
+                return Response({'error': f'Classroom "{class_name}" not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+            print(f"✅ Found classroom: {classroom.name} (ID: {classroom.id}, School Year: {classroom.school_year})")
+        except Exception as e:
+            print(f"❌ Error finding classroom: {str(e)}")
+            return Response({'error': f'Error finding classroom: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Create or update compilation request for this specific classroom
         print(f"Creating/updating compilation request for classroom: {classroom.id}")
@@ -5939,8 +6128,30 @@ def get_portfolio_envelopes_api(request, class_name):
                 'error': 'Only teachers can view portfolio envelopes'
             }, status=status.HTTP_403_FORBIDDEN)
 
-        # Get the classroom for this class_name (any classroom, not just teacher's assigned one)
-        target_classroom = Classroom.objects.filter(name=class_name).first()
+        # Get the classroom for this class_name - prioritize current school year
+        # IMPORTANT: Prioritize non-archived classrooms from the current school year
+        from .models import SchoolYear
+        current_sy = SchoolYear.get_current_for_teacher(request.user)
+        
+        target_classroom = None
+        if current_sy:
+            target_classroom = Classroom.objects.filter(
+                name=class_name,
+                school_year=current_sy.name,
+                is_archived=False
+            ).first()
+            print(f"🔍 Looking for classroom '{class_name}' in current school year: {current_sy.name}")
+        
+        # Fallback: try any non-archived classroom
+        if not target_classroom:
+            target_classroom = Classroom.objects.filter(
+                name=class_name,
+                is_archived=False
+            ).first()
+        
+        # Last resort: any classroom with this name
+        if not target_classroom:
+            target_classroom = Classroom.objects.filter(name=class_name).first()
 
         if not target_classroom:
             print(f"⚠️ Classroom {class_name} not found")
@@ -5968,9 +6179,10 @@ def get_portfolio_envelopes_api(request, class_name):
             from .models import StudentSubmission, PortfolioFolder, PortfolioActivity
             from django.db.models import Q
             
-            # Get folders for this class (from any teacher, since we're viewing the class)
+            # Get folders for this class - ONLY from the target classroom (current school year)
+            # This prevents counting activities from old school years
             folders = PortfolioFolder.objects.filter(
-                class_name=class_name
+                classroom=target_classroom
             )
 
             # Get all unique published activity IDs using a single query
@@ -6774,17 +6986,44 @@ def student_list_api(request):
                 
                 if extracted_grade is not None:
                     # First, try to get students from User model via Classroom (these are actual login accounts)
-                    target_classroom = Classroom.objects.filter(
-                        grade_level=extracted_grade,
-                        section=section
-                    ).first()
+                    # IMPORTANT: Prioritize non-archived classrooms from the current school year
+                    from .models import SchoolYear
+                    current_sy = SchoolYear.get_current_for_teacher(request.user)
+                    
+                    # Try to find classroom in current school year first
+                    target_classroom = None
+                    if current_sy:
+                        target_classroom = Classroom.objects.filter(
+                            grade_level=extracted_grade,
+                            section=section,
+                            school_year=current_sy.name,
+                            is_archived=False
+                        ).first()
+                        print(f"🔍 Looking for classroom in current school year: {current_sy.name}")
+                    
+                    # Fallback: try any non-archived classroom
+                    if not target_classroom:
+                        target_classroom = Classroom.objects.filter(
+                            grade_level=extracted_grade,
+                            section=section,
+                            is_archived=False
+                        ).first()
+                        print(f"🔍 Fallback: Looking for any non-archived classroom")
+                    
+                    # Last resort: any classroom with this grade/section
+                    if not target_classroom:
+                        target_classroom = Classroom.objects.filter(
+                            grade_level=extracted_grade,
+                            section=section
+                        ).first()
+                        print(f"🔍 Last resort: Any classroom with grade {extracted_grade} section {section}")
                     
                     if target_classroom:
                         users = User.objects.filter(
                             role='student',
                             classroom=target_classroom
                         ).order_by('last_name', 'first_name')
-                        print(f"📚 Found {users.count()} users in User model for classroom {target_classroom.name}")
+                        print(f"📚 Found {users.count()} users in classroom: {target_classroom.name} (ID: {target_classroom.id}, School Year: {target_classroom.school_year}, Archived: {target_classroom.is_archived})")
                         
                         for student in users:
                             students_data.append({
@@ -7309,32 +7548,77 @@ def export_students_api(request):
 def classroom_list_api(request):
     """
     GET: List all classrooms with teacher and student information
-    For teachers: Show their assigned classroom(s), or all if ?all=true
+    For teachers: 
+        - Default: Show their assigned classroom(s)
+        - ?all=true: Show ALL classrooms for the current school year (for ManageClass page)
+        - ?all=true&include_archived=true: Show ALL classrooms including from archived school years
     For students: Show their classroom
+    Only shows non-archived classrooms by default
     """
     try:
         # Check if requesting all classrooms (for manage class page)
         show_all = request.query_params.get('all', 'false').lower() == 'true'
+        include_archived = request.query_params.get('include_archived', 'false').lower() == 'true'
         
         if request.user.role == 'teacher':
             if show_all:
-                # Show all classrooms for manage class functionality
-                classrooms = Classroom.objects.all().order_by('grade_level', 'section')
+                if include_archived:
+                    # For folder creation: show ALL classrooms from all school years (current + archived)
+                    # Get teacher's school years
+                    teacher_school_years = SchoolYear.objects.filter(teacher=request.user).values_list('name', flat=True)
+                    
+                    # Get all classrooms from teacher's school years
+                    classrooms = Classroom.objects.filter(
+                        school_year__in=teacher_school_years
+                    ).order_by('school_year', 'grade_level', 'section')
+                    print(f"📚 Loading ALL classrooms from {len(teacher_school_years)} school years")
+                else:
+                    # For ManageClass page: show ALL non-archived classrooms for the current school year
+                    current_sy = SchoolYear.get_current_for_teacher(request.user)
+                    
+                    if current_sy:
+                        # Filter by current school year
+                        classrooms = Classroom.objects.filter(
+                            is_archived=False,
+                            school_year=current_sy.name
+                        ).order_by('grade_level', 'section')
+                        print(f"📚 Loading classrooms for school year: {current_sy.name}")
+                    else:
+                        # Fallback: show all non-archived classrooms
+                        classrooms = Classroom.objects.filter(
+                            is_archived=False
+                        ).order_by('grade_level', 'section')
+                        print("⚠️ No current school year found, showing all non-archived classrooms")
             else:
-                # Get classrooms taught by this teacher
-                classrooms = Classroom.objects.filter(teacher=request.user)
+                # Default: show only teacher's assigned classrooms (non-archived) from CURRENT school year
+                current_sy = SchoolYear.get_current_for_teacher(request.user)
+                
+                if current_sy:
+                    classrooms = Classroom.objects.filter(
+                        teacher=request.user, 
+                        is_archived=False,
+                        school_year=current_sy.name
+                    ).order_by('grade_level', 'section')
+                    print(f"📚 Loading teacher's classrooms for current school year: {current_sy.name}")
+                else:
+                    # Fallback: show all non-archived classrooms assigned to teacher
+                    classrooms = Classroom.objects.filter(
+                        teacher=request.user, 
+                        is_archived=False
+                    ).order_by('grade_level', 'section')
+                    print("⚠️ No current school year, showing all non-archived teacher classrooms")
         elif request.user.role == 'student':
-            # Get the student's classroom
-            if request.user.classroom:
-                classrooms = Classroom.objects.filter(id=request.user.classroom.id)
+            # Get the student's classroom (only if not archived)
+            if request.user.classroom and not request.user.classroom.is_archived:
+                classrooms = Classroom.objects.filter(id=request.user.classroom.id, is_archived=False)
             else:
                 return Response({
                     'classrooms': [],
                     'message': 'You are not assigned to any classroom yet'
                 })
         else:
-            # Admin can see all classrooms
-            classrooms = Classroom.objects.all()
+            # Admin can see all non-archived classrooms
+            classrooms = Classroom.objects.filter(is_archived=False)
 
         classrooms_data = []
         for classroom in classrooms:
@@ -7472,11 +7756,16 @@ def classroom_detail_api(request, classroom_id):
                 student=student
             ).order_by('-submitted_at')[:5]
 
-            # Safely get profile picture URL
+            # Safely get profile picture URL - build absolute URL
             profile_pic_url = None
             if student.profile_picture:
                 try:
-                    profile_pic_url = student.profile_picture.url
+                    pic_url = student.profile_picture.url
+                    # Build absolute URL
+                    if pic_url and not pic_url.startswith(('http://', 'https://')):
+                        profile_pic_url = request.build_absolute_uri(pic_url)
+                    else:
+                        profile_pic_url = pic_url
                 except (ValueError, AttributeError):
                     profile_pic_url = None
 
@@ -8040,21 +8329,40 @@ def export_progress_records_api(request):
             # Try to get the classroom to find its name
             try:
                 classroom_obj = Classroom.objects.get(id=classroom_id)
-                classroom_name = classroom_obj.name
-                print(f"Classroom {classroom_id} name: {classroom_name}")
+                print(f"Classroom {classroom_id} name: {classroom_obj.name}, SY: {classroom_obj.school_year}")
                 
-                # Filter by classroom_id OR class_name (for legacy folders)
-                folders = folders.filter(
-                    Q(classroom_id=classroom_id) | Q(class_name=classroom_name)
-                )
+                # Filter by classroom_id ONLY (not by class_name to avoid cross-school-year issues)
+                folders = folders.filter(classroom_id=classroom_id)
                 print(f"Folders after classroom filter: {folders.count()}")
             except Classroom.DoesNotExist:
                 folders = folders.filter(classroom_id=classroom_id)
                 print(f"Folders after classroom_id filter: {folders.count()}")
         # Otherwise filter by class_name if provided
         elif class_name:
-            folders = folders.filter(class_name=class_name)
-            print(f"Folders after class_name filter: {folders.count()}")
+            # When filtering by class_name, prioritize current school year
+            from .models import SchoolYear
+            current_sy = SchoolYear.get_current_for_teacher(request.user)
+            
+            if current_sy:
+                # First try to find folders in current school year
+                current_sy_folders = folders.filter(
+                    class_name=class_name,
+                    classroom__school_year=current_sy.name,
+                    classroom__is_archived=False
+                )
+                if current_sy_folders.exists():
+                    folders = current_sy_folders
+                    print(f"Folders after class_name filter (current SY): {folders.count()}")
+                else:
+                    # Fallback to any non-archived classroom
+                    folders = folders.filter(
+                        class_name=class_name,
+                        classroom__is_archived=False
+                    )
+                    print(f"Folders after class_name filter (non-archived): {folders.count()}")
+            else:
+                folders = folders.filter(class_name=class_name)
+                print(f"Folders after class_name filter: {folders.count()}")
         
         if not folders.exists():
             return Response({'error': 'No portfolio folders found for this class'}, status=status.HTTP_404_NOT_FOUND)
@@ -8564,4 +8872,825 @@ def export_student_record_api(request, student_id):
         print(f"Export error: {str(e)}")
         import traceback
         traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================
+# SCHOOL YEAR MANAGEMENT API
+# ============================================
+
+from .models import SchoolYear
+
+@csrf_exempt
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def school_year_api(request):
+    """
+    GET: List all school years for the current teacher
+    POST: Create a new school year (teacher only)
+    """
+    if request.method == 'GET':
+        try:
+            # Filter by current teacher
+            if request.user.role == 'teacher':
+                school_years = SchoolYear.objects.filter(teacher=request.user).order_by('-start_date')
+            else:
+                school_years = SchoolYear.objects.none()
+            
+            data = []
+            for sy in school_years:
+                # Count classrooms and students for this school year (teacher's classrooms only)
+                classrooms = Classroom.objects.filter(school_year=sy.name, teacher=request.user)
+                student_count = User.objects.filter(
+                    role='student',
+                    classroom__in=classrooms
+                ).count()
+                
+                data.append({
+                    'id': sy.id,
+                    'name': sy.name,
+                    'start_date': sy.start_date.isoformat() if sy.start_date else None,
+                    'end_date': sy.end_date.isoformat() if sy.end_date else None,
+                    'is_current': sy.is_current,
+                    'is_archived': sy.is_archived,
+                    'promotion_done': sy.promotion_done,
+                    'archived_at': sy.archived_at.isoformat() if sy.archived_at else None,
+                    'classroom_count': classrooms.count(),
+                    'student_count': student_count,
+                    'created_at': sy.created_at.isoformat() if sy.created_at else None
+                })
+            
+            current = next((sy for sy in data if sy['is_current'] and not sy['is_archived']), None)
+            
+            return Response({
+                'school_years': data,
+                'current': current
+            })
+        except Exception as e:
+            print(f"Error fetching school years: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'POST':
+        if request.user.role != 'teacher':
+            return Response({'error': 'Only teachers can create school years'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            data = request.data
+            name = data.get('name')
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            set_as_current = data.get('set_as_current', False)
+            
+            if not name or not start_date or not end_date:
+                return Response({'error': 'Name, start_date, and end_date are required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if school year already exists for this teacher
+            if SchoolYear.objects.filter(name=name, teacher=request.user).exists():
+                return Response({'error': f'School year {name} already exists'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            school_year = SchoolYear.objects.create(
+                name=name,
+                teacher=request.user,
+                start_date=start_date,
+                end_date=end_date,
+                is_current=set_as_current
+            )
+            
+            return Response({
+                'id': school_year.id,
+                'name': school_year.name,
+                'start_date': school_year.start_date.isoformat(),
+                'end_date': school_year.end_date.isoformat(),
+                'is_current': school_year.is_current,
+                'message': 'School year created successfully'
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"Error creating school year: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def school_year_detail_api(request, school_year_id):
+    """
+    GET: Get school year details with classrooms where teacher has folders
+    PUT: Update school year
+    DELETE: Delete school year (only if no data)
+    """
+    try:
+        school_year = SchoolYear.objects.get(id=school_year_id, teacher=request.user)
+    except SchoolYear.DoesNotExist:
+        return Response({'error': 'School year not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        from .models import StudentPromotionHistory
+        
+        # Get classrooms where teacher has folders (not just assigned classrooms)
+        # This includes classrooms created via ManageClass by other teachers
+        teacher_folders = PortfolioFolder.objects.filter(
+            teacher=request.user,
+            classroom__school_year=school_year.name
+        ).select_related('classroom')
+        
+        # Get unique classrooms from folders
+        classroom_ids = set(f.classroom_id for f in teacher_folders if f.classroom_id)
+        classrooms = Classroom.objects.filter(id__in=classroom_ids).order_by('grade_level', 'section')
+        
+        classrooms_data = []
+        for classroom in classrooms:
+            # For archived school years, get student count from promotion history
+            if school_year.is_archived:
+                # The promotion history records previous_classroom
+                student_count = StudentPromotionHistory.objects.filter(
+                    previous_classroom=classroom
+                ).count()
+                # Fall back to current students if no promotion history
+                if student_count == 0:
+                    student_count = User.objects.filter(classroom=classroom, role='student').count()
+            else:
+                student_count = User.objects.filter(classroom=classroom, role='student').count()
+            
+            folders = PortfolioFolder.objects.filter(classroom=classroom, teacher=request.user)
+            
+            classrooms_data.append({
+                'id': classroom.id,
+                'name': classroom.name,
+                'grade_level': classroom.grade_level,
+                'section': classroom.section,
+                'student_count': student_count,
+                'folder_count': folders.count(),
+                'teacher': {
+                    'id': classroom.teacher.id,
+                    'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username
+                } if classroom.teacher else None
+            })
+        
+        return Response({
+            'id': school_year.id,
+            'name': school_year.name,
+            'start_date': school_year.start_date.isoformat() if school_year.start_date else None,
+            'end_date': school_year.end_date.isoformat() if school_year.end_date else None,
+            'is_current': school_year.is_current,
+            'is_archived': school_year.is_archived,
+            'classrooms': classrooms_data
+        })
+    
+    elif request.method == 'PUT':
+        if request.user.role != 'teacher':
+            return Response({'error': 'Only teachers can update school years'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            data = request.data
+            old_name = school_year.name
+            
+            if 'name' in data:
+                new_name = data['name'].strip()
+                if new_name and new_name != old_name:
+                    # Check if new name already exists for this teacher
+                    if SchoolYear.objects.filter(name=new_name, teacher=request.user).exclude(id=school_year.id).exists():
+                        return Response({'error': f'School year "{new_name}" already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    # Update the school year name
+                    school_year.name = new_name
+                    
+                    # Also update all classrooms that reference this school year
+                    updated_classrooms = Classroom.objects.filter(school_year=old_name).update(school_year=new_name)
+                    print(f"📚 Updated {updated_classrooms} classrooms from school year '{old_name}' to '{new_name}'")
+            
+            if 'start_date' in data:
+                school_year.start_date = data['start_date']
+            if 'end_date' in data:
+                school_year.end_date = data['end_date']
+            if 'is_current' in data:
+                school_year.is_current = data['is_current']
+            
+            school_year.save()
+            
+            return Response({
+                'id': school_year.id,
+                'name': school_year.name,
+                'is_current': school_year.is_current,
+                'message': 'School year updated successfully'
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'DELETE':
+        if request.user.role != 'teacher':
+            return Response({'error': 'Only teachers can delete school years'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if school year has any data
+        classrooms = Classroom.objects.filter(school_year=school_year.name)
+        if classrooms.exists():
+            return Response({
+                'error': 'Cannot delete school year with existing classrooms. Archive it instead.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        school_year.delete()
+        return Response({'message': 'School year deleted successfully'})
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def archive_school_year_api(request, school_year_id):
+    """
+    Archive a school year - preserves all data but marks it as archived
+    """
+    if request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can archive school years'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        school_year = SchoolYear.objects.get(id=school_year_id)
+        
+        if school_year.is_archived:
+            return Response({'error': 'School year is already archived'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if school_year.is_current:
+            return Response({'error': 'Cannot archive the current school year. Set another as current first.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Archive the school year
+        school_year.is_archived = True
+        school_year.archived_at = timezone.now()
+        school_year.save()
+        
+        # Archive all classrooms in this school year
+        classrooms = Classroom.objects.filter(school_year=school_year.name)
+        classrooms.update(is_archived=True, archived_at=timezone.now())
+        
+        return Response({
+            'message': f'School year {school_year.name} archived successfully',
+            'archived_classrooms': classrooms.count()
+        })
+    except SchoolYear.DoesNotExist:
+        return Response({'error': 'School year not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_new_school_year_api(request):
+    """
+    Start a new school year for a teacher:
+    1. Archive current school year (students become unassigned/available)
+    2. Create new classrooms (copy only teacher's assigned classrooms)
+    3. Assign 25+ available students randomly to each new classroom
+    
+    Rules:
+    - Each student can only be in ONE classroom at a time
+    - Students from archived classrooms become available for reassignment
+    - Random distribution (not grade-based promotion)
+    """
+    if request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can start a new school year'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        import random
+        
+        data = request.data
+        new_year_name = data.get('name')  # e.g., "2025-2026"
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        copy_classrooms = data.get('copy_classrooms', True)
+        
+        if not new_year_name or not start_date or not end_date:
+            return Response({'error': 'Name, start_date, and end_date are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if school year already exists for this teacher
+        if SchoolYear.objects.filter(name=new_year_name, teacher=request.user).exists():
+            return Response({'error': f'School year {new_year_name} already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get current school year for this teacher
+        current_sy = SchoolYear.get_current_for_teacher(request.user)
+        
+        # ============================================
+        # STEP 1: Archive current school year
+        # ============================================
+        archived_students_count = 0
+        if current_sy:
+            current_sy.is_current = False
+            current_sy.is_archived = True
+            current_sy.archived_at = timezone.now()
+            current_sy.save()
+            print(f"📦 Archived school year: {current_sy.name} for teacher {request.user.username}")
+            
+            # Get teacher's assigned classrooms from current school year
+            teacher_classrooms = Classroom.objects.filter(
+                school_year=current_sy.name, 
+                teacher=request.user,
+                is_archived=False
+            )
+            
+            # Unassign students from these classrooms (make them available)
+            for classroom in teacher_classrooms:
+                students_in_classroom = User.objects.filter(
+                    classroom=classroom,
+                    role='student'
+                ).exclude(username='admin')
+                
+                archived_students_count += students_in_classroom.count()
+                
+                # Unassign students - they go back to available pool
+                students_in_classroom.update(
+                    classroom=None,
+                    grade_level=None,
+                    section=None
+                )
+                print(f"📤 Unassigned {students_in_classroom.count()} students from {classroom.name}")
+            
+            # Archive the classrooms
+            teacher_classrooms.update(is_archived=True, archived_at=timezone.now())
+            print(f"📦 Archived {teacher_classrooms.count()} classrooms")
+        
+        # ============================================
+        # STEP 2: Create new school year and classrooms
+        # ============================================
+        new_school_year = SchoolYear.objects.create(
+            name=new_year_name,
+            teacher=request.user,
+            start_date=start_date,
+            end_date=end_date,
+            is_current=True
+        )
+        
+        created_classrooms = []
+        new_classroom_objects = []
+        
+        if copy_classrooms:
+            old_classrooms = None
+            
+            # First try: Copy from current school year's archived classrooms (just archived above)
+            if current_sy:
+                old_classrooms = Classroom.objects.filter(
+                    school_year=current_sy.name, 
+                    teacher=request.user,
+                    is_archived=True  # They were just archived above
+                )
+                print(f"📚 Found {old_classrooms.count()} classrooms from current school year to copy")
+            
+            # Second try: If no classrooms from current school year, get teacher's ORIGINAL assigned classroom
+            # This should be from the initial 2024-2025 setup where each teacher was assigned ONE classroom
+            if not old_classrooms or not old_classrooms.exists():
+                # Look for the teacher's original classroom assignment (from 2024-2025 or earliest school year)
+                old_classrooms = Classroom.objects.filter(
+                    teacher=request.user
+                ).order_by('school_year', 'id')[:1]  # Get only the FIRST/original classroom
+                
+                if old_classrooms.exists():
+                    print(f"📚 No current school year classrooms, using teacher's original classroom: {old_classrooms.first().name}")
+                else:
+                    print(f"⚠️ Teacher has no assigned classrooms to copy")
+            
+            for old_classroom in old_classrooms:
+                # Check if we already created a classroom with this name in this school year
+                if Classroom.objects.filter(
+                    name=old_classroom.name,
+                    school_year=new_year_name,
+                    teacher=request.user
+                ).exists():
+                    print(f"⚠️ Skipping duplicate classroom: {old_classroom.name}")
+                    continue
+                
+                new_classroom = Classroom.objects.create(
+                    name=old_classroom.name,
+                    grade_level=old_classroom.grade_level,
+                    section=old_classroom.section,
+                    room_number=old_classroom.room_number,
+                    capacity=old_classroom.capacity,
+                    school_year=new_year_name,
+                    school_year_obj=new_school_year,
+                    teacher=request.user
+                )
+                created_classrooms.append({
+                    'id': new_classroom.id,
+                    'name': new_classroom.name,
+                    'grade_level': new_classroom.grade_level,
+                    'section': new_classroom.section
+                })
+                new_classroom_objects.append(new_classroom)
+                print(f"✅ Created new classroom: {new_classroom.name}")
+        
+        # If still no classrooms (teacher has no assigned classrooms at all), show error
+        if not new_classroom_objects:
+            return Response({
+                'error': 'No classrooms to copy. Please assign yourself to at least one classroom first.',
+                'school_year': {
+                    'id': new_school_year.id,
+                    'name': new_school_year.name,
+                    'is_current': new_school_year.is_current
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # ============================================
+        # STEP 3: Assign 25+ students randomly to each classroom
+        # ============================================
+        MIN_STUDENTS_PER_CLASS = 25
+        assignment_stats = {
+            'total_assigned': 0,
+            'classrooms_filled': 0,
+            'students_made_available': archived_students_count,
+            'classrooms_created': len(new_classroom_objects)
+        }
+        
+        if new_classroom_objects:
+            # Track students already assigned in this session to avoid duplicates
+            already_assigned_ids = set()
+            
+            for new_classroom in new_classroom_objects:
+                # Get available students:
+                # ONLY students with NO classroom (classroom is null)
+                # This ensures we don't steal students from other teachers
+                
+                available_students = User.objects.filter(
+                    role='student',
+                    classroom__isnull=True  # ONLY students with no classroom
+                ).exclude(
+                    username='admin'
+                ).exclude(
+                    id__in=already_assigned_ids  # Not already assigned in this session
+                )
+                
+                # Randomly select students
+                available_list = list(available_students)
+                random.shuffle(available_list)
+                
+                students_to_assign = available_list[:MIN_STUDENTS_PER_CLASS]
+                
+                # Assign students to this classroom
+                assigned_count = 0
+                for student in students_to_assign:
+                    student.classroom = new_classroom
+                    student.grade_level = str(new_classroom.grade_level)
+                    student.section = new_classroom.section
+                    student.save()
+                    already_assigned_ids.add(student.id)
+                    assigned_count += 1
+                    assignment_stats['total_assigned'] += 1
+                
+                if assigned_count > 0:
+                    assignment_stats['classrooms_filled'] += 1
+                
+                print(f"✅ Assigned {assigned_count} students to {new_classroom.name}")
+        
+        return Response({
+            'message': f'School year {new_year_name} started successfully',
+            'school_year': {
+                'id': new_school_year.id,
+                'name': new_school_year.name,
+                'is_current': new_school_year.is_current
+            },
+            'created_classrooms': created_classrooms,
+            'assignment_stats': assignment_stats
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        print(f"Error starting new school year: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def undo_promotion_api(request, school_year_id):
+    """
+    Undo student promotions for a school year - revert students to their original grade/section (per teacher)
+    """
+    if request.user.role != 'teacher':
+        return Response({'error': 'Only teachers can undo promotions'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import StudentPromotionHistory
+        
+        school_year = SchoolYear.objects.get(id=school_year_id, teacher=request.user)
+        
+        if not school_year.promotion_done:
+            return Response({'error': 'No promotion was done for this school year'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get all promotion records for this school year by this teacher that haven't been undone
+        promotions = StudentPromotionHistory.objects.filter(
+            school_year=school_year,
+            teacher=request.user,
+            is_undone=False
+        )
+        
+        if not promotions.exists():
+            return Response({'error': 'No promotions to undo'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        undo_stats = {
+            'reverted': 0,
+            'graduated_restored': 0,
+            'errors': 0
+        }
+        
+        for promotion in promotions:
+            try:
+                student = promotion.student
+                
+                # Restore original classroom assignment
+                student.classroom = promotion.previous_classroom
+                student.grade_level = str(promotion.previous_grade_level) if promotion.previous_grade_level else None
+                student.section = promotion.previous_section
+                student.save()
+                
+                # Mark promotion as undone
+                promotion.is_undone = True
+                promotion.save()
+                
+                if promotion.is_graduated:
+                    undo_stats['graduated_restored'] += 1
+                else:
+                    undo_stats['reverted'] += 1
+                    
+            except Exception as e:
+                print(f"Error undoing promotion for student {promotion.student_id}: {str(e)}")
+                undo_stats['errors'] += 1
+        
+        # Mark school year promotion as undone
+        school_year.promotion_done = False
+        school_year.save()
+        
+        return Response({
+            'message': 'Promotions undone successfully',
+            'stats': undo_stats
+        })
+        
+    except SchoolYear.DoesNotExist:
+        return Response({'error': 'School year not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Error undoing promotions: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def promotion_status_api(request, school_year_id):
+    """
+    Get promotion status and stats for a school year
+    """
+    try:
+        from .models import StudentPromotionHistory
+        
+        school_year = SchoolYear.objects.get(id=school_year_id)
+        
+        promotions = StudentPromotionHistory.objects.filter(school_year=school_year)
+        
+        stats = {
+            'total': promotions.count(),
+            'promoted': promotions.filter(is_graduated=False, new_grade_level__isnull=False).count(),
+            'graduated': promotions.filter(is_graduated=True).count(),
+            'new_grade1': promotions.filter(previous_grade_level__isnull=True, new_grade_level=1).count(),
+            'undone': promotions.filter(is_undone=True).count(),
+            'promotion_done': school_year.promotion_done
+        }
+        
+        # Get detailed list
+        promotion_list = []
+        for p in promotions[:50]:  # Limit to 50 for performance
+            promotion_list.append({
+                'student_id': p.student.id,
+                'student_name': f"{p.student.first_name} {p.student.last_name}".strip() or p.student.username,
+                'previous_grade': p.previous_grade_level,
+                'previous_section': p.previous_section,
+                'new_grade': p.new_grade_level,
+                'new_section': p.new_section,
+                'is_graduated': p.is_graduated,
+                'is_undone': p.is_undone
+            })
+        
+        return Response({
+            'school_year': school_year.name,
+            'stats': stats,
+            'promotions': promotion_list
+        })
+        
+    except SchoolYear.DoesNotExist:
+        return Response({'error': 'School year not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def archived_school_years_api(request):
+    """
+    Get all archived school years with their data summary (per teacher)
+    Shows classrooms where teacher has folders, not just assigned classrooms
+    """
+    try:
+        print(f"📦 archived_school_years_api called by user: {request.user.username} (ID: {request.user.id})")
+        
+        # Filter by current teacher
+        archived_years = SchoolYear.objects.filter(
+            is_archived=True,
+            teacher=request.user
+        ).order_by('-archived_at')
+        
+        print(f"📦 Found {archived_years.count()} archived school years for this teacher")
+        
+        data = []
+        for sy in archived_years:
+            print(f"📦 Processing school year: {sy.name} (ID: {sy.id})")
+            
+            # Get classrooms where teacher has folders (not just assigned classrooms)
+            # This includes classrooms created via ManageClass
+            teacher_folders = PortfolioFolder.objects.filter(
+                teacher=request.user,
+                classroom__school_year=sy.name,
+                classroom__is_archived=True
+            ).select_related('classroom')
+            
+            # Get unique classrooms from folders
+            classroom_ids = set(f.classroom_id for f in teacher_folders if f.classroom_id)
+            classrooms = Classroom.objects.filter(id__in=classroom_ids)
+            
+            print(f"📦 Found {classrooms.count()} classrooms with teacher's folders")
+            
+            # Get summary stats - use promotion history for student count
+            from .models import StudentPromotionHistory
+            total_students = 0
+            total_folders = 0
+            total_activities = 0
+            total_submissions = 0
+            
+            for classroom in classrooms:
+                # Count students from promotion history (who WERE in this classroom)
+                # The promotion history records the previous_classroom, linked to the NEW school year
+                # So we need to find promotions where previous_classroom matches
+                promotion_count = StudentPromotionHistory.objects.filter(
+                    previous_classroom=classroom
+                ).count()
+                
+                if promotion_count > 0:
+                    total_students += promotion_count
+                else:
+                    # Fall back to current students if no promotion history
+                    students = User.objects.filter(classroom=classroom, role='student')
+                    total_students += students.count()
+                
+                folders = PortfolioFolder.objects.filter(classroom=classroom, teacher=request.user)
+                total_folders += folders.count()
+                
+                for folder in folders:
+                    activities = PortfolioActivity.objects.filter(folder=folder)
+                    total_activities += activities.count()
+                    
+                    for activity in activities:
+                        total_submissions += StudentSubmission.objects.filter(activity=activity).count()
+            
+            data.append({
+                'id': sy.id,
+                'name': sy.name,
+                'start_date': sy.start_date.isoformat() if sy.start_date else None,
+                'end_date': sy.end_date.isoformat() if sy.end_date else None,
+                'archived_at': sy.archived_at.isoformat() if sy.archived_at else None,
+                'stats': {
+                    'classrooms': classrooms.count(),
+                    'students': total_students,
+                    'folders': total_folders,
+                    'activities': total_activities,
+                    'submissions': total_submissions
+                }
+            })
+        
+        print(f"📦 Returning {len(data)} archived school years")
+        return Response({'archived_school_years': data})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def archived_classroom_detail_api(request, school_year_id, classroom_id):
+    """
+    Get detailed view of an archived classroom including all data (per teacher)
+    Teacher can view any classroom where they have folders
+    Shows students who WERE in this classroom (from promotion history)
+    """
+    try:
+        from .models import StudentPromotionHistory
+        
+        school_year = SchoolYear.objects.get(id=school_year_id, is_archived=True, teacher=request.user)
+        classroom = Classroom.objects.get(id=classroom_id, school_year=school_year.name)
+        
+        # Verify teacher has folders in this classroom (not just assigned to it)
+        has_folders = PortfolioFolder.objects.filter(classroom=classroom, teacher=request.user).exists()
+        if not has_folders and classroom.teacher != request.user:
+            return Response({'error': 'You do not have access to this classroom'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get students who WERE in this classroom (from promotion history)
+        # The promotion history records previous_classroom
+        promotion_records = StudentPromotionHistory.objects.filter(
+            previous_classroom=classroom
+        ).select_related('student')
+        
+        # If no promotion history, fall back to current students (for non-promoted classrooms)
+        if promotion_records.exists():
+            students = [p.student for p in promotion_records]
+        else:
+            students = list(User.objects.filter(classroom=classroom, role='student'))
+        
+        # Only show teacher's own folders
+        folders = PortfolioFolder.objects.filter(classroom=classroom, teacher=request.user)
+        
+        # Get remarks for students in this classroom (only from this teacher)
+        remarks_data = []
+        for student in students:
+            student_remarks = Remark.objects.filter(student=student, teacher=request.user).order_by('-created_at')
+            for remark in student_remarks:
+                remarks_data.append({
+                    'id': remark.id,
+                    'student': f"{student.first_name} {student.last_name}".strip() or student.username,
+                    'teacher': f"{remark.teacher.first_name} {remark.teacher.last_name}".strip() or remark.teacher.username,
+                    'text': remark.text,
+                    'created_at': remark.created_at.isoformat()
+                })
+        
+        # Get notifications for this classroom
+        notifications_data = []
+        for student in students:
+            student_notifications = Notification.objects.filter(recipient=student).order_by('-created_at')[:20]
+            for notif in student_notifications:
+                notifications_data.append({
+                    'id': notif.id,
+                    'recipient': f"{student.first_name} {student.last_name}".strip() or student.username,
+                    'title': notif.title,
+                    'message': notif.message,
+                    'type': notif.notification_type,
+                    'created_at': notif.created_at.isoformat()
+                })
+        
+        # Build folders with activities and submissions
+        folders_data = []
+        for folder in folders:
+            activities = PortfolioActivity.objects.filter(folder=folder)
+            activities_data = []
+            
+            for activity in activities:
+                submissions = StudentSubmission.objects.filter(activity=activity)
+                submissions_data = []
+                
+                for sub in submissions:
+                    submissions_data.append({
+                        'id': sub.id,
+                        'student': f"{sub.student.first_name} {sub.student.last_name}".strip() or sub.student.username,
+                        'status': sub.status,
+                        'score': sub.score,
+                        'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None
+                    })
+                
+                activities_data.append({
+                    'id': activity.id,
+                    'title': activity.title,
+                    'type': activity.activity_type,
+                    'due_date': activity.due_date.isoformat() if activity.due_date else None,
+                    'submissions': submissions_data
+                })
+            
+            folders_data.append({
+                'id': folder.id,
+                'name': folder.name,
+                'activities': activities_data
+            })
+        
+        return Response({
+            'school_year': {
+                'id': school_year.id,
+                'name': school_year.name
+            },
+            'classroom': {
+                'id': classroom.id,
+                'name': classroom.name,
+                'grade_level': classroom.grade_level,
+                'section': classroom.section,
+                'teacher': {
+                    'id': classroom.teacher.id,
+                    'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username
+                } if classroom.teacher else None
+            },
+            'students': [{
+                'id': s.id,
+                'name': f"{s.first_name} {s.last_name}".strip() or s.username,
+                'email': s.email
+            } for s in students],
+            'folders': folders_data,
+            'remarks': remarks_data,
+            'notifications': notifications_data
+        })
+        
+    except SchoolYear.DoesNotExist:
+        return Response({'error': 'Archived school year not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Classroom.DoesNotExist:
+        return Response({'error': 'Classroom not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

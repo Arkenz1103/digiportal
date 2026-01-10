@@ -18,10 +18,40 @@
           <div class="lg:col-span-1">
             <div class="bg-white/95 rounded-xl border-2 border-indigo-100 overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
               <div class="bg-gradient-to-r from-indigo-50 to-violet-50 p-4 border-b-2 border-indigo-100">
-                <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
-                  <i class="pi pi-users text-indigo-600"></i>
-                  Pupils List
-                </h3>
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2 whitespace-nowrap">
+                    <i class="pi pi-users text-indigo-600"></i>
+                    Pupils List
+                  </h3>
+                  <Dropdown
+                    v-model="selectedClassroom"
+                    :options="classrooms"
+                    optionLabel="name"
+                    placeholder="Select Class"
+                    class="flex-1 max-w-[160px]"
+                    @change="onClassroomChange"
+                  >
+                    <template #value="slotProps">
+                      <div v-if="slotProps.value" class="flex items-center gap-1">
+                        <span class="font-medium text-sm">{{ slotProps.value.name }}</span>
+                      </div>
+                      <span v-else class="text-gray-500 text-sm">Select Class</span>
+                    </template>
+                    <template #option="slotProps">
+                      <div class="flex items-center justify-between w-full gap-2">
+                        <span class="font-medium">{{ slotProps.option.name }}</span>
+                        <span class="text-xs text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">{{ slotProps.option.student_count }}</span>
+                      </div>
+                    </template>
+                  </Dropdown>
+                </div>
+                <!-- Selected Class Indicator -->
+                <div v-if="selectedClassroom" class="mt-2 flex items-center gap-2">
+                  <span class="text-xs font-semibold bg-indigo-600 text-white px-3 py-1 rounded-full flex items-center gap-1">
+                    <i class="pi pi-bookmark-fill text-xs"></i>
+                    {{ selectedClassroom.name }} • {{ selectedClassroom.student_count }} students
+                  </span>
+                </div>
               </div>
               <!-- Search Bar -->
               <div class="p-4 border-b border-indigo-100">
@@ -38,6 +68,11 @@
               <div class="p-4 max-h-[600px] overflow-y-auto">
                 <div v-if="isLoadingStudents" class="flex justify-center items-center py-8">
                   <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                </div>
+                <div v-else-if="filteredStudents.length === 0" class="text-center py-8">
+                  <i class="pi pi-users text-4xl text-gray-300 mb-3"></i>
+                  <p class="text-gray-500">No students found</p>
+                  <p v-if="selectedClassroom" class="text-sm text-gray-400 mt-1">Try selecting a different class</p>
                 </div>
                 <ul v-else class="space-y-2">
                   <li v-for="student in filteredStudents"
@@ -56,7 +91,6 @@
                       </div>
                       <div>
                         <span class="font-semibold text-indigo-900 block">{{ student.name }}</span>
-                        <span class="text-xs text-indigo-600">ID #: {{ student.id }}</span>
                       </div>
                     </div>
                     <i class="pi pi-chevron-right text-indigo-400"></i>
@@ -226,11 +260,94 @@ const { showSuccess, showError, showInfo, showWarning } = useToast();
 import Button from "primevue/button";
 import Textarea from "primevue/textarea";
 import Dialog from 'primevue/dialog';
+import Dropdown from 'primevue/dropdown';
 
 const students = ref([]);
+const classrooms = ref([]);
+const selectedClassroom = ref(null);
 const isLoadingStudents = ref(false);
 const searchQuery = ref('');
 const showAddRemarkDialog = ref(false);
+
+// Load classrooms for dropdown - includes assigned classroom + classrooms with folders
+const loadClassrooms = async () => {
+  try {
+    // First, get teacher's assigned classrooms
+    const assignedResponse = await axios.get('/api/classrooms/');
+    let assignedClassrooms = [];
+    if (assignedResponse.data && assignedResponse.data.classrooms) {
+      assignedClassrooms = assignedResponse.data.classrooms;
+    }
+    
+    // Then, get classrooms where teacher has folders (from ManageClass)
+    const foldersResponse = await axios.get('/api/portfolio/folders/?current_school_year=true');
+    let folderClassroomIds = new Set();
+    if (foldersResponse.data) {
+      foldersResponse.data.forEach(folder => {
+        if (folder.classroom) {
+          folderClassroomIds.add(folder.classroom);
+        }
+      });
+    }
+    
+    // Build classroom map - assigned classrooms first
+    const classroomMap = new Map();
+    assignedClassrooms.forEach(c => {
+      classroomMap.set(c.id, {
+        id: c.id,
+        name: c.name,
+        student_count: c.students?.length || 0,
+        isAssigned: true
+      });
+    });
+    
+    // Add classrooms from folders that aren't already in the map
+    for (const classroomId of folderClassroomIds) {
+      if (!classroomMap.has(classroomId)) {
+        try {
+          const classroomResponse = await axios.get(`/api/classrooms/${classroomId}/`);
+          if (classroomResponse.data && !classroomResponse.data.is_archived) {
+            classroomMap.set(classroomId, {
+              id: classroomResponse.data.id,
+              name: classroomResponse.data.name,
+              student_count: classroomResponse.data.students?.length || 0,
+              isAssigned: false
+            });
+          }
+        } catch (err) {
+          console.error(`Failed to fetch classroom ${classroomId}:`, err);
+        }
+      }
+    }
+    
+    // Convert to array - assigned classrooms first, then others
+    const allClassrooms = Array.from(classroomMap.values());
+    allClassrooms.sort((a, b) => {
+      // Assigned classrooms first
+      if (a.isAssigned && !b.isAssigned) return -1;
+      if (!a.isAssigned && b.isAssigned) return 1;
+      // Then sort by name
+      return a.name.localeCompare(b.name);
+    });
+    
+    classrooms.value = allClassrooms;
+    console.log('📚 Loaded classrooms for remarks:', classrooms.value);
+    
+    // Auto-select the first classroom (teacher's assigned classroom)
+    if (classrooms.value.length > 0 && !selectedClassroom.value) {
+      selectedClassroom.value = classrooms.value[0];
+      await loadStudents();
+    }
+  } catch (error) {
+    console.error('Error loading classrooms:', error);
+  }
+};
+
+// Handle classroom change
+const onClassroomChange = async () => {
+  selectedStudent.value = null; // Clear selected student when changing class
+  await loadStudents();
+};
 
 // Filtered students based on search query
 const filteredStudents = computed(() => {
@@ -249,7 +366,13 @@ const filteredStudents = computed(() => {
 const loadStudents = async () => {
   isLoadingStudents.value = true;
   try {
-    const response = await axios.get('/api/students/progress/');
+    // Build URL with optional classroom filter
+    let url = '/api/students/progress/';
+    if (selectedClassroom.value) {
+      url += `?classroom_id=${selectedClassroom.value.id}`;
+    }
+    
+    const response = await axios.get(url);
     if (response.data) {
       // Map students without loading remarks initially (load on demand)
       students.value = response.data.map((student) => ({
@@ -262,7 +385,7 @@ const loadStudents = async () => {
         profile_picture: student.profile_picture || null,
         remarks: [] // Will be loaded when student is selected
       }));
-      console.log('Loaded students:', students.value.length);
+      console.log('Loaded students:', students.value.length, selectedClassroom.value ? `for ${selectedClassroom.value.name}` : 'all classes');
     }
   } catch (error) {
     console.error('Error loading students:', error);
@@ -289,7 +412,7 @@ const closeMenu = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', closeMenu);
-  loadStudents();
+  loadClassrooms(); // This will auto-select first classroom and load students
 });
 
 onUnmounted(() => {

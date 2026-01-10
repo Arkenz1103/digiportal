@@ -1040,9 +1040,9 @@ const loadClassrooms = async () => {
         console.log('🏫 Loading classrooms from API...');
         
         if (currentUser.value.role === 'teacher') {
-            // For teachers: show assigned classes + classes where they have folders (via ManageClass)
+            // For teachers: show classrooms where they have folders OR are assigned
             
-            // 1. Load assigned classrooms
+            // 1. Load teacher's assigned classrooms (non-archived)
             const assignedResponse = await fetch('/api/classrooms/', {
                 credentials: 'include',
                 headers: { 'Accept': 'application/json' }
@@ -1052,71 +1052,80 @@ const loadClassrooms = async () => {
             if (assignedResponse.ok) {
                 const assignedData = await assignedResponse.json();
                 assignedClassrooms = assignedData.classrooms || [];
-                console.log('📚 Assigned classrooms:', assignedClassrooms);
+                console.log('📚 Assigned classrooms (non-archived):', assignedClassrooms);
             }
             
-            // 2. Load folders to find classes where teacher has folders
-            const foldersResponse = await fetch('/api/portfolio/folders/', {
+            // 2. Load folders to find subjects per classroom AND discover additional classrooms
+            const foldersResponse = await fetch('/api/portfolio/folders/?current_school_year=true', {
                 credentials: 'include',
                 headers: { 'Accept': 'application/json' }
             });
             
             let folders = [];
-            let folderClassroomIds = [];
             if (foldersResponse.ok) {
                 folders = await foldersResponse.json();
-                folderClassroomIds = [...new Set(folders.map(f => f.classroom).filter(id => id))];
-                console.log('📂 Folders:', folders.length, 'Classroom IDs with folders:', folderClassroomIds);
+                console.log('📂 Folders:', folders.length);
             }
             
-            // 3. Get all classrooms to find details for folder classes
-            const allClassroomsResponse = await fetch('/api/classrooms/?all=true', {
-                credentials: 'include',
-                headers: { 'Accept': 'application/json' }
+            // 3. Build a map of classrooms - start with assigned classrooms
+            const classroomMap = new Map();
+            assignedClassrooms.forEach(classroom => {
+                classroomMap.set(classroom.id, {
+                    id: classroom.id,
+                    name: classroom.name,
+                    grade_level: classroom.grade_level,
+                    section: classroom.section,
+                    theme: 'purple',
+                    subjects: []
+                });
             });
             
-            let allClassrooms = [];
-            if (allClassroomsResponse.ok) {
-                const allData = await allClassroomsResponse.json();
-                allClassrooms = allData.classrooms || [];
-            }
-            
-            // 4. Combine: assigned classes + classes with folders (no duplicates)
-            const assignedIds = assignedClassrooms.map(c => c.id);
-            const additionalClasses = allClassrooms.filter(c => 
-                folderClassroomIds.includes(c.id) && !assignedIds.includes(c.id)
-            );
-            console.log('📚 Additional classes (from folders):', additionalClasses);
-            
-            const combinedClassrooms = [...assignedClassrooms, ...additionalClasses];
-            
-            // 5. Map to our format
-            classes.value = combinedClassrooms.map(classroom => ({
-                id: classroom.id,
-                name: classroom.name,
-                grade_level: classroom.grade_level,
-                section: classroom.section,
-                theme: 'purple',
-                subjects: []
-            }));
-            
-            // 6. Group folders by class and update subjects
+            // 4. Add classrooms from folders (if not already in map) and collect subjects
             const foldersByClass = {};
-            folders.forEach(folder => {
+            for (const folder of folders) {
                 if (folder.classroom) {
+                    // Add to subjects list
                     if (!foldersByClass[folder.classroom]) {
                         foldersByClass[folder.classroom] = [];
                     }
                     foldersByClass[folder.classroom].push(folder.name);
+                    
+                    // If classroom not in map, fetch its details
+                    if (!classroomMap.has(folder.classroom)) {
+                        try {
+                            const classroomResponse = await fetch(`/api/classrooms/${folder.classroom}/`, {
+                                credentials: 'include',
+                                headers: { 'Accept': 'application/json' }
+                            });
+                            if (classroomResponse.ok) {
+                                const classroomData = await classroomResponse.json();
+                                // Only add if not archived
+                                if (!classroomData.is_archived) {
+                                    classroomMap.set(folder.classroom, {
+                                        id: classroomData.id,
+                                        name: classroomData.name,
+                                        grade_level: classroomData.grade_level,
+                                        section: classroomData.section,
+                                        theme: 'purple',
+                                        subjects: []
+                                    });
+                                    console.log(`📚 Added classroom from folder: ${classroomData.name}`);
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Failed to fetch classroom ${folder.classroom}:`, err);
+                        }
+                    }
                 }
-            });
+            }
             
-            classes.value = classes.value.map(classItem => ({
+            // 5. Convert map to array and add subjects
+            classes.value = Array.from(classroomMap.values()).map(classItem => ({
                 ...classItem,
                 subjects: [...new Set(foldersByClass[classItem.id] || [])]
             }));
             
-            // Sort by grade level and section
+            // 6. Sort by grade level and section
             classes.value.sort((a, b) => {
                 if (a.grade_level !== b.grade_level) return a.grade_level - b.grade_level;
                 return a.section.localeCompare(b.section);

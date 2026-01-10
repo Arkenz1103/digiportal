@@ -609,10 +609,10 @@ const loadStudentWork = async (studentId) => {
     console.log('   Expected classroom match:', expectedClassroom);
 
     try {
-        // Load portfolio folders
-        const foldersResponse = await axios.get('/api/portfolio/folders/');
+        // Load portfolio folders - only from current school year
+        const foldersResponse = await axios.get('/api/portfolio/folders/?current_school_year=true');
         portfolioFolders.value = foldersResponse.data || [];
-        console.log('📁 Loaded portfolio folders:', portfolioFolders.value.length);
+        console.log('📁 Loaded portfolio folders (current school year only):', portfolioFolders.value.length);
 
         const allRecords = [];
 

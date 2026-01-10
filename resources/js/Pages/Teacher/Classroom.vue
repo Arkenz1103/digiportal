@@ -16,7 +16,7 @@
                         </button>
                         <div class="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200">
                             <span class="text-sm text-gray-500">School Year:</span>
-                            <span class="text-sm font-medium text-indigo-700">2024-2025</span>
+                            <span class="text-sm font-medium text-indigo-700">{{ currentSchoolYear || 'Not set' }}</span>
                         </div>
                     </div>
                 </div>
@@ -281,6 +281,7 @@ const isLoading = ref(false);
 const classrooms = ref([]);
 const selectedStudent = ref(null);
 const showQuickActions = ref(false);
+const currentSchoolYear = ref(''); // Dynamic school year
 
 // Load classroom data
 const loadClassrooms = async () => {
@@ -293,6 +294,10 @@ const loadClassrooms = async () => {
                 showStudents: false,
                 showActions: false
             }));
+            // Get school year from first classroom
+            if (classrooms.value.length > 0 && classrooms.value[0].school_year) {
+                currentSchoolYear.value = classrooms.value[0].school_year;
+            }
             console.log('Loaded classrooms:', classrooms.value);
         }
     } catch (error) {
