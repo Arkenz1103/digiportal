@@ -14,7 +14,7 @@
     <AuthLogin v-if="currentPage === 'Login'" @navigate="handleNavigation" />
 
     <!-- Teacher Pages with MainLayout -->
-    <MainLayout v-if="currentPage.startsWith('Teacher') || (currentPage === 'Profile' && userRole === 'teacher') || (currentPage === 'Settings' && userRole === 'teacher')" @navigate="handleNavigation">
+    <MainLayout v-if="currentPage.startsWith('Teacher') || (currentPage === 'Profile' && userRole === 'teacher') || (currentPage === 'Settings' && userRole === 'teacher')" :currentPage="currentPage" @navigate="handleNavigation">
       <TeacherHome v-if="currentPage === 'TeacherHome'" @navigate="handleNavigation" />
       <TeacherClassroom v-if="currentPage === 'TeacherClassroom'" @navigate="handleNavigation" />
       <TeacherRoom v-if="currentPage === 'TeacherRoom'" @navigate="handleNavigation" />
@@ -31,7 +31,7 @@
     </MainLayout>
 
     <!-- Student Pages with MainLayout -->
-    <MainLayout v-if="currentPage.startsWith('Student') || (currentPage === 'Profile' && userRole === 'student') || (currentPage === 'Settings' && userRole === 'student')" @navigate="handleNavigation">
+    <MainLayout v-if="currentPage.startsWith('Student') || (currentPage === 'Profile' && userRole === 'student') || (currentPage === 'Settings' && userRole === 'student')" :currentPage="currentPage" @navigate="handleNavigation">
       <StudentNewsfeed v-if="currentPage === 'StudentNewsfeed'" @navigate="handleNavigation" />
       <StudentClassroom v-if="currentPage === 'StudentClassroom'" @navigate="handleNavigation" />
       <StudentRoom v-if="currentPage === 'StudentRoom'" @navigate="handleNavigation" />
@@ -39,6 +39,7 @@
       <StudentRemarked v-if="currentPage === 'StudentRemarked'" @navigate="handleNavigation" />
       <StudentNotify v-if="currentPage === 'StudentNotify'" @navigate="handleNavigation" />
       <StudentArchived v-if="currentPage === 'StudentArchived'" @navigate="handleNavigation" />
+      <StudentSchoolYear v-if="currentPage === 'StudentSchoolYear'" @navigate="handleNavigation" />
       <StudentProfile v-if="currentPage === 'Profile' && userRole === 'student'" @navigate="handleNavigation" />
       <StudentSettings v-if="currentPage === 'Settings' && userRole === 'student'" @navigate="handleNavigation" />
     </MainLayout>
@@ -77,6 +78,7 @@ import StudentNotify from './Pages/Student/Snotify.vue'
 import StudentArchived from './Pages/Student/Sarchived.vue'
 import StudentProfile from './Pages/Student/Profile.vue'
 import StudentSettings from './Pages/Student/Settings.vue'
+import StudentSchoolYear from './Pages/Student/SchoolYear.vue'
 
 // Current page state - using route names from routes.js
 const currentPage = ref('Landing')

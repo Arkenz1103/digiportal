@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
 import { useToast } from '../../composables/useToast';
 
@@ -21,6 +21,39 @@ const displayedPendingCount = ref(itemsPerPage);
 // Classroom filter
 const classrooms = ref([]);
 const selectedClassroom = ref(null);
+
+// Archived View Mode State
+const isArchivedViewMode = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
+// Check if in archived view mode
+const checkArchivedViewMode = () => {
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            viewingArchivedSchoolYear.value = JSON.parse(savedArchivedView);
+            isArchivedViewMode.value = true;
+            console.log('📂 Notice: Archived view mode:', viewingArchivedSchoolYear.value?.name);
+        } catch (e) {
+            isArchivedViewMode.value = false;
+            viewingArchivedSchoolYear.value = null;
+        }
+    } else {
+        isArchivedViewMode.value = false;
+        viewingArchivedSchoolYear.value = null;
+    }
+};
+
+// Handle archived view mode change event
+const handleArchivedViewModeChange = (event) => {
+    const { isViewing, schoolYear } = event.detail;
+    isArchivedViewMode.value = isViewing;
+    viewingArchivedSchoolYear.value = schoolYear;
+    console.log('📂 Notice: Archived view mode changed:', isViewing, schoolYear?.name);
+    // Reload data with new filter
+    loadClassrooms();
+    loadPendingApprovals();
+};
 
 // Helper function to get initials from name
 const getInitials = (name) => {
@@ -83,15 +116,24 @@ const formatDateTime = (dateString) => {
 // Load classrooms for dropdown
 const loadClassrooms = async () => {
     try {
+        // Build URL with school year filter if in archived view mode
+        let classroomsUrl = '/api/classrooms/';
+        let foldersUrl = '/api/portfolio/folders/?current_school_year=true';
+        
+        if (isArchivedViewMode.value && viewingArchivedSchoolYear.value?.name) {
+            classroomsUrl += `?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+            foldersUrl = `/api/portfolio/folders/?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+        }
+        
         // Get teacher's assigned classrooms
-        const assignedResponse = await axios.get('/api/classrooms/');
+        const assignedResponse = await axios.get(classroomsUrl);
         let assignedClassrooms = [];
         if (assignedResponse.data && assignedResponse.data.classrooms) {
             assignedClassrooms = assignedResponse.data.classrooms;
         }
         
         // Get classrooms where teacher has folders
-        const foldersResponse = await axios.get('/api/portfolio/folders/?current_school_year=true');
+        const foldersResponse = await axios.get(foldersUrl);
         let folderClassroomIds = new Set();
         if (foldersResponse.data) {
             foldersResponse.data.forEach(folder => {
@@ -116,7 +158,9 @@ const loadClassrooms = async () => {
             if (!classroomMap.has(classroomId)) {
                 try {
                     const classroomResponse = await axios.get(`/api/classrooms/${classroomId}/`);
-                    if (classroomResponse.data && !classroomResponse.data.is_archived) {
+                    // In archived mode, include archived classrooms; otherwise exclude them
+                    const shouldInclude = isArchivedViewMode.value || !classroomResponse.data.is_archived;
+                    if (classroomResponse.data && shouldInclude) {
                         classroomMap.set(classroomId, {
                             id: classroomResponse.data.id,
                             name: classroomResponse.data.name,
@@ -285,8 +329,16 @@ const loadPendingApprovals = async () => {
 
 // Load on mount
 onMounted(async () => {
+    checkArchivedViewMode();
     await loadClassrooms();
     await loadPendingApprovals();
+    
+    // Listen for archived view mode changes
+    window.addEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
 });
 
 // Old hardcoded data (keeping for reference)

@@ -7,6 +7,14 @@ import { useToast } from '../composables/useToast';
 
 const { showSuccess, showError, showInfo, showWarning } = useToast();
 
+// Define props
+const props = defineProps({
+    currentPage: {
+        type: String,
+        default: ''
+    }
+});
+
 // Define emits for navigation
 const emit = defineEmits(['navigate']);
 
@@ -94,6 +102,10 @@ const newClassForm = ref({
     section: '',
     theme: 'purple',
 });
+
+// Archived View Mode State (for viewing archived school year data)
+const isViewingArchived = ref(false);
+const viewingArchivedSchoolYear = ref(null);
 
 // Notifications state
 const showNotifications = ref(false);
@@ -739,6 +751,14 @@ const loadUserDataFromLocalStorage = () => {
 // Current page tracking - default based on role
 const currentRoute = ref('StudentNewsfeed'); // Default to student, will be updated by loadUserData
 
+// Watch for currentPage prop changes from App.vue
+watch(() => props.currentPage, (newPage) => {
+    if (newPage && newPage !== currentRoute.value) {
+        currentRoute.value = newPage;
+        console.log('📍 Sidebar updated to:', newPage);
+    }
+}, { immediate: true });
+
 // Sidebar menu items (without Classroom - moved to MY CLASSES section)
 const sideBarItems = computed(() => {
     const roleBasedItems = {
@@ -752,6 +772,7 @@ const sideBarItems = computed(() => {
             { label: 'Home', icon: 'pi pi-home', route: 'StudentNewsfeed' },
             { label: 'Sketch', icon: 'pi pi-pencil', route: 'StudentSketch' },
             { label: 'Remarked', icon: 'pi pi-comments', route: 'StudentRemarked' },
+            { label: 'School Year', icon: 'pi pi-calendar', route: 'StudentSchoolYear' },
             // { label: 'Archived', icon: 'pi pi-inbox', route: 'StudentArchived' },
         ],
     };
@@ -913,22 +934,34 @@ const navigateToPage = (page) => {
 
 // Navigate to class room
 const navigateToClass = (class_) => {
+    // In archived view mode, allow navigation but mark as read-only
+    const isReadOnly = isViewingArchived.value;
+    
     // Clear any selected subject but keep the class selected
     selectedSubject.value = null;
     selectedClassForSubject.value = class_;
 
     // Store selected class information
     localStorage.setItem('digiportal_selected_class', JSON.stringify(class_));
+    
+    // Store read-only flag for archived view
+    if (isReadOnly) {
+        localStorage.setItem('digiportal_archived_view_readonly', 'true');
+        console.log('📂 Navigating to archived class (read-only):', class_.name);
+    } else {
+        localStorage.removeItem('digiportal_archived_view_readonly');
+    }
 
     // Determine target route based on user role
     const targetRoute = currentUser.value.role === 'teacher' ? 'TeacherRoom' : 'StudentRoom';
 
     // Always dispatch the classChanged event so Room component can reload
-    console.log('🔄 Class selected, dispatching classChanged event...', class_.name);
+    console.log('🔄 Class selected, dispatching classChanged event...', class_.name, isReadOnly ? '(read-only)' : '');
     window.dispatchEvent(new CustomEvent('classChanged', {
         detail: {
             classItem: class_,
-            subject: null // Explicitly set subject to null
+            subject: null, // Explicitly set subject to null
+            isReadOnly: isReadOnly
         }
     }));
 
@@ -943,6 +976,9 @@ const navigateToClass = (class_) => {
 
 // Navigate to subject folder - Always navigate to Student Activities (Room page)
 const navigateToSubject = (classItem, subject) => {
+    // In archived view mode, allow navigation but mark as read-only
+    const isReadOnly = isViewingArchived.value;
+    
     // Update selected subject tracking
     selectedSubject.value = subject;
     selectedClassForSubject.value = classItem;
@@ -950,16 +986,24 @@ const navigateToSubject = (classItem, subject) => {
     // Store selected class and subject information
     localStorage.setItem('digiportal_selected_class', JSON.stringify(classItem));
     localStorage.setItem('digiportal_selected_subject', subject);
+    
+    // Store read-only flag for archived view
+    if (isReadOnly) {
+        localStorage.setItem('digiportal_archived_view_readonly', 'true');
+    } else {
+        localStorage.removeItem('digiportal_archived_view_readonly');
+    }
 
     // Determine target route based on user role
     const targetRoute = currentUser.value.role === 'teacher' ? 'TeacherRoom' : 'StudentRoom';
 
     // Dispatch event with subject information
-    console.log('📂 Subject selected:', subject, 'in class:', classItem.name);
+    console.log('📂 Subject selected:', subject, 'in class:', classItem.name, isReadOnly ? '(read-only)' : '');
     window.dispatchEvent(new CustomEvent('subjectChanged', {
         detail: {
             classItem: classItem, // Changed 'class' to 'classItem' to match Sroom.vue
-            subject: subject
+            subject: subject,
+            isReadOnly: isReadOnly
         }
     }));
 
@@ -1005,6 +1049,145 @@ const closeDropdowns = (event) => {
         }
     } else {
         isDropdownOpen.value = false;
+    }
+};
+
+// Handle archived view mode change event from ManageClass
+const handleArchivedViewModeChange = (event) => {
+    const { isViewing, schoolYear } = event.detail;
+    isViewingArchived.value = isViewing;
+    viewingArchivedSchoolYear.value = schoolYear;
+    
+    if (isViewing) {
+        console.log('📂 MainLayout: Entered archived view mode:', schoolYear?.name);
+        // Reload classrooms to show archived data
+        loadArchivedClassrooms(schoolYear);
+    } else {
+        console.log('📂 MainLayout: Exited archived view mode');
+        // Reload current classrooms
+        loadClassrooms();
+    }
+};
+
+// Exit archived view mode from the banner
+const exitArchivedViewMode = () => {
+    isViewingArchived.value = false;
+    viewingArchivedSchoolYear.value = null;
+    
+    // Clear from localStorage
+    localStorage.removeItem('viewing_archived_school_year');
+    
+    // Dispatch event so ManageClass and other components can react
+    window.dispatchEvent(new CustomEvent('archivedViewModeChanged', { 
+        detail: { isViewing: false, schoolYear: null } 
+    }));
+    
+    // Reload current classrooms
+    loadClassrooms();
+    
+    console.log('📂 Exited archived view mode from banner');
+};
+
+// Load classrooms from archived school year
+const loadArchivedClassrooms = async (schoolYear) => {
+    if (!schoolYear) return;
+    
+    try {
+        console.log('🏫 Loading archived classrooms for:', schoolYear.name);
+        
+        // Fetch teacher's classrooms for this specific archived school year
+        const response = await fetch(`/api/classrooms/?school_year=${encodeURIComponent(schoolYear.name)}`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('📦 Archived classrooms response:', data);
+            
+            // Get classrooms from response
+            let archivedClassrooms = data.classrooms || [];
+            
+            // Also load folders to find additional classrooms where teacher has folders
+            const foldersResponse = await fetch(`/api/portfolio/folders/?school_year=${encodeURIComponent(schoolYear.name)}`, {
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            let folders = [];
+            if (foldersResponse.ok) {
+                folders = await foldersResponse.json();
+                console.log('📂 Archived folders:', folders.length);
+            }
+            
+            // Build classroom map from assigned classrooms
+            const classroomMap = new Map();
+            archivedClassrooms.forEach(classroom => {
+                classroomMap.set(classroom.id, {
+                    id: classroom.id,
+                    name: classroom.name,
+                    grade_level: classroom.grade_level,
+                    section: classroom.section,
+                    theme: 'amber',
+                    subjects: []
+                });
+            });
+            
+            // Add classrooms from folders and collect subjects
+            const foldersByClass = {};
+            for (const folder of folders) {
+                if (folder.classroom) {
+                    // Add to subjects list
+                    if (!foldersByClass[folder.classroom]) {
+                        foldersByClass[folder.classroom] = [];
+                    }
+                    foldersByClass[folder.classroom].push(folder.name);
+                    
+                    // If classroom not in map, fetch its details
+                    if (!classroomMap.has(folder.classroom)) {
+                        try {
+                            const classroomResponse = await fetch(`/api/classrooms/${folder.classroom}/`, {
+                                credentials: 'include',
+                                headers: { 'Accept': 'application/json' }
+                            });
+                            if (classroomResponse.ok) {
+                                const classroomData = await classroomResponse.json();
+                                // Only add if it's from the archived school year
+                                if (classroomData.school_year === schoolYear.name) {
+                                    classroomMap.set(folder.classroom, {
+                                        id: classroomData.id,
+                                        name: classroomData.name,
+                                        grade_level: classroomData.grade_level,
+                                        section: classroomData.section,
+                                        theme: 'amber',
+                                        subjects: []
+                                    });
+                                    console.log(`📚 Added archived classroom from folder: ${classroomData.name}`);
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Failed to fetch classroom ${folder.classroom}:`, err);
+                        }
+                    }
+                }
+            }
+            
+            // Convert map to array and add subjects
+            classes.value = Array.from(classroomMap.values()).map(classItem => ({
+                ...classItem,
+                subjects: [...new Set(foldersByClass[classItem.id] || [])]
+            }));
+            
+            // Sort by grade level and section
+            classes.value.sort((a, b) => {
+                if (a.grade_level !== b.grade_level) return a.grade_level - b.grade_level;
+                return a.section.localeCompare(b.section);
+            });
+            
+            console.log('✅ Loaded archived classrooms:', classes.value.length, classes.value.map(c => c.name));
+        }
+    } catch (error) {
+        console.error('❌ Error loading archived classrooms:', error);
     }
 };
 
@@ -1222,10 +1405,33 @@ onMounted(async () => {
     // Add click outside listener
     document.addEventListener('click', closeDropdowns);
     
+    // Listen for archived view mode changes from ManageClass
+    window.addEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
+    
+    // Check if we're already in archived view mode (from localStorage)
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            const archivedData = JSON.parse(savedArchivedView);
+            isViewingArchived.value = true;
+            viewingArchivedSchoolYear.value = archivedData;
+            console.log('📂 Restored archived view mode:', archivedData.name);
+        } catch (e) {
+            console.error('Error parsing archived view data:', e);
+            localStorage.removeItem('viewing_archived_school_year');
+        }
+    }
+    
     // Load user data and notifications
     await loadUserProfile(); // Load from API first
     await loadNotifications(); // Load notifications
-    await loadClassrooms(); // Load classrooms dynamically
+    
+    // Load classrooms - check if we're in archived view mode first
+    if (isViewingArchived.value && viewingArchivedSchoolYear.value) {
+        await loadArchivedClassrooms(viewingArchivedSchoolYear.value);
+    } else {
+        await loadClassrooms(); // Load classrooms dynamically
+    }
 
     // Initialize expanded classes state
     initializeExpandedClasses();
@@ -1263,6 +1469,7 @@ onMounted(async () => {
             '/student/remarked': 'StudentRemarked',
             '/student/notify': 'StudentNotify',
             '/student/archived': 'StudentArchived',
+            '/student/school-year': 'StudentSchoolYear',
             '/teacher/home': 'TeacherHome',
             '/teacher/room': 'TeacherRoom',
             '/teacher/classroom': 'TeacherClassroom',
@@ -1317,6 +1524,7 @@ onUnmounted(() => {
     window.removeEventListener('storage', handleStorageChange);
     window.removeEventListener('userDataChanged', handleUserDataChange);
     window.removeEventListener('userLoggedOut', handleUserLogout);
+    window.removeEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
     window.removeEventListener('folderSelected', () => {});
     window.removeEventListener('folderCreated', () => {});
     window.removeEventListener('folderUpdated', () => {});
@@ -1389,12 +1597,12 @@ const auth = computed(() => ({
                                 class="flex items-center gap-2 px-4 py-2 w-full text-left text-white/80"
                             >
                                 <i class="pi pi-book text-sm text-white/70"></i>
-                                <span class="text-sm font-medium flex-1">My Classes</span>
+                                <span class="text-sm font-medium flex-1">{{ isViewingArchived ? 'Archived Classes' : 'My Classes' }}</span>
                             </div>
                             <div
                                 v-else
                                 class="flex items-center justify-center py-3 w-full text-white/70"
-                                title="My Classes"
+                                :title="isViewingArchived ? 'Archived Classes' : 'My Classes'"
                             >
                                 <i class="pi pi-book text-base"></i>
                             </div>
@@ -1748,6 +1956,22 @@ const auth = computed(() => ({
                         </div>
                     </div>
                 </nav>
+
+                <!-- Archived View Mode Banner -->
+                <div v-if="isViewingArchived && currentUser.role === 'teacher'" 
+                    class="bg-amber-50 border-b-2 border-amber-300 px-6 py-3 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="pi pi-history text-amber-600 text-lg"></i>
+                        <div>
+                            <span class="font-semibold text-amber-800">Archived: School Year {{ viewingArchivedSchoolYear?.name }}</span>
+                        </div>
+                    </div>
+                    <button @click="exitArchivedViewMode"
+                        class="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-all text-sm">
+                        <i class="pi pi-arrow-left text-xs"></i>
+                        <span>Back to Current School Year</span>
+                    </button>
+                </div>
 
                 <!-- Page Content -->
                 <main class="flex-1 overflow-y-auto bg-transparent min-h-screen">

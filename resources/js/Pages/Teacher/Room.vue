@@ -11,12 +11,19 @@
         />
         
         <!-- Class Header -->
-        <div class="bg-white p-4 md:p-3 shadow-lg rounded-t-xl border-b border-gray-200">
+        <div class="bg-white p-4 md:p-3 shadow-lg rounded-t-xl border-b border-gray-200"
+            :class="{ 'border-amber-300': isArchivedViewMode }">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div class="space-y-2">
-                    <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block bg-gray-100">
-                        {{ actualClassName }}
-                    </h1>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block"
+                            :class="isArchivedViewMode ? 'bg-amber-100' : 'bg-gray-100'">
+                            {{ actualClassName }}
+                        </h1>
+                        <span v-if="isArchivedViewMode" class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
+                            <i class="pi pi-history mr-1"></i>Archived
+                        </span>
+                    </div>
                     <p class="text-gray-600 ml-2 flex items-center gap-2 text-sm">
                         <i class="pi pi-user"></i>
                         Teacher: {{ currentUser.name }}
@@ -33,7 +40,7 @@
                     class="flex items-center gap-2 text-gray-600 px-4 py-2 md:px-5 md:py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group"
                     :class="[
                         activeTab === tab.id
-                            ? 'font-semibold text-indigo-700 bg-indigo-50'
+                            ? isArchivedViewMode ? 'font-semibold text-amber-700 bg-amber-50' : 'font-semibold text-indigo-700 bg-indigo-50'
                             : 'hover:text-indigo-600 hover:bg-gray-50'
                     ]"
                 >
@@ -43,7 +50,8 @@
                     </span>
                     <span
                         v-if="activeTab === tab.id"
-                        class="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full"
+                        class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                        :class="isArchivedViewMode ? 'bg-amber-600' : 'bg-indigo-600'"
                     ></span>
                 </button>
             </div>
@@ -62,6 +70,7 @@
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                                 <h2 class="text-xl md:text-2xl font-bold text-gray-900">Pupil's Activities</h2>
                                 <button
+                                    v-if="!isArchivedViewMode"
                                     @click="showNewFolderDialog = true"
                                     class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                                 >
@@ -1026,7 +1035,9 @@
                             <!-- Students List - Always visible like student view -->
                             <div class="p-6">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-900">Class Member</h3>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="text-lg font-semibold text-gray-900">Class Member</h3>
+                                    </div>
                                     <span class="text-indigo-600 text-sm font-medium">{{ classroomStudents.length }} students</span>
                                 </div>
 
@@ -1076,8 +1087,14 @@
                                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <i class="pi pi-users text-gray-400 text-2xl"></i>
                                     </div>
-                                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Students Yet</h3>
-                                    <p class="text-gray-500">Students will appear here once they join your classroom.</p>
+                                    <template v-if="isArchivedViewMode">
+                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No Student Records</h3>
+                                        <p class="text-gray-500">No students submitted work to this classroom during this school year.</p>
+                                    </template>
+                                    <template v-else>
+                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No Students Yet</h3>
+                                        <p class="text-gray-500">Students will appear here once they join your classroom.</p>
+                                    </template>
                                 </div>
                             </div>
                         </div>
@@ -2276,6 +2293,17 @@ const emit = defineEmits(['navigate']);
 // Initialize toast
 const { showSuccess, showError, showInfo, showWarning } = useToast();
 
+// Archived View Mode State
+const isArchivedViewMode = ref(false);
+
+// Check if in archived view mode on mount
+const checkArchivedViewMode = () => {
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    const isReadOnly = localStorage.getItem('digiportal_archived_view_readonly');
+    isArchivedViewMode.value = !!(savedArchivedView || isReadOnly === 'true');
+    console.log('📂 Room: Archived view mode:', isArchivedViewMode.value);
+};
+
 // Navigate to activity outputs
 const navigateToActivityOutputs = (activity, index) => {
     console.log('🚀 Navigating to outputs with activity:', activity);
@@ -3327,6 +3355,12 @@ const handleClassChange = async (event) => {
 
     // Extract class from event detail (can be event.detail.classItem or event.detail directly)
     const classData = event.detail.classItem || event.detail;
+    const isReadOnly = event.detail.isReadOnly || false;
+
+    // Update archived view mode state
+    if (isReadOnly) {
+        isArchivedViewMode.value = true;
+    }
 
     // Update selected class in localStorage (already done by MainLayout, but ensure it's set)
     localStorage.setItem('digiportal_selected_class', JSON.stringify(classData));
@@ -3344,7 +3378,7 @@ const handleClassChange = async (event) => {
     // Clear saved view state - this ensures clicking a class always shows folders
     localStorage.removeItem('teacher_current_view');
 
-    console.log('📂 Clearing activities view, returning to folders');
+    console.log('📂 Clearing activities view, returning to folders', isReadOnly ? '(archived/read-only)' : '');
 
     // Reload folders for the new class
     await loadPortfolioFolders();
@@ -3371,6 +3405,9 @@ const handleClassChange = async (event) => {
 
 // Load selected class on mount
 onMounted(() => {
+    // Check archived view mode
+    checkArchivedViewMode();
+    
     const savedClass = localStorage.getItem('digiportal_selected_class');
     if (savedClass) {
         selectedClass.value = JSON.parse(savedClass);
@@ -3379,6 +3416,11 @@ onMounted(() => {
 
     // Listen for class change events
     window.addEventListener('classChanged', handleClassChange);
+    
+    // Listen for archived view mode changes
+    window.addEventListener('archivedViewModeChanged', (event) => {
+        isArchivedViewMode.value = event.detail.isViewing;
+    });
 });
 
 const props = defineProps({
@@ -4065,12 +4107,19 @@ const loadClassroomStudents = async () => {
             return;
         }
         
+        console.log(`📚 Loading students for classroom ID: ${classroomId}, archived mode: ${isArchivedViewMode.value}`);
+        
         // Load specific classroom details
         const response = await axios.get(`/api/classrooms/${classroomId}/`);
         if (response.data) {
             classroomStudents.value = response.data.students || [];
             classroomSchoolYear.value = response.data.school_year || '';
             console.log(`✅ Loaded ${classroomStudents.value.length} students for classroom ${classroomId}, school year: ${classroomSchoolYear.value}`);
+            
+            // Log if students have is_historical flag (archived classroom)
+            if (classroomStudents.value.length > 0 && classroomStudents.value[0].is_historical) {
+                console.log('📜 Students loaded from submission history (archived classroom)');
+            }
         } else {
             console.warn('⚠️ No classroom data found');
             classroomStudents.value = [];

@@ -25,6 +25,7 @@ urlpatterns = [
     path('student/newsfeed/', views.student_newsfeed, name='student_newsfeed'),
     path('student/sketch/', views.student_sketch, name='student_sketch'),
     path('student/archived/', views.student_archived, name='student_archived'),
+    path('student/school-year/', views.student_school_year, name='student_school_year'),
     path('student/class/<str:grade_section>/', views.student_class, name='student_class'),
     path('student/notifications/', views.student_notifications, name='student_notifications'),
 
@@ -147,4 +148,11 @@ urlpatterns = [
     # Export/Download routes
     path('api/export/activity/<int:activity_id>/', views.export_activity_results_api, name='export_activity_results_api'),
     path('api/export/student/<int:student_id>/', views.export_student_record_api, name='export_student_record_api'),
+
+    # Student School Year Management routes
+    path('api/student/school-year/', views.student_school_year_info_api, name='student_school_year_info_api'),
+    path('api/student/school-year/archive/', views.student_archive_school_year_api, name='student_archive_school_year_api'),
+    path('api/student/archived-submissions/', views.student_archived_submissions_api, name='student_archived_submissions_api'),
+    path('api/student/classroom/join/', views.student_join_classroom_api, name='student_join_classroom_api'),
+    path('api/classroom/validate-code/', views.validate_class_code_api, name='validate_class_code_api'),
 ]

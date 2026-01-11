@@ -578,6 +578,49 @@ const loadClassMembers = async () => {
     try {
         console.log('🔍 Fetching class members for:', activity.value.class);
         
+        // First, try to get classroom ID from localStorage (set when navigating to activity)
+        const savedClass = localStorage.getItem('digiportal_selected_class');
+        let classroomId = null;
+        
+        if (savedClass) {
+            try {
+                const classData = JSON.parse(savedClass);
+                classroomId = classData.id;
+                console.log('📡 Using classroom ID from localStorage:', classroomId);
+            } catch (e) {
+                console.warn('⚠️ Could not parse saved class data');
+            }
+        }
+        
+        // If we have a classroom ID, use the classroom detail API (handles archived classrooms properly)
+        if (classroomId) {
+            console.log(`📡 API Request: /api/classrooms/${classroomId}/`);
+            const response = await axios.get(`/api/classrooms/${classroomId}/`);
+            
+            if (response.data && response.data.students) {
+                console.log('✅ Loaded class members from classroom API:', response.data.students.length);
+                // Transform the data to match expected format
+                classMembers.value = response.data.students.map(student => ({
+                    id: student.id,
+                    student_id: student.id_number,
+                    id_number: student.id_number,
+                    name: student.name,
+                    first_name: student.name?.split(' ')[0] || '',
+                    last_name: student.name?.split(' ').slice(1).join(' ') || '',
+                    email: student.email,
+                    profile_picture: student.profile_picture,
+                    is_historical: student.is_historical || false
+                }));
+                isClassMembersLoaded.value = true;
+                
+                if (response.data.students.length > 0 && response.data.students[0].is_historical) {
+                    console.log('📜 Students loaded from historical records (archived classroom)');
+                }
+                return;
+            }
+        }
+        
+        // Fallback: Parse grade and section and use students API
         let grade = '';
         let section = '';
 
@@ -593,7 +636,7 @@ const loadClassMembers = async () => {
         }
 
         if (grade && section) {
-            console.log(`📡 API Request: /api/students/?grade_level=${grade}&section=${section}`);
+            console.log(`📡 Fallback API Request: /api/students/?grade_level=${grade}&section=${section}`);
             const response = await axios.get('/api/students/', {
                 params: {
                     grade_level: grade,
@@ -602,7 +645,7 @@ const loadClassMembers = async () => {
             });
             
             if (response.data && response.data.students) {
-                console.log('✅ Loaded class members:', response.data.students.length);
+                console.log('✅ Loaded class members (fallback):', response.data.students.length);
                 classMembers.value = response.data.students;
                 isClassMembersLoaded.value = true;
             } else if (Array.isArray(response.data)) {
@@ -912,6 +955,13 @@ const loadScoredSubmissions = async () => {
 const showSubmissionDialog = ref(false);
 const selectedSubmission = ref(null);
 const isLoadingSubmissionDetail = ref(false);
+const imageLoadError = ref(false);
+
+// Handle image load error
+const handleImageError = () => {
+    console.warn('⚠️ Image failed to load - file may be missing');
+    imageLoadError.value = true;
+};
 
 // Load full submission details including image
 const loadSubmissionDetail = async (submissionId) => {
@@ -964,6 +1014,9 @@ const showRemarksSection = ref(true); // Show by default
 const isEditingRemarks = ref(false);
 
 const viewSubmission = async (submission) => {
+    // Reset image error state when viewing new submission
+    imageLoadError.value = false;
+    
     console.log('🔍 Opening submission:', {
         id: submission.id,
         file_type: submission.file_type,
@@ -1035,9 +1088,9 @@ const currentFile = computed(() => {
         };
     }
     
-    // Fallback to main submission file
+    // Fallback to main submission file - prefer file_url over file_path
     return {
-        file_path: selectedSubmission.value.file_path,
+        file_path: selectedSubmission.value.file_url || selectedSubmission.value.file_path,
         file_type: selectedSubmission.value.file_type,
         caption: selectedSubmission.value.caption
     };
@@ -2367,12 +2420,21 @@ const getMedalDetails = (rank) => {
                                             </div>
                                         </div>
 
-                                        <!-- Image Display -->
-                                        <img v-if="currentFile && currentFile.file_type === 'image' && currentFile.file_path && currentFile.file_path.length > 0"
+                                        <!-- Image Display with error handling -->
+                                        <img v-if="currentFile && currentFile.file_type === 'image' && currentFile.file_path && currentFile.file_path.length > 0 && !imageLoadError"
                                             :src="currentFile.file_path.startsWith('http') || currentFile.file_path.startsWith('/media') || currentFile.file_path.startsWith('data:') ? currentFile.file_path : `data:image/png;base64,${currentFile.file_path}`"
                                             :alt="currentFile.caption || 'Student submission'"
                                             class="max-w-full max-h-[450px] object-contain rounded-lg"
+                                            @error="handleImageError"
                                         />
+                                        <!-- Image Load Error / File Not Found -->
+                                        <div v-else-if="currentFile && currentFile.file_type === 'image' && (imageLoadError || !currentFile.file_path)" 
+                                             class="flex flex-col items-center justify-center text-gray-500 py-12">
+                                            <i class="pi pi-image text-8xl mb-4 text-gray-300"></i>
+                                            <span class="text-lg font-medium">Image Not Available</span>
+                                            <span class="text-sm text-gray-400 mt-2">The original file may have been moved or deleted</span>
+                                            <span v-if="currentFile.caption" class="text-xs text-gray-400 mt-1">{{ currentFile.caption }}</span>
+                                        </div>
                                         <!-- PDF Display -->
                                         <div v-else-if="currentFile && currentFile.file_type === 'pdf' && currentFile.file_path" class="flex flex-col items-center justify-center text-red-600">
                                             <i class="pi pi-file-pdf text-8xl mb-4"></i>

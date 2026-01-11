@@ -4,9 +4,11 @@
         <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 p-6 md:p-4 shadow-lg rounded-b-3xl">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="space-y-3">
-                    <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
-                        {{ currentClassName }}
-                    </h1>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-xl md:text-2xl font-bold text-white px-4 py-2 md:px-6 md:py-3 rounded-lg inline-block bg-white/20">
+                            {{ currentClassName }}
+                        </h1>
+                    </div>
                     <p class="text-white/90 ml-2 flex items-center gap-2">
                         <i class="pi pi-user"></i>
                         Teacher: {{ auth.user.name }}
@@ -997,14 +999,19 @@ const downloadRecords = async (exportType) => {
 // Fetch class record data - all activities grouped by subject with student submissions
 const fetchClassRecordData = async (students) => {
     try {
-        // Get classroom context
-        const classContext = localStorage.getItem('progress_class_context');
-        let classroomId = '';
+        // Use the classroom ID we already have from loadClassName
+        let classroomId = currentClassroomId.value;
         
-        if (classContext) {
-            const context = JSON.parse(classContext);
-            classroomId = context.classroomId || '';
+        // Fallback to progress_class_context if not set
+        if (!classroomId) {
+            const classContext = localStorage.getItem('progress_class_context');
+            if (classContext) {
+                const context = JSON.parse(classContext);
+                classroomId = context.classroomId || '';
+            }
         }
+
+        console.log('📊 Fetching class record for classroom:', classroomId, isArchivedMode.value ? '(archived)' : '(current)');
 
         // Fetch all activities and submissions from API
         const response = await axios.get(`/api/students/progress/class-record/${classroomId ? `?classroom_id=${classroomId}` : ''}`);
@@ -1028,8 +1035,14 @@ const downloadStudentRecord = async (student) => {
         // Get the student's database ID
         const studentDbId = student.dbId || student.id;
 
+        // Build URL with classroom_id for archived classrooms
+        let url = `/api/students/${studentDbId}/progress/`;
+        if (currentClassroomId.value) {
+            url += `?classroom_id=${currentClassroomId.value}`;
+        }
+
         // Fetch student's progress details from API
-        const response = await axios.get(`/api/students/${studentDbId}/progress/`);
+        const response = await axios.get(url);
         const progressData = response.data;
 
         const timestamp = new Date().toISOString().slice(0, 10);
@@ -1160,15 +1173,47 @@ const downloadStudentRecord = async (student) => {
 // Get class name from localStorage (set by Room.vue)
 const currentClassName = ref('All Classes');
 
+// Archived mode tracking
+const isArchivedMode = ref(false);
+const currentClassroomId = ref(null);
+
 // Load class name from localStorage on mount
 const loadClassName = () => {
+    // Check if viewing archived school year
+    const viewingArchived = localStorage.getItem('viewing_archived_school_year');
+    isArchivedMode.value = viewingArchived === 'true';
+    console.log('📚 Sprogress - Archived mode:', isArchivedMode.value);
+
+    // Get selected class info
+    const selectedClass = localStorage.getItem('digiportal_selected_class');
+    if (selectedClass) {
+        try {
+            const classData = JSON.parse(selectedClass);
+            if (classData.id) {
+                currentClassroomId.value = classData.id;
+                console.log('📚 Sprogress - Classroom ID:', classData.id);
+            }
+            if (classData.name) {
+                currentClassName.value = classData.name;
+                console.log('📚 Sprogress - Class name:', classData.name);
+            }
+        } catch (e) {
+            console.error('Error parsing selected class:', e);
+        }
+    }
+
+    // Fallback to progress_class_context
     const classContext = localStorage.getItem('progress_class_context');
     if (classContext) {
         try {
             const context = JSON.parse(classContext);
-            if (context.className) {
+            if (context.className && !currentClassName.value) {
                 currentClassName.value = context.className;
-                console.log('Loaded class name:', context.className);
+                console.log('Loaded class name from context:', context.className);
+            }
+            if (context.classroomId && !currentClassroomId.value) {
+                currentClassroomId.value = context.classroomId;
+                console.log('Loaded classroom ID from context:', context.classroomId);
             }
         } catch (e) {
             console.error('Error parsing class context:', e);
@@ -1636,6 +1681,8 @@ const viewDetails = (student) => {
             classroom: student.classroom || `${student.gradeLevel || student.grade_level || ''} - ${student.section || ''}`
         },
         className: `${student.gradeLevel || student.grade_level || ''} - ${student.section || ''}`,
+        classroomId: currentClassroomId.value,  // Include classroom ID for archived view
+        isArchived: isArchivedMode.value,  // Include archived flag
         timestamp: new Date().toISOString()
     }));
 
@@ -1725,10 +1772,26 @@ const updateStudentProgress = async () => {
     console.log('Updated student outputs:', students.value);
 };
 
-// Load portfolio folders - only from current school year
+// Load portfolio folders - handles both current and archived classrooms
 const loadPortfolioFolders = async () => {
     try {
-        const response = await axios.get('/api/portfolio/folders/?current_school_year=true');
+        let url = '/api/portfolio/folders/';
+        
+        // For archived classrooms, load folders from that specific classroom
+        if (isArchivedMode.value && currentClassroomId.value) {
+            url += `?classroom_id=${currentClassroomId.value}`;
+            console.log('📚 Loading folders for archived classroom:', currentClassroomId.value);
+        } else if (currentClassroomId.value) {
+            // For current classrooms, also filter by classroom_id for accuracy
+            url += `?classroom_id=${currentClassroomId.value}`;
+            console.log('📚 Loading folders for current classroom:', currentClassroomId.value);
+        } else {
+            // Fallback to current school year
+            url += '?current_school_year=true';
+            console.log('📚 Loading folders for current school year');
+        }
+        
+        const response = await axios.get(url);
         if (response.data) {
             portfolioFolders.value = response.data;
 
@@ -1741,7 +1804,7 @@ const loadPortfolioFolders = async () => {
                 }))
             ];
 
-            console.log('Loaded portfolio folders (current school year):', portfolioFolders.value);
+            console.log('Loaded portfolio folders:', portfolioFolders.value.length, isArchivedMode.value ? '(archived)' : '(current)');
 
             // Update student progress after loading folders
             await updateStudentProgress();
@@ -1919,12 +1982,30 @@ const loadStudents = async () => {
     try {
         // Get class context from localStorage (set by Room.vue)
         const classContext = localStorage.getItem('progress_class_context');
+        const selectedClass = localStorage.getItem('digiportal_selected_class');
         let classParam = '';
 
-        if (classContext) {
+        // Prefer classroom_id for more accurate filtering (especially for archived classrooms)
+        if (selectedClass) {
+            try {
+                const classData = JSON.parse(selectedClass);
+                if (classData.id) {
+                    classParam = `?classroom_id=${classData.id}`;
+                    console.log('Loading students for classroom ID:', classData.id);
+                }
+            } catch (e) {
+                console.error('Error parsing selected class:', e);
+            }
+        }
+        
+        // Fallback to class name if no classroom_id
+        if (!classParam && classContext) {
             try {
                 const context = JSON.parse(classContext);
-                if (context.className) {
+                if (context.classroomId) {
+                    classParam = `?classroom_id=${context.classroomId}`;
+                    console.log('Loading students for classroom ID from context:', context.classroomId);
+                } else if (context.className) {
                     classParam = `?class=${encodeURIComponent(context.className)}`;
                     console.log('Loading students for class:', context.className);
                 }
@@ -1952,11 +2033,12 @@ const loadStudents = async () => {
                 classroom: student.classroom || 'N/A',
                 gradeLevel: student.grade_level || '',
                 section: student.section || '',
-                teacher: student.teacher || ''
+                teacher: student.teacher || '',
+                isHistorical: student.is_historical || false
             }));
             // Reset pagination when loading new data
             visibleStudentCount.value = 10;
-            console.log('Loaded students:', students.value);
+            console.log('Loaded students:', students.value.length, students.value[0]?.isHistorical ? '(historical)' : '');
         }
     } catch (error) {
         console.error('Error loading students:', error);

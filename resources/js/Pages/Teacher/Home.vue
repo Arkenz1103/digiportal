@@ -278,7 +278,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from '../../axios'; // Use configured axios with interceptors
 
 // Define emits
@@ -287,6 +287,38 @@ const emit = defineEmits(['navigate']);
 const isLoading = ref(false);
 const posts = ref([]);
 const selectedImage = ref(null);
+
+// Archived View Mode State
+const isArchivedViewMode = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
+// Check if in archived view mode
+const checkArchivedViewMode = () => {
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            viewingArchivedSchoolYear.value = JSON.parse(savedArchivedView);
+            isArchivedViewMode.value = true;
+            console.log('📂 Home: Archived view mode:', viewingArchivedSchoolYear.value?.name);
+        } catch (e) {
+            isArchivedViewMode.value = false;
+            viewingArchivedSchoolYear.value = null;
+        }
+    } else {
+        isArchivedViewMode.value = false;
+        viewingArchivedSchoolYear.value = null;
+    }
+};
+
+// Handle archived view mode change event
+const handleArchivedViewModeChange = (event) => {
+    const { isViewing, schoolYear } = event.detail;
+    isArchivedViewMode.value = isViewing;
+    viewingArchivedSchoolYear.value = schoolYear;
+    console.log('📂 Home: Archived view mode changed:', isViewing, schoolYear?.name);
+    // Reload data with new filter
+    loadNewsfeed();
+};
 
 // Avatar colors - Modern Blue-Green Theme
 const avatarColors = [
@@ -310,7 +342,13 @@ const getAvatarColor = (username) => {
 const loadNewsfeed = async () => {
   isLoading.value = true;
   try {
-    const response = await axios.get('/api/newsfeed/', {
+    // Build URL with school year filter if in archived view mode
+    let url = '/api/newsfeed/';
+    if (isArchivedViewMode.value && viewingArchivedSchoolYear.value?.name) {
+      url += `?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+    }
+    
+    const response = await axios.get(url, {
       withCredentials: true
     });
     if (response.data && Array.isArray(response.data)) {
@@ -600,7 +638,15 @@ const nextPostFile = (post) => {
 
 // Load on mount
 onMounted(() => {
+  checkArchivedViewMode();
   loadNewsfeed();
+  
+  // Listen for archived view mode changes
+  window.addEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
 });
 </script>
 

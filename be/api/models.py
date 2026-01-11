@@ -76,6 +76,9 @@ class Classroom(models.Model):
     school_year = models.CharField(max_length=20, default='2024-2025')
     school_year_obj = models.ForeignKey('SchoolYear', on_delete=models.SET_NULL, null=True, blank=True, related_name='classrooms')
 
+    # Class code for student enrollment (6 characters: mix of uppercase, lowercase, numbers)
+    class_code = models.CharField(max_length=6, unique=True, null=True, blank=True)
+
     # Teacher assignment
     teacher = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
                                related_name='taught_classrooms', limit_choices_to={'role': 'teacher'})
@@ -95,6 +98,23 @@ class Classroom(models.Model):
     def __str__(self):
         return f"Grade {self.grade_level} - {self.section}"
 
+    @classmethod
+    def generate_class_code(cls):
+        """Generate a unique 6-character class code"""
+        import random
+        import string
+        characters = string.ascii_letters + string.digits  # a-z, A-Z, 0-9
+        while True:
+            code = ''.join(random.choices(characters, k=6))
+            if not cls.objects.filter(class_code=code).exists():
+                return code
+
+    def save(self, *args, **kwargs):
+        # Auto-generate class code if not set
+        if not self.class_code:
+            self.class_code = Classroom.generate_class_code()
+        super().save(*args, **kwargs)
+
     @property
     def student_count(self):
         """Get the number of students in this classroom"""
@@ -104,6 +124,26 @@ class Classroom(models.Model):
     def is_full(self):
         """Check if classroom is at capacity"""
         return self.student_count >= self.capacity
+
+
+class StudentClassroomHistory(models.Model):
+    """Track student's classroom history across school years"""
+    student = models.ForeignKey('User', on_delete=models.CASCADE, related_name='classroom_history')
+    classroom = models.ForeignKey('Classroom', on_delete=models.SET_NULL, null=True, blank=True, related_name='student_history')
+    school_year = models.CharField(max_length=20)
+    grade_level = models.IntegerField()
+    section = models.CharField(max_length=10)
+    classroom_name = models.CharField(max_length=100)  # Store name in case classroom is deleted
+    teacher_name = models.CharField(max_length=200, null=True, blank=True)  # Store teacher name
+    joined_at = models.DateTimeField()
+    archived_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'student_classroom_history'
+        ordering = ['-archived_at']
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.classroom_name} ({self.school_year})"
 
 
 class User(AbstractUser):

@@ -200,7 +200,13 @@ const submitForm = async () => {
                 if (data.user.role === 'teacher') {
                     emit('navigate', 'TeacherHome');
                 } else if (data.user.role === 'student') {
-                    emit('navigate', 'StudentNewsfeed');
+                    // Check if student has a classroom assigned
+                    if (data.user.has_classroom === false) {
+                        // No classroom - redirect to School Year page to join one
+                        emit('navigate', 'StudentSchoolYear');
+                    } else {
+                        emit('navigate', 'StudentNewsfeed');
+                    }
                 } else {
                     emit('navigate', 'Landing');
                 }

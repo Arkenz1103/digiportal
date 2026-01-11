@@ -1,11 +1,13 @@
 <template>
   <div class="flex flex-col">
     <!-- Header -->
-    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 shadow-lg rounded-t-xl h-40 md:h-36 flex items-center px-6 md:px-8">
-      <h1 class="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
-        <i class="pi pi-comments"></i>
-        Remarks Management
-      </h1>
+    <div class="bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700 shadow-lg rounded-t-xl h-40 md:h-36 flex flex-col justify-center px-6 md:px-8">
+      <div class="flex items-center gap-3">
+        <h1 class="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
+          <i class="pi pi-comments"></i>
+          Remarks Management
+        </h1>
+      </div>
     </div>
 
     <!-- Main Content Area -->
@@ -269,18 +271,60 @@ const isLoadingStudents = ref(false);
 const searchQuery = ref('');
 const showAddRemarkDialog = ref(false);
 
+// Archived View Mode State
+const isArchivedViewMode = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
+// Check if in archived view mode
+const checkArchivedViewMode = () => {
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            viewingArchivedSchoolYear.value = JSON.parse(savedArchivedView);
+            isArchivedViewMode.value = true;
+            console.log('📂 Remarks: Archived view mode:', viewingArchivedSchoolYear.value?.name);
+        } catch (e) {
+            isArchivedViewMode.value = false;
+            viewingArchivedSchoolYear.value = null;
+        }
+    } else {
+        isArchivedViewMode.value = false;
+        viewingArchivedSchoolYear.value = null;
+    }
+};
+
+// Handle archived view mode change event
+const handleArchivedViewModeChange = (event) => {
+    const { isViewing, schoolYear } = event.detail;
+    isArchivedViewMode.value = isViewing;
+    viewingArchivedSchoolYear.value = schoolYear;
+    console.log('📂 Remarks: Archived view mode changed:', isViewing, schoolYear?.name);
+    // Reload data with new filter
+    loadClassrooms();
+};
+
 // Load classrooms for dropdown - includes assigned classroom + classrooms with folders
 const loadClassrooms = async () => {
   try {
+    // Build URL with school year filter if in archived view mode
+    let classroomsUrl = '/api/classrooms/';
+    let foldersUrl = '/api/portfolio/folders/?current_school_year=true';
+    
+    if (isArchivedViewMode.value && viewingArchivedSchoolYear.value?.name) {
+        classroomsUrl += `?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+        foldersUrl = `/api/portfolio/folders/?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+        console.log('📂 Remarks: Loading archived classrooms for school year:', viewingArchivedSchoolYear.value.name);
+    }
+    
     // First, get teacher's assigned classrooms
-    const assignedResponse = await axios.get('/api/classrooms/');
+    const assignedResponse = await axios.get(classroomsUrl);
     let assignedClassrooms = [];
     if (assignedResponse.data && assignedResponse.data.classrooms) {
       assignedClassrooms = assignedResponse.data.classrooms;
     }
     
     // Then, get classrooms where teacher has folders (from ManageClass)
-    const foldersResponse = await axios.get('/api/portfolio/folders/?current_school_year=true');
+    const foldersResponse = await axios.get(foldersUrl);
     let folderClassroomIds = new Set();
     if (foldersResponse.data) {
       foldersResponse.data.forEach(folder => {
@@ -296,8 +340,9 @@ const loadClassrooms = async () => {
       classroomMap.set(c.id, {
         id: c.id,
         name: c.name,
-        student_count: c.students?.length || 0,
-        isAssigned: true
+        student_count: c.students?.length || c.historical_student_count || 0,
+        isAssigned: true,
+        isArchived: c.is_archived || false
       });
     });
     
@@ -306,12 +351,18 @@ const loadClassrooms = async () => {
       if (!classroomMap.has(classroomId)) {
         try {
           const classroomResponse = await axios.get(`/api/classrooms/${classroomId}/`);
-          if (classroomResponse.data && !classroomResponse.data.is_archived) {
+          // In archived view mode, include archived classrooms; otherwise exclude them
+          const shouldInclude = isArchivedViewMode.value 
+            ? classroomResponse.data.is_archived 
+            : !classroomResponse.data.is_archived;
+          
+          if (classroomResponse.data && shouldInclude) {
             classroomMap.set(classroomId, {
               id: classroomResponse.data.id,
               name: classroomResponse.data.name,
-              student_count: classroomResponse.data.students?.length || 0,
-              isAssigned: false
+              student_count: classroomResponse.data.students?.length || classroomResponse.data.historical_student_count || 0,
+              isAssigned: false,
+              isArchived: classroomResponse.data.is_archived || false
             });
           }
         } catch (err) {
@@ -412,11 +463,16 @@ const closeMenu = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', closeMenu);
+  checkArchivedViewMode();
   loadClassrooms(); // This will auto-select first classroom and load students
+  
+  // Listen for archived view mode changes
+  window.addEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', closeMenu);
+  window.removeEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
 });
 
 async function selectStudent(student) {

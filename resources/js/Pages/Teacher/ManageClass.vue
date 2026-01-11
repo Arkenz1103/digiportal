@@ -7,32 +7,31 @@
                     <h1 class="text-3xl font-bold text-gray-800">Manage Classes</h1>
                     <div class="flex items-center gap-2 mt-2">
                         <span class="text-gray-600">School Year:</span>
-                        <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full font-semibold">
-                            {{ currentSchoolYear?.name || 'Not Set' }}
+                        <span class="px-3 py-1 rounded-full font-semibold"
+                            :class="isViewingArchived ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'">
+                            {{ isViewingArchived ? viewingArchivedSchoolYear?.name : (currentSchoolYear?.name || 'Not Set') }}
                         </span>
-                        <span v-if="currentSchoolYear?.is_current" class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                        <span v-if="isViewingArchived" class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">
+                            Archived
+                        </span>
+                        <span v-else-if="currentSchoolYear?.is_current" class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
                             Current
                         </span>
-                        <button v-if="currentSchoolYear" @click="openEditSchoolYearModal"
+                        <button v-if="currentSchoolYear && !isViewingArchived" @click="openEditSchoolYearModal"
                             class="p-1.5 text-indigo-500 hover:bg-indigo-100 rounded-lg transition-all"
                             title="Edit school year name">
                             <i class="pi pi-pencil text-sm"></i>
                         </button>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
+                <div v-if="!isViewingArchived" class="flex items-center gap-3">
                     <button @click="showArchiveListModal = true"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all">
+                        class="flex items-center gap-2 px-4 py-2.5 bg-indigo-100 text-indigo-700 rounded-xl font-medium hover:bg-indigo-200 transition-all">
                         <i class="pi pi-history"></i>
                         <span>Archives</span>
                     </button>
-                    <button v-if="currentSchoolYear?.promotion_done" @click="confirmUndoPromotion"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-orange-100 text-orange-700 rounded-xl font-medium hover:bg-orange-200 transition-all">
-                        <i class="pi pi-undo"></i>
-                        <span>Undo Promotion</span>
-                    </button>
                     <button @click="showNewSchoolYearModal = true"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600 transition-all">
+                        class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all">
                         <i class="pi pi-calendar-plus"></i>
                         <span>New School Year</span>
                     </button>
@@ -62,7 +61,8 @@
                         <i class="pi pi-folder-open text-4xl text-indigo-600"></i>
                     </div>
                     <h3 class="text-2xl font-bold text-gray-800 mb-2">No Subject Folders Yet</h3>
-                    <p class="text-gray-600">Click "Assign Subject" to add your first subject folder.</p>
+                    <p v-if="!isViewingArchived" class="text-gray-600">Click "Assign Subject" to add your first subject folder.</p>
+                    <p v-else class="text-gray-600">This archived school year has no subject folders.</p>
                 </div>
             </div>
 
@@ -71,7 +71,8 @@
                 <div v-for="classItem in classesWithFolders" :key="classItem.id"
                     class="bg-white rounded-2xl shadow-lg border-2 border-indigo-100 overflow-hidden">
                     <!-- Class Header -->
-                    <div class="p-6 bg-gradient-to-r from-indigo-600 to-purple-600">
+                    <div class="p-6 bg-gradient-to-r from-indigo-600 to-purple-600"
+                        :class="{ 'from-amber-500 to-amber-600': isViewingArchived }">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-4">
                                 <div class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
@@ -79,20 +80,45 @@
                                 </div>
                                 <div>
                                     <h2 class="text-xl font-bold text-white">{{ classItem.name }}</h2>
-                                    <p class="text-indigo-100">{{ classItem.subjects?.length || 0 }} subject folders</p>
+                                    <p class="text-indigo-100" :class="{ 'text-amber-100': isViewingArchived }">{{ classItem.subjects?.length || 0 }} subject folders</p>
                                 </div>
                             </div>
-                            <button @click="openCreateFolderForClass(classItem)"
-                                class="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all">
-                                <i class="pi pi-plus text-sm"></i>
-                                <span>Add Subject</span>
-                            </button>
+                            <div class="flex items-center gap-3">
+                                <!-- Class Code Display -->
+                                <div v-if="classItem.class_code && !isViewingArchived" 
+                                    class="flex items-center gap-2 px-3 py-2 bg-white/20 rounded-lg">
+                                    <span class="text-white/80 text-sm">Code:</span>
+                                    <span class="font-mono font-bold text-white tracking-wider">{{ classItem.class_code }}</span>
+                                    <button @click.stop="copyClassCode(classItem.class_code, classItem.name)"
+                                        class="p-1 hover:bg-white/20 rounded transition-all"
+                                        title="Copy class code">
+                                        <i class="pi pi-copy text-white text-sm"></i>
+                                    </button>
+                                </div>
+                                <button v-if="!isViewingArchived" @click="openCreateFolderForClass(classItem)"
+                                    class="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all">
+                                    <i class="pi pi-plus text-sm"></i>
+                                    <span>Add Subject</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Subject Folders -->
                     <div class="p-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- No Subject Folders Message -->
+                        <div v-if="!classItem.subjects || classItem.subjects.length === 0" class="text-center py-8">
+                            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="pi pi-folder-open text-2xl text-gray-400"></i>
+                            </div>
+                            <p class="text-gray-500 mb-2">No subject folders yet</p>
+                            <button v-if="!isViewingArchived" @click="openCreateFolderForClass(classItem)"
+                                class="text-indigo-600 hover:text-indigo-700 font-medium text-sm">
+                                <i class="pi pi-plus mr-1"></i>Add your first subject
+                            </button>
+                        </div>
+                        <!-- Subject Folders Grid -->
+                        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div v-for="(subject, index) in classItem.subjects" :key="index"
                                 class="group relative bg-gradient-to-br from-gray-50 to-indigo-50 rounded-xl p-4 border border-indigo-100 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
                                 @click="navigateToSubject(classItem, subject)">
@@ -104,7 +130,7 @@
                                         <h3 class="font-semibold text-gray-800 truncate">{{ subject }}</h3>
                                         <p class="text-sm text-gray-500">Subject Folder</p>
                                     </div>
-                                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                    <div v-if="!isViewingArchived" class="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                         <button @click.stop="openEditFolderModal(classItem, subject)"
                                             class="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-all"
                                             title="Edit folder">
@@ -115,6 +141,9 @@
                                             title="Delete folder">
                                             <i class="pi pi-trash"></i>
                                         </button>
+                                    </div>
+                                    <div v-else class="text-gray-400">
+                                        <i class="pi pi-eye"></i>
                                     </div>
                                 </div>
                             </div>
@@ -253,8 +282,8 @@
                             <ul class="text-amber-700 text-sm mt-2 space-y-1">
                                 <li>• Archive the current school year data</li>
                                 <li>• Create fresh classrooms (copy your assigned classrooms)</li>
-                                <li>• Assign 25+ students randomly to each new classroom</li>
-                                <li>• Students from archived year become available for reassignment</li>
+                                <li>• Generate class codes for students to join</li>
+                                <li>• Students will use class codes to enroll themselves</li>
                             </ul>
                         </div>
                     </div>
@@ -389,8 +418,7 @@
                 </div>
                 <div v-else class="space-y-3">
                     <div v-for="archive in archivedSchoolYears" :key="archive.id"
-                        class="p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all cursor-pointer"
-                        @click="viewArchivedSchoolYear(archive)">
+                        class="p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all">
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="font-semibold text-gray-800">{{ archive.name }}</h3>
@@ -409,12 +437,46 @@
                                     <p class="font-semibold text-purple-600">{{ archive.stats?.submissions || 0 }}</p>
                                     <p class="text-gray-500">Submissions</p>
                                 </div>
-                                <i class="pi pi-chevron-right text-gray-400"></i>
+                                <div class="flex gap-2">
+                                    <button @click="viewArchivedSchoolYear(archive)"
+                                        class="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all"
+                                        title="View details">
+                                        <i class="pi pi-info-circle"></i>
+                                    </button>
+                                    <button @click="confirmViewArchivedMode(archive)"
+                                        class="flex items-center gap-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-all text-sm font-medium"
+                                        title="View full archived data">
+                                        <i class="pi pi-eye text-xs"></i>
+                                        <span>View</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </Dialog>
+
+        <!-- Confirm View Archived Mode Dialog -->
+        <Dialog v-model:visible="showConfirmViewArchivedModal" modal header="View Archived School Year" :style="{ width: '450px' }">
+            <div class="p-4">
+                <div class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <i class="pi pi-eye text-2xl text-amber-600"></i>
+                    <div>
+                        <p class="text-gray-800 font-medium">You are about to view archived data</p>
+                        <p class="text-gray-600 text-sm mt-2">
+                            School Year: <strong class="text-amber-700">{{ archiveToView?.name }}</strong>
+                        </p>
+                        <p class="text-gray-600 text-sm mt-2">This will switch to read-only mode where you can browse the archived school year's data without making any changes.</p>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-3">
+                    <Button label="Cancel" severity="secondary" @click="showConfirmViewArchivedModal = false" />
+                    <Button label="View Archived Data" @click="proceedToArchivedViewMode" class="bg-amber-500 hover:bg-amber-600" />
+                </div>
+            </template>
         </Dialog>
 
         <!-- View Archived School Year Modal -->
@@ -510,7 +572,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Dropdown from 'primevue/dropdown';
@@ -543,6 +605,10 @@ const selectedArchive = ref(null);
 const selectedArchivedClassroom = ref(null);
 const promotionResult = ref({ promoted: 0, graduated: 0, new_grade1: 0, unassigned: 0 });
 
+// Archived View Mode State
+const isViewingArchived = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
 // Modals
 const showCreateFolderModal = ref(false);
 const showEditFolderModal = ref(false);
@@ -554,21 +620,34 @@ const showUndoConfirmModal = ref(false);
 const showArchiveListModal = ref(false);
 const showArchivedDetailModal = ref(false);
 const showArchivedClassroomModal = ref(false);
+const showConfirmViewArchivedModal = ref(false);
+const archiveToView = ref(null);
 const folderToDelete = ref(null);
 const isUpdatingSchoolYear = ref(false);
 const editSchoolYear = ref({ id: null, name: '', originalName: '' });
 
 // Computed
-// Classes with folders - ONLY from the current school year (for main display)
+// Classes for current school year - shows teacher's assigned classrooms AND classrooms where they have folders
 const classesWithFolders = computed(() => {
-    if (!currentSchoolYear.value || !currentSchoolYear.value.name) {
-        return allClasses.value.filter(c => c.subjects && c.subjects.length > 0);
+    // If viewing archived school year, show teacher's classes from that year
+    if (isViewingArchived.value && viewingArchivedSchoolYear.value) {
+        return allClasses.value.filter(c => 
+            c.school_year === viewingArchivedSchoolYear.value.name &&
+            (c.teacher_id === currentUserId.value || (c.subjects && c.subjects.length > 0))
+        );
     }
-    // Filter by current school year AND has folders
+    
+    // Normal mode: show teacher's assigned classrooms AND classrooms where they have folders
+    if (!currentSchoolYear.value || !currentSchoolYear.value.name) {
+        return allClasses.value.filter(c => 
+            c.teacher_id === currentUserId.value || (c.subjects && c.subjects.length > 0)
+        );
+    }
+    // Filter by current school year AND (teacher's assigned classrooms OR classrooms with folders)
     return allClasses.value.filter(c => 
-        c.school_year === currentSchoolYear.value.name && 
-        c.subjects && 
-        c.subjects.length > 0
+        c.school_year === currentSchoolYear.value.name &&
+        !c.is_archived &&
+        (c.teacher_id === currentUserId.value || (c.subjects && c.subjects.length > 0))
     );
 });
 
@@ -688,6 +767,23 @@ const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
+// Copy class code to clipboard
+const copyClassCode = async (code, className) => {
+    try {
+        await navigator.clipboard.writeText(code);
+        showSuccess(`Class code "${code}" copied! Share this with students to join ${className}.`);
+    } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showSuccess(`Class code "${code}" copied!`);
+    }
+};
+
 // Load school years
 const loadSchoolYears = async () => {
     try {
@@ -747,6 +843,7 @@ const loadClassrooms = async () => {
                     school_year: classroom.school_year,
                     is_archived: classroom.is_archived,
                     teacher_id: classroom.teacher?.id || null, // Store teacher ID to identify assigned classroom
+                    class_code: classroom.class_code, // Class code for student enrollment
                     subjects: []
                 }));
                 await loadSubjectsForClasses();
@@ -951,10 +1048,10 @@ const startNewSchoolYear = async () => {
         if (response.ok) {
             const data = await response.json();
             
-            // Build success message with assignment stats
+            // Build success message with class codes info
             let message = `School year ${data.school_year.name} started successfully!`;
-            if (data.assignment_stats) {
-                message += ` ${data.assignment_stats.total_assigned} students assigned to ${data.assignment_stats.classrooms_filled} classroom(s).`;
+            if (data.class_codes && data.class_codes.length > 0) {
+                message += ` ${data.class_codes.length} classroom(s) created. Share the class codes with students to let them join.`;
             }
             showSuccess(message);
             showNewSchoolYearModal.value = false;
@@ -1058,6 +1155,56 @@ const confirmUndoPromotion = () => {
     showUndoConfirmModal.value = true;
 };
 
+// Show confirmation dialog before entering archived view mode
+const confirmViewArchivedMode = (archive) => {
+    archiveToView.value = archive;
+    showConfirmViewArchivedModal.value = true;
+};
+
+// Proceed to archived view mode after confirmation
+const proceedToArchivedViewMode = () => {
+    showConfirmViewArchivedModal.value = false;
+    if (archiveToView.value) {
+        enterArchivedViewMode(archiveToView.value);
+        archiveToView.value = null;
+    }
+};
+
+// Enter archived view mode - shows archived school year data across the app
+const enterArchivedViewMode = (archive) => {
+    viewingArchivedSchoolYear.value = archive;
+    isViewingArchived.value = true;
+    showArchiveListModal.value = false;
+    
+    // Store in localStorage so other pages can access it
+    localStorage.setItem('viewing_archived_school_year', JSON.stringify(archive));
+    
+    // Dispatch event so other components (sidebar, etc.) can react
+    window.dispatchEvent(new CustomEvent('archivedViewModeChanged', { 
+        detail: { isViewing: true, schoolYear: archive } 
+    }));
+    
+    console.log(`📂 Entered archived view mode: ${archive.name}`);
+    showSuccess(`Now viewing archived school year: ${archive.name}`);
+};
+
+// Exit archived view mode - returns to current school year
+const exitArchivedViewMode = () => {
+    viewingArchivedSchoolYear.value = null;
+    isViewingArchived.value = false;
+    
+    // Clear from localStorage
+    localStorage.removeItem('viewing_archived_school_year');
+    
+    // Dispatch event so other components can react
+    window.dispatchEvent(new CustomEvent('archivedViewModeChanged', { 
+        detail: { isViewing: false, schoolYear: null } 
+    }));
+    
+    console.log('📂 Exited archived view mode, back to current school year');
+    showSuccess('Returned to current school year');
+};
+
 const viewArchivedSchoolYear = async (archive) => {
     selectedArchive.value = archive;
     showArchivedDetailModal.value = true;
@@ -1097,9 +1244,20 @@ const viewArchivedClassroom = async (classroom) => {
 };
 
 const navigateToSubject = (classItem, subject) => {
+    // In archived view mode, allow navigation but mark as read-only
+    const isReadOnly = isViewingArchived.value;
+    
     localStorage.setItem('digiportal_selected_class', JSON.stringify(classItem));
     localStorage.setItem('digiportal_selected_subject', subject);
-    window.dispatchEvent(new CustomEvent('subjectChanged', { detail: { classItem, subject } }));
+    
+    // Store read-only flag for archived view
+    if (isReadOnly) {
+        localStorage.setItem('digiportal_archived_view_readonly', 'true');
+    } else {
+        localStorage.removeItem('digiportal_archived_view_readonly');
+    }
+    
+    window.dispatchEvent(new CustomEvent('subjectChanged', { detail: { classItem, subject, isReadOnly } }));
     emit('navigate', 'TeacherRoom');
 };
 
@@ -1120,10 +1278,39 @@ const loadCurrentUser = async () => {
     }
 };
 
+// Handle archived view mode change from MainLayout banner
+const handleArchivedViewModeChange = (event) => {
+    const { isViewing, schoolYear } = event.detail;
+    isViewingArchived.value = isViewing;
+    viewingArchivedSchoolYear.value = schoolYear;
+    console.log('📂 ManageClass: Archived view mode changed:', isViewing, schoolYear?.name);
+};
+
 onMounted(async () => {
+    // Listen for archived view mode changes from MainLayout banner
+    window.addEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
+    
+    // Check if we're already in archived view mode (from localStorage)
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            const archivedData = JSON.parse(savedArchivedView);
+            isViewingArchived.value = true;
+            viewingArchivedSchoolYear.value = archivedData;
+            console.log('📂 ManageClass: Restored archived view mode:', archivedData.name);
+        } catch (e) {
+            console.error('Error parsing archived view data:', e);
+        }
+    }
+    
     await loadCurrentUser(); // Load user ID first
     await loadSchoolYears();
     await loadClassrooms();
     await loadArchivedSchoolYears();
+});
+
+onUnmounted(() => {
+    // Clean up event listener
+    window.removeEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
 });
 </script>
