@@ -576,10 +576,29 @@ def portfolio_folders_api(request):
                         print(f"📚 Teacher {request.user.username} viewing their own folders in classroom: {classroom.name}")
                     else:
                         # Students see ALL folders for their classroom (from any teacher)
-                        folders = PortfolioFolder.objects.filter(
+                        # Check if student is currently in this classroom OR was previously in it
+                        is_current_student = request.user.classroom == classroom
+                        
+                        # Check if student was previously in this classroom via teacher promotion
+                        from .models import StudentPromotionHistory, StudentClassroomHistory
+                        was_promoted_from = StudentPromotionHistory.objects.filter(
+                            student=request.user,
+                            previous_classroom=classroom
+                        ).exists()
+                        
+                        # Check if student archived this classroom themselves
+                        was_student_archived = StudentClassroomHistory.objects.filter(
+                            student=request.user,
                             classroom=classroom
-                        ).order_by('-created_at')
-                        print(f"📚 Student viewing all folders in classroom: {classroom.name}, found {folders.count()}")
+                        ).exists()
+                        
+                        if is_current_student or was_promoted_from or was_student_archived:
+                            folders = PortfolioFolder.objects.filter(
+                                classroom=classroom
+                            ).order_by('-created_at')
+                            print(f"📚 Student viewing all folders in classroom: {classroom.name}, found {folders.count()}")
+                        else:
+                            return Response({'error': 'You do not have permission to view this classroom'}, status=status.HTTP_403_FORBIDDEN)
                 except Classroom.DoesNotExist:
                     return Response({'error': 'Classroom not found.'}, status=status.HTTP_404_NOT_FOUND)
             elif school_year_filter:
@@ -906,8 +925,22 @@ def portfolio_activities_api(request, folder_id):
 
         # Authorization check: Ensure the user has permission to view this folder.
         if request.user.role == 'student':
-            # Students can only access folders in their own classroom.
-            if folder.classroom != request.user.classroom:
+            # Students can access folders in their current classroom OR archived classrooms they were in
+            is_current_classroom = folder.classroom == request.user.classroom
+            
+            # Check if student was previously in this classroom (archived view mode)
+            from .models import StudentPromotionHistory, StudentClassroomHistory
+            was_promoted_from = StudentPromotionHistory.objects.filter(
+                student=request.user,
+                previous_classroom=folder.classroom
+            ).exists()
+            
+            was_student_archived = StudentClassroomHistory.objects.filter(
+                student=request.user,
+                classroom=folder.classroom
+            ).exists()
+            
+            if not is_current_classroom and not was_promoted_from and not was_student_archived:
                 return Response({'error': 'Permission denied: You can only access folders in your classroom.'}, status=status.HTTP_403_FORBIDDEN)
         elif request.user.role == 'teacher':
             # Teachers can only access folders they own.
@@ -2749,8 +2782,37 @@ def newsfeed_api(request):
                 else:
                     print(f"⚠️ Teacher {request.user.username} has no classrooms for the requested school year")
             elif request.user.role == 'student':
-                # Student sees posts from their assigned classroom
-                if request.user.classroom:
+                # Check for classroom_id parameter (for archived view mode)
+                classroom_id = request.query_params.get('classroom_id', None)
+                
+                if classroom_id:
+                    # Archived view mode - verify student has access to this classroom
+                    from .models import StudentPromotionHistory, StudentClassroomHistory
+                    try:
+                        archived_classroom = Classroom.objects.get(id=classroom_id)
+                        
+                        # Check if student was in this classroom (via promotion or self-archiving)
+                        was_promoted_from = StudentPromotionHistory.objects.filter(
+                            student=request.user,
+                            previous_classroom=archived_classroom
+                        ).exists()
+                        
+                        was_student_archived = StudentClassroomHistory.objects.filter(
+                            student=request.user,
+                            classroom=archived_classroom
+                        ).exists()
+                        
+                        is_current_student = request.user.classroom == archived_classroom
+                        
+                        if is_current_student or was_promoted_from or was_student_archived:
+                            posts = NewsfeedPost.objects.filter(classroom=archived_classroom).order_by('-posted_at')
+                            print(f"📊 Student viewing archived newsfeed for classroom: {archived_classroom.name}, found {posts.count()} posts")
+                        else:
+                            print(f"⚠️ Student {request.user.username} does not have access to classroom {classroom_id}")
+                    except Classroom.DoesNotExist:
+                        print(f"⚠️ Classroom {classroom_id} not found")
+                elif request.user.classroom:
+                    # Normal mode - student sees posts from their assigned classroom
                     posts = NewsfeedPost.objects.filter(classroom=request.user.classroom).order_by('-posted_at')
                     print(f"📊 Student viewing newsfeed for classroom: {request.user.classroom.name}")
                 else:
@@ -4625,11 +4687,13 @@ def remark_list(request):
     """
     GET: List all remarks (filtered by teacher or student)
     POST: Create a new remark (teacher only)
+    Supports classroom_id parameter for archived view mode
     """
     if request.method == 'GET':
         # Get query parameters
         student_id = request.query_params.get('student_id')
         teacher_id = request.query_params.get('teacher_id')
+        classroom_id = request.query_params.get('classroom_id')  # For archived view mode
 
         # Filter remarks - exclude submission-linked remarks for both teachers and students
         remarks = Remark.objects.filter(submission__isnull=True)
@@ -4643,6 +4707,36 @@ def remark_list(request):
         # For students, only show their own remarks
         if request.user.role == 'student':
             remarks = remarks.filter(student=request.user)
+            
+            # If classroom_id is provided (archived view mode), filter by teachers from that classroom
+            if classroom_id:
+                from .models import StudentPromotionHistory, StudentClassroomHistory
+                try:
+                    archived_classroom = Classroom.objects.get(id=classroom_id)
+                    
+                    # Verify student has access to this classroom
+                    was_promoted_from = StudentPromotionHistory.objects.filter(
+                        student=request.user,
+                        previous_classroom=archived_classroom
+                    ).exists()
+                    
+                    was_student_archived = StudentClassroomHistory.objects.filter(
+                        student=request.user,
+                        classroom=archived_classroom
+                    ).exists()
+                    
+                    is_current_student = request.user.classroom == archived_classroom
+                    
+                    if is_current_student or was_promoted_from or was_student_archived:
+                        # Get teachers who have folders in this classroom
+                        teacher_ids = PortfolioFolder.objects.filter(
+                            classroom=archived_classroom
+                        ).values_list('teacher_id', flat=True).distinct()
+                        
+                        remarks = remarks.filter(teacher_id__in=teacher_ids)
+                        print(f"📝 Student viewing archived remarks from {len(teacher_ids)} teachers in classroom {archived_classroom.name}")
+                except Classroom.DoesNotExist:
+                    print(f"⚠️ Classroom {classroom_id} not found for remarks filter")
 
         # For teachers, show remarks they created or received
         elif request.user.role == 'teacher':
@@ -4934,13 +5028,43 @@ def submission_remark_detail_api(request, submission_id, remark_id):
 def student_submission_remarks_api(request):
     """
     GET: Get all remarks for the current student's submissions
+    Supports classroom_id parameter for archived view mode
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
+        # Get classroom_id for archived view mode
+        classroom_id = request.query_params.get('classroom_id')
+        
         # Get all submissions for this student
         submissions = StudentSubmission.objects.filter(student=request.user)
+        
+        # If classroom_id is provided (archived view mode), filter submissions by classroom
+        if classroom_id:
+            from .models import StudentPromotionHistory, StudentClassroomHistory
+            try:
+                archived_classroom = Classroom.objects.get(id=classroom_id)
+                
+                # Verify student has access to this classroom
+                was_promoted_from = StudentPromotionHistory.objects.filter(
+                    student=request.user,
+                    previous_classroom=archived_classroom
+                ).exists()
+                
+                was_student_archived = StudentClassroomHistory.objects.filter(
+                    student=request.user,
+                    classroom=archived_classroom
+                ).exists()
+                
+                is_current_student = request.user.classroom == archived_classroom
+                
+                if is_current_student or was_promoted_from or was_student_archived:
+                    # Filter submissions to only those from this classroom
+                    submissions = submissions.filter(activity__folder__classroom=archived_classroom)
+                    print(f"📝 Student viewing archived submission remarks for classroom {archived_classroom.name}")
+            except Classroom.DoesNotExist:
+                print(f"⚠️ Classroom {classroom_id} not found for submission remarks filter")
 
         # Get all remarks for these submissions
         all_remarks = []
@@ -7909,7 +8033,7 @@ def classroom_list_api(request):
 def classroom_detail_api(request, classroom_id):
     """
     GET: Get detailed information about a specific classroom
-    For archived classrooms, returns students from promotion history (all students who were in the class)
+    For archived classrooms, returns students from promotion history and classroom history
     """
     try:
         classroom = Classroom.objects.get(id=classroom_id)
@@ -7925,124 +8049,132 @@ def classroom_detail_api(request, classroom_id):
                     'error': 'You do not have permission to view this classroom'
                 }, status=status.HTTP_403_FORBIDDEN)
 
-        if request.user.role == 'student' and request.user.classroom != classroom:
-            return Response({
-                'error': 'You do not have permission to view this classroom'
-            }, status=status.HTTP_403_FORBIDDEN)
-
-        # For archived classrooms, get students from promotion history
-        students_data = []
-        if classroom.is_archived:
-            from .models import StudentPromotionHistory
+        if request.user.role == 'student':
+            # Check if student is currently in this classroom
+            is_current_student = request.user.classroom == classroom
             
-            # First try to get students from promotion history (most accurate - all students who were in the class)
-            promotion_records = StudentPromotionHistory.objects.filter(
+            # Check if student was previously in this classroom via teacher promotion
+            from .models import StudentPromotionHistory, StudentClassroomHistory
+            was_promoted_from = StudentPromotionHistory.objects.filter(
+                student=request.user,
                 previous_classroom=classroom
-            ).select_related('student')
+            ).exists()
             
-            if promotion_records.exists():
-                # Get unique students from promotion history
-                student_ids = promotion_records.values_list('student_id', flat=True).distinct()
-                students = User.objects.filter(id__in=student_ids, role='student').order_by('last_name', 'first_name')
-                print(f"📚 Loading {students.count()} students from promotion history for archived classroom {classroom.name}")
-            else:
-                # Fallback: check if students are still assigned (shouldn't happen but just in case)
-                students = User.objects.filter(classroom=classroom, role='student').order_by('last_name', 'first_name')
-                if students.exists():
-                    print(f"📚 Loading {students.count()} currently assigned students for archived classroom {classroom.name}")
-                else:
-                    # Last resort: get students from submission history
-                    student_ids = StudentSubmission.objects.filter(
-                        activity__folder__classroom=classroom
-                    ).values_list('student_id', flat=True).distinct()
-                    students = User.objects.filter(id__in=student_ids, role='student').order_by('last_name', 'first_name')
-                    print(f"📚 Loading {students.count()} students from submission history for archived classroom {classroom.name}")
+            # Check if student archived this classroom themselves
+            was_student_archived = StudentClassroomHistory.objects.filter(
+                student=request.user,
+                classroom=classroom
+            ).exists()
             
-            for student in students:
-                # Get student's submissions for this classroom's activities
-                recent_submissions = StudentSubmission.objects.filter(
-                    student=student,
-                    activity__folder__classroom=classroom
-                ).order_by('-submitted_at')[:5]
-                
-                # Safely get profile picture URL
-                profile_pic_url = None
-                if student.profile_picture:
-                    try:
-                        pic_url = student.profile_picture.url
-                        if pic_url and not pic_url.startswith(('http://', 'https://')):
-                            profile_pic_url = request.build_absolute_uri(pic_url)
-                        else:
-                            profile_pic_url = pic_url
-                    except (ValueError, AttributeError):
-                        profile_pic_url = None
-                
-                students_data.append({
-                    'id': student.id,
-                    'name': f"{student.first_name} {student.last_name}".strip() or student.username,
-                    'email': student.email,
-                    'id_number': student.id_number,
-                    'profile_picture': profile_pic_url,
-                    'is_historical': True,  # Flag to indicate this is from history
-                    'recent_submissions': [
-                        {
-                            'id': sub.id,
-                            'activity': sub.activity.title if sub.activity else 'Sketch',
-                            'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
-                            'status': sub.status,
-                            'score': sub.score
-                        } for sub in recent_submissions
-                    ]
-                })
+            if not is_current_student and not was_promoted_from and not was_student_archived:
+                return Response({
+                    'error': 'You do not have permission to view this classroom'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get students from multiple sources to ensure complete history
+        # This handles both archived classrooms AND students viewing their archived school year
+        students_data = []
+        from .models import StudentPromotionHistory, StudentClassroomHistory
+        
+        # Collect student IDs from ALL sources
+        student_ids = set()
+        
+        # 1. Get students currently assigned to this classroom
+        current_students = User.objects.filter(classroom=classroom, role='student')
+        student_ids.update(current_students.values_list('id', flat=True))
+        print(f"📚 Found {current_students.count()} currently assigned students")
+        
+        # 2. Get students from promotion history (teacher-initiated promotions)
+        promotion_records = StudentPromotionHistory.objects.filter(
+            previous_classroom=classroom
+        ).select_related('student')
+        student_ids.update(promotion_records.values_list('student_id', flat=True))
+        print(f"📚 Found {promotion_records.count()} students from promotion history")
+        
+        # 3. Get students from classroom history (student-initiated archiving)
+        classroom_history_records = StudentClassroomHistory.objects.filter(
+            classroom=classroom
+        )
+        student_ids.update(classroom_history_records.values_list('student_id', flat=True))
+        print(f"📚 Found {classroom_history_records.count()} students from classroom history")
+        
+        # 4. Get students from submission history (fallback for any missed students)
+        submission_student_ids = StudentSubmission.objects.filter(
+            activity__folder__classroom=classroom
+        ).values_list('student_id', flat=True).distinct()
+        student_ids.update(submission_student_ids)
+        print(f"📚 Found {len(submission_student_ids)} students from submission history")
+        
+        # Get all unique students
+        if student_ids:
+            students = User.objects.filter(id__in=student_ids, role='student').order_by('last_name', 'first_name')
+            print(f"📚 Total unique students for classroom {classroom.name}: {students.count()}")
         else:
-            # Get currently assigned students for non-archived classrooms
-            students = User.objects.filter(classroom=classroom, role='student').order_by('last_name', 'first_name')
-
-            for student in students:
-                # Get student's recent submissions
-                recent_submissions = StudentSubmission.objects.filter(
-                    student=student
-                ).order_by('-submitted_at')[:5]
-
-                # Safely get profile picture URL - build absolute URL
-                profile_pic_url = None
-                if student.profile_picture:
-                    try:
-                        pic_url = student.profile_picture.url
-                        # Build absolute URL
-                        if pic_url and not pic_url.startswith(('http://', 'https://')):
-                            profile_pic_url = request.build_absolute_uri(pic_url)
-                        else:
-                            profile_pic_url = pic_url
-                    except (ValueError, AttributeError):
-                        profile_pic_url = None
-
-                students_data.append({
-                    'id': student.id,
-                    'name': f"{student.first_name} {student.last_name}".strip() or student.username,
-                    'email': student.email,
-                    'id_number': student.id_number,
-                    'profile_picture': profile_pic_url,
-                    'recent_submissions': [
-                        {
-                            'id': sub.id,
-                            'activity': sub.activity.title if sub.activity else 'Sketch',
-                            'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
-                            'status': sub.status,
-                            'score': sub.score
-                        } for sub in recent_submissions
-                    ]
-                })
+            students = User.objects.none()
+            print(f"⚠️ No students found for classroom {classroom.name}")
+        
+        for student in students:
+            # Get student's submissions for this classroom's activities
+            recent_submissions = StudentSubmission.objects.filter(
+                student=student,
+                activity__folder__classroom=classroom
+            ).order_by('-submitted_at')[:5]
+            
+            # Safely get profile picture URL
+            profile_pic_url = None
+            if student.profile_picture:
+                try:
+                    pic_url = student.profile_picture.url
+                    if pic_url and not pic_url.startswith(('http://', 'https://')):
+                        profile_pic_url = request.build_absolute_uri(pic_url)
+                    else:
+                        profile_pic_url = pic_url
+                except (ValueError, AttributeError):
+                    profile_pic_url = None
+            
+            # Determine if student is historical (not currently assigned)
+            is_historical = student.classroom != classroom
+            
+            students_data.append({
+                'id': student.id,
+                'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+                'email': student.email,
+                'id_number': student.id_number,
+                'profile_picture': profile_pic_url,
+                'is_historical': is_historical,
+                'recent_submissions': [
+                    {
+                        'id': sub.id,
+                        'activity': sub.activity.title if sub.activity else 'Sketch',
+                        'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
+                        'status': sub.status,
+                        'score': sub.score
+                    } for sub in recent_submissions
+                ]
+            })
 
         # Safely build assigned teacher data
         teacher_data = None
         if classroom.teacher:
+            # Build profile picture URL
+            teacher_profile_pic_url = None
+            if classroom.teacher.profile_picture:
+                try:
+                    pic_url = classroom.teacher.profile_picture.url
+                    if pic_url and not pic_url.startswith(('http://', 'https://')):
+                        teacher_profile_pic_url = request.build_absolute_uri(pic_url)
+                    else:
+                        teacher_profile_pic_url = pic_url
+                except (ValueError, AttributeError):
+                    teacher_profile_pic_url = None
+            
             teacher_data = {
                 'id': classroom.teacher.id,
                 'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip() or classroom.teacher.username,
                 'email': classroom.teacher.email,
                 'department': getattr(classroom.teacher, 'department', None),
-                'phone': getattr(classroom.teacher, 'phone_number', None)
+                'phone': getattr(classroom.teacher, 'phone_number', None),
+                'profile_picture': teacher_profile_pic_url
             }
 
         # Get ALL teachers who have folders in this classroom (including via ManageClass)
@@ -8058,11 +8190,15 @@ def classroom_detail_api(request, classroom_id):
             if folder.teacher:
                 teacher_id = folder.teacher.id
                 if teacher_id not in teacher_subjects:
-                    # Safely get profile picture URL
+                    # Safely get profile picture URL - build absolute URL
                     profile_pic_url = None
                     if folder.teacher.profile_picture:
                         try:
-                            profile_pic_url = folder.teacher.profile_picture.url
+                            pic_url = folder.teacher.profile_picture.url
+                            if pic_url and not pic_url.startswith(('http://', 'https://')):
+                                profile_pic_url = request.build_absolute_uri(pic_url)
+                            else:
+                                profile_pic_url = pic_url
                         except (ValueError, AttributeError):
                             profile_pic_url = None
                     
@@ -8083,7 +8219,11 @@ def classroom_detail_api(request, classroom_id):
             profile_pic_url = None
             if classroom.teacher.profile_picture:
                 try:
-                    profile_pic_url = classroom.teacher.profile_picture.url
+                    pic_url = classroom.teacher.profile_picture.url
+                    if pic_url and not pic_url.startswith(('http://', 'https://')):
+                        profile_pic_url = request.build_absolute_uri(pic_url)
+                    else:
+                        profile_pic_url = pic_url
                 except (ValueError, AttributeError):
                     profile_pic_url = None
             
@@ -9950,6 +10090,8 @@ def archived_classroom_detail_api(request, school_year_id, classroom_id):
 def student_school_year_info_api(request):
     """
     Get student's current school year and classroom information
+    Uses BOTH StudentClassroomHistory (student-initiated archiving) and 
+    StudentPromotionHistory (teacher-initiated promotions) to get archived school year data
     """
     if not request.user.is_authenticated:
         return Response({'error': 'Authentication required'}, status=status.HTTP_403_FORBIDDEN)
@@ -9958,7 +10100,7 @@ def student_school_year_info_api(request):
         return Response({'error': 'Only students can access this endpoint'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        from .models import StudentClassroomHistory
+        from .models import StudentPromotionHistory, StudentClassroomHistory
         
         student = request.user
         classroom = student.classroom
@@ -9976,19 +10118,71 @@ def student_school_year_info_api(request):
                 'class_code': classroom.class_code,
             }
         
-        # Get classroom history (archived school years)
-        history = StudentClassroomHistory.objects.filter(student=student).order_by('-archived_at')
-        history_data = [{
-            'id': h.id,
-            'classroom_id': h.classroom.id if h.classroom else None,
-            'classroom_name': h.classroom_name,
-            'grade_level': h.grade_level,
-            'section': h.section,
-            'school_year': h.school_year,
-            'teacher_name': h.teacher_name,
-            'joined_at': h.joined_at.isoformat() if h.joined_at else None,
-            'archived_at': h.archived_at.isoformat() if h.archived_at else None,
-        } for h in history]
+        # Build history data from BOTH sources
+        history_data = []
+        seen_classrooms = set()  # Avoid duplicates
+        
+        # 1. Get history from StudentClassroomHistory (student-initiated archiving via "Archive School Year" button)
+        classroom_history = StudentClassroomHistory.objects.filter(
+            student=student
+        ).select_related('classroom').order_by('-archived_at')
+        
+        for h in classroom_history:
+            classroom_id = h.classroom.id if h.classroom else None
+            # Use history record ID as fallback key if classroom was deleted
+            history_key = classroom_id or f"history_{h.id}"
+            if history_key not in seen_classrooms:
+                seen_classrooms.add(history_key)
+                history_data.append({
+                    'id': h.id,
+                    'classroom_id': classroom_id,
+                    'classroom_name': h.classroom_name,
+                    'grade_level': h.grade_level,
+                    'section': h.section,
+                    'school_year': h.school_year,
+                    'teacher_name': h.teacher_name,
+                    'joined_at': h.joined_at.isoformat() if h.joined_at else None,
+                    'archived_at': h.archived_at.isoformat() if h.archived_at else None,
+                    'source': 'student_archived'  # Track source for debugging
+                })
+        
+        print(f"📚 Found {len(history_data)} records from StudentClassroomHistory for {student.username}")
+        
+        # 2. Also get history from StudentPromotionHistory (teacher-initiated promotions)
+        promotion_history = StudentPromotionHistory.objects.filter(
+            student=student,
+            previous_classroom__isnull=False,
+            is_undone=False
+        ).select_related('previous_classroom', 'previous_classroom__teacher').order_by('-promoted_at')
+        
+        promotion_count = 0
+        for h in promotion_history:
+            if h.previous_classroom and h.previous_classroom.id not in seen_classrooms:
+                seen_classrooms.add(h.previous_classroom.id)
+                teacher_name = None
+                if h.previous_classroom.teacher:
+                    teacher_name = f"{h.previous_classroom.teacher.first_name} {h.previous_classroom.teacher.last_name}".strip()
+                
+                history_data.append({
+                    'id': h.id,
+                    'classroom_id': h.previous_classroom.id,
+                    'classroom_name': h.previous_classroom.name,
+                    'grade_level': h.previous_grade_level or h.previous_classroom.grade_level,
+                    'section': h.previous_section or h.previous_classroom.section,
+                    'school_year': h.previous_classroom.school_year,
+                    'teacher_name': teacher_name,
+                    'joined_at': None,  # Not tracked in promotion history
+                    'archived_at': h.promoted_at.isoformat() if h.promoted_at else None,
+                    'source': 'teacher_promoted'  # Track source for debugging
+                })
+                promotion_count += 1
+        
+        print(f"📚 Found {promotion_count} additional records from StudentPromotionHistory for {student.username}")
+        
+        # Sort by archived_at date (most recent first)
+        history_data.sort(key=lambda x: x.get('archived_at') or '', reverse=True)
+        
+        print(f"✅ Total {len(history_data)} archived school years for student {student.username}")
         
         return Response({
             'has_classroom': classroom is not None,

@@ -378,6 +378,10 @@ const emit = defineEmits(['navigate']);
 
 const { showSuccess, showError, showInfo, showWarning } = useToast();
 
+// Archived view mode state
+const isViewingArchived = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
 const remarks = ref([]);
 const outputRemarks = ref([]);
 const isLoading = ref(false);
@@ -442,8 +446,19 @@ const loadRemarks = async () => {
   isLoading.value = true;
 
   try {
+    // Build URL with classroom_id if in archived view mode
+    let remarksUrl = '/api/remarks/';
+    let submissionRemarksUrl = '/api/student/submission-remarks/';
+    
+    if (isViewingArchived.value && viewingArchivedSchoolYear.value?.classroom_id) {
+      const classroomId = viewingArchivedSchoolYear.value.classroom_id;
+      remarksUrl += `?classroom_id=${classroomId}`;
+      submissionRemarksUrl += `?classroom_id=${classroomId}`;
+      console.log('📂 Loading archived remarks for classroom:', classroomId);
+    }
+    
     // Load general remarks
-    const remarksResponse = await axios.get('/api/remarks/');
+    const remarksResponse = await axios.get(remarksUrl);
     if (remarksResponse.data) {
       remarks.value = remarksResponse.data.map(remark => {
         const remarkDate = new Date(remark.created_at);
@@ -465,7 +480,7 @@ const loadRemarks = async () => {
 
     // Load output-specific remarks (from student's own submissions)
     try {
-      const remarksResponse = await axios.get('/api/student/submission-remarks/');
+      const remarksResponse = await axios.get(submissionRemarksUrl);
       if (remarksResponse.data) {
         outputRemarks.value = remarksResponse.data.map(remark => {
           const remarkDate = new Date(remark.created_at);
@@ -652,6 +667,20 @@ const openOutputRemarkDetail = async (remark) => {
 };
 
 onMounted(() => {
+  // Check if we're in archived view mode
+  const savedArchivedView = localStorage.getItem('student_viewing_archived_school_year');
+  if (savedArchivedView) {
+    try {
+      const archivedData = JSON.parse(savedArchivedView);
+      isViewingArchived.value = true;
+      viewingArchivedSchoolYear.value = archivedData;
+      console.log('📂 Sremarked: Restored archived view mode:', archivedData.name);
+    } catch (e) {
+      console.error('Error parsing student archived view data:', e);
+      localStorage.removeItem('student_viewing_archived_school_year');
+    }
+  }
+  
   loadRemarks();
 });
 </script>

@@ -437,19 +437,12 @@
                                     <p class="font-semibold text-purple-600">{{ archive.stats?.submissions || 0 }}</p>
                                     <p class="text-gray-500">Submissions</p>
                                 </div>
-                                <div class="flex gap-2">
-                                    <button @click="viewArchivedSchoolYear(archive)"
-                                        class="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all"
-                                        title="View details">
-                                        <i class="pi pi-info-circle"></i>
-                                    </button>
-                                    <button @click="confirmViewArchivedMode(archive)"
-                                        class="flex items-center gap-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-all text-sm font-medium"
-                                        title="View full archived data">
-                                        <i class="pi pi-eye text-xs"></i>
-                                        <span>View</span>
-                                    </button>
-                                </div>
+                                <button @click="confirmViewArchivedMode(archive)"
+                                    class="flex items-center gap-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition-all text-sm font-medium"
+                                    title="View archived data">
+                                    <i class="pi pi-eye text-xs"></i>
+                                    <span>View</span>
+                                </button>
                             </div>
                         </div>
                     </div>

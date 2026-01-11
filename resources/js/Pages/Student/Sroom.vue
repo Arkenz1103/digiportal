@@ -4,9 +4,15 @@
     <div class="bg-white p-4 md:p-3 shadow-lg rounded-t-xl border-b border-gray-200">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div class="space-y-2">
-          <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block bg-gray-100">
-            {{ actualClassName }}
-          </h1>
+          <div class="flex items-center gap-3">
+            <h1 class="text-xl md:text-2xl font-bold text-gray-900 px-4 py-2 md:px-5 md:py-2 rounded-lg inline-block" 
+                :class="isViewingArchived ? 'bg-amber-100' : 'bg-gray-100'">
+              {{ actualClassName }}
+            </h1>
+            <span v-if="isViewingArchived" class="px-3 py-1 bg-amber-100 text-amber-700 text-sm rounded-full font-medium">
+              Archived
+            </span>
+          </div>
           <p class="text-gray-600 ml-2 flex items-center gap-2 text-sm">
             <i class="pi pi-user"></i>
             Student: {{ currentUser.name }}
@@ -388,9 +394,9 @@
                             class="hidden"
                           />
 
-                          <!-- Add/Upload Button (Show if not submitted OR in resubmission mode) -->
+                          <!-- Add/Upload Button (Show if not submitted OR in resubmission mode) - Hidden in archived mode -->
                           <button
-                            v-if="!hasSubmittedWork || isResubmitting"
+                            v-if="(!hasSubmittedWork || isResubmitting) && !isViewingArchived"
                             @click="isReplacingFile = false; showUploadDialog = true"
                             :disabled="isSubmitting"
                             class="w-full px-4 py-2 bg-white border-2 border-indigo-200 rounded-lg text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -403,9 +409,9 @@
                             <span v-else>Upload Files</span>
                           </button>
 
-                          <!-- Turn In Button (Show if not submitted OR in resubmission mode) -->
+                          <!-- Turn In Button (Show if not submitted OR in resubmission mode) - Hidden in archived mode -->
                           <button
-                            v-if="!hasSubmittedWork || isResubmitting"
+                            v-if="(!hasSubmittedWork || isResubmitting) && !isViewingArchived"
                             @click="openTurnInDialog"
                             :disabled="draftFiles.length === 0"
                             class="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -414,8 +420,8 @@
                             <span>Turn in</span>
                           </button>
 
-                          <!-- Resubmit Button (Show when already submitted AND NOT in resubmission mode) -->
-                          <div v-else-if="hasSubmittedWork && !isResubmitting" class="space-y-2">
+                          <!-- Resubmit Button (Show when already submitted AND NOT in resubmission mode) - Hidden in archived mode -->
+                          <div v-else-if="hasSubmittedWork && !isResubmitting && !isViewingArchived" class="space-y-2">
                             <!-- Resubmit Counter Info -->
                             <div v-if="existingSubmission && existingSubmission.resubmit_count > 0" class="text-xs text-center">
                               <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
@@ -433,9 +439,9 @@
                               <span>{{ hasScore ? 'Already Scored' : (existingSubmission && existingSubmission.resubmit_count >= 3) ? 'Max Limit Reached' : 'Resubmit' }}</span>
                             </button>
 
-                            <!-- Post to Feed Button -->
+                            <!-- Post to Feed Button - Hidden in archived mode -->
                             <button
-                              v-if="existingSubmission && !existingSubmission.post_to_feed"
+                              v-if="existingSubmission && !existingSubmission.post_to_feed && !isViewingArchived"
                               @click="openPostToFeedDialog"
                               :disabled="isRequestingPost"
                               class="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3956,7 +3962,13 @@ const props = defineProps({
 
 // Get selected class from localStorage
 const selectedClass = ref(null);
+
+// Archived view mode state
+const isViewingArchived = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
 const currentUser = ref({
+    id: null,
     name: 'Student Name',
     email: 'student@example.com',
     role: 'student',
@@ -3965,6 +3977,10 @@ const currentUser = ref({
 
 // Computed property for actual classroom name
 const actualClassName = computed(() => {
+    // If in archived view mode, use the archived classroom name
+    if (isViewingArchived.value && viewingArchivedSchoolYear.value) {
+        return viewingArchivedSchoolYear.value.classroom_name;
+    }
     // Priority: selectedClass > currentUser.classroom > props.className
     if (selectedClass.value && selectedClass.value.name) {
         return selectedClass.value.name;
@@ -4427,9 +4443,16 @@ const loadFolderActivities = async (folderId) => {
 const loadPortfolioFolders = async (classId = null) => {
   isLoadingFolders.value = true;
   try {
+    // If in archived view mode, use the archived classroom ID
+    let targetClassId = classId;
+    if (!targetClassId && isViewingArchived.value && viewingArchivedSchoolYear.value) {
+      targetClassId = viewingArchivedSchoolYear.value.classroom_id;
+      console.log('📂 Loading folders for archived classroom:', targetClassId);
+    }
+    
     // If a classId is provided, fetch folders for that specific class
     // Otherwise, the backend will use the student's default class
-    const url = classId ? `/api/portfolio/folders/?classroom_id=${classId}` : '/api/portfolio/folders/';
+    const url = targetClassId ? `/api/portfolio/folders/?classroom_id=${targetClassId}` : '/api/portfolio/folders/';
     const response = await axios.get(url);
 
     console.log('Student API Response:', response.data); // Debug log
@@ -5373,6 +5396,7 @@ const authenticateWithBackend = async () => {
       // Load user data including classroom
       const user = checkResponse.data.user;
       currentUser.value = {
+        id: user.id,
         name: user.full_name || user.username || 'Student Name',
         email: user.email || 'student@example.com',
         role: user.role || 'student',
@@ -5394,6 +5418,7 @@ const authenticateWithBackend = async () => {
       // Load user data including classroom
       const user = authResponse.data.user;
       currentUser.value = {
+        id: user.id,
         name: user.full_name || user.username || 'Student Name',
         email: user.email || 'student@example.com',
         role: user.role || 'student',
@@ -5423,6 +5448,45 @@ const handleClassChange = async (event) => {
 
   // Reload folders
   await loadPortfolioFolders();
+};
+
+// Function to handle student archived view mode change
+const handleStudentArchivedViewModeChange = async (event) => {
+  console.log('📂 Student archived view mode changed:', event.detail);
+  const { isViewing, schoolYear, classroom } = event.detail;
+  
+  isViewingArchived.value = isViewing;
+  viewingArchivedSchoolYear.value = schoolYear;
+  
+  if (isViewing && classroom) {
+    console.log('📂 Entering student archived view mode:', schoolYear?.name);
+    
+    // Clear current view state
+    selectedFolder.value = null;
+    selectedActivity.value = null;
+    studentSubmissions.value = [];
+    hasSubmittedWork.value = false;
+    localStorage.removeItem('student_current_view');
+    
+    // Reload folders for the archived classroom
+    await loadPortfolioFolders();
+  } else {
+    console.log('📂 Exiting student archived view mode');
+    
+    // Clear archived state
+    isViewingArchived.value = false;
+    viewingArchivedSchoolYear.value = null;
+    
+    // Clear current view state
+    selectedFolder.value = null;
+    selectedActivity.value = null;
+    studentSubmissions.value = [];
+    hasSubmittedWork.value = false;
+    localStorage.removeItem('student_current_view');
+    
+    // Reload folders for current classroom
+    await loadPortfolioFolders();
+  }
 };
 
 // Function to handle notification navigation event (when already on this page)
@@ -5539,6 +5603,62 @@ const checkPortfolioCompilationStatus = async () => {
 // Load classmates data
 const loadClassmates = async () => {
     try {
+        // If in archived view mode, load from archived classroom
+        if (isViewingArchived.value && viewingArchivedSchoolYear.value) {
+            const classroomId = viewingArchivedSchoolYear.value.classroom_id;
+            console.log('📊 Loading archived classroom data for:', classroomId);
+            
+            const response = await axios.get(`/api/classrooms/${classroomId}/`);
+            console.log('📊 Archived Classroom API Response:', response.data);
+            
+            if (response.data) {
+                const archivedClassroom = response.data;
+                
+                // Get school year from archived data or API response
+                classroomSchoolYear.value = viewingArchivedSchoolYear.value.name || archivedClassroom.school_year || '';
+                console.log('📅 Archived School Year:', classroomSchoolYear.value);
+                
+                // For archived classrooms, get students from the API response
+                // The API returns historical students from StudentPromotionHistory
+                const allStudents = archivedClassroom.students || [];
+                console.log('📊 Total students from API:', allStudents.length);
+                
+                // Filter out the current student from the list
+                studentClassmates.value = allStudents.filter(s => s.id !== currentUser.value.id);
+                console.log('📊 Classmates after filtering current user:', studentClassmates.value.length);
+                
+                // Get all teachers with their subjects
+                if (archivedClassroom.teachers && archivedClassroom.teachers.length > 0) {
+                    classTeachers.value = archivedClassroom.teachers;
+                    console.log('👨‍🏫 Teachers loaded:', classTeachers.value.length);
+                } else {
+                    classTeachers.value = [];
+                }
+                
+                // Get teacher name from multiple possible sources
+                if (viewingArchivedSchoolYear.value.teacher_name) {
+                    classTeacher.value = viewingArchivedSchoolYear.value.teacher_name;
+                } else if (archivedClassroom.teacher?.name) {
+                    classTeacher.value = archivedClassroom.teacher.name;
+                } else if (archivedClassroom.teacher_name) {
+                    classTeacher.value = archivedClassroom.teacher_name;
+                } else {
+                    classTeacher.value = 'Teacher Name';
+                }
+                
+                // Get teacher email
+                classTeacherEmail.value = archivedClassroom.teacher?.email || '';
+                
+                // Get teacher profile picture
+                classTeacherProfilePicture.value = archivedClassroom.teacher?.profile_picture || null;
+                
+                console.log('✅ Loaded archived classmates:', studentClassmates.value.length);
+                console.log('👨‍🏫 Class Teacher:', classTeacher.value);
+            }
+            return;
+        }
+        
+        // Normal mode - load current classroom
         const response = await axios.get('/api/classrooms/');
         console.log('📊 Classroom API Response:', response.data);
 
@@ -5602,6 +5722,21 @@ const loadClassmates = async () => {
 
 onMounted(async () => {
   console.log('Sroom.vue mounted. Initial className prop:', props.className);
+  
+  // Check if we're in archived view mode
+  const savedArchivedView = localStorage.getItem('student_viewing_archived_school_year');
+  if (savedArchivedView) {
+    try {
+      const archivedData = JSON.parse(savedArchivedView);
+      isViewingArchived.value = true;
+      viewingArchivedSchoolYear.value = archivedData;
+      console.log('📂 Student Sroom: Restored archived view mode:', archivedData.name);
+    } catch (e) {
+      console.error('Error parsing student archived view data:', e);
+      localStorage.removeItem('student_viewing_archived_school_year');
+    }
+  }
+  
   const authenticated = await authenticateWithBackend();
   if (authenticated) {
     await loadPortfolioFolders();
@@ -5714,6 +5849,7 @@ onMounted(async () => {
   window.addEventListener('classChanged', handleClassChange);
   window.addEventListener('subjectChanged', handleSubjectChange);
   window.addEventListener('notificationNavigation', handleNotificationNavigation);
+  window.addEventListener('studentArchivedViewModeChanged', handleStudentArchivedViewModeChange);
   const folderEventHandler = () => { if (!selectedFolder.value) loadPortfolioFolders(); };
   window.addEventListener('folderCreated', folderEventHandler);
   window.addEventListener('folderDeleted', folderEventHandler);
@@ -5727,6 +5863,7 @@ onUnmounted(() => {
   window.removeEventListener('classChanged', handleClassChange);
   window.removeEventListener('subjectChanged', handleSubjectChange);
   window.removeEventListener('notificationNavigation', handleNotificationNavigation);
+  window.removeEventListener('studentArchivedViewModeChanged', handleStudentArchivedViewModeChange);
   const folderEventHandler = () => { if (!selectedFolder.value) loadPortfolioFolders(); };
   window.removeEventListener('folderCreated', folderEventHandler);
   window.removeEventListener('folderDeleted', folderEventHandler);

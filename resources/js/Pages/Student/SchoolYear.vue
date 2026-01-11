@@ -3,7 +3,6 @@
         <!-- Header -->
         <div class="max-w-4xl mx-auto mb-8">
             <h1 class="text-3xl font-bold text-gray-800">School Year</h1>
-            <p class="text-gray-600 mt-1">Manage your school year and classroom enrollment</p>
         </div>
 
         <!-- Loading State -->
@@ -66,14 +65,14 @@
 
             <!-- No Classroom - Join Section -->
             <div v-else class="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6">
+                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
                     <div class="flex items-center gap-4">
                         <div class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
                             <i class="pi pi-sign-in text-2xl text-white"></i>
                         </div>
                         <div>
                             <h2 class="text-2xl font-bold text-white">Join a Classroom</h2>
-                            <p class="text-green-100">Enter the class code provided by your teacher</p>
+                            <p class="text-indigo-100">Enter the class code provided by your teacher</p>
                         </div>
                     </div>
                 </div>
@@ -106,10 +105,10 @@
                     </div>
 
                     <!-- Validated Classroom Preview -->
-                    <div v-if="validatedClassroom" class="p-4 bg-green-50 border-2 border-green-200 rounded-xl mb-6">
+                    <div v-if="validatedClassroom" class="p-4 bg-indigo-50 border-2 border-indigo-200 rounded-xl">
                         <div class="flex items-center gap-2 mb-3">
-                            <i class="pi pi-check-circle text-green-600"></i>
-                            <span class="font-semibold text-green-800">Classroom Found!</span>
+                            <i class="pi pi-check-circle text-indigo-600"></i>
+                            <span class="font-semibold text-indigo-800">Classroom Found!</span>
                         </div>
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -131,19 +130,10 @@
                         </div>
                         
                         <button @click="showJoinConfirm = true"
-                            class="w-full mt-4 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all">
+                            class="w-full mt-4 flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all">
                             <i class="pi pi-check"></i>
                             <span>Join This Classroom</span>
                         </button>
-                    </div>
-
-                    <!-- Help Text -->
-                    <div class="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <i class="pi pi-question-circle text-blue-600 text-lg mt-0.5"></i>
-                        <div class="text-sm text-blue-800">
-                            <p class="font-medium">Don't have a class code?</p>
-                            <p class="mt-1">Ask your teacher for the 6-character class code to join their classroom.</p>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -174,8 +164,13 @@
                                     <p class="font-medium text-indigo-600">{{ item.school_year }}</p>
                                     <p class="text-xs text-gray-500">Archived {{ formatDate(item.archived_at) }}</p>
                                 </div>
-                                <button @click="viewArchivedHistory(item)"
-                                    class="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg font-medium hover:bg-indigo-200 transition-all">
+                                <button @click="confirmViewArchived(item)"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all"
+                                    :class="item.classroom_id 
+                                        ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
+                                    :disabled="!item.classroom_id"
+                                    :title="item.classroom_id ? 'View archived data' : 'Classroom no longer exists'">
                                     <i class="pi pi-eye text-sm"></i>
                                     <span>View</span>
                                 </button>
@@ -211,8 +206,8 @@
         <!-- Join Confirmation Dialog -->
         <Dialog v-model:visible="showJoinConfirm" modal header="Join Classroom" :style="{ width: '450px' }">
             <div class="p-4">
-                <div class="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <i class="pi pi-check-circle text-2xl text-green-600"></i>
+                <div class="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <i class="pi pi-check-circle text-2xl text-indigo-600"></i>
                     <div>
                         <p class="text-gray-800 font-medium">Confirm joining this classroom?</p>
                         <p class="text-gray-600 text-sm mt-2">
@@ -224,7 +219,7 @@
             <template #footer>
                 <div class="flex justify-end gap-3">
                     <Button label="Cancel" severity="secondary" @click="showJoinConfirm = false" />
-                    <Button label="Join Classroom" @click="joinClassroom" :loading="isJoining" class="bg-green-600 hover:bg-green-700" />
+                    <Button label="Join Classroom" @click="joinClassroom" :loading="isJoining" class="bg-indigo-600 hover:bg-indigo-700" />
                 </div>
             </template>
         </Dialog>
@@ -309,6 +304,31 @@
                 </div>
             </template>
         </Dialog>
+
+        <!-- View Archived Confirmation Dialog -->
+        <Dialog v-model:visible="showViewArchivedConfirm" modal header="View Archived School Year" :style="{ width: '450px' }">
+            <div class="p-4">
+                <div class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <i class="pi pi-eye text-2xl text-amber-600"></i>
+                    <div>
+                        <p class="text-gray-800 font-medium">You are about to view archived data</p>
+                        <p class="text-gray-600 text-sm mt-2">
+                            School Year: <strong class="text-amber-700">{{ selectedArchivedForView?.school_year }}</strong>
+                        </p>
+                        <p class="text-gray-600 text-sm">
+                            Classroom: <strong class="text-amber-700">{{ selectedArchivedForView?.classroom_name }}</strong>
+                        </p>
+                        <p class="text-gray-600 text-sm mt-2">This will switch to read-only mode where you can browse your archived activities and submissions.</p>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-3">
+                    <Button label="Cancel" severity="secondary" @click="showViewArchivedConfirm = false" />
+                    <Button label="View Archived" @click="enterArchivedViewMode(selectedArchivedForView)" class="bg-amber-500 hover:bg-amber-600" />
+                </div>
+            </template>
+        </Dialog>
     </div>
 </template>
 
@@ -341,6 +361,8 @@ const selectedArchivedItem = ref(null);
 const archivedSubmissions = ref([]);
 const isLoadingArchived = ref(false);
 const archivedModalTitle = ref('Archived School Year');
+const showViewArchivedConfirm = ref(false);
+const selectedArchivedForView = ref(null);
 const archivedStats = ref({
     graded: 0,
     averageScore: 'N/A'
@@ -562,6 +584,59 @@ const viewArchivedHistory = async (item) => {
     } finally {
         isLoadingArchived.value = false;
     }
+};
+
+// Show confirmation dialog before entering archived view mode
+const confirmViewArchived = (item) => {
+    selectedArchivedForView.value = item;
+    showViewArchivedConfirm.value = true;
+};
+
+// Enter archived view mode (like teacher's archived view)
+const enterArchivedViewMode = (item) => {
+    showViewArchivedConfirm.value = false;
+    console.log('📂 Entering student archived view mode:', item);
+    
+    // Check if classroom_id exists
+    if (!item.classroom_id) {
+        showError('Cannot view archived data: The classroom no longer exists.');
+        return;
+    }
+    
+    // Store archived school year info in localStorage
+    const archivedData = {
+        id: item.id,
+        name: item.school_year,
+        classroom_id: item.classroom_id,
+        classroom_name: item.classroom_name,
+        section: item.section,
+        grade_level: item.grade_level,
+        teacher_name: item.teacher_name,
+        archived_at: item.archived_at
+    };
+    localStorage.setItem('student_viewing_archived_school_year', JSON.stringify(archivedData));
+    
+    // Save the target page to localStorage so App.vue can navigate
+    localStorage.setItem('digiportal_current_page', 'StudentRoom');
+    
+    // Dispatch event to MainLayout to enter archived view mode
+    window.dispatchEvent(new CustomEvent('studentArchivedViewModeChanged', { 
+        detail: { 
+            isViewing: true, 
+            schoolYear: archivedData,
+            classroom: {
+                id: item.classroom_id,
+                name: item.classroom_name,
+                section: item.section,
+                grade_level: item.grade_level
+            }
+        } 
+    }));
+    
+    showSuccess(`Viewing archived data for ${item.school_year}`);
+    
+    // Reload the page to navigate to StudentRoom with archived view mode
+    window.location.reload();
 };
 
 onMounted(() => {

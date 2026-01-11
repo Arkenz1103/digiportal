@@ -79,7 +79,10 @@ const expandedClassId = ref(null);
 // Initialize expanded classes when needed
 const initializeExpandedClasses = () => {
     if (classes.value && classes.value.length > 0) {
-        expandedClassId.value = classes.value[0]?.id || null; // Expand first class by default
+        // Only set if not already set (to preserve archived view mode expansion)
+        if (!expandedClassId.value) {
+            expandedClassId.value = classes.value[0]?.id || null; // Expand first class by default
+        }
     }
 };
 
@@ -1074,8 +1077,9 @@ const exitArchivedViewMode = () => {
     isViewingArchived.value = false;
     viewingArchivedSchoolYear.value = null;
     
-    // Clear from localStorage
+    // Clear from localStorage (both teacher and student)
     localStorage.removeItem('viewing_archived_school_year');
+    localStorage.removeItem('student_viewing_archived_school_year');
     
     // Dispatch event so ManageClass and other components can react
     window.dispatchEvent(new CustomEvent('archivedViewModeChanged', { 
@@ -1086,6 +1090,103 @@ const exitArchivedViewMode = () => {
     loadClassrooms();
     
     console.log('📂 Exited archived view mode from banner');
+};
+
+// Handle student archived view mode change event from SchoolYear page
+const handleStudentArchivedViewModeChange = (event) => {
+    const { isViewing, schoolYear, classroom } = event.detail;
+    isViewingArchived.value = isViewing;
+    viewingArchivedSchoolYear.value = schoolYear;
+    
+    if (isViewing && classroom) {
+        console.log('📂 MainLayout: Student entered archived view mode:', schoolYear?.name);
+        
+        // Set the archived classroom as the selected class
+        const archivedClass = {
+            id: classroom.id,
+            name: classroom.name,
+            section: classroom.section,
+            grade_level: classroom.grade_level,
+            subjects: [] // Will be loaded from folders
+        };
+        
+        // Load student's archived classroom data
+        loadStudentArchivedClassroom(schoolYear, archivedClass);
+    } else {
+        console.log('📂 MainLayout: Student exited archived view mode');
+        // Reload current classrooms
+        loadClassrooms();
+    }
+};
+
+// Load student's archived classroom data
+const loadStudentArchivedClassroom = async (schoolYear, classroom) => {
+    if (!schoolYear || !classroom) {
+        console.log('⚠️ loadStudentArchivedClassroom: Missing schoolYear or classroom');
+        return;
+    }
+    
+    try {
+        console.log('🏫 Loading student archived classroom:', classroom.name, 'ID:', classroom.id);
+        
+        // Fetch folders for this archived classroom
+        const response = await fetch(`/api/portfolio/folders/?classroom_id=${classroom.id}`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const folders = await response.json();
+            console.log('📂 Student archived folders:', folders.length, folders);
+            
+            // Extract unique subjects (folder names) from folders
+            const subjects = [...new Set(folders.map(f => f.name))];
+            console.log('📚 Extracted subjects:', subjects);
+            
+            // Set the archived classroom with subjects
+            const archivedClassWithSubjects = {
+                ...classroom,
+                id: classroom.id,
+                name: classroom.name || schoolYear.classroom_name,
+                section: classroom.section || schoolYear.section,
+                grade_level: classroom.grade_level || schoolYear.grade_level,
+                subjects: subjects,
+                theme: 'amber'
+            };
+            
+            // Set classes array with the archived classroom
+            classes.value = [archivedClassWithSubjects];
+            
+            // Select this class and expand it
+            selectedClassForSubject.value = archivedClassWithSubjects;
+            expandedClassId.value = classroom.id;
+            
+            console.log('✅ Student archived classroom loaded with subjects:', archivedClassWithSubjects);
+            console.log('📚 Subjects in sidebar:', subjects);
+        } else {
+            console.error('❌ Failed to load folders:', response.status, await response.text());
+            // Still set up the classroom even if folders fail to load
+            const archivedClassWithSubjects = {
+                ...classroom,
+                subjects: [],
+                theme: 'amber'
+            };
+            classes.value = [archivedClassWithSubjects];
+            selectedClassForSubject.value = archivedClassWithSubjects;
+            expandedClassId.value = classroom.id;
+        }
+    } catch (error) {
+        console.error('❌ Error loading student archived classroom:', error);
+        // Still set up the classroom even on error
+        const archivedClassWithSubjects = {
+            ...classroom,
+            subjects: [],
+            theme: 'amber'
+        };
+        classes.value = [archivedClassWithSubjects];
+        selectedClassForSubject.value = archivedClassWithSubjects;
+        expandedClassId.value = classroom.id;
+    }
 };
 
 // Load classrooms from archived school year
@@ -1357,6 +1458,12 @@ const loadClassrooms = async () => {
 // Load subjects for all classes from actual folders
 const loadSubjectsForAllClasses = async () => {
     if (!classes.value || classes.value.length === 0) return;
+    
+    // Skip if in archived view mode - subjects are already loaded by loadStudentArchivedClassroom or loadArchivedClassrooms
+    if (isViewingArchived.value) {
+        console.log('📂 Skipping loadSubjectsForAllClasses - in archived view mode');
+        return;
+    }
 
     try {
         console.log('📂 Loading subjects from portfolio folders...');
@@ -1405,20 +1512,35 @@ onMounted(async () => {
     // Add click outside listener
     document.addEventListener('click', closeDropdowns);
     
-    // Listen for archived view mode changes from ManageClass
+    // Listen for archived view mode changes from ManageClass (teacher)
     window.addEventListener('archivedViewModeChanged', handleArchivedViewModeChange);
+    
+    // Listen for archived view mode changes from SchoolYear (student)
+    window.addEventListener('studentArchivedViewModeChanged', handleStudentArchivedViewModeChange);
     
     // Check if we're already in archived view mode (from localStorage)
     const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    const savedStudentArchivedView = localStorage.getItem('student_viewing_archived_school_year');
+    
     if (savedArchivedView) {
         try {
             const archivedData = JSON.parse(savedArchivedView);
             isViewingArchived.value = true;
             viewingArchivedSchoolYear.value = archivedData;
-            console.log('📂 Restored archived view mode:', archivedData.name);
+            console.log('📂 Restored teacher archived view mode:', archivedData.name);
         } catch (e) {
             console.error('Error parsing archived view data:', e);
             localStorage.removeItem('viewing_archived_school_year');
+        }
+    } else if (savedStudentArchivedView) {
+        try {
+            const archivedData = JSON.parse(savedStudentArchivedView);
+            isViewingArchived.value = true;
+            viewingArchivedSchoolYear.value = archivedData;
+            console.log('📂 Restored student archived view mode:', archivedData.name);
+        } catch (e) {
+            console.error('Error parsing student archived view data:', e);
+            localStorage.removeItem('student_viewing_archived_school_year');
         }
     }
     
@@ -1428,7 +1550,27 @@ onMounted(async () => {
     
     // Load classrooms - check if we're in archived view mode first
     if (isViewingArchived.value && viewingArchivedSchoolYear.value) {
-        await loadArchivedClassrooms(viewingArchivedSchoolYear.value);
+        // Check if it's a student archived view
+        const savedStudentArchivedView = localStorage.getItem('student_viewing_archived_school_year');
+        if (savedStudentArchivedView) {
+            try {
+                const archivedData = JSON.parse(savedStudentArchivedView);
+                const archivedClass = {
+                    id: archivedData.classroom_id,
+                    name: archivedData.classroom_name,
+                    section: archivedData.section,
+                    grade_level: archivedData.grade_level,
+                    subjects: []
+                };
+                await loadStudentArchivedClassroom(archivedData, archivedClass);
+            } catch (e) {
+                console.error('Error loading student archived classroom:', e);
+                await loadClassrooms();
+            }
+        } else {
+            // Teacher archived view
+            await loadArchivedClassrooms(viewingArchivedSchoolYear.value);
+        }
     } else {
         await loadClassrooms(); // Load classrooms dynamically
     }
@@ -1957,9 +2099,9 @@ const auth = computed(() => ({
                     </div>
                 </nav>
 
-                <!-- Archived View Mode Banner -->
-                <div v-if="isViewingArchived && currentUser.role === 'teacher'" 
-                    class="bg-amber-50 border-b-2 border-amber-300 px-6 py-3 flex items-center justify-between">
+                <!-- Archived View Mode Banner - Sticky -->
+                <div v-if="isViewingArchived" 
+                    class="sticky top-0 z-50 bg-amber-50 border-b-2 border-amber-300 px-6 py-3 flex items-center justify-between shadow-sm">
                     <div class="flex items-center gap-3">
                         <i class="pi pi-history text-amber-600 text-lg"></i>
                         <div>

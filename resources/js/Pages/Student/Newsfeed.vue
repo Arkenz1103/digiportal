@@ -288,6 +288,10 @@ const isLoading = ref(false);
 const posts = ref([]);
 const selectedImage = ref(null);
 
+// Archived view mode state
+const isViewingArchived = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
 // Avatar colors - Modern Blue-Green Theme
 const avatarColors = [
   'bg-gradient-to-br from-teal-500 to-cyan-600',
@@ -310,7 +314,14 @@ const getAvatarColor = (username) => {
 const loadNewsfeed = async () => {
   isLoading.value = true;
   try {
-    const response = await axios.get('/api/newsfeed/', {
+    // Build URL with archived classroom filter if in archived view mode
+    let url = '/api/newsfeed/';
+    if (isViewingArchived.value && viewingArchivedSchoolYear.value?.classroom_id) {
+      url += `?classroom_id=${viewingArchivedSchoolYear.value.classroom_id}`;
+      console.log('📂 Loading archived newsfeed for classroom:', viewingArchivedSchoolYear.value.classroom_id);
+    }
+    
+    const response = await axios.get(url, {
       withCredentials: true
     });
     if (response.data && Array.isArray(response.data)) {
@@ -588,6 +599,20 @@ const addReply = async (post, comment) => {
 
 // Load on mount
 onMounted(() => {
+  // Check if we're in archived view mode
+  const savedArchivedView = localStorage.getItem('student_viewing_archived_school_year');
+  if (savedArchivedView) {
+    try {
+      const archivedData = JSON.parse(savedArchivedView);
+      isViewingArchived.value = true;
+      viewingArchivedSchoolYear.value = archivedData;
+      console.log('📂 Newsfeed: Restored archived view mode:', archivedData.name);
+    } catch (e) {
+      console.error('Error parsing student archived view data:', e);
+      localStorage.removeItem('student_viewing_archived_school_year');
+    }
+  }
+  
   loadNewsfeed();
 });
 </script>
