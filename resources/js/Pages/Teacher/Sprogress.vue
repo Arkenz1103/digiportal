@@ -614,7 +614,7 @@ const exportClassRecord = async (subjectFilter) => {
                         activityStats[actIndex].completed++;
 
                         // Format submitted date/time
-                        let submittedDateTime = 'N/A';
+                        let submittedDateTime = 'Missing';
                         if (submission.submitted_at) {
                             const subDate = new Date(submission.submitted_at);
                             submittedDateTime = subDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -641,7 +641,7 @@ const exportClassRecord = async (subjectFilter) => {
                         }
 
                         // Format score
-                        let score = 'None';
+                        let score = 'Missing';
                         if (submission.score !== null && submission.score !== undefined && submission.score !== 'N/A') {
                             score = submission.score;
                         }
@@ -650,7 +650,7 @@ const exportClassRecord = async (subjectFilter) => {
                     } else {
                         // No submission - count as incomplete
                         activityStats[actIndex].incomplete++;
-                        row.push('Missing', 'N/A', 'None');
+                        row.push('Missing', 'Missing', 'Missing');
                     }
 
                     // Add empty column as separator (except for last activity)
@@ -870,8 +870,8 @@ const downloadRecords = async (exportType) => {
                             // Show only the score (e.g., "8/10")
                             row.push(submission.score);
                         } else {
-                            // Not scored or not submitted = None
-                            row.push('None');
+                            // Not scored or not submitted = Missing
+                            row.push('Missing');
                         }
                     });
                     sheetData.push(row);
@@ -1099,15 +1099,30 @@ const downloadStudentRecord = async (student) => {
 
             // Add activities for this subject
             activities.forEach((activity, index) => {
-                // Handle score - convert N/A to None
-                let score = activity.score;
-                if (!score || score === 'N/A' || score === 'n/a' || score === null || score === undefined) {
-                    score = 'None';
-                }
                 const status = activity.status || 'Pending';
                 const dueDateTime = activity.due_datetime || 'N/A';
-                const submittedDateTime = activity.submitted_datetime || 'N/A';
                 const activityType = activity.activity_type || 'N/A';
+                
+                // Handle submitted datetime and score based on status
+                let submittedDateTime;
+                let score;
+                
+                if (status === 'Pending') {
+                    // If status is Pending, show Pending for date & score too
+                    submittedDateTime = 'Pending';
+                    score = 'Pending';
+                } else if (status === 'Missing' || !activity.submitted_datetime) {
+                    // If status is Missing or no submission, show Missing
+                    submittedDateTime = 'Missing';
+                    score = 'Missing';
+                } else {
+                    // Has submission - show actual values
+                    submittedDateTime = activity.submitted_datetime || 'Missing';
+                    score = activity.score;
+                    if (!score || score === 'N/A' || score === 'n/a' || score === null || score === undefined) {
+                        score = 'Missing';
+                    }
+                }
 
                 sheetData.push([
                     index + 1,

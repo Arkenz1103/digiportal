@@ -4361,26 +4361,48 @@ def student_progress_list_api(request):
             is_archived_classroom = target_classroom.is_archived
             
             if is_archived_classroom:
-                # For archived classrooms, get students from promotion history
-                from .models import StudentPromotionHistory
+                # For archived classrooms, get students from ALL sources (like classroom_detail_api)
+                from .models import StudentPromotionHistory, StudentClassroomHistory
                 
-                promotion_student_ids = StudentPromotionHistory.objects.filter(
+                # Collect student IDs from ALL sources
+                student_ids = set()
+                
+                # 1. Get students currently assigned to this classroom
+                current_students = User.objects.filter(classroom=target_classroom, role='student')
+                student_ids.update(current_students.values_list('id', flat=True))
+                print(f"📚 Found {current_students.count()} currently assigned students")
+                
+                # 2. Get students from promotion history (teacher-initiated promotions)
+                promotion_records = StudentPromotionHistory.objects.filter(
                     previous_classroom=target_classroom
+                ).select_related('student')
+                student_ids.update(promotion_records.values_list('student_id', flat=True))
+                print(f"📚 Found {promotion_records.count()} students from promotion history")
+                
+                # 3. Get students from classroom history (student-initiated archiving)
+                classroom_history_records = StudentClassroomHistory.objects.filter(
+                    classroom=target_classroom
+                )
+                student_ids.update(classroom_history_records.values_list('student_id', flat=True))
+                print(f"📚 Found {classroom_history_records.count()} students from classroom history")
+                
+                # 4. Get students from submission history (fallback for any missed students)
+                submission_student_ids = StudentSubmission.objects.filter(
+                    activity__folder__classroom=target_classroom
                 ).values_list('student_id', flat=True).distinct()
+                student_ids.update(submission_student_ids)
+                print(f"📚 Found {len(submission_student_ids)} students from submission history")
                 
-                # Also check for students still assigned (shouldn't happen but just in case)
-                current_student_ids = User.objects.filter(
-                    classroom=target_classroom, role='student'
-                ).values_list('id', flat=True)
-                
-                all_student_ids = set(promotion_student_ids) | set(current_student_ids)
-                
-                students = User.objects.filter(
-                    id__in=all_student_ids,
-                    role='student'
-                ).exclude(username='admin').order_by('last_name', 'first_name')
-                
-                print(f"📚 Archived classroom - Found {students.count()} students from promotion history for {target_classroom.name}")
+                # Get all unique students
+                if student_ids:
+                    students = User.objects.filter(
+                        id__in=student_ids,
+                        role='student'
+                    ).exclude(username='admin').order_by('last_name', 'first_name')
+                    print(f"📚 Total unique students for archived classroom {target_classroom.name}: {students.count()}")
+                else:
+                    students = User.objects.none()
+                    print(f"⚠️ No students found for archived classroom {target_classroom.name}")
             else:
                 # Non-archived classroom - use current assignment
                 students = User.objects.filter(
@@ -9541,12 +9563,10 @@ def start_new_school_year_api(request):
     try:
         data = request.data
         new_year_name = data.get('name')  # e.g., "2025-2026"
-        start_date = data.get('start_date')
-        end_date = data.get('end_date')
         copy_classrooms = data.get('copy_classrooms', True)
         
-        if not new_year_name or not start_date or not end_date:
-            return Response({'error': 'Name, start_date, and end_date are required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not new_year_name:
+            return Response({'error': 'School year name is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Normalize the school year name (trim whitespace)
         new_year_name = new_year_name.strip()
@@ -9654,8 +9674,6 @@ def start_new_school_year_api(request):
         new_school_year = SchoolYear.objects.create(
             name=new_year_name,
             teacher=request.user,
-            start_date=start_date,
-            end_date=end_date,
             is_current=True
         )
         

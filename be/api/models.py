@@ -8,8 +8,8 @@ class SchoolYear(models.Model):
     name = models.CharField(max_length=20)  # e.g., "2024-2025"
     teacher = models.ForeignKey('User', on_delete=models.CASCADE, null=True, blank=True, 
                                 related_name='school_years', limit_choices_to={'role': 'teacher'})
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
     is_current = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -19,7 +19,7 @@ class SchoolYear(models.Model):
 
     class Meta:
         db_table = 'school_years'
-        ordering = ['-start_date']
+        ordering = ['-created_at']
         unique_together = ['name', 'teacher']  # Each teacher can have their own school years
 
     def __str__(self):

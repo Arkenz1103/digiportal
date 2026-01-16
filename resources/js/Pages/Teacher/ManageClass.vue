@@ -292,16 +292,6 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">School Year Name</label>
                     <InputText v-model="newSchoolYear.name" placeholder="e.g., 2025-2026" class="w-full" />
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                        <Calendar v-model="newSchoolYear.start_date" dateFormat="yy-mm-dd" class="w-full" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                        <Calendar v-model="newSchoolYear.end_date" dateFormat="yy-mm-dd" class="w-full" />
-                    </div>
-                </div>
                 <div class="space-y-3">
                     <div class="flex items-center gap-3">
                         <Checkbox v-model="newSchoolYear.copy_classrooms" :binary="true" inputId="copyClassrooms" />
@@ -312,7 +302,7 @@
             <template #footer>
                 <div class="flex justify-end gap-3">
                     <Button label="Cancel" severity="secondary" @click="showNewSchoolYearModal = false" />
-                    <Button label="Start New Year" :disabled="!newSchoolYear.name || !newSchoolYear.start_date || !newSchoolYear.end_date"
+                    <Button label="Start New Year" :disabled="!newSchoolYear.name"
                         @click="startNewSchoolYear" :loading="isStartingNewYear"
                         class="bg-amber-500 hover:bg-amber-600" />
                 </div>
@@ -728,7 +718,7 @@ const editFolder = ref({
     originalClassId: null, newClassId: null, newName: '', schoolYearId: null
 });
 const newSchoolYear = ref({
-    name: '', start_date: null, end_date: null,
+    name: '',
     copy_classrooms: true
 });
 
@@ -1018,23 +1008,15 @@ const deleteFolder = async () => {
 
 // School year operations
 const startNewSchoolYear = async () => {
-    if (!newSchoolYear.value.name || !newSchoolYear.value.start_date || !newSchoolYear.value.end_date) return;
+    if (!newSchoolYear.value.name) return;
     isStartingNewYear.value = true;
     try {
-        const formatDateForApi = (date) => {
-            if (!date) return null;
-            const d = new Date(date);
-            return d.toISOString().split('T')[0];
-        };
-        
         const response = await fetch('/api/school-years/start-new/', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
             body: JSON.stringify({
                 name: newSchoolYear.value.name,
-                start_date: formatDateForApi(newSchoolYear.value.start_date),
-                end_date: formatDateForApi(newSchoolYear.value.end_date),
                 copy_classrooms: newSchoolYear.value.copy_classrooms
             })
         });
@@ -1049,7 +1031,7 @@ const startNewSchoolYear = async () => {
             showSuccess(message);
             showNewSchoolYearModal.value = false;
             
-            newSchoolYear.value = { name: '', start_date: null, end_date: null, copy_classrooms: true };
+            newSchoolYear.value = { name: '', copy_classrooms: true };
             await loadSchoolYears();
             await loadClassrooms();
             await loadArchivedSchoolYears();

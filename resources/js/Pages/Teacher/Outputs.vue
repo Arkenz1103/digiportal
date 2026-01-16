@@ -202,19 +202,19 @@ const exportActivityResults = (exportType) => {
                     studentId: sub.studentId,
                     name: formatStudentName(sub.name),
                     status: status,
-                    dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'N/A'),
+                    dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'Missing'),
                     score: scoreDisplay
                 });
             });
 
-            // Add unscored/pending submissions
+            // Add unscored/pending submissions (submitted but not yet scored)
             submissions.value.forEach(sub => {
                 const studentKey = sub.studentId || sub.studentDbId;
                 if (seenStudentIds.has(studentKey)) return; // Skip duplicates
                 seenStudentIds.add(studentKey);
                 
-                // Determine status including compiled
-                let status = 'Pending';
+                // Determine status - these are submitted but not scored yet
+                let status = 'Submitted';
                 if (sub.compiled || sub.is_compilation) {
                     status = 'Compiled';
                 } else if (sub.resubmit_count > 0) {
@@ -226,8 +226,8 @@ const exportActivityResults = (exportType) => {
                     studentId: sub.studentId,
                     name: formatStudentName(sub.name),
                     status: status,
-                    dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'N/A'),
-                    score: 'None'
+                    dateTimeSubmitted: sub.date && sub.time ? `${sub.date} ${sub.time}` : (sub.date || 'Missing'),
+                    score: 'Missing'
                 });
             });
 
@@ -241,8 +241,8 @@ const exportActivityResults = (exportType) => {
                     studentId: student.studentIdNumber,
                     name: formatStudentName(student.name),
                     status: 'Missing',
-                    dateTimeSubmitted: 'N/A',
-                    score: 'None'
+                    dateTimeSubmitted: 'Missing',
+                    score: 'Missing'
                 });
             });
 
