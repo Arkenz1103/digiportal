@@ -340,7 +340,7 @@ const loadClassrooms = async () => {
       classroomMap.set(c.id, {
         id: c.id,
         name: c.name,
-        student_count: c.students?.length || c.historical_student_count || 0,
+        student_count: c.student_count || c.students?.length || c.historical_student_count || 0,
         isAssigned: true,
         isArchived: c.is_archived || false
       });
@@ -360,7 +360,7 @@ const loadClassrooms = async () => {
             classroomMap.set(classroomId, {
               id: classroomResponse.data.id,
               name: classroomResponse.data.name,
-              student_count: classroomResponse.data.students?.length || classroomResponse.data.historical_student_count || 0,
+              student_count: classroomResponse.data.student_count || classroomResponse.data.students?.length || classroomResponse.data.historical_student_count || 0,
               isAssigned: false,
               isArchived: classroomResponse.data.is_archived || false
             });

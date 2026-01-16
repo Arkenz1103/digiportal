@@ -217,7 +217,15 @@ const loadPendingApprovals = async () => {
     isLoadingPending.value = true;
     try {
         console.log('🔄 Loading pending approvals...');
-        const response = await axios.get('/api/submissions/pending-approvals/');
+        
+        // Build URL with school year filter if in archived view mode
+        let url = '/api/submissions/pending-approvals/';
+        if (isArchivedViewMode.value && viewingArchivedSchoolYear.value?.name) {
+            url += `?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+            console.log('📂 Loading pending approvals for archived school year:', viewingArchivedSchoolYear.value.name);
+        }
+        
+        const response = await axios.get(url);
         console.log('📥 API Response:', response.data);
 
         if (response.data) {

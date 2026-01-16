@@ -30,11 +30,6 @@
                         <i class="pi pi-history"></i>
                         <span>Archives</span>
                     </button>
-                    <button @click="showNewSchoolYearModal = true"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all">
-                        <i class="pi pi-calendar-plus"></i>
-                        <span>New School Year</span>
-                    </button>
                     <button @click="openCreateFolderModal"
                         class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg">
                         <i class="pi pi-plus"></i>
@@ -156,20 +151,15 @@
         <!-- Create Subject Folder Modal -->
         <Dialog v-model:visible="showCreateFolderModal" modal header="Create Subject Folder" :style="{ width: '500px' }">
             <div class="space-y-4 p-2">
-                <!-- School Year Selection -->
+                <!-- School Year Display (text only) -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Select School Year</label>
-                    <Dropdown 
-                        v-model="newFolder.schoolYearId" 
-                        :options="allSchoolYearsForDropdown" 
-                        optionLabel="displayName" 
-                        optionValue="id"
-                        placeholder="Choose a school year" 
-                        class="w-full"
-                        @change="onSchoolYearChange"
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-2">School Year</label>
+                    <div class="px-3 py-2 bg-gray-100 rounded-lg border border-gray-200">
+                        <span class="text-gray-800 font-medium">{{ currentSchoolYear?.name || 'Not Set' }}</span>
+                        <span v-if="currentSchoolYear?.is_current" class="ml-2 text-xs text-green-600">(Current)</span>
+                    </div>
                 </div>
-                <!-- Class Selection (filtered by selected school year) -->
+                <!-- Class Selection (filtered by current school year, excludes assigned classroom) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Select Class</label>
                     <Dropdown 
@@ -179,9 +169,8 @@
                         optionValue="id"
                         placeholder="Choose a class" 
                         class="w-full"
-                        :disabled="!newFolder.schoolYearId"
                     />
-                    <p v-if="!newFolder.schoolYearId" class="text-xs text-gray-500 mt-1">Please select a school year first</p>
+                    <p v-if="classesForSelectedSchoolYear.length === 0" class="text-xs text-amber-600 mt-1">No other classrooms available. You can only create folders in your assigned classroom using the "Add Subject" button.</p>
                 </div>
                 <!-- Subject Name -->
                 <div>
@@ -663,26 +652,25 @@ const allSchoolYearsForDropdown = computed(() => {
 });
 
 // Classes filtered by selected school year for create modal
-// Excludes the teacher's assigned classroom (where teacher_id matches current user)
+// Classes filtered by current school year for create modal
+// Excludes the teacher's assigned classroom
 const classesForSelectedSchoolYear = computed(() => {
-    if (!newFolder.value.schoolYearId) {
+    if (!currentSchoolYear.value?.name) {
         return [];
     }
     
-    const selectedSY = allSchoolYearsForDropdown.value.find(sy => sy.id === newFolder.value.schoolYearId);
-    if (!selectedSY) return [];
-    
     return allClasses.value
-        .filter(c => c.school_year === selectedSY.name)
+        .filter(c => c.school_year === currentSchoolYear.value.name)
+        .filter(c => !c.is_archived)
         .filter(c => c.teacher_id !== currentUserId.value) // Exclude teacher's assigned classroom
         .map(c => ({
             ...c,
-            displayName: `${c.name} (${c.school_year})`
+            displayName: c.name
         }));
 });
 
 // Classes filtered by selected school year for edit modal
-// Excludes the teacher's assigned classroom (where teacher_id matches current user)
+// Shows all classrooms for the selected school year
 const classesForEditSchoolYear = computed(() => {
     if (!editFolder.value.schoolYearId) {
         return [];
@@ -693,7 +681,7 @@ const classesForEditSchoolYear = computed(() => {
     
     return allClasses.value
         .filter(c => c.school_year === selectedSY.name)
-        .filter(c => c.teacher_id !== currentUserId.value) // Exclude teacher's assigned classroom
+        .filter(c => !c.is_archived)
         .map(c => ({
             ...c,
             displayName: `${c.name} (${c.school_year})`

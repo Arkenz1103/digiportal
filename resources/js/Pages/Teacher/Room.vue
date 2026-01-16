@@ -75,7 +75,7 @@
                                     class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
                                 >
                                     <i class="pi pi-plus"></i>
-                                    <span>Create Class Activity</span>
+                                    <span>Create Class Subject</span>
                                 </button>
                             </div>
 

@@ -34,7 +34,12 @@ class SchoolYear(models.Model):
     @classmethod
     def get_current_for_teacher(cls, teacher):
         """Get the current active school year for a specific teacher"""
-        return cls.objects.filter(is_current=True, is_archived=False, teacher=teacher).first()
+        # First check for teacher's own school year
+        teacher_sy = cls.objects.filter(is_current=True, is_archived=False, teacher=teacher).first()
+        if teacher_sy:
+            return teacher_sy
+        # Fall back to global school year (created by admin, teacher=None)
+        return cls.objects.filter(is_current=True, is_archived=False, teacher__isnull=True).first()
 
     @classmethod
     def get_current(cls):
@@ -178,6 +183,100 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+    @classmethod
+    def generate_student_id(cls, grade_level):
+        """
+        Generate student ID based on school year batch and grade level.
+        Format: BBBXXX where BBB = batch prefix, XXX = sequence (001, 002, ...)
+        
+        The batch prefix is calculated as: (school_year_number - 1) * 6 + grade_level
+        - School Year 1: Grade 1=001, Grade 2=002, Grade 3=003, Grade 4=004, Grade 5=005, Grade 6=006
+        - School Year 2: Grade 1=007, Grade 2=008, Grade 3=009, Grade 4=010, Grade 5=011, Grade 6=012
+        - School Year 3: Grade 1=013, Grade 2=014, Grade 3=015, Grade 4=016, Grade 5=017, Grade 6=018
+        
+        The sequence (XXX) resets to 001 for each new school year batch.
+        """
+        # Parse grade level to get the number
+        grade_num = cls._parse_grade_level(grade_level)
+        if not grade_num or grade_num < 1 or grade_num > 6:
+            grade_num = 1  # Default to grade 1 if invalid
+        
+        # Get the current school year's batch number (1-based)
+        current_sy = SchoolYear.objects.filter(is_current=True, is_archived=False).first()
+        
+        if current_sy:
+            # Count school years to determine batch number
+            all_school_years = list(SchoolYear.objects.order_by('created_at').values_list('id', flat=True))
+            school_year_num = all_school_years.index(current_sy.id) + 1 if current_sy.id in all_school_years else 1
+        else:
+            school_year_num = 1  # Default to first school year if none exists
+        
+        # Calculate batch prefix: (school_year_num - 1) * 6 + grade_level
+        # SY1: G1=001, G2=002, G3=003, G4=004, G5=005, G6=006
+        # SY2: G1=007, G2=008, G3=009, G4=010, G5=011, G6=012
+        batch_prefix_num = (school_year_num - 1) * 6 + grade_num
+        batch_prefix = f"{batch_prefix_num:03d}"
+        
+        # Find the highest sequence number for this batch prefix
+        existing_ids = cls.objects.filter(
+            role='student',
+            id_number__startswith=batch_prefix
+        ).values_list('id_number', flat=True)
+        
+        max_seq = 0
+        for id_num in existing_ids:
+            if id_num and len(id_num) >= 6:
+                try:
+                    seq = int(id_num[3:6])
+                    if seq > max_seq:
+                        max_seq = seq
+                except (ValueError, IndexError):
+                    pass
+        
+        # Generate next sequence number
+        next_seq = max_seq + 1
+        return f"{batch_prefix}{next_seq:03d}"
+
+    @classmethod
+    def generate_teacher_id(cls):
+        """
+        Generate teacher ID.
+        Format: 00XXX where XXX = sequence starting from 101
+        Example: 00101, 00102, 00103, ...
+        """
+        # Find the highest teacher ID number
+        existing_ids = cls.objects.filter(
+            role='teacher',
+            id_number__startswith='00'
+        ).values_list('id_number', flat=True)
+        
+        max_seq = 100  # Start from 100 so first ID is 00101
+        for id_num in existing_ids:
+            if id_num and len(id_num) >= 5:
+                try:
+                    seq = int(id_num[2:5])
+                    if seq > max_seq:
+                        max_seq = seq
+                except (ValueError, IndexError):
+                    pass
+        
+        # Generate next sequence number
+        next_seq = max_seq + 1
+        return f"00{next_seq:03d}"
+
+    @staticmethod
+    def _parse_grade_level(grade_level):
+        """Parse grade level string to integer (1-6)"""
+        if not grade_level:
+            return None
+        
+        # Handle various formats: "1", "Grade 1", "grade1", etc.
+        grade_str = str(grade_level).lower().replace('grade', '').strip()
+        try:
+            return int(grade_str)
+        except ValueError:
+            return None
 
 
 class UserSettings(models.Model):

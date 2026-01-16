@@ -29,7 +29,10 @@
                             <!-- Role Selection -->
                             <div>
                                 <label class="block text-gray-700 text-xs font-semibold mb-2 uppercase">Select Role</label>
-                                <div class="grid grid-cols-2 gap-3">
+                                <div class="grid grid-cols-3 gap-3">
+                                    <button type="button" @click="form.role = 'admin'" :class="['py-3 px-4 rounded-lg border-2 font-semibold transition-all', form.role === 'admin' ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-gray-300 bg-gray-100 text-gray-700 hover:border-indigo-700']">
+                                        <i class="pi pi-shield mr-2"></i>Admin
+                                    </button>
                                     <button type="button" @click="form.role = 'teacher'" :class="['py-3 px-4 rounded-lg border-2 font-semibold transition-all', form.role === 'teacher' ? 'border-purple-700 bg-purple-700 text-white' : 'border-gray-300 bg-gray-100 text-gray-700 hover:border-purple-700']">
                                         <i class="pi pi-user mr-2"></i>Teacher
                                     </button>
@@ -207,6 +210,8 @@ const submitForm = async () => {
                     } else {
                         emit('navigate', 'StudentNewsfeed');
                     }
+                } else if (data.user.role === 'admin') {
+                    emit('navigate', 'AdminDashboard');
                 } else {
                     emit('navigate', 'Landing');
                 }

@@ -44,22 +44,6 @@
                             <p class="text-sm text-gray-600">Class Teacher</p>
                         </div>
                     </div>
-
-                    <!-- Archive Button -->
-                    <div class="border-t pt-6">
-                        <div class="flex items-start gap-4 p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4">
-                            <i class="pi pi-info-circle text-amber-600 text-xl mt-0.5"></i>
-                            <div>
-                                <p class="font-medium text-amber-800">Ready for a new school year?</p>
-                                <p class="text-sm text-amber-700 mt-1">Archive your current school year to join a new classroom. Your history will be saved.</p>
-                            </div>
-                        </div>
-                        <button @click="showArchiveConfirm = true"
-                            class="w-full flex items-center justify-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition-all">
-                            <i class="pi pi-history"></i>
-                            <span>Archive School Year</span>
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -409,6 +393,8 @@ const loadSchoolYearInfo = async () => {
             currentClassroom.value = data.current_classroom;
             history.value = data.history || [];
             console.log('✅ School year info loaded:', data);
+            console.log('📚 History count:', history.value.length);
+            console.log('📚 History data:', history.value);
         } else {
             const error = await response.json();
             showError(error.error || 'Failed to load school year info');

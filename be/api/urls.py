@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import admin_views
 
 print("✅ API URLs loaded/reloaded!")
 
@@ -155,4 +156,14 @@ urlpatterns = [
     path('api/student/archived-submissions/', views.student_archived_submissions_api, name='student_archived_submissions_api'),
     path('api/student/classroom/join/', views.student_join_classroom_api, name='student_join_classroom_api'),
     path('api/classroom/validate-code/', views.validate_class_code_api, name='validate_class_code_api'),
+
+    # Admin Management routes
+    path('api/admin/dashboard/', admin_views.admin_dashboard_api, name='admin_dashboard_api'),
+    path('api/admin/users/', admin_views.admin_users_api, name='admin_users_api'),
+    path('api/admin/users/<int:user_id>/', admin_views.admin_user_detail_api, name='admin_user_detail_api'),
+    path('api/admin/classrooms/', admin_views.admin_classrooms_api, name='admin_classrooms_api'),
+    path('api/admin/classrooms/<int:classroom_id>/assign-teacher/', admin_views.admin_assign_teacher_api, name='admin_assign_teacher_api'),
+    path('api/admin/school-years/', admin_views.admin_school_years_api, name='admin_school_years_api'),
+    path('api/admin/school-years/<int:school_year_id>/archive/', admin_views.admin_archive_school_year_api, name='admin_archive_school_year_api'),
+    path('api/admin/teachers/', admin_views.admin_teachers_list_api, name='admin_teachers_list_api'),
 ]

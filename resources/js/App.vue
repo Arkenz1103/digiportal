@@ -13,6 +13,9 @@
     <!-- Login Page -->
     <AuthLogin v-if="currentPage === 'Login'" @navigate="handleNavigation" />
 
+    <!-- Admin Pages -->
+    <AdminDashboard v-if="currentPage === 'AdminDashboard'" @navigate="handleNavigation" />
+
     <!-- Teacher Pages with MainLayout -->
     <MainLayout v-if="currentPage.startsWith('Teacher') || (currentPage === 'Profile' && userRole === 'teacher') || (currentPage === 'Settings' && userRole === 'teacher')" :currentPage="currentPage" @navigate="handleNavigation">
       <TeacherHome v-if="currentPage === 'TeacherHome'" @navigate="handleNavigation" />
@@ -80,6 +83,9 @@ import StudentProfile from './Pages/Student/Profile.vue'
 import StudentSettings from './Pages/Student/Settings.vue'
 import StudentSchoolYear from './Pages/Student/SchoolYear.vue'
 
+// Admin components
+import AdminDashboard from './Pages/Admin/Dashboard.vue'
+
 // Current page state - using route names from routes.js
 const currentPage = ref('Landing')
 const isLoggedIn = ref(false)
@@ -92,26 +98,39 @@ const handleNavigation = (page) => {
   // 🔒 SECURITY: Prevent role-based unauthorized access
   const currentRole = userRole.value || localStorage.getItem('digiportal_user_role');
 
-  // Block students from accessing teacher pages
-  if (currentRole === 'student' && page.startsWith('Teacher')) {
-    console.warn('🚫 Access Denied: Students cannot access teacher pages');
+  // Block students from accessing teacher/admin pages
+  if (currentRole === 'student' && (page.startsWith('Teacher') || page.startsWith('Admin'))) {
+    console.warn('🚫 Access Denied: Students cannot access teacher/admin pages');
     alert('Access Denied: You do not have permission to view this page.');
     return; // Don't navigate
   }
 
-  // Block teachers from accessing student pages
-  if (currentRole === 'teacher' && page.startsWith('Student')) {
-    console.warn('🚫 Access Denied: Teachers cannot access student pages');
+  // Block teachers from accessing student/admin pages
+  if (currentRole === 'teacher' && (page.startsWith('Student') || page.startsWith('Admin'))) {
+    console.warn('🚫 Access Denied: Teachers cannot access student/admin pages');
     alert('Access Denied: You do not have permission to view this page.');
+    return; // Don't navigate
+  }
+
+  // Block admin from accessing teacher/student pages (admin has separate dashboard)
+  if (currentRole === 'admin' && (page.startsWith('Teacher') || page.startsWith('Student'))) {
+    console.warn('🚫 Access Denied: Admin should use admin dashboard');
+    alert('Access Denied: Please use the admin dashboard.');
     return; // Don't navigate
   }
 
   currentPage.value = page
 
   // Save current page and login state to localStorage
-  if (page.startsWith('Teacher') || page.startsWith('Student')) {
+  if (page.startsWith('Teacher') || page.startsWith('Student') || page.startsWith('Admin')) {
     isLoggedIn.value = true
-    userRole.value = page.startsWith('Teacher') ? 'teacher' : 'student'
+    if (page.startsWith('Teacher')) {
+      userRole.value = 'teacher'
+    } else if (page.startsWith('Student')) {
+      userRole.value = 'student'
+    } else if (page.startsWith('Admin')) {
+      userRole.value = 'admin'
+    }
     localStorage.setItem('digiportal_logged_in', 'true')
     localStorage.setItem('digiportal_user_role', userRole.value)
     localStorage.setItem('digiportal_current_page', page)

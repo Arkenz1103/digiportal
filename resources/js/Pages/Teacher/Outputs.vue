@@ -890,7 +890,8 @@ const loadScoredSubmissions = async () => {
             });
 
             scoredSubmissionsData.value = filteredSubmissions.map(submission => {
-                const submittedDate = new Date(submission.scored_at || submission.submitted_at);
+                // Always use submitted_at for the date display (not scored_at)
+                const submittedDate = new Date(submission.submitted_at);
                 const dateStr = submittedDate.toLocaleDateString('en-PH', {
                     year: 'numeric',
                     month: 'short',
@@ -1274,10 +1275,20 @@ const validateCriterionScore = (criterion) => {
     }
 };
 
+// Helper function to check if a score is valid (including 0)
+const isValidScore = (score) => {
+    return score !== '' && score !== null && score !== undefined && !isNaN(score);
+};
+
+// Check if all criteria scores are valid
+const allCriteriaScoresValid = () => {
+    return criteriaScores.value.length > 0 && criteriaScores.value.every(c => isValidScore(c.score));
+};
+
 const saveScore = async () => {
-    // Validate that all criteria have scores
+    // Validate that all criteria have scores (including 0 as valid)
     const allScoresEntered = criteriaScores.value.every(criterion =>
-        criterion.score !== '' && criterion.score !== null && criterion.score !== undefined
+        criterion.score !== '' && criterion.score !== null && criterion.score !== undefined && !isNaN(criterion.score)
     );
 
     if (!selectedSubmission.value || !allScoresEntered) {
@@ -2706,8 +2717,8 @@ const getMedalDetails = (rank) => {
             <button
                 @click="saveScore"
                 class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                :disabled="criteriaScores.length === 0 || !criteriaScores.every(c => c.score !== '' && c.score !== null)"
-                :class="{ 'opacity-50 cursor-not-allowed': criteriaScores.length === 0 || !criteriaScores.every(c => c.score !== '' && c.score !== null) }"
+                :disabled="!allCriteriaScoresValid()"
+                :class="{ 'opacity-50 cursor-not-allowed': !allCriteriaScoresValid() }"
             >
                 {{ isEditingScore ? 'Update Score' : 'Confirm' }}
             </button>
