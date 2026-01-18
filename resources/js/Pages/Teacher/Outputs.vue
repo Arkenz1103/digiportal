@@ -429,6 +429,9 @@ const handleClassChange = (event) => {
 
 // Load selected activity on component mount
 onMounted(async () => {
+    // Check archived view mode
+    checkArchivedViewMode();
+    
     // Check if we're coming from a notification click
     const notificationContext = localStorage.getItem('notification_context');
     if (notificationContext) {
@@ -567,6 +570,24 @@ const searchQuery = ref(''); // Search filter for student name and ID
 const isLoadingSubmissions = ref(false);
 const isClassMembersLoaded = ref(false);
 const visibleIncompleteCount = ref(10); // Number of students to show initially in Incomplete tab
+
+// Archived View Mode State
+const isArchivedViewMode = ref(false);
+
+// Check if in archived view mode
+const checkArchivedViewMode = () => {
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            isArchivedViewMode.value = true;
+            console.log('📂 Outputs: Archived view mode active');
+        } catch (e) {
+            isArchivedViewMode.value = false;
+        }
+    } else {
+        isArchivedViewMode.value = false;
+    }
+};
 
 // Load class members from API
 const loadClassMembers = async () => {
@@ -2376,16 +2397,20 @@ const getMedalDetails = (rank) => {
                         <!-- Add Score Button (replaced with Edit Score if already scored) -->
                         <button
                             v-if="selectedSubmission.score !== null && selectedSubmission.score !== undefined"
-                            @click="editScore"
-                            class="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg font-medium flex items-center gap-2 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                            @click="isArchivedViewMode ? null : editScore()"
+                            :disabled="isArchivedViewMode"
+                            class="px-4 py-2 rounded-lg font-medium flex items-center gap-2 border transition-colors cursor-pointer"
+                            :class="isArchivedViewMode ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed' : 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'"
                         >
                             <i class="pi pi-pencil"></i>
                             <span>Edit Score</span>
                         </button>
                         <button
                             v-else
-                            @click="addScore"
-                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2"
+                            @click="isArchivedViewMode ? null : addScore()"
+                            :disabled="isArchivedViewMode"
+                            class="px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                            :class="isArchivedViewMode ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'"
                         >
                             <i class="pi pi-plus-circle"></i>
                             <span>Add Score</span>
@@ -2619,8 +2644,10 @@ const getMedalDetails = (rank) => {
                                                         class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                                                     Cancel
                                                 </button>
-                                                <button @click="saveRemarks"
-                                                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                                                <button @click="isArchivedViewMode ? null : saveRemarks()"
+                                                        :disabled="isArchivedViewMode"
+                                                        class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                                                        :class="isArchivedViewMode ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'text-white bg-indigo-600 hover:bg-indigo-700'">
                                                     {{ isEditingRemarks ? 'Update Remarks' : 'Save Remarks' }}
                                                 </button>
                                             </div>

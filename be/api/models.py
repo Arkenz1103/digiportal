@@ -178,6 +178,14 @@ class User(AbstractUser):
     classroom = models.ForeignKey(Classroom, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='students', limit_choices_to={'school_year': '2024-2025'})
 
+    # Alumni & Retired fields
+    is_archived = models.BooleanField(default=False)  # True if user is archived (alumni/retired)
+    archived_reason = models.CharField(max_length=100, blank=True, null=True)  # Graduate, Transfer Out, Retire, Resign
+    archived_notes = models.TextField(blank=True, null=True)  # Optional notes about archiving
+    archived_at = models.DateTimeField(null=True, blank=True)  # When user was archived
+    archived_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, 
+                                   related_name='archived_users')  # Admin who archived the user
+
     class Meta:
         db_table = 'users'
 
@@ -866,3 +874,31 @@ class Student(models.Model):
 
     def __str__(self):
         return f"{self.student_id} - {self.full_name} ({self.grade_section})"
+
+
+
+class PasswordRecoveryRequest(models.Model):
+    """Password recovery request model for forgot password functionality"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_recovery_requests')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_recovery_requests')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    temporary_password = models.CharField(max_length=128, default='password123')
+    
+    # ID Verification Photos
+    id_photo_front = models.ImageField(upload_to='id_verification/%Y/%m/%d/', null=True, blank=True)
+    id_photo_back = models.ImageField(upload_to='id_verification/%Y/%m/%d/', null=True, blank=True)
+    
+    class Meta:
+        db_table = 'password_recovery_requests'
+        ordering = ['-requested_at']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.status} ({self.requested_at.strftime('%Y-%m-%d %H:%M')})"

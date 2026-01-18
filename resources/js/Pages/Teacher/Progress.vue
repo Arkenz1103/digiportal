@@ -587,6 +587,28 @@ const activeFilter = ref('all');
 const studentRemarks = ref([]);
 const latestRemark = ref(null);
 
+// Archived View Mode State
+const isArchivedViewMode = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
+// Check if in archived view mode
+const checkArchivedViewMode = () => {
+    const savedArchivedView = localStorage.getItem('viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            viewingArchivedSchoolYear.value = JSON.parse(savedArchivedView);
+            isArchivedViewMode.value = true;
+            console.log('📂 Progress: Archived view mode:', viewingArchivedSchoolYear.value?.name);
+        } catch (e) {
+            isArchivedViewMode.value = false;
+            viewingArchivedSchoolYear.value = null;
+        }
+    } else {
+        isArchivedViewMode.value = false;
+        viewingArchivedSchoolYear.value = null;
+    }
+};
+
 // Load student submissions
 const loadStudentWork = async (studentId) => {
     isLoading.value = true;
@@ -609,10 +631,18 @@ const loadStudentWork = async (studentId) => {
     console.log('   Expected classroom match:', expectedClassroom);
 
     try {
-        // Load portfolio folders - only from current school year
-        const foldersResponse = await axios.get('/api/portfolio/folders/?current_school_year=true');
+        // Load portfolio folders - filter by school year based on archived mode
+        let foldersUrl = '/api/portfolio/folders/';
+        if (isArchivedViewMode.value && viewingArchivedSchoolYear.value?.name) {
+            foldersUrl += `?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+            console.log('📂 Loading folders for archived school year:', viewingArchivedSchoolYear.value.name);
+        } else {
+            foldersUrl += '?current_school_year=true';
+        }
+        
+        const foldersResponse = await axios.get(foldersUrl);
         portfolioFolders.value = foldersResponse.data || [];
-        console.log('📁 Loaded portfolio folders (current school year only):', portfolioFolders.value.length);
+        console.log('📁 Loaded portfolio folders:', portfolioFolders.value.length);
 
         const allRecords = [];
 
@@ -656,7 +686,13 @@ const loadStudentWork = async (studentId) => {
                     console.log(`   📝 Activity: ${activity.title} (ID: ${activity.id}, Classroom: ${activityClassroom}, Published: ${activity.is_published})`);
 
                     try {
-                        const submissionsResponse = await axios.get(`/api/activities/${activity.id}/submissions/`);
+                        // Build submissions URL with school year filter if in archived mode
+                        let submissionsUrl = `/api/activities/${activity.id}/submissions/`;
+                        if (isArchivedViewMode.value && viewingArchivedSchoolYear.value?.name) {
+                            submissionsUrl += `?school_year=${encodeURIComponent(viewingArchivedSchoolYear.value.name)}`;
+                        }
+                        
+                        const submissionsResponse = await axios.get(submissionsUrl);
                         const submissions = submissionsResponse.data || [];
                         console.log(`      Total submissions: ${submissions.length}`);
 
@@ -1093,6 +1129,9 @@ const handleClassChange = (event) => {
 
 onMounted(() => {
     console.log('Progress.vue mounted');
+    
+    // Check archived view mode
+    checkArchivedViewMode();
     
     // Reset profile image failed state
     profileImageFailed.value = false;

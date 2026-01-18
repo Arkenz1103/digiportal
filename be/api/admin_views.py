@@ -51,17 +51,17 @@ def admin_dashboard_api(request):
                 prefix_str = f"{prefix:03d}"
                 total_students += User.objects.filter(role='student', id_number__startswith=prefix_str).count()
         else:
-            # Current school year
+            # Current school year - show ALL users in the system
             current_sy = SchoolYear.objects.filter(is_current=True, is_archived=False).first()
             
+            # Count ALL students and teachers in the system
+            total_students = User.objects.filter(role='student').count()
+            total_teachers = User.objects.filter(role='teacher').count()
+            
+            # Count classrooms for current school year
             if current_sy:
-                current_classrooms = Classroom.objects.filter(school_year=current_sy.name, is_archived=False)
-                total_classrooms = current_classrooms.count()
-                total_students = User.objects.filter(role='student', classroom__school_year=current_sy.name).count()
-                total_teachers = current_classrooms.exclude(teacher__isnull=True).values('teacher').distinct().count()
+                total_classrooms = Classroom.objects.filter(school_year=current_sy.name, is_archived=False).count()
             else:
-                total_students = 0
-                total_teachers = User.objects.filter(role='teacher').count()
                 total_classrooms = 0
         
         total_activities = PortfolioActivity.objects.count()
@@ -115,7 +115,8 @@ def admin_users_api(request):
             show_all = request.query_params.get('all', 'false').lower() == 'true'
             school_year_filter = request.query_params.get('school_year', None)
             
-            users = User.objects.exclude(role='admin')
+            # Exclude admin users and archived users (alumni/retired)
+            users = User.objects.exclude(role='admin').filter(is_archived=False)
             
             if role_filter:
                 users = users.filter(role=role_filter)
@@ -149,16 +150,8 @@ def admin_users_api(request):
                     teacher_q = DjangoQ(role='teacher', taught_classrooms__in=sy_classrooms)
                     
                     users = users.filter(student_q | teacher_q).distinct()
-            elif not show_all:
-                # Current school year
-                current_sy = SchoolYear.objects.filter(is_current=True, is_archived=False).first()
-                if current_sy:
-                    current_classrooms = Classroom.objects.filter(school_year=current_sy.name, is_archived=False)
-                    from django.db.models import Q as DjangoQ
-                    users = users.filter(
-                        DjangoQ(role='student', classroom__in=current_classrooms) |
-                        DjangoQ(role='teacher', taught_classrooms__in=current_classrooms)
-                    ).distinct()
+            # When not viewing archived school year, show ALL users in the system
+            # This ensures students/teachers without classroom assignments are visible
             
             if search:
                 users = users.filter(
@@ -773,5 +766,322 @@ def admin_teachers_list_api(request):
             })
         
         return Response({'teachers': data, 'count': len(data)})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def admin_classroom_detail_api(request, classroom_id):
+    """GET: Get classroom details, PUT: Update classroom, DELETE: Delete classroom"""
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        classroom = Classroom.objects.get(id=classroom_id)
+    except Classroom.DoesNotExist:
+        return Response({'error': 'Classroom not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        return Response({
+            'id': classroom.id,
+            'name': classroom.name,
+            'grade_level': classroom.grade_level,
+            'section': classroom.section,
+            'school_year': classroom.school_year,
+            'class_code': classroom.class_code,
+            'teacher': {
+                'id': classroom.teacher.id,
+                'name': f"{classroom.teacher.first_name} {classroom.teacher.last_name}".strip(),
+            } if classroom.teacher else None,
+            'student_count': classroom.student_count,
+            'capacity': classroom.capacity,
+            'is_archived': classroom.is_archived,
+        })
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.data
+            
+            # Update grade level and section
+            if 'grade_level' in data:
+                classroom.grade_level = data['grade_level']
+            if 'section' in data:
+                classroom.section = data['section'].strip().upper()
+            
+            # Update name based on grade level and section
+            classroom.name = f"Grade {classroom.grade_level} - {classroom.section}"
+            
+            # Check for duplicate
+            existing = Classroom.objects.filter(
+                name=classroom.name, 
+                school_year=classroom.school_year
+            ).exclude(id=classroom.id).first()
+            if existing:
+                return Response({'error': f'Classroom {classroom.name} already exists for {classroom.school_year}'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Update teacher
+            if 'teacher_id' in data:
+                if data['teacher_id']:
+                    try:
+                        teacher = User.objects.get(id=data['teacher_id'], role='teacher')
+                        classroom.teacher = teacher
+                    except User.DoesNotExist:
+                        return Response({'error': 'Teacher not found'}, status=status.HTTP_404_NOT_FOUND)
+                else:
+                    classroom.teacher = None
+            
+            classroom.save()
+            
+            return Response({
+                'success': True,
+                'message': f'Classroom updated successfully',
+                'classroom': {
+                    'id': classroom.id,
+                    'name': classroom.name,
+                    'grade_level': classroom.grade_level,
+                    'section': classroom.section,
+                }
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'DELETE':
+        try:
+            # Check if classroom has students
+            if classroom.student_count > 0:
+                return Response({'error': 'Cannot delete classroom with enrolled students. Remove students first.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if classroom is archived
+            if classroom.is_archived:
+                return Response({'error': 'Cannot delete archived classroom.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            classroom_name = classroom.name
+            classroom.delete()
+            
+            return Response({'success': True, 'message': f'Classroom {classroom_name} deleted successfully'})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def admin_school_year_detail_api(request, school_year_id):
+    """GET: Get school year details, PUT: Update school year, DELETE: Delete school year"""
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        school_year = SchoolYear.objects.get(id=school_year_id)
+    except SchoolYear.DoesNotExist:
+        return Response({'error': 'School year not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        classrooms = Classroom.objects.filter(school_year=school_year.name)
+        return Response({
+            'id': school_year.id,
+            'name': school_year.name,
+            'is_current': school_year.is_current,
+            'is_archived': school_year.is_archived,
+            'classrooms_count': classrooms.count(),
+        })
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.data
+            old_name = school_year.name
+            
+            if 'name' in data:
+                new_name = data['name'].strip()
+                if not new_name:
+                    return Response({'error': 'School year name is required'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Check for duplicate
+                if new_name != old_name and SchoolYear.objects.filter(name=new_name).exists():
+                    return Response({'error': f'School year {new_name} already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                school_year.name = new_name
+                school_year.save()
+                
+                # Update all classrooms with the old school year name
+                Classroom.objects.filter(school_year=old_name).update(school_year=new_name)
+                
+                # Update StudentClassroomHistory records
+                StudentClassroomHistory.objects.filter(school_year=old_name).update(school_year=new_name)
+            
+            return Response({
+                'success': True,
+                'message': f'School year updated successfully',
+                'school_year': {
+                    'id': school_year.id,
+                    'name': school_year.name,
+                }
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'DELETE':
+        try:
+            # Check if school year has classrooms
+            classrooms = Classroom.objects.filter(school_year=school_year.name)
+            if classrooms.exists():
+                return Response({'error': 'Cannot delete school year with existing classrooms. Delete classrooms first or archive the school year.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if it's the current school year
+            if school_year.is_current:
+                return Response({'error': 'Cannot delete the current school year. Create a new school year first.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            school_year_name = school_year.name
+            school_year.delete()
+            
+            return Response({'success': True, 'message': f'School year {school_year_name} deleted successfully'})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def admin_archive_user_api(request, user_id):
+    """Archive a user (mark as alumni/retired)"""
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        if user.role == 'admin':
+            return Response({'error': 'Cannot archive admin users'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if user.is_archived:
+            return Response({'error': 'User is already archived'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get archive reason and notes from request
+        reason = request.data.get('reason', '')
+        notes = request.data.get('notes', '')
+        
+        # Archive the user
+        user.is_archived = True
+        user.archived_reason = reason
+        user.archived_notes = notes
+        user.archived_at = timezone.now()
+        user.archived_by = request.user
+        user.is_active = False  # Also mark as inactive
+        
+        # Unassign from classroom if student
+        if user.role == 'student' and user.classroom:
+            user.classroom = None
+            user.grade_level = None
+            user.section = None
+        
+        user.save()
+        
+        return Response({
+            'success': True,
+            'message': f'User {user.first_name} {user.last_name} archived successfully',
+            'user': {
+                'id': user.id,
+                'name': f"{user.first_name} {user.last_name}".strip(),
+                'archived_reason': user.archived_reason,
+            }
+        })
+        
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def admin_restore_user_api(request, user_id):
+    """Restore an archived user"""
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        if not user.is_archived:
+            return Response({'error': 'User is not archived'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Restore the user
+        user.is_archived = False
+        user.archived_reason = None
+        user.archived_notes = None
+        user.archived_at = None
+        user.archived_by = None
+        user.is_active = True  # Mark as active again
+        user.save()
+        
+        return Response({
+            'success': True,
+            'message': f'User {user.first_name} {user.last_name} restored successfully',
+            'user': {
+                'id': user.id,
+                'name': f"{user.first_name} {user.last_name}".strip(),
+            }
+        })
+        
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_archived_users_api(request):
+    """Get list of archived users (alumni & retired)"""
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        role_filter = request.query_params.get('role', None)
+        search = request.query_params.get('search', '')
+        
+        users = User.objects.filter(is_archived=True).exclude(role='admin')
+        
+        if role_filter:
+            users = users.filter(role=role_filter)
+        
+        if search:
+            users = users.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search) |
+                Q(id_number__icontains=search) |
+                Q(username__icontains=search)
+            )
+        
+        users = users.order_by('-archived_at')
+        
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                'role': user.role,
+                'id_number': user.id_number,
+                'archived_reason': user.archived_reason,
+                'archived_notes': user.archived_notes,
+                'archived_at': user.archived_at.isoformat() if user.archived_at else None,
+                'archived_by': {
+                    'id': user.archived_by.id,
+                    'name': f"{user.archived_by.first_name} {user.archived_by.last_name}".strip(),
+                } if user.archived_by else None,
+            })
+        
+        return Response({'users': users_data, 'count': len(users_data)})
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -10,6 +10,10 @@ const { showSuccess, showError, showInfo, showWarning } = useToast();
 // Define emits to suppress Vue warnings
 defineEmits(['navigate']);
 
+// Archived view mode state
+const isViewingArchived = ref(false);
+const viewingArchivedSchoolYear = ref(null);
+
 const canvas = ref(null);
 const ctx = ref(null);
 const isDrawing = ref(false);
@@ -73,6 +77,20 @@ const brushSizes = [
 ];
 
 onMounted(() => {
+    // Check if we're in archived view mode
+    const savedArchivedView = localStorage.getItem('student_viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            const archivedData = JSON.parse(savedArchivedView);
+            isViewingArchived.value = true;
+            viewingArchivedSchoolYear.value = archivedData;
+            console.log('📂 Sketch: Restored archived view mode:', archivedData.name);
+        } catch (e) {
+            console.error('Error parsing student archived view data:', e);
+            localStorage.removeItem('student_viewing_archived_school_year');
+        }
+    }
+    
     initCanvas();
     window.addEventListener('resize', initCanvas);
     window.addEventListener('keydown', handleKeyboard);
@@ -97,6 +115,12 @@ const initCanvas = () => {
 };
 
 const startDrawing = (e) => {
+    // Prevent drawing in archived mode
+    if (isViewingArchived.value) {
+        showWarning('Drawing is disabled in archived school year', 'Read-only Mode');
+        return;
+    }
+    
     const [x, y] = getCoordinates(e);
     
     if (currentTool.value === 'hand' && attachedImages.value.length > 0) {
@@ -763,18 +787,24 @@ const deleteSelectedImage = () => {
                     <h1 class="text-2xl font-bold text-indigo-900">Sketch Pad</h1>
                 </div>
                 <div class="flex items-center gap-3 w-full sm:w-auto">
-                    <button @click="clearCanvas" 
-                            class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all border border-indigo-200 hover:border-indigo-300">
+                    <button @click="isViewingArchived ? null : clearCanvas" 
+                            :disabled="isViewingArchived"
+                            class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all border"
+                            :class="isViewingArchived ? 'text-gray-400 bg-gray-100 border-gray-200 cursor-not-allowed' : 'text-indigo-700 hover:bg-indigo-50 border-indigo-200 hover:border-indigo-300'">
                         <i class="pi pi-trash"></i>
                         <span>Clear</span>
                     </button>
-                    <button @click="saveDrawing" 
-                            class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm">
+                    <button @click="isViewingArchived ? null : saveDrawing" 
+                            :disabled="isViewingArchived"
+                            class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all shadow-sm"
+                            :class="isViewingArchived ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'">
                         <i class="pi pi-download"></i>
                         <span>Save</span>
                     </button>
-                    <button @click="openPostToFeedModal"
-                            class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all shadow-sm">
+                    <button @click="isViewingArchived ? null : openPostToFeedModal"
+                            :disabled="isViewingArchived"
+                            class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all shadow-sm"
+                            :class="isViewingArchived ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'text-white bg-green-600 hover:bg-green-700'">
                         <i class="pi pi-send"></i>
                         <span>Post to Newsfeed</span>
                     </button>
@@ -788,13 +818,17 @@ const deleteSelectedImage = () => {
                     <div class="bg-indigo-50 rounded-xl p-2 flex flex-col gap-2 border border-indigo-100">
                         <button v-for="tool in tools" 
                                 :key="tool.id"
-                                @click="setTool(tool.id)"
-                                class="p-3 rounded-lg hover:bg-white transition-all relative group"
-                                :class="{ 'bg-white shadow-sm border border-indigo-200': currentTool === tool.id }">
+                                @click="isViewingArchived ? null : setTool(tool.id)"
+                                :disabled="isViewingArchived"
+                                class="p-3 rounded-lg transition-all relative group"
+                                :class="[
+                                    isViewingArchived ? 'cursor-not-allowed opacity-50' : 'hover:bg-white',
+                                    { 'bg-white shadow-sm border border-indigo-200': currentTool === tool.id && !isViewingArchived }
+                                ]">
                             <i :class="['pi', tool.icon, 'text-indigo-700', { 'text-indigo-600': currentTool === tool.id }]"></i>
                             
                             <!-- Tooltip - positioned to the right with higher z-index -->
-                            <div class="absolute left-full top-1/2 ml-3 px-3 py-1.5 bg-indigo-700 text-white text-xs rounded-lg 
+                            <div v-if="!isViewingArchived" class="absolute left-full top-1/2 ml-3 px-3 py-1.5 bg-indigo-700 text-white text-xs rounded-lg 
                                         whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none
                                         z-[100] shadow-lg transform -translate-y-1/2">
                                 {{ tool.name }}
@@ -938,8 +972,10 @@ const deleteSelectedImage = () => {
                             <div class="w-px h-6 bg-[#B6CFFF]"></div>
                             
                             <!-- Attach Photo -->
-                            <button @click="triggerFileInput" 
-                                    class="px-3 py-1.5 text-[#0E1836] hover:bg-[#B8AAFF]/10 rounded-lg transition-colors flex items-center gap-1">
+                            <button @click="isViewingArchived ? null : triggerFileInput" 
+                                    :disabled="isViewingArchived"
+                                    class="px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                    :class="isViewingArchived ? 'text-gray-400 cursor-not-allowed' : 'text-[#0E1836] hover:bg-[#B8AAFF]/10'">
                                 <i class="pi pi-image"></i>
                                 <span>Attach Photo</span>
                                 <span v-if="attachedImages.length > 0" class="ml-1 px-1.5 py-0.5 bg-indigo-600 text-white text-xs rounded-full">

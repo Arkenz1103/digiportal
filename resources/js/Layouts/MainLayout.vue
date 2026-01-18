@@ -1074,6 +1074,9 @@ const handleArchivedViewModeChange = (event) => {
 
 // Exit archived view mode from the banner
 const exitArchivedViewMode = () => {
+    console.log('🔄 Exiting archived view mode...');
+    
+    // Clear archived state immediately
     isViewingArchived.value = false;
     viewingArchivedSchoolYear.value = null;
     
@@ -1086,8 +1089,16 @@ const exitArchivedViewMode = () => {
         detail: { isViewing: false, schoolYear: null } 
     }));
     
-    // Reload current classrooms
-    loadClassrooms();
+    // Navigate based on user role
+    if (currentUser.value) {
+        if (currentUser.value.role === 'student') {
+            console.log('🔄 Student exiting archived mode, navigating to School Year page...');
+            navigateToPage('StudentSchoolYear');
+        } else if (currentUser.value.role === 'teacher') {
+            console.log('🔄 Teacher exiting archived mode, navigating to Manage Class page...');
+            navigateToPage('TeacherManageClass');
+        }
+    }
     
     console.log('📂 Exited archived view mode from banner');
 };

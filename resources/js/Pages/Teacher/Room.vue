@@ -182,8 +182,10 @@
                                 <div class="flex flex-wrap gap-2 ml-auto">
                                     <!-- Add Activity button -->
                                     <button
-                                        @click="showAddActivityDialog = true"
-                                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors duration-200"
+                                        @click="isArchivedViewMode ? null : (showAddActivityDialog = true)"
+                                        :disabled="isArchivedViewMode"
+                                        class="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200"
+                                        :class="isArchivedViewMode ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'"
                                     >
                                         <i class="pi pi-plus"></i>
                                         <span>Add Activity</span>
@@ -307,15 +309,15 @@
                                                         <div class="col-span-2 flex items-center justify-center gap-2">
                                                             <!-- Publish Button -->
                                                             <button
-                                                                @click.stop="submitActivity(activity, index)"
-                                                                :disabled="activity.is_published"
+                                                                @click.stop="isArchivedViewMode ? null : submitActivity(activity, index)"
+                                                                :disabled="activity.is_published || isArchivedViewMode"
                                                                 :class="[
                                                                     'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
-                                                                    activity.is_published
+                                                                    activity.is_published || isArchivedViewMode
                                                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                                         : 'bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow'
                                                                 ]"
-                                                                :title="activity.is_published ? 'Already published' : 'Publish to students'"
+                                                                :title="activity.is_published ? 'Already published' : isArchivedViewMode ? 'Cannot publish in archived mode' : 'Publish to students'"
                                                             >
                                                                 <i class="pi pi-send text-xs"></i>
                                                                 <span>Publish</span>
@@ -323,8 +325,10 @@
 
                                                             <!-- Edit Button - Always enabled for teachers -->
                                                             <button
-                                                                @click.stop="editActivity(activity, index)"
-                                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm hover:shadow"
+                                                                @click.stop="isArchivedViewMode ? null : editActivity(activity, index)"
+                                                                :disabled="isArchivedViewMode"
+                                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 shadow-sm hover:shadow"
+                                                                :class="isArchivedViewMode ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'"
                                                                 title="Edit activity"
                                                             >
                                                                 <i class="pi pi-pencil text-xs"></i>
@@ -434,15 +438,15 @@
                                                         <div class="col-span-2 flex items-center justify-center gap-2">
                                                             <!-- Retract Button -->
                                                             <button
-                                                                @click.stop="retractActivity(activity, index)"
-                                                                :disabled="!activity.is_published"
+                                                                @click.stop="isArchivedViewMode ? null : retractActivity(activity, index)"
+                                                                :disabled="!activity.is_published || isArchivedViewMode"
                                                                 :class="[
                                                                     'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150',
-                                                                    !activity.is_published
+                                                                    !activity.is_published || isArchivedViewMode
                                                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                                         : 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm hover:shadow'
                                                                 ]"
-                                                                :title="!activity.is_published ? 'Not published' : 'Retract from students'"
+                                                                :title="!activity.is_published ? 'Not published' : isArchivedViewMode ? 'Cannot retract in archived mode' : 'Retract from students'"
                                                             >
                                                                 <i class="pi pi-undo text-xs"></i>
                                                                 <span>Retract</span>
@@ -473,8 +477,10 @@
                             <div class="text-center">
                                 <!-- Show Start button if not active -->
                                 <button
-                                    @click="showPortfolioCompilationDialog = true"
-                                    class="px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                                    @click="isArchivedViewMode ? null : (showPortfolioCompilationDialog = true)"
+                                    :disabled="isArchivedViewMode"
+                                    class="px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                                    :class="isArchivedViewMode ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'"
                                 >
                                     <i class="pi pi-book mr-2"></i>
                                     Start Portfolio Compilation

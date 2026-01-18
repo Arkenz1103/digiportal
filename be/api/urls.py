@@ -9,6 +9,7 @@ urlpatterns = [
     path('', views.landing, name='landing'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('forgot-password/', views.forgot_password_view, name='forgot_password'),
 
     # Teacher routes
     path('teacher/home/', views.teacher_home, name='teacher_home'),
@@ -161,9 +162,21 @@ urlpatterns = [
     path('api/admin/dashboard/', admin_views.admin_dashboard_api, name='admin_dashboard_api'),
     path('api/admin/users/', admin_views.admin_users_api, name='admin_users_api'),
     path('api/admin/users/<int:user_id>/', admin_views.admin_user_detail_api, name='admin_user_detail_api'),
+    path('api/admin/users/<int:user_id>/archive/', admin_views.admin_archive_user_api, name='admin_archive_user_api'),
+    path('api/admin/users/<int:user_id>/restore/', admin_views.admin_restore_user_api, name='admin_restore_user_api'),
+    path('api/admin/archived-users/', admin_views.admin_archived_users_api, name='admin_archived_users_api'),
     path('api/admin/classrooms/', admin_views.admin_classrooms_api, name='admin_classrooms_api'),
+    path('api/admin/classrooms/<int:classroom_id>/', admin_views.admin_classroom_detail_api, name='admin_classroom_detail_api'),
     path('api/admin/classrooms/<int:classroom_id>/assign-teacher/', admin_views.admin_assign_teacher_api, name='admin_assign_teacher_api'),
     path('api/admin/school-years/', admin_views.admin_school_years_api, name='admin_school_years_api'),
+    path('api/admin/school-years/<int:school_year_id>/', admin_views.admin_school_year_detail_api, name='admin_school_year_detail_api'),
     path('api/admin/school-years/<int:school_year_id>/archive/', admin_views.admin_archive_school_year_api, name='admin_archive_school_year_api'),
     path('api/admin/teachers/', admin_views.admin_teachers_list_api, name='admin_teachers_list_api'),
+    
+    # Password Recovery API routes
+    path('api/password-recovery/find-account/', views.find_account_api, name='find_account_api'),
+    path('api/password-recovery/request/', views.request_password_recovery_api, name='request_password_recovery_api'),
+    path('api/password-recovery/requests/', views.list_recovery_requests_api, name='list_recovery_requests_api'),
+    path('api/password-recovery/approve/<int:request_id>/', views.approve_recovery_request_api, name='approve_recovery_request_api'),
+    path('api/password-recovery/reject/<int:request_id>/', views.reject_recovery_request_api, name='reject_recovery_request_api'),
 ]

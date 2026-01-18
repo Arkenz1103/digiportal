@@ -1546,8 +1546,11 @@
                           <button
                             v-else
                             @click.stop="compileActivity(activity)"
-                            class="ml-4 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
-                          >
+                            :disabled="isViewingArchived"
+                            class="ml-4 px-6 py-3 font-semibold rounded-lg transition-all shadow-lg flex items-center gap-2"
+                            :class="isViewingArchived 
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                              : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl'">
                             <i class="pi pi-upload"></i>
                             Compile Now
                           </button>
@@ -1613,7 +1616,13 @@
               </div>
               <h2 class="text-2xl font-bold text-gray-800">Portfolio Compilation Ready</h2>
               <p class="text-gray-600 mt-3 max-w-md mx-auto">Your teacher has requested you to start compiling your portfolio. Click the button below to begin organizing your work and achievements.</p>
-              <button @click="startPortfolioCompilation" class="w-full sm:w-auto mt-8 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 transform hover:scale-105 mx-auto">
+              <button 
+                @click="startPortfolioCompilation" 
+                :disabled="isViewingArchived"
+                class="w-full sm:w-auto mt-8 px-8 py-4 font-bold rounded-lg transition-all shadow-lg flex items-center justify-center gap-3 transform mx-auto"
+                :class="isViewingArchived 
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl hover:scale-105'">
                 <i class="pi pi-play-circle text-xl"></i>
                 <span>Start Portfolio Compilation</span>
               </button>
@@ -3322,9 +3331,9 @@
           </button>
           <button
             @click="submitCompileNowWork"
-            :disabled="isSubmitting || compileNowFiles.length === 0"
-            class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+            :disabled="isSubmitting || compileNowFiles.length === 0 || isViewingArchived"
+            class="px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="isViewingArchived ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'">
             <i v-if="isSubmitting" class="pi pi-spin pi-spinner"></i>
             <i v-else class="pi pi-check"></i>
             <span>{{ isSubmitting ? 'Submitting...' : 'Submit' }}</span>

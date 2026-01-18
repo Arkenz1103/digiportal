@@ -116,10 +116,12 @@
                 </h3>
                 <div v-if="selectedStudent" class="flex gap-2">
                   <button
-                    @click="showAddRemarkDialog = true"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200
-                           bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-700 hover:to-blue-700
-                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    @click="isArchivedViewMode ? null : (showAddRemarkDialog = true)"
+                    :disabled="isArchivedViewMode"
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    :class="isArchivedViewMode 
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-700 hover:to-blue-700'">
                     <i class="pi pi-plus"></i>
                     <span>Add Remark</span>
                   </button>
@@ -130,7 +132,7 @@
             <div class="p-4">
               <div v-if="selectedStudent" class="space-y-4">
                 <!-- Add Remark Section -->
-                <div class="bg-gradient-to-br from-indigo-50 to-violet-50 p-4 rounded-xl border-2 border-indigo-200 shadow-sm">
+                <div v-if="!isArchivedViewMode" class="bg-gradient-to-br from-indigo-50 to-violet-50 p-4 rounded-xl border-2 border-indigo-200 shadow-sm">
                   <Textarea
                     v-model="newRemark"
                     rows="3"

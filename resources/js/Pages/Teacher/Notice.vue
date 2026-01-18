@@ -850,15 +850,21 @@ const cancelRejection = () => {
                     />
                     <Button
                         label="Reject"
+                        :disabled="isArchivedViewMode"
                         class="p-button-danger p-button-sm"
-                        style="background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;"
-                        @click="showRejectionReasonsDialog"
+                        :style="isArchivedViewMode 
+                            ? 'background: #d1d5db; border: none; color: #9ca3af; cursor: not-allowed;' 
+                            : 'background: linear-gradient(to right, #dc2626, #ef4444); border: none; color: white;'"
+                        @click="isArchivedViewMode ? null : showRejectionReasonsDialog()"
                     />
                     <Button
                         label="Approve"
+                        :disabled="isArchivedViewMode"
                         class="p-button-sm"
-                        style="background: linear-gradient(to right, #4f46e5, #6366f1); border: none; color: white;"
-                        @click="showApprovalConfirmDialog"
+                        :style="isArchivedViewMode 
+                            ? 'background: #d1d5db; border: none; color: #9ca3af; cursor: not-allowed;' 
+                            : 'background: linear-gradient(to right, #4f46e5, #6366f1); border: none; color: white;'"
+                        @click="isArchivedViewMode ? null : showApprovalConfirmDialog()"
                     />
                 </div>
             </template>

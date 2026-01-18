@@ -49,7 +49,7 @@
 
             <!-- No Classroom - Join Section -->
             <div v-else class="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
+                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6" :class="{ 'opacity-50': isViewingArchived }">
                     <div class="flex items-center gap-4">
                         <div class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
                             <i class="pi pi-sign-in text-2xl text-white"></i>
@@ -61,7 +61,7 @@
                     </div>
                 </div>
                 
-                <div class="p-6">
+                <div class="p-6" :class="{ 'opacity-50 pointer-events-none': isViewingArchived }">
                     <!-- Class Code Input -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Class Code</label>
@@ -73,13 +73,14 @@
                                 :class="{ 'p-invalid': codeError }"
                                 maxlength="6"
                                 @input="validateCode"
+                                :disabled="isViewingArchived"
                             />
                             <Button 
                                 label="Validate" 
                                 icon="pi pi-search"
                                 @click="validateClassCode"
                                 :loading="isValidating"
-                                :disabled="classCode.length !== 6"
+                                :disabled="classCode.length !== 6 || isViewingArchived"
                                 class="bg-indigo-600 hover:bg-indigo-700"
                             />
                         </div>
@@ -150,13 +151,15 @@
                                 </div>
                                 <button @click="confirmViewArchived(item)"
                                     class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all"
-                                    :class="item.classroom_id 
-                                        ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
-                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
-                                    :disabled="!item.classroom_id"
-                                    :title="item.classroom_id ? 'View archived data' : 'Classroom no longer exists'">
+                                    :class="[
+                                        !item.classroom_id || (isViewingArchived && viewingArchivedSchoolYear?.school_year === item.school_year)
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                    ]"
+                                    :disabled="!item.classroom_id || (isViewingArchived && viewingArchivedSchoolYear?.school_year === item.school_year)"
+                                    :title="!item.classroom_id ? 'Classroom no longer exists' : (isViewingArchived && viewingArchivedSchoolYear?.school_year === item.school_year) ? 'Currently viewing this school year' : 'View archived data'">
                                     <i class="pi pi-eye text-sm"></i>
-                                    <span>View</span>
+                                    <span>{{ (isViewingArchived && viewingArchivedSchoolYear?.school_year === item.school_year) ? 'Viewing' : 'View' }}</span>
                                 </button>
                             </div>
                         </div>
@@ -340,6 +343,8 @@ const showArchiveConfirm = ref(false);
 const showJoinConfirm = ref(false);
 
 // Archived view state
+const isViewingArchived = ref(false);
+const viewingArchivedSchoolYear = ref(null);
 const showArchivedModal = ref(false);
 const selectedArchivedItem = ref(null);
 const archivedSubmissions = ref([]);
@@ -626,6 +631,20 @@ const enterArchivedViewMode = (item) => {
 };
 
 onMounted(() => {
+    // Check if we're in archived view mode
+    const savedArchivedView = localStorage.getItem('student_viewing_archived_school_year');
+    if (savedArchivedView) {
+        try {
+            const archivedData = JSON.parse(savedArchivedView);
+            isViewingArchived.value = true;
+            viewingArchivedSchoolYear.value = archivedData;
+            console.log('📂 SchoolYear: Restored archived view mode:', archivedData.name);
+        } catch (e) {
+            console.error('Error parsing student archived view data:', e);
+            localStorage.removeItem('student_viewing_archived_school_year');
+        }
+    }
+    
     loadSchoolYearInfo();
 });
 </script>

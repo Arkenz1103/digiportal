@@ -13,6 +13,9 @@
     <!-- Login Page -->
     <AuthLogin v-if="currentPage === 'Login'" @navigate="handleNavigation" />
 
+    <!-- Forgot Password Page -->
+    <ForgotPassword v-if="currentPage === 'ForgotPassword'" @navigate="handleNavigation" />
+
     <!-- Admin Pages -->
     <AdminDashboard v-if="currentPage === 'AdminDashboard'" @navigate="handleNavigation" />
 
@@ -54,6 +57,7 @@ import { ref, onMounted } from 'vue'
 import Toast from 'primevue/toast'
 import Landing from './Pages/Landing.vue'
 import AuthLogin from './Pages/Auth/Login.vue'
+import ForgotPassword from './Pages/ForgotPassword.vue'
 import MainLayout from './Layouts/MainLayout.vue'
 
 // Teacher components
@@ -149,6 +153,7 @@ const handleNavigation = (page) => {
   const titles = {
     'Landing': 'DigiPortal | Digital Portfolio & Learning Management',
     'Login': 'Sign In | DigiPortal',
+    'ForgotPassword': 'Forgot Password | DigiPortal',
     'TeacherHome': 'Dashboard | DigiPortal Teacher',
     'TeacherClassroom': 'My Classroom | DigiPortal',
     'TeacherRoom': 'Classroom Management | DigiPortal',
@@ -177,6 +182,7 @@ const handleNavigation = (page) => {
   const urlMap = {
     'Landing': '/',
     'Login': '/login',
+    'ForgotPassword': '/forgot-password',
     'TeacherHome': '/teacher/home',
     'TeacherClassroom': '/teacher/classroom',
     'TeacherRoom': '/teacher/room',
@@ -265,6 +271,23 @@ onMounted(() => {
       'StudentArchived': 'Archive | DigiPortal'
     }
     document.title = titles[savedCurrentPage] || 'DigiPortal | Digital Learning Platform'
+  } else {
+    // No saved session - determine page based on current URL
+    if (currentPath === '/login') {
+      currentPage.value = 'Login'
+      document.title = 'Sign In | DigiPortal'
+    } else if (currentPath === '/forgot-password') {
+      currentPage.value = 'ForgotPassword'
+      document.title = 'Forgot Password | DigiPortal'
+    } else if (currentPath === '/') {
+      currentPage.value = 'Landing'
+      document.title = 'DigiPortal | Digital Portfolio & Learning Management'
+    }
+    // If on any other path without session, redirect to landing
+    else if (currentPath.startsWith('/teacher') || currentPath.startsWith('/student') || currentPath.startsWith('/admin')) {
+      console.warn('No session found, redirecting to landing page');
+      window.location.href = '/';
+    }
   }
 })
 

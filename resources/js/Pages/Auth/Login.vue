@@ -31,13 +31,13 @@
                                 <label class="block text-gray-700 text-xs font-semibold mb-2 uppercase">Select Role</label>
                                 <div class="grid grid-cols-3 gap-3">
                                     <button type="button" @click="form.role = 'admin'" :class="['py-3 px-4 rounded-lg border-2 font-semibold transition-all', form.role === 'admin' ? 'border-indigo-700 bg-indigo-700 text-white' : 'border-gray-300 bg-gray-100 text-gray-700 hover:border-indigo-700']">
-                                        <i class="pi pi-shield mr-2"></i>Admin
+                                        Admin
                                     </button>
                                     <button type="button" @click="form.role = 'teacher'" :class="['py-3 px-4 rounded-lg border-2 font-semibold transition-all', form.role === 'teacher' ? 'border-purple-700 bg-purple-700 text-white' : 'border-gray-300 bg-gray-100 text-gray-700 hover:border-purple-700']">
-                                        <i class="pi pi-user mr-2"></i>Teacher
+                                        Teacher
                                     </button>
                                     <button type="button" @click="form.role = 'student'" :class="['py-3 px-4 rounded-lg border-2 font-semibold transition-all', form.role === 'student' ? 'border-purple-700 bg-purple-700 text-white' : 'border-gray-300 bg-gray-100 text-gray-700 hover:border-purple-700']">
-                                        <i class="pi pi-users mr-2"></i>Student
+                                        Student
                                     </button>
                                 </div>
                             </div>
@@ -48,7 +48,7 @@
                             </div>
                             <div>
                                 <div class="relative">
-                                    <input :type="showPassword ? 'text' : 'password'" v-model="form.password" placeholder="Password" :class="['w-full px-4 py-3 bg-gray-100 border rounded-lg focus:outline-none focus:ring-2 transition-all pr-10', form.errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500']" />
+                                    <input :type="showPassword ? 'text' : 'password'" v-model="form.password" placeholder="Password" autocomplete="current-password" :class="['w-full px-4 py-3 bg-gray-100 border rounded-lg focus:outline-none focus:ring-2 transition-all pr-10', form.errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500']" />
                                     <button type="button" @click="showPassword = !showPassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
                                         <i :class="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
                                     </button>
@@ -60,7 +60,7 @@
                                     <input type="checkbox" v-model="form.remember" class="w-4 h-4 accent-purple-700" />
                                     <span class="text-gray-600">Remember me</span>
                                 </label>
-                                <a href="#" class="text-purple-700 font-semibold hover:underline">Forgot Your Password?</a>
+                                <button type="button" @click="goToForgotPassword" class="text-purple-700 font-semibold hover:underline">Forgot Your Password?</button>
                             </div>
                             <button type="submit" :disabled="form.processing" :class="['w-full py-3 bg-gradient-to-r from-purple-700 to-purple-900 text-white font-bold rounded-lg transition-all duration-300 uppercase text-sm tracking-wider flex items-center justify-center gap-2', form.processing ? 'opacity-90 scale-95' : 'hover:shadow-lg hover:scale-105 active:scale-95']">
                                 <span v-if="form.processing" class="inline-block animate-spin">
@@ -97,6 +97,23 @@
     </div>
 </template>
 
+<style scoped>
+/* Hide browser's native password toggle */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-strong-password-auto-fill-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* Ensure our custom toggle is properly positioned */
+.relative input[type="password"] {
+    padding-right: 2.5rem !important;
+}
+</style>
+
 <script setup>
 import { ref, reactive } from 'vue';
 
@@ -130,6 +147,10 @@ const showToast = (message, type = 'error') => {
 
 const goToLanding = () => {
     emit('navigate', 'Landing');
+};
+
+const goToForgotPassword = () => {
+    emit('navigate', 'ForgotPassword');
 };
 
 const getCsrfToken = () => {

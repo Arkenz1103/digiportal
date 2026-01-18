@@ -150,16 +150,22 @@
 
                     <!-- Action Buttons -->
                     <div class="px-6 py-3 border-t-2 border-teal-50 flex items-center gap-2">
-                        <button @click="toggleLike(post)"
+                        <button @click="isArchivedViewMode ? null : toggleLike(post)"
+                            :disabled="isArchivedViewMode"
                             class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-200"
-                            :class="post.isLiked
+                            :class="[
+                                isArchivedViewMode ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
+                                post.isLiked
                                 ? 'bg-gradient-to-r from-red-50 to-pink-50 text-red-600 hover:from-red-100 hover:to-pink-100 border border-red-200'
-                                : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 hover:from-teal-100 hover:to-cyan-100 border border-teal-200'">
+                                : 'bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 hover:from-teal-100 hover:to-cyan-100 border border-teal-200'
+                            ]">
                             <i class="pi text-lg" :class="post.isLiked ? 'pi-heart-fill' : 'pi-heart'"></i>
                         </button>
 
-                        <button @click="toggleComments(post)"
-                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 hover:from-cyan-100 hover:to-blue-100 border border-cyan-200 transition-all duration-200">
+                        <button @click="isArchivedViewMode ? null : toggleComments(post)"
+                            :disabled="isArchivedViewMode"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all duration-200"
+                            :class="isArchivedViewMode ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 hover:from-cyan-100 hover:to-blue-100 border border-cyan-200'">
                             <i class="pi pi-comment text-lg"></i>
                             <span>Comment</span>
                         </button>
@@ -182,11 +188,19 @@
                                     </div>
                                     <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
                                         <span>{{ comment.timestamp }}</span>
-                                        <button @click="toggleCommentLike(post, comment)" class="hover:text-red-600 font-semibold transition-colors flex items-center gap-1">
+                                        <button @click="isArchivedViewMode ? null : toggleCommentLike(post, comment)" 
+                                            :disabled="isArchivedViewMode"
+                                            class="font-semibold transition-colors flex items-center gap-1"
+                                            :class="isArchivedViewMode ? 'text-gray-400 cursor-not-allowed' : 'hover:text-red-600'">
                                             <i class="pi text-xs" :class="comment.isLiked ? 'pi-heart-fill text-red-500' : 'pi-heart'"></i>
                                             <span v-if="comment.likes > 0">{{ comment.likes }}</span>
                                         </button>
-                                        <button @click="toggleReplyInput(comment)" class="hover:text-cyan-600 font-semibold transition-colors">Reply</button>
+                                        <button @click="isArchivedViewMode ? null : toggleReplyInput(comment)" 
+                                            :disabled="isArchivedViewMode"
+                                            class="font-semibold transition-colors"
+                                            :class="isArchivedViewMode ? 'text-gray-400 cursor-not-allowed' : 'hover:text-cyan-600'">
+                                            Reply
+                                        </button>
                                     </div>
                                     <!-- Reply Input -->
                                     <div v-if="comment.showReplyInput" class="mt-3 flex items-start gap-2">
@@ -234,7 +248,7 @@
                         </div>
 
                         <!-- Add Comment Input -->
-                        <div class="mt-4 flex items-start gap-3">
+                        <div v-if="!isArchivedViewMode" class="mt-4 flex items-start gap-3">
                             <div class="bg-gradient-to-br from-teal-600 to-cyan-600 w-10 h-10 flex items-center justify-center rounded-full text-white font-bold text-sm flex-shrink-0 ring-2 ring-teal-200 shadow-lg">
                                 T
                             </div>

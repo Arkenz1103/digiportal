@@ -89,6 +89,12 @@ def logout_view(request):
     return redirect('login')
 
 
+@require_http_methods(["GET"])
+def forgot_password_view(request):
+    """Forgot password view - accessible without authentication"""
+    return inertia_render(request, 'ForgotPassword')
+
+
 @csrf_exempt
 @csrf_exempt
 @api_view(['POST'])
@@ -1685,6 +1691,22 @@ def activity_submissions_api(request, activity_id):
     if request.method == 'GET':
         # Check if requesting drafts only
         include_drafts = request.GET.get('include_drafts', 'false').lower() == 'true'
+        
+        # Check if filtering by school year (for archived view)
+        school_year_name = request.GET.get('school_year', None)
+        school_year_obj = None
+        if school_year_name:
+            try:
+                # Get the school year object to access date range
+                school_year_obj = SchoolYear.objects.filter(name=school_year_name, teacher=request.user).first()
+                if not school_year_obj:
+                    # Try global school year
+                    school_year_obj = SchoolYear.objects.filter(name=school_year_name, teacher__isnull=True).first()
+                print(f"🗓️ School year filter: {school_year_name}, Found: {school_year_obj is not None}")
+                if school_year_obj:
+                    print(f"   Date range: {school_year_obj.start_date} to {school_year_obj.end_date}")
+            except Exception as e:
+                print(f"❌ Error loading school year: {e}")
 
         # Teachers see all submissions FROM THEIR CLASSROOM, students see only their own
         if request.user.role == 'teacher':
@@ -1700,32 +1722,21 @@ def activity_submissions_api(request, activity_id):
             if activity_classroom and activity_classroom.is_archived:
                 from .models import StudentPromotionHistory
                 
-                # Get student IDs from promotion history (students who were in this classroom)
-                promotion_student_ids = StudentPromotionHistory.objects.filter(
-                    previous_classroom=activity_classroom
-                ).values_list('student_id', flat=True).distinct()
+                print(f"📚 Archived classroom - Loading ALL submissions for this activity")
                 
-                # Also include students still assigned (shouldn't happen but just in case)
-                current_student_ids = User.objects.filter(
-                    classroom=activity_classroom, role='student'
-                ).values_list('id', flat=True)
-                
-                # Combine both sets
-                all_student_ids = set(promotion_student_ids) | set(current_student_ids)
-                
-                print(f"📚 Archived classroom - Loading submissions from {len(all_student_ids)} historical students")
-                
-                # Get submissions from these students for this activity
+                # For archived classrooms, load ALL submissions for this activity
+                # Don't filter by student IDs - the activity is already in an archived classroom
+                # so all submissions are valid historical data
                 if include_drafts:
                     all_submissions = StudentSubmission.objects.filter(
-                        activity=activity,
-                        student_id__in=all_student_ids
+                        activity=activity
                     ).order_by('-submitted_at')
                 else:
                     all_submissions = StudentSubmission.objects.filter(
-                        activity=activity,
-                        student_id__in=all_student_ids
+                        activity=activity
                     ).exclude(status='draft').order_by('-submitted_at')
+                
+                print(f"📊 Total submissions found: {all_submissions.count()}")
             else:
                 # Non-archived classroom - use current classroom assignment
                 # Teachers see only final submissions (not drafts) unless specifically requested
@@ -1740,6 +1751,8 @@ def activity_submissions_api(request, activity_id):
                         activity=activity,
                         student__classroom=activity_classroom  # Filter by classroom
                     ).exclude(status='draft').order_by('-submitted_at')
+                
+                print(f"📊 Total submissions found: {all_submissions.count()}")
 
             # If scored_only is requested, filter to only scored submissions
             if show_scored_only:
@@ -10501,3 +10514,268 @@ def validate_class_code_api(request):
         
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+# ============ Password Recovery Views ============
+
+@csrf_exempt
+@csrf_exempt
+@api_view(['POST'])
+def find_account_api(request):
+    """
+    Find user account by ID number or email for password recovery
+    """
+    identifier = request.data.get('identifier', '').strip()
+    
+    if not identifier:
+        return Response({'error': 'Please provide an ID number or email'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Try to find user by id_number or email only
+        user = None
+        try:
+            # First try by id_number
+            user = User.objects.get(id_number=identifier)
+        except User.DoesNotExist:
+            try:
+                # Then try by email
+                user = User.objects.get(email=identifier)
+            except User.DoesNotExist:
+                return Response({'error': 'Account not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if user is admin (admins cannot request password recovery)
+        if user.role == 'admin':
+            return Response({'error': 'Admin accounts cannot use password recovery'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if there's an existing recovery request
+        from .models import PasswordRecoveryRequest
+        existing_request = PasswordRecoveryRequest.objects.filter(user=user).order_by('-requested_at').first()
+        
+        response_data = {
+            'found': True,
+            'user_id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'id_number': user.id_number,
+            'name': user.get_full_name() or user.username,
+            'role': user.role,
+        }
+        
+        if existing_request:
+            response_data['has_request'] = True
+            response_data['request_status'] = existing_request.status
+            response_data['requested_at'] = existing_request.requested_at.isoformat()
+            
+            if existing_request.status == 'approved':
+                response_data['temporary_password'] = existing_request.temporary_password
+                response_data['approved_at'] = existing_request.approved_at.isoformat() if existing_request.approved_at else None
+        else:
+            response_data['has_request'] = False
+        
+        return Response(response_data)
+        
+    except Exception as e:
+        print(f"❌ Error finding account: {e}")
+        return Response({'error': 'An error occurred while searching for the account'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def request_password_recovery_api(request):
+    """
+    Create a password recovery request with ID verification photos
+    """
+    user_id = request.data.get('user_id')
+    id_photo_front = request.FILES.get('id_photo_front')
+    id_photo_back = request.FILES.get('id_photo_back')
+    
+    if not user_id:
+        return Response({'error': 'User ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate photos are provided
+    if not id_photo_front or not id_photo_back:
+        return Response({'error': 'Both front and back photos of your ID are required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate file types
+    allowed_types = ['image/jpeg', 'image/jpg', 'image/png']
+    if id_photo_front.content_type not in allowed_types:
+        return Response({'error': 'Front photo must be a JPG or PNG image'}, status=status.HTTP_400_BAD_REQUEST)
+    if id_photo_back.content_type not in allowed_types:
+        return Response({'error': 'Back photo must be a JPG or PNG image'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate file sizes (10MB = 10 * 1024 * 1024 bytes)
+    max_size = 10 * 1024 * 1024
+    if id_photo_front.size > max_size:
+        return Response({'error': 'Front photo must be less than 10MB'}, status=status.HTTP_400_BAD_REQUEST)
+    if id_photo_back.size > max_size:
+        return Response({'error': 'Back photo must be less than 10MB'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # Check if user is admin
+        if user.role == 'admin':
+            return Response({'error': 'Admin accounts cannot request password recovery'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if there's already a pending request
+        from .models import PasswordRecoveryRequest
+        existing_pending = PasswordRecoveryRequest.objects.filter(user=user, status='pending').first()
+        
+        if existing_pending:
+            return Response({
+                'message': 'You already have a pending recovery request',
+                'request_id': existing_pending.id,
+                'requested_at': existing_pending.requested_at.isoformat()
+            }, status=status.HTTP_200_OK)
+        
+        # Create new recovery request with photos
+        recovery_request = PasswordRecoveryRequest.objects.create(
+            user=user,
+            id_photo_front=id_photo_front,
+            id_photo_back=id_photo_back
+        )
+        
+        print(f"✅ Password recovery request created for user: {user.username} with ID photos")
+        
+        return Response({
+            'message': 'Password recovery request submitted successfully',
+            'request_id': recovery_request.id,
+            'requested_at': recovery_request.requested_at.isoformat()
+        }, status=status.HTTP_201_CREATED)
+        
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Error creating recovery request: {e}")
+        return Response({'error': 'An error occurred while creating the recovery request'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+def list_recovery_requests_api(request):
+    """
+    List all password recovery requests (admin only)
+    """
+    if not request.user.is_authenticated or request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import PasswordRecoveryRequest
+        
+        # Get filter parameter
+        status_filter = request.GET.get('status', 'all')
+        
+        requests_query = PasswordRecoveryRequest.objects.select_related('user', 'approved_by').all()
+        
+        if status_filter != 'all':
+            requests_query = requests_query.filter(status=status_filter)
+        
+        requests_data = []
+        for req in requests_query:
+            # Build photo URLs
+            id_photo_front_url = request.build_absolute_uri(req.id_photo_front.url) if req.id_photo_front else None
+            id_photo_back_url = request.build_absolute_uri(req.id_photo_back.url) if req.id_photo_back else None
+            
+            requests_data.append({
+                'id': req.id,
+                'user_id': req.user.id,
+                'username': req.user.username,
+                'id_number': req.user.id_number,
+                'email': req.user.email,
+                'name': req.user.get_full_name() or req.user.username,
+                'role': req.user.role,
+                'status': req.status,
+                'requested_at': req.requested_at.isoformat(),
+                'approved_by': req.approved_by.username if req.approved_by else None,
+                'approved_at': req.approved_at.isoformat() if req.approved_at else None,
+                'id_photo_front_url': id_photo_front_url,
+                'id_photo_back_url': id_photo_back_url,
+                'has_photos': bool(req.id_photo_front and req.id_photo_back),
+            })
+        
+        return Response(requests_data)
+        
+    except Exception as e:
+        print(f"❌ Error listing recovery requests: {e}")
+        return Response({'error': 'An error occurred while fetching recovery requests'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def approve_recovery_request_api(request, request_id):
+    """
+    Approve a password recovery request and reset user's password (admin only)
+    """
+    if not request.user.is_authenticated or request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import PasswordRecoveryRequest
+        from django.contrib.auth.hashers import make_password
+        
+        recovery_request = PasswordRecoveryRequest.objects.select_related('user').get(id=request_id)
+        
+        if recovery_request.status == 'approved':
+            return Response({'error': 'This request has already been approved'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update request status
+        recovery_request.status = 'approved'
+        recovery_request.approved_by = request.user
+        recovery_request.approved_at = timezone.now()
+        recovery_request.save()
+        
+        # Reset user's password to temporary password
+        user = recovery_request.user
+        user.password = make_password('password123')
+        user.save()
+        
+        print(f"✅ Password recovery approved for user: {user.username}")
+        
+        return Response({
+            'message': 'Password recovery request approved successfully',
+            'temporary_password': 'password123',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'name': user.get_full_name() or user.username,
+            }
+        })
+        
+    except PasswordRecoveryRequest.DoesNotExist:
+        return Response({'error': 'Recovery request not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Error approving recovery request: {e}")
+        return Response({'error': 'An error occurred while approving the request'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def reject_recovery_request_api(request, request_id):
+    """
+    Reject a password recovery request (admin only)
+    """
+    if not request.user.is_authenticated or request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        from .models import PasswordRecoveryRequest
+        
+        recovery_request = PasswordRecoveryRequest.objects.get(id=request_id)
+        
+        if recovery_request.status != 'pending':
+            return Response({'error': 'Only pending requests can be rejected'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        recovery_request.status = 'rejected'
+        recovery_request.save()
+        
+        print(f"✅ Password recovery rejected for user: {recovery_request.user.username}")
+        
+        return Response({'message': 'Password recovery request rejected'})
+        
+    except PasswordRecoveryRequest.DoesNotExist:
+        return Response({'error': 'Recovery request not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Error rejecting recovery request: {e}")
+        return Response({'error': 'An error occurred while rejecting the request'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
