@@ -278,7 +278,7 @@
                                                         @click="navigateToActivityOutputs(activity, index)">
                                                         <!-- Activity ID# -->
                                                         <div class="col-span-2 text-center">
-                                                            <span class="text-sm text-gray-700 font-medium">{{ activity.id }}</span>
+                                                            <span class="text-sm text-gray-700 font-medium">{{ activity.activity_number || '---' }}</span>
                                                         </div>
 
                                                         <!-- Title -->
@@ -407,7 +407,7 @@
                                                         @click="navigateToActivityOutputs(activity, index)">
                                                         <!-- Activity ID# -->
                                                         <div class="col-span-2 text-center">
-                                                            <span class="text-sm text-gray-700 font-medium">{{ activity.id }}</span>
+                                                            <span class="text-sm text-gray-700 font-medium">{{ activity.activity_number || '---' }}</span>
                                                         </div>
 
                                                         <!-- Title -->
@@ -4539,6 +4539,7 @@ const loadActivities = async (folderId) => {
 
                 return {
                     id: activity.id,
+                    activity_number: activity.activity_number,  // Add activity_number field
                     type: activity.activity_type,
                     title: activity.title,
                     description: activity.description,

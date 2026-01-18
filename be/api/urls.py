@@ -165,6 +165,7 @@ urlpatterns = [
     path('api/admin/users/<int:user_id>/archive/', admin_views.admin_archive_user_api, name='admin_archive_user_api'),
     path('api/admin/users/<int:user_id>/restore/', admin_views.admin_restore_user_api, name='admin_restore_user_api'),
     path('api/admin/archived-users/', admin_views.admin_archived_users_api, name='admin_archived_users_api'),
+    path('api/admin/users/next-id/', admin_views.admin_next_student_id_api, name='admin_next_student_id_api'),
     path('api/admin/classrooms/', admin_views.admin_classrooms_api, name='admin_classrooms_api'),
     path('api/admin/classrooms/<int:classroom_id>/', admin_views.admin_classroom_detail_api, name='admin_classroom_detail_api'),
     path('api/admin/classrooms/<int:classroom_id>/assign-teacher/', admin_views.admin_assign_teacher_api, name='admin_assign_teacher_api'),

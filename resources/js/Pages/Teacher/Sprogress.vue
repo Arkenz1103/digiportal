@@ -564,15 +564,15 @@ const exportClassRecord = async (subjectFilter) => {
             sheetData.push([]);
 
             // Build header row 1: Activity headers with combined info
-            // Format: "Activity 1 - Title - Type - Due Date & Time"
+            // Format: "Activity ID# - Title - Type - Due Date & Time"
             const activityHeaderRow = ['No', 'Student ID', 'Student Name'];
             
             activities.forEach((act, actIndex) => {
-                const actNum = actIndex + 1;
+                const actId = act.activity_number || `${actIndex + 1}`;  // Use activity_number or fallback to index
                 const actType = act.activity_type || 'N/A';
                 const dueDateTime = formatDueDateTime(act);
                 // Combined activity header spanning 3 columns
-                activityHeaderRow.push(`Activity ${actNum} - ${act.title} - ${actType} - ${dueDateTime}`);
+                activityHeaderRow.push(`Activity ${actId} - ${act.title} - ${actType} - ${dueDateTime}`);
                 activityHeaderRow.push(''); // Merged cell placeholder
                 activityHeaderRow.push(''); // Merged cell placeholder
                 
@@ -846,10 +846,11 @@ const downloadRecords = async (exportType) => {
                 // Row 3: Empty row for spacing
                 sheetData.push(Array(totalColumns).fill(''));
 
-                // Row 4: Header row with activity title and type
+                // Row 4: Header row with activity ID, title and type
                 const headerRow = ['No', 'Student ID', 'Student Name'];
                 activities.forEach((act) => {
-                    headerRow.push(`${act.title} (${act.type})`);
+                    const actId = act.activity_number || '---';  // Use activity_number
+                    headerRow.push(`Activity ${actId} - ${act.title} (${act.type})`);
                 });
                 sheetData.push(headerRow);
 
@@ -1095,10 +1096,11 @@ const downloadStudentRecord = async (student) => {
 
             // Activities Detail Section
             sheetData.push(['ACTIVITIES DETAIL']);
-            sheetData.push(['No', 'Activity Title', 'Type', 'Due Date & Time', 'Status', 'Date & Time Submitted', 'Score']);
+            sheetData.push(['Activity ID#', 'Activity Title', 'Type', 'Due Date & Time', 'Status', 'Date & Time Submitted', 'Score']);
 
             // Add activities for this subject
             activities.forEach((activity, index) => {
+                const actId = activity.activity_number || `${index + 1}`;  // Use activity_number or fallback
                 const status = activity.status || 'Pending';
                 const dueDateTime = activity.due_datetime || 'N/A';
                 const activityType = activity.activity_type || 'N/A';
@@ -1125,7 +1127,7 @@ const downloadStudentRecord = async (student) => {
                 }
 
                 sheetData.push([
-                    index + 1,
+                    actId,  // Use activity ID number instead of index
                     activity.title,
                     activityType,
                     dueDateTime,

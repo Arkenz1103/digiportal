@@ -198,12 +198,13 @@ class User(AbstractUser):
         Generate student ID based on school year batch and grade level.
         Format: BBBXXX where BBB = batch prefix, XXX = sequence (001, 002, ...)
         
-        The batch prefix is calculated as: (school_year_number - 1) * 6 + grade_level
+        NEW LOGIC (Updated):
         - School Year 1: Grade 1=001, Grade 2=002, Grade 3=003, Grade 4=004, Grade 5=005, Grade 6=006
-        - School Year 2: Grade 1=007, Grade 2=008, Grade 3=009, Grade 4=010, Grade 5=011, Grade 6=012
-        - School Year 3: Grade 1=013, Grade 2=014, Grade 3=015, Grade 4=016, Grade 5=017, Grade 6=018
+        - School Year 2: Grade 1=007 (only freshmen created)
+        - School Year 3: Grade 1=008 (only freshmen created, +1 from previous)
+        - School Year 4: Grade 1=009 (only freshmen created, +1 from previous)
         
-        The sequence (XXX) resets to 001 for each new school year batch.
+        The sequence (XXX) resets to 001 for each new batch prefix.
         """
         # Parse grade level to get the number
         grade_num = cls._parse_grade_level(grade_level)
@@ -220,10 +221,17 @@ class User(AbstractUser):
         else:
             school_year_num = 1  # Default to first school year if none exists
         
-        # Calculate batch prefix: (school_year_num - 1) * 6 + grade_level
-        # SY1: G1=001, G2=002, G3=003, G4=004, G5=005, G6=006
-        # SY2: G1=007, G2=008, G3=009, G4=010, G5=011, G6=012
-        batch_prefix_num = (school_year_num - 1) * 6 + grade_num
+        # Calculate batch prefix
+        if school_year_num == 1:
+            # First school year: use formula (0 * 6) + grade_level = grade_level
+            # G1=001, G2=002, G3=003, G4=004, G5=005, G6=006
+            batch_prefix_num = grade_num
+        else:
+            # Second school year onwards: only Grade 1 (Freshmen) is created
+            # SY2: G1=007, SY3: G1=008, SY4: G1=009, etc.
+            # Formula: 6 + (school_year_num - 1) = 6 + 1 = 7, 6 + 2 = 8, 6 + 3 = 9
+            batch_prefix_num = 6 + (school_year_num - 1)
+        
         batch_prefix = f"{batch_prefix_num:03d}"
         
         # Find the highest sequence number for this batch prefix
@@ -400,6 +408,7 @@ class PortfolioActivity(models.Model):
     ]
 
     folder = models.ForeignKey(PortfolioFolder, on_delete=models.CASCADE, related_name='activities')
+    activity_number = models.CharField(max_length=10, null=True, blank=True)  # Activity ID like "001", "002", etc.
     activity_type = models.CharField(max_length=100, choices=ACTIVITY_TYPE_CHOICES, default='Quiz')
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
@@ -417,6 +426,41 @@ class PortfolioActivity(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.activity_type}) - {self.folder.name}"
+
+    def generate_activity_number(self):
+        """
+        Generate activity number based on folder and school year.
+        Format: XXX (001, 002, 003, etc.)
+        Resets to 001 for each new school year.
+        """
+        # Get the school year from the folder's classroom
+        if not self.folder or not self.folder.classroom:
+            return "001"
+        
+        school_year = self.folder.classroom.school_year
+        
+        # Find the highest activity number in this folder for this school year
+        existing_activities = PortfolioActivity.objects.filter(
+            folder=self.folder,
+            folder__classroom__school_year=school_year
+        ).exclude(id=self.id).order_by('-activity_number')
+        
+        if existing_activities.exists() and existing_activities.first().activity_number:
+            try:
+                max_number = int(existing_activities.first().activity_number)
+                next_number = max_number + 1
+            except (ValueError, TypeError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        return f"{next_number:03d}"
+
+    def save(self, *args, **kwargs):
+        # Auto-generate activity number if not set
+        if not self.activity_number:
+            self.activity_number = self.generate_activity_number()
+        super().save(*args, **kwargs)
 
 
 class ActivityInstructionFile(models.Model):

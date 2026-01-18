@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
@@ -53,6 +53,7 @@ const showCreateClassroomModal = ref(false);
 const showCreateSchoolYearModal = ref(false);
 const showAssignTeacherModal = ref(false);
 const showArchiveConfirmModal = ref(false);
+const showArchiveWarningModal = ref(false);  // New: Warning modal before archiving
 const schoolYearToArchive = ref(null);
 
 // Edit/Delete modals
@@ -104,6 +105,8 @@ const editUser = ref({
     email: '',
     is_active: true,
     password: '',
+    role: '',  // Add role field
+    grade_level: null,  // Add grade_level field
 });
 
 const editClassroom = ref({
@@ -126,6 +129,13 @@ const newUser = ref({
     grade_level: null,
 });
 
+const nextStudentId = ref('');  // Store the next available student ID
+const isLoadingNextId = ref(false);  // Loading state for fetching next ID
+
+const editNextStudentId = ref('');  // Store the next available student ID for edit mode
+const isLoadingEditNextId = ref(false);  // Loading state for fetching next ID in edit mode
+const originalGradeLevel = ref(null);  // Store original grade level to detect changes
+
 const newClassroom = ref({
     grade_level: null,
     section: '',
@@ -145,14 +155,41 @@ const roleOptions = [
     { label: 'Teacher', value: 'teacher' },
 ];
 
-const gradeOptions = [
-    { label: 'Grade 1', value: 1 },
-    { label: 'Grade 2', value: 2 },
-    { label: 'Grade 3', value: 3 },
-    { label: 'Grade 4', value: 4 },
-    { label: 'Grade 5', value: 5 },
-    { label: 'Grade 6', value: 6 },
-];
+// Dynamic grade options based on school year
+const gradeOptions = computed(() => {
+    // Check if we have school years data
+    if (!schoolYears.value || schoolYears.value.length === 0) {
+        // Default: show all grades if no school year data
+        return [
+            { label: 'Grade 1', value: 1 },
+            { label: 'Grade 2', value: 2 },
+            { label: 'Grade 3', value: 3 },
+            { label: 'Grade 4', value: 4 },
+            { label: 'Grade 5', value: 5 },
+            { label: 'Grade 6', value: 6 },
+        ];
+    }
+    
+    // Count total school years (including archived)
+    const totalSchoolYears = schoolYears.value.length;
+    
+    // First school year: show all grades
+    if (totalSchoolYears === 1) {
+        return [
+            { label: 'Grade 1', value: 1 },
+            { label: 'Grade 2', value: 2 },
+            { label: 'Grade 3', value: 3 },
+            { label: 'Grade 4', value: 4 },
+            { label: 'Grade 5', value: 5 },
+            { label: 'Grade 6', value: 6 },
+        ];
+    }
+    
+    // Second school year onwards: only show Freshmen (Grade 1)
+    return [
+        { label: 'Freshmen', value: 1 },
+    ];
+});
 
 const sectionOptions = [
     { label: 'Section A', value: 'A' },
@@ -184,6 +221,11 @@ const displaySchoolYear = computed(() => {
         return viewingSchoolYear.value.name;
     }
     return currentSchoolYear.value?.name || 'Not Set';
+});
+
+// Check if there's no current school year (system in warning state)
+const hasNoCurrentSchoolYear = computed(() => {
+    return !isViewingArchived.value && !currentSchoolYear.value;
 });
 
 // Load dashboard data
@@ -459,6 +501,84 @@ const restoreUser = async () => {
     }
 };
 
+// Fetch next student ID when grade level changes
+const fetchNextStudentId = async (gradeLevel) => {
+    if (!gradeLevel || newUser.value.role !== 'student') {
+        nextStudentId.value = '';
+        return;
+    }
+    
+    isLoadingNextId.value = true;
+    try {
+        const response = await axios.get('/api/admin/users/next-id/', {
+            params: { grade_level: gradeLevel }
+        });
+        nextStudentId.value = response.data.next_id;
+    } catch (error) {
+        console.error('Failed to fetch next student ID:', error);
+        nextStudentId.value = '';
+    } finally {
+        isLoadingNextId.value = false;
+    }
+};
+
+// Fetch next student ID for edit mode
+const fetchEditNextStudentId = async (gradeLevel) => {
+    if (!gradeLevel || editUser.value.role !== 'student') {
+        editNextStudentId.value = '';
+        return;
+    }
+    
+    isLoadingEditNextId.value = true;
+    try {
+        const response = await axios.get('/api/admin/users/next-id/', {
+            params: { grade_level: gradeLevel }
+        });
+        editNextStudentId.value = response.data.next_id;
+    } catch (error) {
+        console.error('Failed to fetch next student ID:', error);
+        editNextStudentId.value = '';
+    } finally {
+        isLoadingEditNextId.value = false;
+    }
+};
+
+// Watch for grade level changes (Create mode)
+watch(() => newUser.value.grade_level, (newGradeLevel) => {
+    if (newGradeLevel && newUser.value.role === 'student') {
+        fetchNextStudentId(newGradeLevel);
+    } else {
+        nextStudentId.value = '';
+    }
+});
+
+// Watch for role changes (Create mode)
+watch(() => newUser.value.role, (newRole) => {
+    if (newRole === 'student' && newUser.value.grade_level) {
+        fetchNextStudentId(newUser.value.grade_level);
+    } else {
+        nextStudentId.value = '';
+    }
+});
+
+// Watch for gradeOptions changes - auto-select if only one option
+watch(gradeOptions, (newOptions) => {
+    if (newOptions.length === 1 && newUser.value.role === 'student') {
+        // Auto-select the only available grade (Freshmen)
+        newUser.value.grade_level = newOptions[0].value;
+    }
+}, { immediate: true });
+
+// Watch for grade level changes (Edit mode)
+watch(() => editUser.value.grade_level, (newGradeLevel) => {
+    // Only fetch new ID if grade level changed from original AND user is a student
+    if (newGradeLevel && editUser.value.role === 'student' && newGradeLevel !== originalGradeLevel.value) {
+        fetchEditNextStudentId(newGradeLevel);
+    } else {
+        editNextStudentId.value = '';
+    }
+});
+
 // Create user
 const createUser = async () => {
     try {
@@ -529,6 +649,19 @@ const openAssignTeacherModal = (classroom) => {
 // Open archive confirmation modal
 const openArchiveConfirmModal = (schoolYear) => {
     schoolYearToArchive.value = schoolYear;
+    // Show warning modal first instead of direct confirmation
+    showArchiveWarningModal.value = true;
+};
+
+// Handle "Create New Year" button from warning modal
+const createNewYearFromWarning = () => {
+    showArchiveWarningModal.value = false;
+    showCreateSchoolYearModal.value = true;
+};
+
+// Handle "Archive Anyway" button from warning modal
+const archiveAnyway = () => {
+    showArchiveWarningModal.value = false;
     showArchiveConfirmModal.value = true;
 };
 
@@ -577,6 +710,7 @@ const resetNewUser = () => {
         password: 'password123',
         grade_level: null,
     };
+    nextStudentId.value = '';  // Reset next ID
 };
 
 const resetNewClassroom = () => {
@@ -616,7 +750,11 @@ const openEditUserModal = (user) => {
         email: user.email,
         is_active: user.is_active,
         password: '',
+        role: user.role,  // Add role
+        grade_level: user.grade_level || null,  // Add grade_level
     };
+    originalGradeLevel.value = user.grade_level || null;  // Store original grade level
+    editNextStudentId.value = '';  // Reset edit next ID
     showEditUserModal.value = true;
 };
 
@@ -754,7 +892,7 @@ onMounted(() => {
 <template>
     <div class="flex flex-col min-h-screen bg-white/80">
         <!-- Header -->
-        <div class="shadow-lg rounded-t-xl h-40 md:h-36 flex items-center px-6 md:px-8"
+        <div class="shadow-lg h-40 md:h-36 flex items-center px-6 md:px-8"
             :class="isViewingArchived ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700' : 'bg-gradient-to-r from-indigo-700 via-violet-700 to-blue-700'">
             <div class="max-w-7xl mx-auto w-full flex items-center justify-between">
                 <div>
@@ -781,6 +919,30 @@ onMounted(() => {
         </div>
 
         <div class="max-w-7xl mx-auto px-8 py-6 w-full flex-1">
+            <!-- Warning Banner - No Current School Year -->
+            <div v-if="hasNoCurrentSchoolYear" class="mb-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg shadow-md">
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0">
+                        <i class="pi pi-exclamation-triangle text-amber-600 text-2xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-amber-900 font-bold text-lg mb-1">⚠️ No Active School Year</h3>
+                        <p class="text-amber-800 text-sm mb-3">
+                            The system currently has no active school year. You cannot create users or classrooms until a school year is set up.
+                        </p>
+                        <Button 
+                            label="Create School Year Now" 
+                            icon="pi pi-plus" 
+                            @click="showCreateSchoolYearModal = true"
+                            class="bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
+                            size="small" />
+                    </div>
+                    <button @click="hasNoCurrentSchoolYear = false" class="text-amber-600 hover:text-amber-800">
+                        <i class="pi pi-times"></i>
+                    </button>
+                </div>
+            </div>
+
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div class="bg-white rounded-lg shadow p-4">
@@ -819,13 +981,13 @@ onMounted(() => {
                 <div class="bg-white rounded-lg shadow p-4">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                            :class="isViewingArchived ? 'bg-amber-100' : 'bg-indigo-100'">
-                            <i class="pi pi-calendar text-lg" :class="isViewingArchived ? 'text-amber-600' : 'text-indigo-600'"></i>
+                            :class="hasNoCurrentSchoolYear ? 'bg-amber-100' : (isViewingArchived ? 'bg-amber-100' : 'bg-indigo-100')">
+                            <i class="pi pi-calendar text-lg" :class="hasNoCurrentSchoolYear ? 'text-amber-600' : (isViewingArchived ? 'text-amber-600' : 'text-indigo-600')"></i>
                         </div>
                         <div>
-                            <p class="text-base font-bold text-gray-800">{{ displaySchoolYear }}</p>
-                            <p class="text-xs" :class="isViewingArchived ? 'text-amber-600' : 'text-gray-500'">
-                                {{ isViewingArchived ? 'Archived' : 'School Year' }}
+                            <p class="text-base font-bold" :class="hasNoCurrentSchoolYear ? 'text-amber-600' : 'text-gray-800'">{{ displaySchoolYear }}</p>
+                            <p class="text-xs" :class="hasNoCurrentSchoolYear ? 'text-amber-600' : (isViewingArchived ? 'text-amber-600' : 'text-gray-500')">
+                                {{ hasNoCurrentSchoolYear ? 'No Active Year' : (isViewingArchived ? 'Archived' : 'School Year') }}
                             </p>
                         </div>
                     </div>
@@ -834,7 +996,91 @@ onMounted(() => {
 
             <!-- Tabs -->
             <TabView>
-                <!-- Users Tab -->
+                <!-- School Years Tab - FIRST (Most important setup step) -->
+                <TabPanel header="School Years">
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Manage School Years</h3>
+                            <Button v-if="!isViewingArchived" label="New School Year" icon="pi pi-plus" @click="showCreateSchoolYearModal = true"
+                                class="bg-indigo-600 hover:bg-indigo-700" />
+                        </div>
+                        
+                        <DataTable :value="schoolYears" :loading="isLoadingSchoolYears" class="p-datatable-sm" stripedRows>
+                            <Column field="name" header="School Year" sortable />
+                            <Column header="Status">
+                                <template #body="{ data }">
+                                    <span v-if="data.is_current" class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                                        Current
+                                    </span>
+                                    <span v-else-if="data.is_archived" class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                                        Archived
+                                    </span>
+                                </template>
+                            </Column>
+                            <Column field="classrooms_count" header="Classrooms" />
+                            <Column field="teachers_count" header="Teachers" />
+                            <Column field="students_count" header="Students" />
+                            <Column header="Actions">
+                                <template #body="{ data }">
+                                    <div class="flex items-center gap-1">
+                                        <Button v-if="data.is_archived" label="View" size="small" severity="info"
+                                            @click="viewArchivedSchoolYear(data)" class="min-w-[80px]" />
+                                        <Button v-if="data.is_current && !isViewingArchived" label="Archive" size="small" severity="warning"
+                                            @click="openArchiveConfirmModal(data)" class="min-w-[80px]" />
+                                        <Button v-if="!data.is_archived && !isViewingArchived" icon="pi pi-pencil" size="small" severity="secondary" text rounded
+                                            @click="openEditSchoolYearModal(data)" title="Edit Name" />
+                                        <Button v-if="!data.is_current && data.classrooms_count === 0 && !isViewingArchived" 
+                                            icon="pi pi-trash" size="small" severity="danger" text rounded
+                                            @click="openDeleteSchoolYearModal(data)" title="Delete" />
+                                    </div>
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </div>
+                </TabPanel>
+
+                <!-- Classrooms Tab - SECOND -->
+                <TabPanel header="Classrooms">
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Manage Classrooms</h3>
+                            <Button label="Create Classroom" icon="pi pi-plus" @click="showCreateClassroomModal = true"
+                                class="bg-indigo-600 hover:bg-indigo-700"
+                                :disabled="isViewingArchived || hasNoCurrentSchoolYear"
+                                :title="hasNoCurrentSchoolYear ? 'Please create a school year first' : (isViewingArchived ? 'Cannot create classrooms while viewing archived data' : '')" />
+                        </div>
+                        
+                        <DataTable :value="classrooms" :loading="isLoadingClassrooms" paginator :rows="10"
+                            class="p-datatable-sm" stripedRows>
+                            <Column field="name" header="Classroom" sortable />
+                            <Column field="school_year" header="School Year" sortable />
+                            <Column field="class_code" header="Class Code">
+                                <template #body="{ data }">
+                                    <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ data.class_code }}</code>
+                                </template>
+                            </Column>
+                            <Column header="Teacher">
+                                <template #body="{ data }">
+                                    <span v-if="data.teacher" class="text-green-600">{{ data.teacher.name }}</span>
+                                    <span v-else class="text-gray-400">Not assigned</span>
+                                </template>
+                            </Column>
+                            <Column field="student_count" header="Students" />
+                            <Column header="Actions">
+                                <template #body="{ data }">
+                                    <div class="flex gap-1">
+                                        <Button v-if="!isViewingArchived" icon="pi pi-pencil" size="small" severity="info" text
+                                            @click="openEditClassroomModal(data)" title="Edit" />
+                                        <Button v-if="!isViewingArchived && data.student_count === 0" icon="pi pi-trash" size="small" severity="danger" text
+                                            @click="openDeleteClassroomModal(data)" title="Delete" />
+                                    </div>
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </div>
+                </TabPanel>
+
+                <!-- Users Tab - THIRD -->
                 <TabPanel header="Users">
                     <div class="p-4">
                         <div class="flex items-center justify-between mb-4">
@@ -848,8 +1094,8 @@ onMounted(() => {
                             </div>
                             <Button label="Create User" icon="pi pi-plus" @click="showCreateUserModal = true" 
                                 class="bg-indigo-600 hover:bg-indigo-700"
-                                :disabled="isViewingArchived"
-                                :title="isViewingArchived ? 'Cannot create users while viewing archived data' : ''" />
+                                :disabled="isViewingArchived || hasNoCurrentSchoolYear"
+                                :title="hasNoCurrentSchoolYear ? 'Please create a school year first' : (isViewingArchived ? 'Cannot create users while viewing archived data' : '')" />
                         </div>
                         
                         <DataTable :value="users" :loading="isLoadingUsers" paginator :rows="10"
@@ -900,90 +1146,6 @@ onMounted(() => {
                         
                         <!-- User Actions Menu -->
                         <Menu ref="userActionMenu" id="user_action_menu" :model="userActionMenuItems" :popup="true" />
-                    </div>
-                </TabPanel>
-
-                <!-- Classrooms Tab -->
-                <TabPanel header="Classrooms">
-                    <div class="p-4">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold">Manage Classrooms</h3>
-                            <Button label="Create Classroom" icon="pi pi-plus" @click="showCreateClassroomModal = true"
-                                class="bg-indigo-600 hover:bg-indigo-700"
-                                :disabled="isViewingArchived"
-                                :title="isViewingArchived ? 'Cannot create classrooms while viewing archived data' : ''" />
-                        </div>
-                        
-                        <DataTable :value="classrooms" :loading="isLoadingClassrooms" paginator :rows="10"
-                            class="p-datatable-sm" stripedRows>
-                            <Column field="name" header="Classroom" sortable />
-                            <Column field="school_year" header="School Year" sortable />
-                            <Column field="class_code" header="Class Code">
-                                <template #body="{ data }">
-                                    <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ data.class_code }}</code>
-                                </template>
-                            </Column>
-                            <Column header="Teacher">
-                                <template #body="{ data }">
-                                    <span v-if="data.teacher" class="text-green-600">{{ data.teacher.name }}</span>
-                                    <span v-else class="text-gray-400">Not assigned</span>
-                                </template>
-                            </Column>
-                            <Column field="student_count" header="Students" />
-                            <Column header="Actions">
-                                <template #body="{ data }">
-                                    <div class="flex gap-1">
-                                        <Button v-if="!isViewingArchived" icon="pi pi-pencil" size="small" severity="info" text
-                                            @click="openEditClassroomModal(data)" title="Edit" />
-                                        <Button v-if="!isViewingArchived && data.student_count === 0" icon="pi pi-trash" size="small" severity="danger" text
-                                            @click="openDeleteClassroomModal(data)" title="Delete" />
-                                    </div>
-                                </template>
-                            </Column>
-                        </DataTable>
-                    </div>
-                </TabPanel>
-
-                <!-- School Years Tab -->
-                <TabPanel header="School Years">
-                    <div class="p-4">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold">Manage School Years</h3>
-                            <Button v-if="!isViewingArchived" label="New School Year" icon="pi pi-plus" @click="showCreateSchoolYearModal = true"
-                                class="bg-indigo-600 hover:bg-indigo-700" />
-                        </div>
-                        
-                        <DataTable :value="schoolYears" :loading="isLoadingSchoolYears" class="p-datatable-sm" stripedRows>
-                            <Column field="name" header="School Year" sortable />
-                            <Column header="Status">
-                                <template #body="{ data }">
-                                    <span v-if="data.is_current" class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
-                                        Current
-                                    </span>
-                                    <span v-else-if="data.is_archived" class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
-                                        Archived
-                                    </span>
-                                </template>
-                            </Column>
-                            <Column field="classrooms_count" header="Classrooms" />
-                            <Column field="teachers_count" header="Teachers" />
-                            <Column field="students_count" header="Students" />
-                            <Column header="Actions">
-                                <template #body="{ data }">
-                                    <div class="flex items-center gap-1">
-                                        <Button v-if="data.is_archived" label="View" size="small" severity="info"
-                                            icon="pi pi-eye" @click="viewArchivedSchoolYear(data)" />
-                                        <Button v-if="data.is_current && !isViewingArchived" label="Archive" size="small" severity="warning"
-                                            @click="openArchiveConfirmModal(data)" />
-                                        <Button v-if="!data.is_archived && !isViewingArchived" icon="pi pi-pencil" size="small" severity="secondary" text rounded
-                                            @click="openEditSchoolYearModal(data)" title="Edit Name" />
-                                        <Button v-if="!data.is_current && data.classrooms_count === 0 && !isViewingArchived" 
-                                            icon="pi pi-trash" size="small" severity="danger" text rounded
-                                            @click="openDeleteSchoolYearModal(data)" title="Delete" />
-                                    </div>
-                                </template>
-                            </Column>
-                        </DataTable>
                     </div>
                 </TabPanel>
 
@@ -1150,8 +1312,32 @@ onMounted(() => {
                 </div>
                 <div v-if="newUser.role === 'student'">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
-                    <Dropdown v-model="newUser.grade_level" :options="gradeOptions" optionLabel="label" optionValue="value"
-                        placeholder="Select grade" class="w-full" />
+                    
+                    <!-- Show dropdown if multiple grade options -->
+                    <Dropdown v-if="gradeOptions.length > 1" 
+                        v-model="newUser.grade_level" 
+                        :options="gradeOptions" 
+                        optionLabel="label" 
+                        optionValue="value"
+                        placeholder="Select grade" 
+                        class="w-full" />
+                    
+                    <!-- Show read-only field if only one option (Freshmen) -->
+                    <div v-else class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-700 font-medium">
+                        {{ gradeOptions[0]?.label || 'Freshmen' }}
+                    </div>
+                    
+                    <!-- Display Next ID Number -->
+                    <div v-if="newUser.grade_level || gradeOptions.length === 1" class="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700">Next ID Number:</span>
+                            <span v-if="isLoadingNextId" class="text-sm text-gray-500">
+                                <i class="pi pi-spin pi-spinner mr-1"></i>Loading...
+                            </span>
+                            <span v-else class="text-lg font-bold text-indigo-700">{{ nextStudentId || '---' }}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">This ID will be automatically assigned to the new student</p>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
@@ -1228,6 +1414,77 @@ onMounted(() => {
             </template>
         </Dialog>
 
+        <!-- Archive Warning Modal - Shows before actual archive -->
+        <Dialog v-model:visible="showArchiveWarningModal" modal header="Warning: Archive School Year" :style="{ width: '500px' }">
+            <div class="p-4">
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                        <i class="pi pi-exclamation-triangle text-amber-600 text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Archiving will end the current school year</h3>
+                        <p class="text-gray-600 text-sm mb-4">
+                            You are about to archive: <span class="font-semibold text-gray-900">{{ schoolYearToArchive?.name }}</span>
+                        </p>
+                        
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm font-medium text-gray-900 mb-2">Important:</p>
+                            <ul class="text-sm text-gray-700 space-y-1.5">
+                                <li class="flex items-start gap-2">
+                                    <span class="text-amber-600 mt-0.5">•</span>
+                                    <span>After archiving, there will be <strong>no active school year</strong></span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-amber-600 mt-0.5">•</span>
+                                    <span>You <strong>cannot create new users</strong> until a new year is set up</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-amber-600 mt-0.5">•</span>
+                                    <span>You <strong>cannot create new classrooms</strong> until a new year is set up</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-amber-600 mt-0.5">•</span>
+                                    <span>Teachers cannot create activities</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                            <p class="text-sm font-medium text-indigo-900 mb-1">Recommended:</p>
+                            <p class="text-sm text-indigo-800">
+                                Create the new school year <strong>before</strong> archiving the current one to avoid system downtime.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <template #footer>
+                <div class="flex justify-between items-center w-full px-2">
+                    <Button 
+                        label="Cancel" 
+                        size="small"
+                        severity="secondary" 
+                        @click="showArchiveWarningModal = false" 
+                        class="text-gray-700" />
+                    <div class="flex gap-2">
+                        <Button 
+                            label="Create New Year First" 
+                            size="small"
+                            @click="createNewYearFromWarning" 
+                            icon="pi pi-plus"
+                            class="bg-indigo-600 hover:bg-indigo-700 border-indigo-600 text-white" />
+                        <Button 
+                            label="Archive Anyway" 
+                            size="small"
+                            severity="warning" 
+                            @click="archiveAnyway" 
+                            icon="pi pi-arrow-right"
+                            class="bg-amber-500 hover:bg-amber-600 border-amber-500 text-white" />
+                    </div>
+                </div>
+            </template>
+        </Dialog>
+
         <!-- Archive School Year Confirmation Modal -->
         <Dialog v-model:visible="showArchiveConfirmModal" modal header="Archive School Year" :style="{ width: '450px' }">
             <div class="space-y-4 p-2">
@@ -1268,6 +1525,41 @@ onMounted(() => {
                     <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <InputText v-model="editUser.email" type="email" class="w-full" />
                 </div>
+                
+                <!-- Grade Level for Students -->
+                <div v-if="editUser.role === 'student'">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
+                    
+                    <!-- Show dropdown if multiple grade options -->
+                    <Dropdown v-if="gradeOptions.length > 1" 
+                        v-model="editUser.grade_level" 
+                        :options="gradeOptions" 
+                        optionLabel="label" 
+                        optionValue="value"
+                        placeholder="Select grade" 
+                        class="w-full" />
+                    
+                    <!-- Show read-only field if only one option (Freshmen) -->
+                    <div v-else class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-700 font-medium">
+                        {{ gradeOptions[0]?.label || 'Freshmen' }}
+                    </div>
+                    
+                    <!-- Display Next ID Number when grade changes -->
+                    <div v-if="editUser.grade_level && editNextStudentId" class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700">New ID Number:</span>
+                            <span v-if="isLoadingEditNextId" class="text-sm text-gray-500">
+                                <i class="pi pi-spin pi-spinner mr-1"></i>Loading...
+                            </span>
+                            <span v-else class="text-lg font-bold text-amber-700">{{ editNextStudentId || '---' }}</span>
+                        </div>
+                        <p class="text-xs text-amber-600 mt-1">
+                            <i class="pi pi-exclamation-triangle mr-1"></i>
+                            Changing grade level will update the student's ID number
+                        </p>
+                    </div>
+                </div>
+                
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">New Password (leave blank to keep current)</label>
                     <InputText v-model="editUser.password" type="password" class="w-full" placeholder="Enter new password" />

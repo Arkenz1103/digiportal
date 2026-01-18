@@ -4284,6 +4284,7 @@ def class_record_api(request):
             subjects[folder_name]['activities'].append({
                 'id': activity.id,
                 'title': activity.title,
+                'activity_number': activity.activity_number,  # Add activity_number field
                 'activity_type': activity.activity_type,
                 'due_date': activity.due_date.strftime('%Y-%m-%d') if activity.due_date else None,
                 'due_time': activity.due_time.strftime('%H:%M') if activity.due_time else None,
@@ -4684,6 +4685,7 @@ def student_progress_detail_api(request, student_id):
 
                 activities_data.append({
                     'title': activity.title,
+                    'activity_number': activity.activity_number,  # Add activity_number field
                     'folder_name': activity.folder.name,
                     'activity_type': activity.activity_type,
                     'due_datetime': due_datetime,
@@ -4699,6 +4701,7 @@ def student_progress_detail_api(request, student_id):
 
                 activities_data.append({
                     'title': activity.title,
+                    'activity_number': activity.activity_number,  # Add activity_number field
                     'folder_name': activity.folder.name,
                     'activity_type': activity.activity_type,
                     'due_datetime': due_datetime,

@@ -347,8 +347,19 @@ def admin_user_detail_api(request, user_id):
                 user.is_active = data['is_active']
             if 'password' in data and data['password']:
                 user.set_password(data['password'])
-            if 'grade_level' in data:
-                user.grade_level = str(data['grade_level']) if data['grade_level'] else None
+            
+            # Handle grade level change for students - regenerate ID number
+            if 'grade_level' in data and user.role == 'student':
+                new_grade_level = data['grade_level']
+                old_grade_level = user.grade_level
+                
+                # If grade level changed, regenerate ID number
+                if new_grade_level and str(new_grade_level) != str(old_grade_level):
+                    user.grade_level = str(new_grade_level)
+                    # Generate new ID number based on new grade level
+                    user.id_number = User.generate_student_id(new_grade_level)
+                elif new_grade_level:
+                    user.grade_level = str(new_grade_level)
             
             user.save()
             
@@ -362,6 +373,7 @@ def admin_user_detail_api(request, user_id):
                     'name': f"{user.first_name} {user.last_name}".strip(),
                     'role': user.role,
                     'id_number': user.id_number,
+                    'grade_level': user.grade_level,
                 }
             })
         except Exception as e:
@@ -1083,5 +1095,30 @@ def admin_archived_users_api(request):
             })
         
         return Response({'users': users_data, 'count': len(users_data)})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_next_student_id_api(request):
+    """Get the next available student ID for a given grade level"""
+    if request.user.role != 'admin':
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        grade_level = request.query_params.get('grade_level', None)
+        
+        if not grade_level:
+            return Response({'error': 'grade_level parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Generate the next student ID using the existing method
+        next_id = User.generate_student_id(grade_level)
+        
+        return Response({
+            'next_id': next_id,
+            'grade_level': grade_level
+        })
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
